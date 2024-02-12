@@ -1,7 +1,9 @@
 package workflow4s.wio
 
 import cats.effect.IO
+
 import scala.annotation.unused
+import scala.reflect.ClassTag
 
 sealed trait WIO[+Err, +Out, State]
 
@@ -20,23 +22,25 @@ object WIO {
       Some(this.asInstanceOf[HandleQuery[Req, St, Resp]]) // TODO
   }
 
-  case class Or[Err, Out, State](first: WIO[Err, Out, State], second: WIO[Err, Out, State]) extends WIO[Err, Out, State]
+  case class Or[+Err, +Out, State](first: WIO[Err, Out, State], second: WIO[Err, Out, State]) extends WIO[Err, Out, State]
 
   case class Noop[St]() extends WIO[Nothing, Unit, St]
 
   case class SignalHandler[Sig, Evt, St](handle: (St, Sig) => IO[Evt])
-  case class EventHandler[Evt, St, Out](handle: (St, Evt) => (St, Out))(implicit val jw: JournalWrite[Evt])
+  case class EventHandler[Evt, St, Out](handle: (St, Evt) => (St, Out))(implicit val jw: JournalWrite[Evt], ct: ClassTag[Evt]){
+    def expects(any: Any): Option[Evt] = ct.unapply(any)
+  }
   case class QueryHandler[Qr, St, Out](handle: (St, Qr) => Out)
 
   def handleSignal[State] = new HandleSignalPartiallyApplied1[State]
 
   class HandleSignalPartiallyApplied1[St] {
-    def apply[Sig, Evt: JournalWrite, Resp](@unused signalDef: SignalDef[Sig, Resp])(
+    def apply[Sig, Evt: JournalWrite: ClassTag, Resp](@unused signalDef: SignalDef[Sig, Resp])(
         f: (St, Sig) => IO[Evt],
     ): HandleSignalPartiallyApplied2[Sig, St, Evt, Resp] = new HandleSignalPartiallyApplied2[Sig, St, Evt, Resp](f)
   }
 
-  class HandleSignalPartiallyApplied2[Sig, St, Evt: JournalWrite, Resp](handleSignal: (St, Sig) => IO[Evt]) {
+  class HandleSignalPartiallyApplied2[Sig, St, Evt: JournalWrite : ClassTag, Resp](handleSignal: (St, Sig) => IO[Evt]) {
     def handleEvent(f: (St, Evt) => (St, Resp)): WIO[Nothing, Resp, St] = HandleSignal(SignalHandler(handleSignal), EventHandler(f))
   }
 

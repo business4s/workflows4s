@@ -1,9 +1,10 @@
 package workflow4s.wio.simple
 
 import cats.effect.unsafe.IORuntime
+import workflow4s.wio.Interpreter.EventResponse
 import workflow4s.wio.{ActiveWorkflow, QueryResponse, SignalDef, SignalResponse}
 
-class SimpleActor[State](var wf: ActiveWorkflow[State, Any])(implicit IORuntime: IORuntime) {
+class SimpleActor[State](private var wf: ActiveWorkflow[State, Any])(implicit IORuntime: IORuntime) {
 
   def handleSignal[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req): SimpleActor.SignalResponse[Resp] =
     wf.handleSignal(signalDef)(req) match {
@@ -16,6 +17,13 @@ class SimpleActor[State](var wf: ActiveWorkflow[State, Any])(implicit IORuntime:
   def handleQuery[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req): QueryResponse[Resp]               =
     wf.handleQuery(signalDef)(req)
 
+  def handleEvent(event: Any): SimpleActor.EventResponse = wf.handleEvent(event) match {
+    case EventResponse.Ok(newFlow) =>
+      wf = newFlow
+      SimpleActor.EventResponse.Ok
+    case EventResponse.UnexpectedEvent() => SimpleActor.EventResponse.UnexpectedEvent
+  }
+
 }
 
 object SimpleActor {
@@ -23,5 +31,11 @@ object SimpleActor {
   object SignalResponse {
     case class Ok[Resp](result: Resp) extends SignalResponse[Resp]
     case object UnexpectedSignal      extends SignalResponse[Nothing]
+  }
+
+  sealed trait EventResponse
+  object EventResponse{
+    case object Ok extends EventResponse
+    case object UnexpectedEvent extends EventResponse
   }
 }
