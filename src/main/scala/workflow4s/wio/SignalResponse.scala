@@ -6,7 +6,7 @@ sealed trait SignalResponse[St, Resp]
 
 object SignalResponse {
 
-  case class Ok[St, Resp](value: IO[(ActiveWorkflow[St], Resp)]) extends SignalResponse[St, Resp]
+  case class Ok[St, Resp](value: IO[ActiveWorkflow[St, Resp]]) extends SignalResponse[St, Resp]
   case class UnexpectedSignal[St, Resp]()                        extends SignalResponse[St, Resp]
 
 }

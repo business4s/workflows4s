@@ -6,11 +6,17 @@ import workflow4s.wio.{JournalWrite, SignalDef, WIO}
 
 object WithdrawalExample {
 
-  case class WithdrawalData()
+  sealed trait WithdrawalData
+
+  object WithdrawalData {
+    case object Empty                        extends WithdrawalData
+    case class Initiated(amount: BigDecimal) extends WithdrawalData
+  }
 
   case class CreateWithdrawal(amount: BigDecimal)
 
   val createWithdrawalSignal = SignalDef[CreateWithdrawal, Unit]()
+  val dataQueryDef           = SignalDef[Unit, WithdrawalData]()
 
   sealed trait WithdrawalEvent
   object WithdrawalEvent {
@@ -18,13 +24,19 @@ object WithdrawalExample {
     implicit val WithdrawalInitiatedJournalWrite: JournalWrite[WithdrawalInitiated] = null
   }
 
-  val workflow = initSignal
+  val workflow: WIO.Total[WithdrawalData] = WIO.par(
+    initSignal,
+    dataQuery,
+  )
 
   private def initSignal =
     WIO
       .handleSignal[WithdrawalData](createWithdrawalSignal) { (_, signal) =>
         IO(WithdrawalInitiated(signal.amount))
       }
-      .handleEvent { (state, _) => (state, ())}
+      .handleEvent { (_, event) => (WithdrawalData.Initiated(event.amount), ()) }
+
+  private def dataQuery =
+    WIO.handleQuery[WithdrawalData](dataQueryDef) { (state, _) => state }
 
 }
