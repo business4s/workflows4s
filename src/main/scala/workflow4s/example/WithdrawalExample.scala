@@ -11,7 +11,10 @@ object WithdrawalExample {
   val dataQuery              = SignalDef[Unit, WithdrawalData]()
 
   val workflow: WIO.Total[WithdrawalData] = WIO.par(
-    initSignal,
+    for {
+      _ <- initSignal
+      _ <- secondSignal
+    } yield (),
     hadnleDataQuery,
   )
 
@@ -21,6 +24,13 @@ object WithdrawalExample {
         IO(WithdrawalInitiated(signal.amount))
       }
       .handleEvent { (_, event) => (WithdrawalData.Initiated(event.amount), ()) }
+
+
+  private def secondSignal = WIO
+    .handleSignal[WithdrawalData](createWithdrawalSignal) { (_, signal) =>
+      IO(WithdrawalInitiated(signal.amount))
+    }
+    .handleEvent { (_, event) => (WithdrawalData.Initiated(event.amount * 2), ()) }
 
   private def hadnleDataQuery =
     WIO.handleQuery[WithdrawalData](dataQuery) { (state, _) => state }

@@ -13,9 +13,11 @@ class WithdrawalExampleTest extends AnyFreeSpec {
 
     "init" in new Fixture {
       assert(actor.queryData() == WithdrawalData.Empty)
+      println(actor.wf.wio)
       actor.init(CreateWithdrawal(100))
       assert(actor.queryData() == WithdrawalData.Initiated(100))
-
+      actor.init(CreateWithdrawal(100))
+      assert(actor.queryData() == WithdrawalData.Initiated(200))
       checkRecovery()
     }
   }

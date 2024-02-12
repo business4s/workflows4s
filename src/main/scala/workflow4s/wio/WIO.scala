@@ -5,7 +5,13 @@ import cats.effect.IO
 import scala.annotation.unused
 import scala.reflect.ClassTag
 
-sealed trait WIO[+Err, +Out, State]
+sealed trait WIO[+Err, +Out, State] {
+
+  def flatMap[Err1 >: Err, Out1](f: Out => WIO[Err1, Out1, State]): WIO[Err1, Out1, State] = WIO.FlatMap(this, f)
+
+  def map[Out1](f: Out => Out1): WIO[Err, Out1, State] = WIO.Map(this, f)
+
+}
 
 object WIO {
 
@@ -24,10 +30,13 @@ object WIO {
 
   case class Or[+Err, +Out, State](first: WIO[Err, Out, State], second: WIO[Err, Out, State]) extends WIO[Err, Out, State]
 
+  case class FlatMap[+Err, Out1, Out2, State](base: WIO[Err, Out1, State], f: Out1 => WIO[Err, Out2, State]) extends WIO[Err, Out2, State]
+  case class Map[+Err, Out1, Out2, State](base: WIO[Err, Out1, State], f: Out1 => Out2)                      extends WIO[Err, Out2, State]
+
   case class Noop[St]() extends WIO[Nothing, Unit, St]
 
   case class SignalHandler[Sig, Evt, St](handle: (St, Sig) => IO[Evt])
-  case class EventHandler[Evt, St, Out](handle: (St, Evt) => (St, Out))(implicit val jw: JournalWrite[Evt], ct: ClassTag[Evt]){
+  case class EventHandler[Evt, St, Out](handle: (St, Evt) => (St, Out))(implicit val jw: JournalWrite[Evt], ct: ClassTag[Evt]) {
     def expects(any: Any): Option[Evt] = ct.unapply(any)
   }
   case class QueryHandler[Qr, St, Out](handle: (St, Qr) => Out)
@@ -40,7 +49,7 @@ object WIO {
     ): HandleSignalPartiallyApplied2[Sig, St, Evt, Resp] = new HandleSignalPartiallyApplied2[Sig, St, Evt, Resp](f)
   }
 
-  class HandleSignalPartiallyApplied2[Sig, St, Evt: JournalWrite : ClassTag, Resp](handleSignal: (St, Sig) => IO[Evt]) {
+  class HandleSignalPartiallyApplied2[Sig, St, Evt: JournalWrite: ClassTag, Resp](handleSignal: (St, Sig) => IO[Evt]) {
     def handleEvent(f: (St, Evt) => (St, Resp)): WIO[Nothing, Resp, St] = HandleSignal(SignalHandler(handleSignal), EventHandler(f))
   }
 
@@ -52,6 +61,6 @@ object WIO {
     ): HandleQuery[Sig, St, Resp] = WIO.HandleQuery(QueryHandler(f))
   }
 
-  def par[Err, Out, State](first: WIO[Err, Out, State], second: WIO[Err, Out, State]) = Or(first, second)
+  def par[Err, Out, State](first: WIO[Err, Out, State], second: WIO[Err, Out, State]): Or[Err, Out, State] = Or(first, second)
 
 }
