@@ -2,7 +2,7 @@ package workflow4s.example
 
 import cats.effect.unsafe.implicits.global
 import org.scalatest.freespec.AnyFreeSpec
-import workflow4s.example.WithdrawalExample.{CreateWithdrawal, WithdrawalData}
+import workflow4s.example.WithdrawalSignal.CreateWithdrawal
 import workflow4s.wio.simple.{InMemoryJournal, SimpleActor}
 import workflow4s.wio.{ActiveWorkflow, Interpreter, QueryResponse}
 
@@ -22,9 +22,9 @@ class WithdrawalExampleTest extends AnyFreeSpec {
       extends SimpleActor[WithdrawalData](
         ActiveWorkflow(WithdrawalData.Empty, WithdrawalExample.workflow, new Interpreter(new InMemoryJournal), ()),
       ) {
-    def init(req: WithdrawalExample.CreateWithdrawal): Unit = this.handleSignal(WithdrawalExample.createWithdrawalSignal)(req).extract
+    def init(req: CreateWithdrawal): Unit = this.handleSignal(WithdrawalExample.createWithdrawalSignal)(req).extract
 
-    def getData(): WithdrawalData = this.handleQuery(WithdrawalExample.dataQueryDef)(()).extract
+    def getData(): WithdrawalData = this.handleQuery(WithdrawalExample.dataQuery)(()).extract
   }
 
   implicit class SimpleSignalResponseOps[Resp](value: SimpleActor.SignalResponse[Resp]) {
