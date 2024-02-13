@@ -28,7 +28,7 @@ The following items are planned in scope of this PoC
 
 * workflows are built using `WIO` monad
 * a workflow supports following operations:
-  * running side-effectful/non-deterministic comuptations
+  * running side-effectful/non-deterministic computations
   * receiving signals that can modify the workflow state
   * querying the workflow state
   * recovering workflow state without re-triggering of side-effecting operations
