@@ -56,4 +56,5 @@ Internals:
 * [Interpreter.scala](src%2Fmain%2Fscala%2Fworkflow4s%2Fwio%2FInterpreter.scala) - the logic for handling particular operations
 * [ActiveWorkflow.scala](src%2Fmain%2Fscala%2Fworkflow4s%2Fwio%2FActiveWorkflow.scala) - its the workflow state which also the interpretation result
 * [SimpleActor.scala](src%2Fmain%2Fscala%2Fworkflow4s%2Fwio%2Fsimple%2FSimpleActor.scala) - a very simple implementation of a mutable actor, until we have a proper, pekko-based, example
+* [WithdrawalWorkflow.scala](src%2Fmain%2Fscala%2Fworkflow4s%2Fexample%2FWithdrawalWorkflow.scala) - an example of how to define a workflow
 * [WithdrawalWorkflowTest.scala](src%2Ftest%2Fscala%2Fworkflow4s%2Fexample%2FWithdrawalWorkflowTest.scala) - a test intended to showcase actor usage and the general behaviour
