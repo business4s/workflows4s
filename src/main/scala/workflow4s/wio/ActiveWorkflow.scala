@@ -1,6 +1,6 @@
 package workflow4s.wio
 
-import workflow4s.wio.Interpreter.{EventResponse, ProceedResponse}
+import workflow4s.wio.Interpreter.{EventResponse, ProceedResponse, SignalResponse, QueryResponse}
 
 case class ActiveWorkflow[St, +Out](state: St, wio: WIO.Total[St], interpreter: Interpreter[St], value: Out) {
 

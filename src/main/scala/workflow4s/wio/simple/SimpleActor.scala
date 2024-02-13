@@ -1,8 +1,8 @@
 package workflow4s.wio.simple
 
 import cats.effect.unsafe.IORuntime
-import workflow4s.wio.Interpreter.{EventResponse, ProceedResponse}
-import workflow4s.wio.{ActiveWorkflow, QueryResponse, SignalDef, SignalResponse}
+import workflow4s.wio.Interpreter.{EventResponse, ProceedResponse, QueryResponse, SignalResponse}
+import workflow4s.wio.{ActiveWorkflow, SignalDef}
 
 class SimpleActor[State]( /*private*/ var wf: ActiveWorkflow[State, Any])(implicit IORuntime: IORuntime) {
 

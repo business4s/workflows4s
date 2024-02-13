@@ -7,10 +7,8 @@ import workflow4s.example.WithdrawalSignal.CreateWithdrawal
 import workflow4s.wio.{SignalDef, WIO}
 
 object WithdrawalWorkflow {
-
   val createWithdrawalSignal = SignalDef[CreateWithdrawal, Unit]()
   val dataQuery              = SignalDef[Unit, WithdrawalData]()
-
 }
 
 class WithdrawalWorkflow(service: WithdrawalService) {
@@ -20,10 +18,10 @@ class WithdrawalWorkflow(service: WithdrawalService) {
       _ <- initSignal
       _ <- calculateFees
     } yield (),
-    hadnleDataQuery,
+    handleDataQuery,
   )
 
-  private def initSignal =
+  private def initSignal: WIO[Nothing, Unit, WithdrawalData] =
     WIO
       .handleSignal[WithdrawalData](createWithdrawalSignal) { (_, signal) =>
         IO(WithdrawalInitiated(signal.amount))
@@ -34,7 +32,7 @@ class WithdrawalWorkflow(service: WithdrawalService) {
     .runIO[WithdrawalData](state => service.calculateFees(state.asInstanceOf[WithdrawalData.Initiated].amount).map(WithdrawalEvent.FeeSet))
     .handleEvent { (state, event) => (state.asInstanceOf[WithdrawalData.Initiated].copy(fee = Some(event.fee)), ()) }
 
-  private def hadnleDataQuery =
+  private def handleDataQuery =
     WIO.handleQuery[WithdrawalData](dataQuery) { (state, _) => state }
 
 }

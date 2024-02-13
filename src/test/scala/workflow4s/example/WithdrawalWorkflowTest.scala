@@ -5,9 +5,10 @@ import cats.effect.unsafe.implicits.global
 import org.scalatest.freespec.AnyFreeSpec
 import workflow4s.example.WithdrawalService.Fee
 import workflow4s.example.WithdrawalSignal.CreateWithdrawal
+import workflow4s.wio.Interpreter.QueryResponse
 import workflow4s.wio.simple.SimpleActor.EventResponse
 import workflow4s.wio.simple.{InMemoryJournal, SimpleActor}
-import workflow4s.wio.{ActiveWorkflow, Interpreter, QueryResponse}
+import workflow4s.wio.{ActiveWorkflow, Interpreter}
 
 class WithdrawalWorkflowTest extends AnyFreeSpec {
 

@@ -2,7 +2,7 @@ package workflow4s.wio
 
 import cats.effect.IO
 import cats.implicits.catsSyntaxOptionId
-import workflow4s.wio.Interpreter.{EventResponse, ProceedResponse}
+import workflow4s.wio.Interpreter.{EventResponse, ProceedResponse, QueryResponse, SignalResponse}
 import workflow4s.wio.WIO.{EventHandler, HandleSignal}
 
 class Interpreter[St](journal: JournalPersistance) {
@@ -121,6 +121,18 @@ object Interpreter {
   object ProceedResponse {
     case class Executed[St](newFlow: IO[ActiveWorkflow[St, Any]]) extends ProceedResponse[St]
     case class Noop[St]()                                         extends ProceedResponse[St]
+  }
+
+  sealed trait SignalResponse[St, Resp]
+  object SignalResponse {
+    case class Ok[St, Resp](value: IO[(ActiveWorkflow[St, Any], Resp)]) extends SignalResponse[St, Resp]
+    case class UnexpectedSignal[St, Resp]()                             extends SignalResponse[St, Resp]
+  }
+
+  sealed trait QueryResponse[Resp]
+  object QueryResponse {
+    case class Ok[Resp](value: Resp)   extends QueryResponse[Resp]
+    case class UnexpectedQuery[Resp]() extends QueryResponse[Resp]
   }
 
 }
