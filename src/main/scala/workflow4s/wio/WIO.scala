@@ -28,12 +28,13 @@ object WIO {
       Some(this.asInstanceOf[HandleQuery[Req, St, Resp]]) // TODO
   }
 
-  case class Or[+Err, +Out, State](first: WIO[Err, Out, State], second: WIO[Err, Out, State]) extends WIO[Err, Out, State]
+  // theoretically state is not needed, it could be State.extract.flatMap(RunIO)
+  case class RunIO[St, Evt, O](buildIO: St => IO[Evt], evtHandler: EventHandler[Evt, St, O]) extends WIO[Nothing, O, St]
 
+  case class Or[+Err, +Out, State](first: WIO[Err, Out, State], second: WIO[Err, Out, State])                extends WIO[Err, Out, State]
   case class FlatMap[+Err, Out1, Out2, State](base: WIO[Err, Out1, State], f: Out1 => WIO[Err, Out2, State]) extends WIO[Err, Out2, State]
   case class Map[+Err, Out1, Out2, State](base: WIO[Err, Out1, State], f: Out1 => Out2)                      extends WIO[Err, Out2, State]
-
-  case class Noop[St]() extends WIO[Nothing, Unit, St]
+  case class Noop[St]()                                                                                      extends WIO[Nothing, Unit, St]
 
   case class SignalHandler[Sig, Evt, St](handle: (St, Sig) => IO[Evt])
   case class EventHandler[Evt, St, Out](handle: (St, Evt) => (St, Out))(implicit val jw: JournalWrite[Evt], ct: ClassTag[Evt]) {
@@ -56,11 +57,21 @@ object WIO {
   def handleQuery[State] = new HandleQueryPartiallyApplied1[State]
 
   class HandleQueryPartiallyApplied1[St] {
-    def apply[Sig, Resp](@unused signalDef: SignalDef[Sig, Resp])(
-        f: (St, Sig) => Resp,
-    ): HandleQuery[Sig, St, Resp] = WIO.HandleQuery(QueryHandler(f))
+    def apply[Sig, Resp](@unused signalDef: SignalDef[Sig, Resp])(f: (St, Sig) => Resp): HandleQuery[Sig, St, Resp] =
+      WIO.HandleQuery(QueryHandler(f))
   }
 
-  def par[Err, Out, State](first: WIO[Err, Out, State], second: WIO[Err, Out, State]): Or[Err, Out, State] = Or(first, second)
+  def par[Err, Out, State](first: WIO[Err, Out, State], second: WIO[Err, Out, State]): Or[Err, Out, State] =
+    Or(first, second)
+
+  def runIO[State] = new RunIOPartiallyApplied1[State]
+
+  class RunIOPartiallyApplied1[St] {
+    def apply[Evt: JournalWrite: ClassTag, Resp](f: St => IO[Evt]): RunIOPartiallyApplied2[St, Evt, Resp] = new RunIOPartiallyApplied2[St, Evt, Resp](f)
+  }
+
+  class RunIOPartiallyApplied2[St, Evt: JournalWrite: ClassTag, Resp](getIO: St => IO[Evt]) {
+    def handleEvent(f: (St, Evt) => (St, Resp)): WIO[Nothing, Resp, St] = RunIO(getIO, EventHandler(f))
+  }
 
 }

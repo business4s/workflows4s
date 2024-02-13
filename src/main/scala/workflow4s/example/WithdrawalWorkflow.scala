@@ -2,18 +2,23 @@ package workflow4s.example
 
 import cats.effect.IO
 import workflow4s.example.WithdrawalEvent.WithdrawalInitiated
+import workflow4s.example.WithdrawalWorkflow.{createWithdrawalSignal, dataQuery}
 import workflow4s.example.WithdrawalSignal.CreateWithdrawal
 import workflow4s.wio.{SignalDef, WIO}
 
-object WithdrawalExample {
+object WithdrawalWorkflow {
 
   val createWithdrawalSignal = SignalDef[CreateWithdrawal, Unit]()
   val dataQuery              = SignalDef[Unit, WithdrawalData]()
 
+}
+
+class WithdrawalWorkflow(service: WithdrawalService) {
+
   val workflow: WIO.Total[WithdrawalData] = WIO.par(
     for {
       _ <- initSignal
-      _ <- secondSignal
+      _ <- calculateFees
     } yield (),
     hadnleDataQuery,
   )
@@ -23,14 +28,11 @@ object WithdrawalExample {
       .handleSignal[WithdrawalData](createWithdrawalSignal) { (_, signal) =>
         IO(WithdrawalInitiated(signal.amount))
       }
-      .handleEvent { (_, event) => (WithdrawalData.Initiated(event.amount), ()) }
+      .handleEvent { (_, event) => (WithdrawalData.Initiated(event.amount, None), ()) }
 
-
-  private def secondSignal = WIO
-    .handleSignal[WithdrawalData](createWithdrawalSignal) { (_, signal) =>
-      IO(WithdrawalInitiated(signal.amount))
-    }
-    .handleEvent { (_, event) => (WithdrawalData.Initiated(event.amount * 2), ()) }
+  private def calculateFees = WIO
+    .runIO[WithdrawalData](state => service.calculateFees(state.asInstanceOf[WithdrawalData.Initiated].amount).map(WithdrawalEvent.FeeSet))
+    .handleEvent { (state, event) => (state.asInstanceOf[WithdrawalData.Initiated].copy(fee = Some(event.fee)), ()) }
 
   private def hadnleDataQuery =
     WIO.handleQuery[WithdrawalData](dataQuery) { (state, _) => state }

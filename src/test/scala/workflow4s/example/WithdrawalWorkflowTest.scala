@@ -1,23 +1,23 @@
 package workflow4s.example
 
+import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import org.scalatest.freespec.AnyFreeSpec
+import workflow4s.example.WithdrawalService.Fee
 import workflow4s.example.WithdrawalSignal.CreateWithdrawal
 import workflow4s.wio.simple.SimpleActor.EventResponse
 import workflow4s.wio.simple.{InMemoryJournal, SimpleActor}
 import workflow4s.wio.{ActiveWorkflow, Interpreter, QueryResponse}
 
-class WithdrawalExampleTest extends AnyFreeSpec {
+class WithdrawalWorkflowTest extends AnyFreeSpec {
 
   "Withdrawal Example" - {
 
     "init" in new Fixture {
       assert(actor.queryData() == WithdrawalData.Empty)
-      println(actor.wf.wio)
       actor.init(CreateWithdrawal(100))
-      assert(actor.queryData() == WithdrawalData.Initiated(100))
-      actor.init(CreateWithdrawal(100))
-      assert(actor.queryData() == WithdrawalData.Initiated(200))
+      assert(actor.queryData() == WithdrawalData.Initiated(100, Some(fees)))
+
       checkRecovery()
     }
   }
@@ -38,13 +38,20 @@ class WithdrawalExampleTest extends AnyFreeSpec {
     actor
   }
 
+  val fees    = Fee(11)
+  val service = new WithdrawalService {
+    override def calculateFees(amount: BigDecimal): IO[Fee] = IO(fees)
+  }
+
   class WithdrawalActor(journal: InMemoryJournal)
       extends SimpleActor[WithdrawalData](
-        ActiveWorkflow(WithdrawalData.Empty, WithdrawalExample.workflow, new Interpreter(journal), ()),
+        ActiveWorkflow(WithdrawalData.Empty, new WithdrawalWorkflow(service).workflow, new Interpreter(journal), ()),
       ) {
-    def init(req: CreateWithdrawal): Unit = this.handleSignal(WithdrawalExample.createWithdrawalSignal)(req).extract
+    def init(req: CreateWithdrawal): Unit = {
+      this.handleSignal(WithdrawalWorkflow.createWithdrawalSignal)(req).extract
+    }
 
-    def queryData(): WithdrawalData = this.handleQuery(WithdrawalExample.dataQuery)(()).extract
+    def queryData(): WithdrawalData = this.handleQuery(WithdrawalWorkflow.dataQuery)(()).extract
 
     def recover(): Unit = journal.getEvents.foreach(e =>
       this.handleEvent(e) match {
@@ -52,6 +59,7 @@ class WithdrawalExampleTest extends AnyFreeSpec {
         case EventResponse.UnexpectedEvent => throw new IllegalArgumentException(s"Unexpected event :${e}")
       },
     )
+    this.proceed()
   }
 
   implicit class SimpleSignalResponseOps[Resp](value: SimpleActor.SignalResponse[Resp]) {

@@ -1,6 +1,6 @@
 package workflow4s.wio
 
-import workflow4s.wio.Interpreter.EventResponse
+import workflow4s.wio.Interpreter.{EventResponse, ProceedResponse}
 
 case class ActiveWorkflow[St, +Out](state: St, wio: WIO.Total[St], interpreter: Interpreter[St], value: Out) {
 
@@ -10,5 +10,7 @@ case class ActiveWorkflow[St, +Out](state: St, wio: WIO.Total[St], interpreter: 
     interpreter.handleQuery[Req, Resp, Nothing, Any](signalDef, req, wio, state)
   def handleEvent(event: Any): EventResponse[St]                                                   =
     interpreter.handleEvent(event, wio, state)
+  def proceed: ProceedResponse[St]                                                                 =
+    interpreter.proceed(wio, state)
 
 }
