@@ -1,3 +1,5 @@
 package workflow4s.wio
 
-case class SignalDef[Req, Resp]()
+import scala.reflect.ClassTag
+
+case class SignalDef[Req, Resp]()(implicit val respCt: ClassTag[Resp])

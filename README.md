@@ -16,9 +16,10 @@ The following items are planned in scope of this PoC
 - [x] Recovery from events
 - [x] Handling step sequencing (flatMap)
 - [x] Handling IO execution
-- [ ] Handling state transitions
+- [x] Handling state transitions
 - [ ] Handling errors
 - [ ] Handling posponed executions (await)
+- [ ] Typesafe total queries? (currently state is filtered arbitraly by the query) 
 - [ ] Pekko backend PoC
 - [ ] Full example
 

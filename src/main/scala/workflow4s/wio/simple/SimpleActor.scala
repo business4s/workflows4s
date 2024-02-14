@@ -2,9 +2,10 @@ package workflow4s.wio.simple
 
 import cats.effect.unsafe.IORuntime
 import workflow4s.wio.Interpreter.{EventResponse, ProceedResponse, QueryResponse, SignalResponse}
+import workflow4s.wio.internal.CurrentStateEvaluator
 import workflow4s.wio.{ActiveWorkflow, SignalDef}
 
-class SimpleActor[State]( /*private*/ var wf: ActiveWorkflow[State, Any])(implicit IORuntime: IORuntime) {
+class SimpleActor( /*private*/ var wf: ActiveWorkflow)(implicit IORuntime: IORuntime) {
 
   def handleSignal[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req): SimpleActor.SignalResponse[Resp] =
     wf.handleSignal(signalDef)(req) match {
@@ -13,18 +14,21 @@ class SimpleActor[State]( /*private*/ var wf: ActiveWorkflow[State, Any])(implic
         wf = newWf
         proceed()
         SimpleActor.SignalResponse.Ok(resp)
-      case SignalResponse.UnexpectedSignal() => SimpleActor.SignalResponse.UnexpectedSignal
+      case SignalResponse.UnexpectedSignal() => SimpleActor.SignalResponse.UnexpectedSignal(wf.getDesc)
     }
-  def handleQuery[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req): QueryResponse[Resp]               =
-    wf.handleQuery(signalDef)(req)
+  def handleQuery[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req): SimpleActor.QueryResponse[Resp]               =
+    wf.handleQuery(signalDef)(req) match {
+      case QueryResponse.Ok(value)         => SimpleActor.QueryResponse.Ok(value)
+      case QueryResponse.UnexpectedQuery() => SimpleActor.QueryResponse.UnexpectedQuery(wf.getDesc)
+    }
 
   def handleEvent(event: Any): SimpleActor.EventResponse = wf.handleEvent(event) match {
     case EventResponse.Ok(newFlow)       =>
       wf = newFlow
       SimpleActor.EventResponse.Ok
-    case EventResponse.UnexpectedEvent() => SimpleActor.EventResponse.UnexpectedEvent
+    case EventResponse.UnexpectedEvent() => SimpleActor.EventResponse.UnexpectedEvent(wf.getDesc)
   }
-  def proceed(): Unit                                      = wf.proceed match {
+  def proceed(): Unit                                    = wf.proceed match {
     case ProceedResponse.Executed(newFlowIO) =>
       wf = newFlowIO.unsafeRunSync()
       proceed()
@@ -36,13 +40,19 @@ class SimpleActor[State]( /*private*/ var wf: ActiveWorkflow[State, Any])(implic
 object SimpleActor {
   sealed trait SignalResponse[+Resp]
   object SignalResponse {
-    case class Ok[Resp](result: Resp) extends SignalResponse[Resp]
-    case object UnexpectedSignal      extends SignalResponse[Nothing]
+    case class Ok[Resp](result: Resp)        extends SignalResponse[Resp]
+    case class UnexpectedSignal(msg: String) extends SignalResponse[Nothing]
   }
 
   sealed trait EventResponse
   object EventResponse {
-    case object Ok              extends EventResponse
-    case object UnexpectedEvent extends EventResponse
+    case object Ok                          extends EventResponse
+    case class UnexpectedEvent(msg: String) extends EventResponse
+  }
+
+  sealed trait QueryResponse[+Resp]
+  object QueryResponse {
+    case class Ok[Resp](result: Resp)       extends QueryResponse[Resp]
+    case class UnexpectedQuery(msg: String) extends QueryResponse[Nothing]
   }
 }

@@ -5,7 +5,6 @@ import cats.effect.unsafe.implicits.global
 import org.scalatest.freespec.AnyFreeSpec
 import workflow4s.example.WithdrawalService.Fee
 import workflow4s.example.WithdrawalSignal.CreateWithdrawal
-import workflow4s.wio.Interpreter.QueryResponse
 import workflow4s.wio.simple.SimpleActor.EventResponse
 import workflow4s.wio.simple.{InMemoryJournal, SimpleActor}
 import workflow4s.wio.{ActiveWorkflow, Interpreter}
@@ -45,7 +44,7 @@ class WithdrawalWorkflowTest extends AnyFreeSpec {
   }
 
   class WithdrawalActor(journal: InMemoryJournal)
-      extends SimpleActor[WithdrawalData](
+      extends SimpleActor(
         ActiveWorkflow(WithdrawalData.Empty, new WithdrawalWorkflow(service).workflow, new Interpreter(journal), ()),
       ) {
     def init(req: CreateWithdrawal): Unit = {
@@ -57,7 +56,7 @@ class WithdrawalWorkflowTest extends AnyFreeSpec {
     def recover(): Unit = journal.getEvents.foreach(e =>
       this.handleEvent(e) match {
         case EventResponse.Ok              => ()
-        case EventResponse.UnexpectedEvent => throw new IllegalArgumentException(s"Unexpected event :${e}")
+        case EventResponse.UnexpectedEvent(desc) => throw new IllegalArgumentException(s"Unexpected event :${desc}")
       },
     )
     this.proceed()
@@ -66,13 +65,13 @@ class WithdrawalWorkflowTest extends AnyFreeSpec {
   implicit class SimpleSignalResponseOps[Resp](value: SimpleActor.SignalResponse[Resp]) {
     def extract: Resp = value match {
       case SimpleActor.SignalResponse.Ok(result)       => result
-      case SimpleActor.SignalResponse.UnexpectedSignal => throw new IllegalArgumentException("Unexpected signal")
+      case SimpleActor.SignalResponse.UnexpectedSignal(desc) => throw new IllegalArgumentException(s"Unexpected signal: $desc")
     }
   }
-  implicit class SimpleQueryResponseOps[Resp](value: QueryResponse[Resp])               {
+  implicit class SimpleQueryResponseOps[Resp](value: SimpleActor.QueryResponse[Resp])               {
     def extract: Resp = value match {
-      case QueryResponse.Ok(result)        => result
-      case QueryResponse.UnexpectedQuery() => throw new IllegalArgumentException("Unexpected query")
+      case SimpleActor.QueryResponse.Ok(result)        => result
+      case SimpleActor.QueryResponse.UnexpectedQuery(desc) => throw new IllegalArgumentException(s"Unexpected query: $desc")
     }
   }
 

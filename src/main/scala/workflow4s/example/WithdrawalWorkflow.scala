@@ -13,24 +13,26 @@ object WithdrawalWorkflow {
 
 class WithdrawalWorkflow(service: WithdrawalService) {
 
-  val workflow: WIO.Total[WithdrawalData] = WIO.par(
-    for {
-      _ <- initSignal
-      _ <- calculateFees
-    } yield (),
-    handleDataQuery,
-  )
+  val workflow: WIO.Total[WithdrawalData.Empty.type] = for {
+    _ <- handleDataQuery(
+           for {
+             _ <- initSignal
+             _ <- calculateFees
+           } yield (),
+         )
+    _ <- handleDataQuery(WIO.Noop())
+  } yield ()
 
-  private def initSignal: WIO[Nothing, Unit, WithdrawalData] =
+  private def initSignal: WIO[Nothing, Unit, WithdrawalData.Empty.type, WithdrawalData.Initiated] =
     WIO
-      .handleSignal[WithdrawalData](createWithdrawalSignal) { (_, signal) =>
+      .handleSignal[WithdrawalData.Empty.type](createWithdrawalSignal) { (_, signal) =>
         IO(WithdrawalInitiated(signal.amount))
       }
       .handleEvent { (_, event) => (WithdrawalData.Initiated(event.amount, None), ()) }
 
   private def calculateFees = WIO
-    .runIO[WithdrawalData](state => service.calculateFees(state.asInstanceOf[WithdrawalData.Initiated].amount).map(WithdrawalEvent.FeeSet))
-    .handleEvent { (state, event) => (state.asInstanceOf[WithdrawalData.Initiated].copy(fee = Some(event.fee)), ()) }
+    .runIO[WithdrawalData.Initiated](state => service.calculateFees(state.amount).map(WithdrawalEvent.FeeSet))
+    .handleEvent { (state, event) => (state.copy(fee = Some(event.fee)), ()) }
 
   private def handleDataQuery =
     WIO.handleQuery[WithdrawalData](dataQuery) { (state, _) => state }
