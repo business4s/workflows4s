@@ -26,7 +26,7 @@ object CurrentStateEvaluator {
         wio: WIO.HandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp],
         state: StIn,
     ): DispatchResult[Err, Out, StOut] =
-      s"Expects query ${wio.queryHandler.ct.runtimeClass.getSimpleName}".asLeft
+      s"(Expects query ${wio.queryHandler.ct.runtimeClass.getSimpleName} or ${dispatch(wio.inner, state)}".asLeft
 
     override def onSignal[Sig, StIn, StOut, Evt, O](wio: HandleSignal[Sig, StIn, StOut, Evt, O], state: StIn): String =
       s"Expects signal ${wio.sigHandler.ct.runtimeClass.getSimpleName}"

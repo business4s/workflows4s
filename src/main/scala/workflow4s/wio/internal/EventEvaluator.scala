@@ -60,7 +60,16 @@ object EventEvaluator {
     def onHandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp](
         wio: WIO.HandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp],
         state: StIn,
-    ): DispatchResult[Err, Out, StOut]                                                                                            = dispatch(wio.inner, state)
+    ): DispatchResult[Err, Out, StOut]                                                                                            =
+      dispatch(wio.inner, state) match {
+        case Left(value)  => Left(value) // if its direct, we leave the query
+        case Right(value) =>
+          value
+            .map(wf => {
+              WfAndState(wf.state, WIO.HandleQuery(wio.queryHandler, wf.wio), wf.value)
+            })
+            .asRight
+      }
     override def onNoop[St, O](wio: WIO.Noop): Option[(St, O)]                                                                    = None
 
   }

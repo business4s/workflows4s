@@ -18,6 +18,10 @@ class WithdrawalWorkflow(service: WithdrawalService) {
            for {
              _ <- initSignal
              _ <- calculateFees
+             _ <- putMoneyOnHold
+             _ <- runChecks
+             _ <- execute
+             _ <- releaseFunds
            } yield (),
          )
     _ <- handleDataQuery(WIO.Noop())
@@ -33,6 +37,17 @@ class WithdrawalWorkflow(service: WithdrawalService) {
   private def calculateFees = WIO
     .runIO[WithdrawalData.Initiated](state => service.calculateFees(state.amount).map(WithdrawalEvent.FeeSet))
     .handleEvent { (state, event) => (state.copy(fee = Some(event.fee)), ()) }
+
+  // TODO can fail with not enough funds
+  private def putMoneyOnHold: WIO[Nothing, Unit, WithdrawalData.Initiated, WithdrawalData.Initiated] = WIO.Noop()
+
+  // TODO can fail with fatal rejection or operator rejection. Need polling
+  private def runChecks: WIO[Nothing, Unit, WithdrawalData.Initiated, WithdrawalData.Initiated] = WIO.Noop()
+
+  // TODO can fail with provider fatal failure, need retries
+  private def execute: WIO[Nothing, Unit, WithdrawalData.Initiated, WithdrawalData.Initiated] = WIO.Noop()
+
+  private def releaseFunds: WIO[Nothing, Unit, WithdrawalData.Initiated, WithdrawalData.Initiated] = WIO.Noop()
 
   private def handleDataQuery =
     WIO.handleQuery[WithdrawalData](dataQuery) { (state, _) => state }

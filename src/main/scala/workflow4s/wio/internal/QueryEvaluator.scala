@@ -9,7 +9,8 @@ object QueryEvaluator {
 
   def handleQuery[Req, Resp, StIn](signalDef: SignalDef[Req, Resp], req: Req, wio: WIO[Any, Any, StIn, Any], state: StIn): QueryResponse[Resp] = {
     val visitor = new QueryVisitor[Resp] {
-      override def doHandleQuery[Qr, St, Out](handler: WIO.QueryHandler[Qr, St, Out], state: Any): Option[Resp] = handler.run(signalDef)(req, state)
+      override def doHandleQuery[Qr, St, Out](handler: WIO.QueryHandler[Qr, St, Out], state: Any): Option[Resp] =
+        handler.run(signalDef)(req, state)
     }
     visitor
       .dispatch(wio, state)
