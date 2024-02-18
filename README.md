@@ -7,6 +7,9 @@ most of the magic from the solution.
 
 See the [Example](src/main/scala/workflow4s/example) to see the end result.
 
+
+
+
 ## TODO
 
 The following items are planned in scope of this PoC
@@ -22,6 +25,8 @@ The following items are planned in scope of this PoC
 - [ ] Typesafe total queries? (currently state is filtered arbitraly by the query) 
 - [ ] Pekko backend PoC
 - [ ] Full example
+- [ ] Test harness
+- [ ] Explicit stance on handling workflow evolutions
 
 ## Design
 

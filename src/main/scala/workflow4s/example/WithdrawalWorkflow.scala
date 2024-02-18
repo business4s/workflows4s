@@ -13,7 +13,7 @@ object WithdrawalWorkflow {
 
 class WithdrawalWorkflow(service: WithdrawalService) {
 
-  val workflow: WIO.Total[WithdrawalData.Empty.type] = for {
+  val workflow: WIO[WithdrawalRejection, Unit, WithdrawalData.Empty.type, Nothing] = for {
     _ <- handleDataQuery(
            for {
              _ <- initSignal
@@ -38,14 +38,13 @@ class WithdrawalWorkflow(service: WithdrawalService) {
     .runIO[WithdrawalData.Initiated](state => service.calculateFees(state.amount).map(WithdrawalEvent.FeeSet))
     .handleEvent { (state, event) => (state.copy(fee = Some(event.fee)), ()) }
 
-  // TODO can fail with not enough funds
-  private def putMoneyOnHold: WIO[Nothing, Unit, WithdrawalData.Initiated, WithdrawalData.Initiated] = WIO.Noop()
+  private def putMoneyOnHold: WIO[WithdrawalRejection.NotEnoughFunds, Unit, WithdrawalData.Initiated, WithdrawalData.Initiated] = WIO.Noop()
 
   // TODO can fail with fatal rejection or operator rejection. Need polling
-  private def runChecks: WIO[Nothing, Unit, WithdrawalData.Initiated, WithdrawalData.Initiated] = WIO.Noop()
+  private def runChecks: WIO[WithdrawalRejection.FromChecks, Unit, WithdrawalData.Initiated, WithdrawalData.Initiated] = WIO.Noop()
 
   // TODO can fail with provider fatal failure, need retries
-  private def execute: WIO[Nothing, Unit, WithdrawalData.Initiated, WithdrawalData.Initiated] = WIO.Noop()
+  private def execute: WIO[WithdrawalRejection.RejectedByExecutionEngine, Unit, WithdrawalData.Initiated, WithdrawalData.Initiated] = WIO.Noop()
 
   private def releaseFunds: WIO[Nothing, Unit, WithdrawalData.Initiated, WithdrawalData.Initiated] = WIO.Noop()
 

@@ -3,6 +3,7 @@ package workflow4s.wio
 import cats.effect.IO
 
 import scala.annotation.unused
+import scala.concurrent.duration.Duration
 import scala.reflect.ClassTag
 
 sealed trait WIO[+Err, +Out, -StateIn, +StateOut] {
@@ -11,6 +12,9 @@ sealed trait WIO[+Err, +Out, -StateIn, +StateOut] {
     WIO.FlatMap(this, f)
 
   def map[Out1](f: Out => Out1): WIO[Err, Out1, StateIn, StateOut] = WIO.Map(this, f)
+
+  // TODO, variance can be fooled if moved to extension method
+  def checkpointed[Evt, O1, StIn1 <: StateIn, StOut1 >: StateOut](genEvent: (StateOut, Out) => Evt)(handleEvent: (StIn1, Evt) => (StOut1, O1)): WIO[Err, O1, StateIn, StateOut] = ???
 
 }
 
@@ -26,8 +30,10 @@ object WIO {
       Some(this.asInstanceOf[HandleSignal[Req, StIn, StOut, Evt, Resp]]) // TODO
   }
 
-  case class HandleQuery[+Err, +Out, -StIn, +StOut, -Qr, -QrState, +Resp](queryHandler: QueryHandler[Qr, QrState, Resp], inner: WIO[Err, Out, StIn, StOut])
-      extends WIO[Err, Out, StIn, StOut]
+  case class HandleQuery[+Err, +Out, -StIn, +StOut, -Qr, -QrState, +Resp](
+      queryHandler: QueryHandler[Qr, QrState, Resp],
+      inner: WIO[Err, Out, StIn, StOut],
+  ) extends WIO[Err, Out, StIn, StOut]
 
   // theoretically state is not needed, it could be State.extract.flatMap(RunIO)
   case class RunIO[-StIn, +StOut, Evt, +O](buildIO: StIn => IO[Evt], evtHandler: EventHandler[Evt, StIn, StOut, O])
@@ -36,8 +42,9 @@ object WIO {
 //  case class Or[+Err, +Out, -StIn, +StOut](first: WIO[Err, Out, StIn, StOut], second: WIO[Err, Out, StIn, StOut]) extends WIO[Err, Out, StIn, StOut]
   case class FlatMap[+Err, Out1, +Out2, -StIn, StOut, +StOut2](base: WIO[Err, Out1, StIn, StOut], getNext: Out1 => WIO[Err, Out2, StOut, StOut2])
       extends WIO[Err, Out2, StIn, StOut2]
-  case class Map[+Err, Out1, +Out2, -StIn, +StOut](base: WIO[Err, Out1, StIn, StOut], mapValue: Out1 => Out2)     extends WIO[Err, Out2, StIn, StOut]
-  case class Noop()                                                                                               extends WIO[Nothing, Nothing, Any, Nothing]
+
+  case class Map[+Err, Out1, +Out2, -StIn, +StOut](base: WIO[Err, Out1, StIn, StOut], mapValue: Out1 => Out2) extends WIO[Err, Out2, StIn, StOut]
+  case class Noop()                                                                                           extends WIO[Nothing, Nothing, Any, Nothing]
 
   case class SignalHandler[-Sig, +Evt, -StIn](handle: (StIn, Sig) => IO[Evt])(implicit sigCt: ClassTag[Sig])                                    {
     def run[Req, Resp](signal: SignalDef[Req, Resp])(req: Req, s: StIn): Option[IO[Evt]] =
@@ -48,14 +55,14 @@ object WIO {
   case class EventHandler[Evt, -StIn, +StOut, +Out](handle: (StIn, Evt) => (StOut, Out))(implicit val jw: JournalWrite[Evt], ct: ClassTag[Evt]) {
     def expects(any: Any): Option[Evt] = ct.unapply(any)
   }
-  case class QueryHandler[-Qr, -StIn, +Out](handle: (StIn, Qr) => Out)(implicit inCt: ClassTag[Qr], stCt: ClassTag[StIn])                                             {
+  case class QueryHandler[-Qr, -StIn, +Out](handle: (StIn, Qr) => Out)(implicit inCt: ClassTag[Qr], stCt: ClassTag[StIn])                       {
     def run[Req, Resp](signal: SignalDef[Req, Resp])(req: Req, s: Any): Option[Resp] = {
       // thats not great but how to do better?
       for {
-        qr <- inCt.unapply(req)
-        stIn <- stCt.unapply(s)
+        qr    <- inCt.unapply(req)
+        stIn  <- stCt.unapply(s)
         result = handle(stIn, qr)
-        resp <- signal.respCt.unapply(result)
+        resp  <- signal.respCt.unapply(result)
       } yield resp
     }
     def ct: ClassTag[_] = inCt
@@ -77,7 +84,9 @@ object WIO {
   def handleQuery[StIn] = new HandleQueryPartiallyApplied1[StIn]
 
   class HandleQueryPartiallyApplied1[StIn] {
-    def apply[Sig: ClassTag, Resp](@unused signalDef: SignalDef[Sig, Resp])(f: (StIn, Sig) => Resp)(implicit ct: ClassTag[StIn]): HandleQueryPartiallyApplied2[StIn, Sig, Resp] =
+    def apply[Sig: ClassTag, Resp](@unused signalDef: SignalDef[Sig, Resp])(f: (StIn, Sig) => Resp)(implicit
+        ct: ClassTag[StIn],
+    ): HandleQueryPartiallyApplied2[StIn, Sig, Resp] =
       new HandleQueryPartiallyApplied2(f)
   }
 
@@ -97,4 +106,12 @@ object WIO {
     def handleEvent[StOut](f: (StIn, Evt) => (StOut, Resp)): WIO[Nothing, Resp, StIn, StOut] = RunIO(getIO, EventHandler(f))
   }
 
+  def getState[St]: WIO[Nothing, St, St, St] = ???
+
+  def await[St](duration: Duration): WIO[Nothing, Unit, St, St] = ???
+
+  def pure[St]: PurePartiallyApplied[St] = new PurePartiallyApplied
+  class PurePartiallyApplied[StIn] {
+    def apply[O](value: O): WIO[Nothing, O, StIn, StIn] = ???
+  }
 }
