@@ -21,8 +21,9 @@ The following items are planned in scope of this PoC
 - [x] Handling IO execution
 - [x] Handling state transitions
 - [ ] Handling errors
-- [ ] Handling posponed executions (await)
+- [ ] Handling postponed executions (await)
 - [ ] Typesafe total queries? (currently state is filtered arbitraly by the query) 
+- [ ] Splitting the workflow (parallel execution and/or parallel waiting)
 - [ ] Pekko backend PoC
 - [ ] Full example
 - [ ] Test harness

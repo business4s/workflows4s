@@ -14,7 +14,14 @@ sealed trait WIO[+Err, +Out, -StateIn, +StateOut] {
   def map[Out1](f: Out => Out1): WIO[Err, Out1, StateIn, StateOut] = WIO.Map(this, f)
 
   // TODO, variance can be fooled if moved to extension method
-  def checkpointed[Evt, O1, StIn1 <: StateIn, StOut1 >: StateOut](genEvent: (StateOut, Out) => Evt)(handleEvent: (StIn1, Evt) => (StOut1, O1)): WIO[Err, O1, StateIn, StateOut] = ???
+  def checkpointed[Evt, O1, StIn1 <: StateIn, StOut1 >: StateOut](genEvent: (StateOut, Out) => Evt)(
+      handleEvent: (StIn1, Evt) => (StOut1, O1),
+  ): WIO[Err, O1, StateIn, StateOut] = ???
+
+  def transformState[NewStateIn, NewStateOut](
+      f: NewStateIn => StateIn,
+      g: (NewStateIn, StateOut) => NewStateOut,
+  ): WIO[Err, Out, NewStateIn, NewStateOut] = ???
 
 }
 
@@ -39,12 +46,13 @@ object WIO {
   case class RunIO[-StIn, +StOut, Evt, +O](buildIO: StIn => IO[Evt], evtHandler: EventHandler[Evt, StIn, StOut, O])
       extends WIO[Nothing, O, StIn, StOut]
 
-//  case class Or[+Err, +Out, -StIn, +StOut](first: WIO[Err, Out, StIn, StOut], second: WIO[Err, Out, StIn, StOut]) extends WIO[Err, Out, StIn, StOut]
   case class FlatMap[+Err, Out1, +Out2, -StIn, StOut, +StOut2](base: WIO[Err, Out1, StIn, StOut], getNext: Out1 => WIO[Err, Out2, StOut, StOut2])
       extends WIO[Err, Out2, StIn, StOut2]
 
   case class Map[+Err, Out1, +Out2, -StIn, +StOut](base: WIO[Err, Out1, StIn, StOut], mapValue: Out1 => Out2) extends WIO[Err, Out2, StIn, StOut]
-  case class Noop()                                                                                           extends WIO[Nothing, Nothing, Any, Nothing]
+
+  // TODO this should ne called `Never` or `Halt` or similar, as the workflow cant proceed from that point.
+  case class Noop() extends WIO[Nothing, Nothing, Any, Nothing]
 
   case class SignalHandler[-Sig, +Evt, -StIn](handle: (StIn, Sig) => IO[Evt])(implicit sigCt: ClassTag[Sig])                                    {
     def run[Req, Resp](signal: SignalDef[Req, Resp])(req: Req, s: StIn): Option[IO[Evt]] =
@@ -114,4 +122,12 @@ object WIO {
   class PurePartiallyApplied[StIn] {
     def apply[O](value: O): WIO[Nothing, O, StIn, StIn] = ???
   }
+
+  def unit[St] = pure[St](())
+
+  def raise[St]: RaisePartiallyApplied[St] = new RaisePartiallyApplied
+  class RaisePartiallyApplied[StIn] {
+    def apply[Err](value: Err): WIO[Err, Nothing, StIn, StIn] = ???
+  }
+
 }

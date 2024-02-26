@@ -39,8 +39,21 @@ case class ChecksState(results: Map[CheckKey, CheckResult]) {
   def addResults(newResults: Map[CheckKey, CheckResult]) = ChecksState(results ++ newResults)
 }
 
+object ChecksState {
+  val empty = ChecksState(Map())
+}
+
 trait ChecksInput {
   type Data
-  val data: Data
-  val checks: Map[CheckKey, Check[Data]]
+  def data: Data
+  def checks: Map[CheckKey, Check[Data]]
+}
+
+object ChecksInput {
+
+  def apply[D](data0: D, checks0: List[Check[D]]): ChecksInput = new ChecksInput {
+    type Data = D
+    def data: Data                         = data0
+    def checks: Map[CheckKey, Check[Data]] = checks0.map(x => x.key -> x).toMap
+  }
 }

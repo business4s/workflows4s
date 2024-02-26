@@ -4,6 +4,7 @@ import cats.effect.IO
 import workflow4s.example.WithdrawalEvent.WithdrawalInitiated
 import workflow4s.example.WithdrawalWorkflow.{createWithdrawalSignal, dataQuery}
 import workflow4s.example.WithdrawalSignal.CreateWithdrawal
+import workflow4s.example.checks.{ChecksEngine, ChecksInput, ChecksState, Decision}
 import workflow4s.wio.{SignalDef, WIO}
 
 object WithdrawalWorkflow {
@@ -32,21 +33,35 @@ class WithdrawalWorkflow(service: WithdrawalService) {
       .handleSignal[WithdrawalData.Empty.type](createWithdrawalSignal) { (_, signal) =>
         IO(WithdrawalInitiated(signal.amount))
       }
-      .handleEvent { (_, event) => (WithdrawalData.Initiated(event.amount, None), ()) }
+      .handleEvent { (_, event) => (WithdrawalData.Initiated(event.amount), ()) }
 
-  private def calculateFees = WIO
+  private def calculateFees: WIO[Nothing, Unit, WithdrawalData.Initiated, WithdrawalData.Validated] = WIO
     .runIO[WithdrawalData.Initiated](state => service.calculateFees(state.amount).map(WithdrawalEvent.FeeSet))
-    .handleEvent { (state, event) => (state.copy(fee = Some(event.fee)), ()) }
+    .handleEvent { (state, event) => (state.validated(event.fee), ()) }
 
-  private def putMoneyOnHold: WIO[WithdrawalRejection.NotEnoughFunds, Unit, WithdrawalData.Initiated, WithdrawalData.Initiated] = WIO.Noop()
+  private def putMoneyOnHold: WIO[WithdrawalRejection.NotEnoughFunds, Unit, WithdrawalData.Validated, WithdrawalData.Validated] = WIO.Noop()
 
-  // TODO can fail with fatal rejection or operator rejection. Need polling
-  private def runChecks: WIO[WithdrawalRejection.FromChecks, Unit, WithdrawalData.Initiated, WithdrawalData.Initiated] = WIO.Noop()
+  private def runChecks: WIO[WithdrawalRejection.RejectedInChecks, Unit, WithdrawalData.Validated, WithdrawalData.Checked] =
+    for {
+      state    <- WIO.getState
+      decision <- ChecksEngine
+                    .runChecks(ChecksInput(state, List()))
+                    .transformState[WithdrawalData.Validated, WithdrawalData.Checked](
+                      _ => ChecksState.empty,
+                      (validated, checkState) => validated.checked(checkState),
+                    )
+      _        <- decision match {
+                    case Decision.RejectedBySystem()   => WIO.raise[WithdrawalData.Checked](WithdrawalRejection.RejectedInChecks())
+                    case Decision.ApprovedBySystem()   => WIO.unit[WithdrawalData.Checked]
+                    case Decision.RejectedByOperator() => WIO.raise[WithdrawalData.Checked](WithdrawalRejection.RejectedInChecks())
+                    case Decision.ApprovedByOperator() => WIO.unit[WithdrawalData.Checked]
+                  }
+    } yield ()
 
   // TODO can fail with provider fatal failure, need retries
-  private def execute: WIO[WithdrawalRejection.RejectedByExecutionEngine, Unit, WithdrawalData.Initiated, WithdrawalData.Initiated] = WIO.Noop()
+  private def execute: WIO[WithdrawalRejection.RejectedByExecutionEngine, Unit, WithdrawalData.Checked, WithdrawalData.Executed] = WIO.Noop()
 
-  private def releaseFunds: WIO[Nothing, Unit, WithdrawalData.Initiated, WithdrawalData.Initiated] = WIO.Noop()
+  private def releaseFunds: WIO[Nothing, Unit, WithdrawalData.Executed, WithdrawalData.Executed] = WIO.Noop()
 
   private def handleDataQuery =
     WIO.handleQuery[WithdrawalData](dataQuery) { (state, _) => state }

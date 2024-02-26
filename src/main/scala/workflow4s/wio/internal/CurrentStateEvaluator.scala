@@ -26,7 +26,7 @@ object CurrentStateEvaluator {
         wio: WIO.HandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp],
         state: StIn,
     ): DispatchResult[Err, Out, StOut] =
-      s"(Expects query ${wio.queryHandler.ct.runtimeClass.getSimpleName} or ${dispatch(wio.inner, state)}".asLeft
+      s"(Expects query ${wio.queryHandler.ct.runtimeClass.getSimpleName} or ${dispatch(wio.inner, state).merge})".asLeft
 
     override def onSignal[Sig, StIn, StOut, Evt, O](wio: HandleSignal[Sig, StIn, StOut, Evt, O], state: StIn): String =
       s"Expects signal ${wio.sigHandler.ct.runtimeClass.getSimpleName}"
@@ -34,7 +34,7 @@ object CurrentStateEvaluator {
     override def onNoop[St, O](wio: WIO.Noop): DirectOut[St, O] = "Empty"
 
     override def onFlatMap[Err, Out1, Out2, S0, S1, S2](wio: WIO.FlatMap[Err, Out1, Out2, S0, S1, S2], state: S0): FlatMapOut[Err, Out1, S2] =
-      dispatch(wio.base, state).merge
+      s"(${dispatch(wio.base, state).merge} and more)"
 
     override def onMap[Err, Out1, Out2, StIn, StOut](
         wio: WIO.Map[Err, Out1, Out2, StIn, StOut],

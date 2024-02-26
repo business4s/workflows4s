@@ -2,6 +2,7 @@ package workflow4s.example
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.typesafe.scalalogging.StrictLogging
 import org.scalatest.freespec.AnyFreeSpec
 import workflow4s.example.WithdrawalService.Fee
 import workflow4s.example.WithdrawalSignal.CreateWithdrawal
@@ -16,17 +17,18 @@ class WithdrawalWorkflowTest extends AnyFreeSpec {
     "init" in new Fixture {
       assert(actor.queryData() == WithdrawalData.Empty)
       actor.init(CreateWithdrawal(100))
-      assert(actor.queryData() == WithdrawalData.Initiated(100, Some(fees)))
+      assert(actor.queryData() == WithdrawalData.Validated(100, fees))
 
       checkRecovery()
     }
   }
 
-  trait Fixture {
+  trait Fixture extends StrictLogging {
     val journal = new InMemoryJournal
     val actor   = createActor(journal)
 
     def checkRecovery() = {
+      logger.debug("Checking recovery")
       val secondActor = createActor(journal)
       assert(actor.queryData() == secondActor.queryData())
     }
