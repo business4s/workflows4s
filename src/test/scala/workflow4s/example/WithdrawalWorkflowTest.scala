@@ -2,6 +2,7 @@ package workflow4s.example
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import cats.implicits.catsSyntaxEitherId
 import com.typesafe.scalalogging.StrictLogging
 import org.scalatest.freespec.AnyFreeSpec
 import workflow4s.example.WithdrawalService.Fee
@@ -43,12 +44,14 @@ class WithdrawalWorkflowTest extends AnyFreeSpec {
   val fees    = Fee(11)
   val service = new WithdrawalService {
     override def calculateFees(amount: BigDecimal): IO[Fee] = IO(fees)
+
+    override def putMoneyOnHold(amount: BigDecimal): IO[Either[WithdrawalService.NotEnoughFunds, Unit]] = IO(Right(()))
   }
 
   class WithdrawalActor(journal: InMemoryJournal)
-      extends SimpleActor(
-        ActiveWorkflow(WithdrawalData.Empty, new WithdrawalWorkflow(service).workflow, new Interpreter(journal), ()),
-      ) {
+    extends SimpleActor(
+      ActiveWorkflow(new WithdrawalWorkflow(service).workflow, new Interpreter(journal), (WithdrawalData.Empty, ()).asRight),
+    ) {
     def init(req: CreateWithdrawal): Unit = {
       this.handleSignal(WithdrawalWorkflow.createWithdrawalSignal)(req).extract
     }

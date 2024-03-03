@@ -7,70 +7,81 @@ import cats.syntax.all._
 
 object EventEvaluator {
 
-  def handleEvent[StIn, StOut](event: Any, wio: WIO.States[StIn, StOut], state: StIn, interp: Interpreter): EventResponse = {
-    val visitor = new EventVisitor {
-      override def doHandle[Evt, StIn, StOut, Out](handler: EventHandler[Evt, StIn, StOut, Out], state: StIn): Option[(StOut, Out)] =
-        handler
-          .expects(event)
-          .map(handler.handle(state, _))
-    }
+  def handleEvent[StIn, StOut, Err](event: Any, wio: WIO.States[StIn, StOut], state: Either[Err, StIn], interp: Interpreter): EventResponse = {
+    val visitor = new EventVisitor(wio, event)
     visitor
-      .dispatch(wio, state)
-      .leftMap(_.map({ case (state, value) => ActiveWorkflow(state, WIO.Noop(), interp, value) }))
-      .map(_.map(wf => ActiveWorkflow(wf.state, wf.wio, interp, wf.value)))
+      .run(state)
+      .leftMap(_.map(errOrOut => ActiveWorkflow(WIO.Noop(), interp, errOrOut)))
+      .map(_.map(wf => ActiveWorkflow(wf.wio, interp, wf.value)))
       .merge
       .map(EventResponse.Ok(_))
       .getOrElse(EventResponse.UnexpectedEvent())
   }
 
-  abstract class EventVisitor extends Visitor {
-    type DirectOut[StOut, O]        = Option[(StOut, O)]
-    type FlatMapOut[Err, Out, SOut] = Option[WfAndState.T[Err, Out, SOut]]
+  private class EventVisitor[Err, Out, StIn, StOut](wio: WIO[Err, Out, StIn, StOut], event: Any) extends Visitor[Err, Out, StIn, StOut](wio) {
+    override type DirectOut  = Option[Either[Err, (StOut, Out)]]
+    override type FlatMapOut = Option[WfAndState.T[Err, Out, StOut]]
 
-    def doHandle[Evt, StIn, StOut, Out](handler: EventHandler[Evt, StIn, StOut, Out], state: StIn): Option[(StOut, Out)]
+    def doHandle[Evt](handler: EventHandler[Evt, StIn, StOut, Out, Err], state: StIn): Option[Either[Err, (StOut, Out)]] =
+      handler
+        .expects(event)
+        .map(handler.handle(state, _))
 
-    override def onSignal[Sig, StIn, StOut, Evt, O](wio: HandleSignal[Sig, StIn, StOut, Evt, O], state: StIn): Option[(StOut, O)] =
-      doHandle(wio.evtHandler, state)
-    override def onRunIO[StIn, StOut, Evt, O](wio: WIO.RunIO[StIn, StOut, Evt, O], state: StIn): Option[(StOut, O)]               =
-      doHandle(wio.evtHandler, state)
+    override def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Sig, StIn, StOut, Evt, Out, Err, Resp], state: StIn): DirectOut = doHandle(wio.evtHandler, state)
+    def onRunIO[Evt](wio: WIO.RunIO[StIn, StOut, Evt, Out, Err], state: StIn): DirectOut                           = doHandle(wio.evtHandler, state)
 
-    override def onFlatMap[Err, Out1, Out2, S0, S1, S2](
-        wio: WIO.FlatMap[Err, Out1, Out2, S0, S1, S2],
-        state: S0,
-    ): Option[WfAndState.T[Err, Out1, S2]] = {
-      val newWfOpt: Either[Option[(S1, Out1)], Option[WfAndState.T[Err, Out1, S1]]] = dispatch(wio.base, state)
+    def onFlatMap[Out1, StOut1](wio: WIO.FlatMap[Err, Out1, Out, StIn, StOut1, StOut], state: StIn): FlatMapOut = {
+      val visitor                          = new EventVisitor(wio.base, event)
+      val newWfOpt: visitor.DispatchResult = visitor.run(state.asRight)
       newWfOpt match {
-        case Left(dOutOpt)   => dOutOpt.map({ case (st, value) => WfAndState(st, wio.getNext(value), value) })
+        case Left(dOutOpt)   =>
+          dOutOpt.map({
+            case Left(err)             => WfAndState(WIO.Noop(), err.asLeft)
+            case Right((state, value)) => WfAndState(wio.getNext(value), (state, value).asRight)
+          })
         case Right(fmOutOpt) =>
           fmOutOpt.map(wf => {
-            val newWIO: WIO[Err, Out2, wf.StIn, S2] = WIO.FlatMap(wf.wio, (_: wf.NextValue) => wio.getNext(wf.value))
-            WfAndState(wf.state, newWIO, wf.value)
+            val newWIO: WIO[Err, Out, wf.StIn, StOut] =
+              WIO.FlatMap(
+                wf.wio,
+                (x: wf.NextValue) =>
+                  wf.value
+                    .map({case (_, value) => wio.getNext(x)})
+                    .leftMap(err => WIO.Pure(Left(err)))
+                    .merge,
+              )
+            WfAndState(newWIO, wf.value)
           })
       }
     }
-    override def onMap[Err, Out1, Out2, StIn, StOut](
-        wio: WIO.Map[Err, Out1, Out2, StIn, StOut],
-        state: StIn,
-    ): Either[DirectOut[StOut, Out2], FlatMapOut[Err, Out2, StOut]] = {
-      dispatch(wio.base, state) match {
-        case Left(dOutOpt)   => dOutOpt.map({ case (stOut, out) => (stOut, wio.mapValue(out)) }).asLeft
-        case Right(fmOutOpt) => fmOutOpt.map(wf => WfAndState(wf.state, wf.wio, wio.mapValue(wf.value))).asRight
+
+    def onMap[Out1](wio: WIO.Map[Err, Out1, Out, StIn, StOut], state: StIn): DispatchResult = {
+      val visitor = new EventVisitor(wio.base, event) {}
+      visitor.run(state.asRight) match {
+        case Left(dOutOpt)   => dOutOpt.map(_.map({ case (stOut, out) => (stOut, wio.mapValue(out)) })).asLeft
+        case Right(fmOutOpt) => fmOutOpt.map(wf => {
+          val newWIO: WIO[Err, Out, wf.StIn, StOut] =
+            WIO.Map(
+              wf.wio,
+              (x: wf.NextValue) => wio.mapValue(x)
+            )
+          WfAndState(newWIO, wf.value)
+        }).asRight
       }
     }
-    def onHandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp](
-        wio: WIO.HandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp],
-        state: StIn,
-    ): DispatchResult[Err, Out, StOut]                                                                                            =
-      dispatch(wio.inner, state) match {
+    def onHandleQuery[Qr, QrSt, Resp](wio: WIO.HandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp], state: StIn): DispatchResult = {
+      val visitor = new EventVisitor(wio.inner, event) {}
+      visitor.run(state.asRight) match {
         case Left(value)  => Left(value) // if its direct, we leave the query
         case Right(value) =>
           value
             .map(wf => {
-              WfAndState(wf.state, WIO.HandleQuery(wio.queryHandler, wf.wio), wf.value)
+              WfAndState(WIO.HandleQuery(wio.queryHandler, wf.wio), wf.value)
             })
             .asRight
       }
-    override def onNoop[St, O](wio: WIO.Noop): Option[(St, O)]                                                                    = None
+    }
+    def onNoop(wio: WIO.Noop): DirectOut = None
 
   }
 

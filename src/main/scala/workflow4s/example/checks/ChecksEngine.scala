@@ -10,7 +10,7 @@ trait ChecksEngine {
 
 object ChecksEngine extends ChecksEngine {
 
-  val reviewSignalDef: SignalDef[ReviewDecision, Decision] = SignalDef()
+  val reviewSignalDef: SignalDef[ReviewDecision, Unit] = SignalDef()
 
   def runChecks(input: ChecksInput): WIO[Nothing, Decision, ChecksState, ChecksState] =
     (for {
@@ -65,6 +65,7 @@ object ChecksEngine extends ChecksEngine {
         .handleEvent({ case (st, evt) =>
           st.addResults(Map(evt.check -> CheckResult.Approved())) -> ()
         })
+        .produceResponse((_, _) => ())
         .flatMap(_ => getDecision())
     })
 
@@ -81,6 +82,7 @@ object ChecksEngine extends ChecksEngine {
             },
           )
         })
+        .produceResponse((_, _) => ())
     })
 
 //  def handleInterruption

@@ -16,4 +16,6 @@ object WithdrawalData {
   case class Checked(amount: BigDecimal, fee: Fee, checkResults: ChecksState) extends WithdrawalData
 
   case class Executed(amount: BigDecimal, fee: Fee, checkResults: ChecksState, externalTransactionId: String) extends WithdrawalData
+
+  case class Completed() extends WithdrawalData
 }

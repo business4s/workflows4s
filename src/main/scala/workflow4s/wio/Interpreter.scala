@@ -33,36 +33,33 @@ object Interpreter {
     case class UnexpectedQuery[Resp]() extends QueryResponse[Resp]
   }
 
-  abstract class Visitor {
-    type DirectOut[StOut, O]
-    type FlatMapOut[Err, Out, SOut]
+  abstract class Visitor[Err, Out, StIn, StOut](wio: WIO[Err, Out, StIn, StOut]) {
+    type DirectOut
+    type FlatMapOut
 
-    type DispatchResult[Err, Out, SOut] = Either[DirectOut[SOut, Out], FlatMapOut[Err, Out, SOut]]
+    type DispatchResult = Either[DirectOut, FlatMapOut]
 
-    def onSignal[Sig, StIn, StOut, Evt, O](wio: WIO.HandleSignal[Sig, StIn, StOut, Evt, O], state: StIn): DirectOut[StOut, O]
-    def onRunIO[StIn, StOut, Evt, O](wio: WIO.RunIO[StIn, StOut, Evt, O], state: StIn): DirectOut[StOut, O]
-    def onFlatMap[Err, Out1, Out2, StIn, StOut, StOut2](
-        wio: WIO.FlatMap[Err, Out1, Out2, StIn, StOut, StOut2],
-        state: StIn,
-    ): FlatMapOut[Err, Out1, StOut2]
-    def onMap[Err, Out1, Out2, StIn, StOut](
-        wio: WIO.Map[Err, Out1, Out2, StIn, StOut],
-        state: StIn,
-    ): DispatchResult[Err, Out2, StOut]
-    def onHandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp](wio: WIO.HandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp], state: StIn): DispatchResult[Err, Out, StOut]
-    def onNoop[St, O](wio: WIO.Noop): DirectOut[St, O]
+    def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Sig, StIn, StOut, Evt, Out, Err, Resp], state: StIn): DirectOut
+    def onRunIO[Evt](wio: WIO.RunIO[StIn, StOut, Evt, Out, Err], state: StIn): DirectOut
+    def onFlatMap[Out1, StOut1](wio: WIO.FlatMap[Err, Out1, Out, StIn, StOut1, StOut], state: StIn): FlatMapOut
+    def onMap[Out1](wio: WIO.Map[Err, Out1, Out, StIn, StOut], state: StIn): DispatchResult
+    def onHandleQuery[Qr, QrSt, Resp](wio: WIO.HandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp], state: StIn): DispatchResult
+    def onNoop(wio: WIO.Noop): DirectOut
 
-    def dispatch[Err, O, StateIn, StateOut](
-        wio: WIO[Err, O, StateIn, StateOut],
-        state: StateIn,
-    ): DispatchResult[Err, O, StateOut] = {
-      wio match {
-        case x @ HandleSignal(sigHandler, evtHandler) => onSignal(x, state).asLeft
-        case x @ WIO.HandleQuery(queryHandler, inner) => onHandleQuery(x, state)
-        case x @ WIO.RunIO(buildIO, evtHandler)       => onRunIO(x, state).asLeft
-        case x @ WIO.FlatMap(base, getNext)           => onFlatMap(x, state).asRight.asInstanceOf[DispatchResult[Err, O, StateOut]] // TODO
-        case x @ WIO.Map(base, f)                     => onMap(x, state)
-        case x @ WIO.Noop()                           => onNoop(x).asLeft
+    def onError(error: Err): DirectOut = ???
+
+    def run(errOrState: Either[Err, StIn]): DispatchResult = {
+      errOrState match {
+        case Left(err)    => onError(err).asLeft
+        case Right(state) =>
+          wio match {
+            case x @ HandleSignal(_, _, _, _)             => onSignal(x, state).asLeft
+            case x @ WIO.HandleQuery(queryHandler, inner) => onHandleQuery(x, state)
+            case x @ WIO.RunIO(buildIO, evtHandler)       => onRunIO(x, state).asLeft
+            case x @ WIO.FlatMap(base, getNext)           => onFlatMap(x, state).asRight.asInstanceOf[DispatchResult] // TODO
+            case x @ WIO.Map(base, f)                     => onMap(x, state)
+            case x @ WIO.Noop()                           => onNoop(x).asLeft
+          }
       }
     }
   }

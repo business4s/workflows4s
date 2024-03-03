@@ -8,83 +8,120 @@ import workflow4s.wio.{ActiveWorkflow, Interpreter, JournalPersistance, JournalW
 
 object SignalEvaluator {
 
-  def handleSignal[Req, Resp, StIn, StOut](
+  def handleSignal[Req, Resp, StIn, StOut, Err](
       signalDef: SignalDef[Req, Resp],
       req: Req,
-      wio: WIO.States[StIn, StOut],
-      state: StIn,
+      wio: WIO[Err, Any, StIn, StOut],
+      state: Either[Err, StIn],
       interp: Interpreter,
   ): SignalResponse[Resp] = {
-    val visitor = new SignalVisitor[Resp] {
-      override def onSignal[Sig, StIn, StOut, Evt, O](wio: HandleSignal[Sig, StIn, StOut, Evt, O], state: StIn): Option[IO[(StOut, O, Resp)]] = {
-        wio.sigHandler
-          .run(signalDef)(req, state)
-          .map(ioOpt =>
-            for {
-              evt            <- ioOpt
-              _              <- interp.journal.save(evt)(wio.evtHandler.jw)
-              (newState, out) = wio.evtHandler.handle(state, evt)
-            } yield (newState, out, signalDef.respCt.unapply(out).get), // TODO .get is unsafe
-          )
-      }
-    }
+    val visitor = new SignalVisitor(wio, interp, signalDef, req)
     visitor
-      .dispatch(wio, state)
-      .leftMap(_.map(dOutIO => dOutIO.map { case (state, value, resp) => ActiveWorkflow(state, WIO.Noop(), interp, value) -> resp }))
-      .map(_.map(wfIO => wfIO.map({ case (wf, resp) => ActiveWorkflow(wf.state, wf.wio, interp, wf.value) -> resp })))
+      .run(state)
+      .leftMap(_.map(dOutIO => dOutIO.map { case (out, resp) => ActiveWorkflow(WIO.Noop(), interp, out) -> resp }))
+      .map(_.map(wfIO => wfIO.map({ case (wf, resp) => ActiveWorkflow(wf.wio, interp, wf.value) -> resp })))
       .merge
       .map(SignalResponse.Ok(_))
       .getOrElse(SignalResponse.UnexpectedSignal())
   }
 
-  abstract class SignalVisitor[Resp] extends Visitor {
-    type DirectOut[StOut, O]        = Option[IO[(StOut, O, Resp)]]
-    type FlatMapOut[Err, Out, SOut] = Option[IO[(WfAndState.T[Err, Out, SOut], Resp)]]
+  private class SignalVisitor[Resp, Err, Out, StIn, StOut, Req](
+      wio: WIO[Err, Out, StIn, StOut],
+      interp: Interpreter,
+      signalDef: SignalDef[Req, Resp],
+      req: Req,
+  ) extends Visitor[Err, Out, StIn, StOut](wio) {
+    type DirectOut  = Option[IO[(Either[Err, (StOut, Out)], Resp)]]
+    type FlatMapOut = Option[IO[(WfAndState.T[Err, Out, StOut], Resp)]]
 
-    override def onRunIO[StIn, StOut, Evt, O](wio: WIO.RunIO[StIn, StOut, Evt, O], state: StIn): DirectOut[StOut, O] = None
-    def onHandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp](
-        wio: WIO.HandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp],
-        state: StIn,
-    ): DispatchResult[Err, Out, StOut]                                                                               =
-      dispatch(wio.inner, state) match {
+    def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Sig, StIn, StOut, Evt, Out, Err, Resp], state: StIn): DirectOut = {
+      wio.sigHandler
+        .run(signalDef)(req, state)
+        .map(ioOpt =>
+          for {
+            evt   <- ioOpt
+            _     <- interp.journal.save(evt)(wio.evtHandler.jw)
+            result = wio.evtHandler.handle(state, evt)
+          } yield result.map({ case (s, o) => (s, o) }) -> signalDef.respCt.unapply(wio.getResp(state, evt)).get, // TODO .get is unsafe
+        )
+    }
+
+    def onRunIO[Evt](wio: WIO.RunIO[StIn, StOut, Evt, Out, Err], state: StIn): DirectOut = None
+
+    def onFlatMap[Out1, StOut1](wio: WIO.FlatMap[Err, Out1, Out, StIn, StOut1, StOut], state: StIn): FlatMapOut = {
+      val visitor                          = new SignalVisitor(wio.base, interp, signalDef, req)
+      val newWfOpt: visitor.DispatchResult = visitor.run(state.asRight)
+      newWfOpt match {
+        case Left(dOutOpt)   =>
+          dOutOpt.map(dOutIO =>
+            dOutIO.map({
+              case (Left(err), resp)             => ??? //WfAndState(WIO.Noop(), err.asLeft) -> resp
+              case (Right((state, value)), resp) => ??? //WfAndState(wio.getNext(value), (state, value).asRight) -> resp
+            }),
+          )
+        case Right(fmOutOpt) =>
+          fmOutOpt.map(fmOutIO =>
+            fmOutIO.map({ case (wf, resp) =>
+              val newWIO: WIO[Err, Out, wf.StIn, StOut] =
+                WIO.FlatMap(
+                  wf.wio,
+                  (x: wf.NextValue) =>
+                    wf.value
+                      .map({ case (_, value) => wio.getNext(x) })
+                      .leftMap(err => WIO.Pure(Left(err)))
+                      .merge,
+                )
+              WfAndState(newWIO, wf.value) -> resp
+            }),
+          )
+      }
+
+    }
+
+    def onMap[Out1](wio: WIO.Map[Err, Out1, Out, StIn, StOut], state: StIn): DispatchResult = {
+      val visitor = new SignalVisitor(wio.base, interp, signalDef, req)
+      visitor.run(state.asRight) match {
+        case Left(dOutOpt)   =>
+          dOutOpt
+            .map(dOutIO =>
+              dOutIO.map({ case (value, resp) =>
+                value.map({ case (stOut, out) => (stOut, wio.mapValue(out)) }) -> resp
+              }),
+            )
+            .asLeft
+        case Right(fmOutOpt) =>
+          fmOutOpt
+            .map(fmOutIO =>
+              fmOutIO.map({ case (wf, resp) =>
+                val newWIO: WIO[Err, Out, wf.StIn, StOut] =
+                  WIO.Map(
+                    wf.wio,
+                    (x: wf.NextValue) => wio.mapValue(x),
+                  )
+                WfAndState(newWIO, wf.value) -> resp
+              }),
+            )
+            .asRight
+      }
+    }
+
+    def onHandleQuery[Qr, QrSt, Resp](wio: WIO.HandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp], state: StIn): DispatchResult = {
+      val visitor = new SignalVisitor(wio.inner, interp, signalDef, req)
+      visitor.run(state.asRight) match {
         case Left(value)  => Left(value) // if its direct, we leave the query
         case Right(value) =>
           value
             .map(wfIO =>
               wfIO.map({ case (wf, resp) =>
                 val preserved: WIO[wf.Err, wf.NextValue, wf.StIn, wf.StOut] = WIO.HandleQuery(wio.queryHandler, wf.wio)
-                WfAndState(wf.state, preserved, wf.value) -> resp
+                WfAndState(preserved, wf.value) -> resp
               }),
             )
             .asRight
       }
-    override def onNoop[St, O](wio: WIO.Noop): DirectOut[St, O]                                                      = None
-
-    override def onFlatMap[Err, Out1, Out2, S0, S1, S2](wio: WIO.FlatMap[Err, Out1, Out2, S0, S1, S2], state: S0): FlatMapOut[Err, Out1, S2] = {
-      val newWfOpt: DispatchResult[Err, Out1, S1] = dispatch(wio.base, state)
-      newWfOpt match {
-        case Left(dOutOpt)   => dOutOpt.map(dOutIO => dOutIO.map({ case (st, value, resp) => WfAndState(st, wio.getNext(value), value) -> resp }))
-        case Right(fmOutOpt) =>
-          fmOutOpt.map(fmOutIO =>
-            fmOutIO.map({ case (wf, resp) =>
-              val newWIO: WIO[Err, Out2, wf.StIn, S2] = WIO.FlatMap(wf.wio, (_: wf.NextValue) => wio.getNext(wf.value))
-              WfAndState(wf.state, newWIO, wf.value) -> resp
-            }),
-          )
-      }
     }
 
-    override def onMap[Err, Out1, Out2, StIn, StOut](
-        wio: WIO.Map[Err, Out1, Out2, StIn, StOut],
-        state: StIn,
-    ): Either[DirectOut[StOut, Out2], FlatMapOut[Err, Out2, StOut]] = {
-      dispatch(wio.base, state) match {
-        case Left(dOutOpt)   => dOutOpt.map(dOutIO => dOutIO.map({ case (stOut, out, resp) => (stOut, wio.mapValue(out), resp) })).asLeft
-        case Right(fmOutOpt) =>
-          fmOutOpt.map(fmOutIO => fmOutIO.map({ case (wf, resp) => WfAndState(wf.state, wf.wio, wio.mapValue(wf.value)) -> resp })).asRight
-      }
-    }
+    def onNoop(wio: WIO.Noop): DirectOut = None
 
   }
-
 }

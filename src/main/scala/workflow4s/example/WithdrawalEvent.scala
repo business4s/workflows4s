@@ -10,4 +10,11 @@ object WithdrawalEvent {
 
   case class FeeSet(fee: Fee)
   implicit val FeeSetJournalWrite: JournalWrite[FeeSet] = null
+
+  sealed trait MoneyLocked extends WithdrawalEvent with Product with Serializable
+  object MoneyLocked {
+    case class Success()        extends MoneyLocked
+    case class NotEnoughFunds() extends MoneyLocked
+  }
+  implicit val MoneyLockedWrite: JournalWrite[MoneyLocked] = null
 }

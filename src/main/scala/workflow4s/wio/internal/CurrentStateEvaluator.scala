@@ -10,37 +10,35 @@ object CurrentStateEvaluator {
 
   def getCurrentStateDescription[Err, O, StateIn, StateOut](
       wio: WIO[Err, O, StateIn, StateOut],
-      state: StateIn,
   ): String = {
-    val visitor = new DescriptionVisitor
-    visitor.dispatch(wio, state).merge
+    val visitor = new DescriptionVisitor(wio)
+    visitor.run(null).merge
   }
 
-  class DescriptionVisitor extends Visitor {
-    type DirectOut[StOut, O]        = String
-    type FlatMapOut[Err, Out, SOut] = String
+  class DescriptionVisitor[Err, Out, StIn, StOut](wio: WIO[Err, Out, StIn, StOut]) extends Visitor[Err, Out, StIn, StOut](wio) {
+    type DirectOut = String
+    type FlatMapOut= String
 
-    override def onRunIO[StIn, StOut, Evt, O](wio: WIO.RunIO[StIn, StOut, Evt, O], state: StIn): DirectOut[StOut, O] = "Awaits IO execution"
-
-    def onHandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp](
-        wio: WIO.HandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp],
-        state: StIn,
-    ): DispatchResult[Err, Out, StOut] =
-      s"(Expects query ${wio.queryHandler.ct.runtimeClass.getSimpleName} or ${dispatch(wio.inner, state).merge})".asLeft
-
-    override def onSignal[Sig, StIn, StOut, Evt, O](wio: HandleSignal[Sig, StIn, StOut, Evt, O], state: StIn): String =
+    def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Sig, StIn, StOut, Evt, Out, Err, Resp], state: StIn): DirectOut =
       s"Expects signal ${wio.sigHandler.ct.runtimeClass.getSimpleName}"
 
-    override def onNoop[St, O](wio: WIO.Noop): DirectOut[St, O] = "Empty"
+    def onRunIO[Evt](wio: WIO.RunIO[StIn, StOut, Evt, Out, Err], state: StIn): DirectOut =
+      "Awaits IO execution"
 
-    override def onFlatMap[Err, Out1, Out2, S0, S1, S2](wio: WIO.FlatMap[Err, Out1, Out2, S0, S1, S2], state: S0): FlatMapOut[Err, Out1, S2] =
-      s"(${dispatch(wio.base, state).merge} and more)"
+    def onFlatMap[Out1, StOut1](wio: WIO.FlatMap[Err, Out1, Out, StIn, StOut1, StOut], state: StIn): FlatMapOut = {
+      val visitor = new DescriptionVisitor(wio.base)
+      s"(${visitor.run(state.asRight).merge} and more)"
+    }
+    def onMap[Out1](wio: WIO.Map[Err, Out1, Out, StIn, StOut], state: StIn): DispatchResult = {
+      val visitor = new DescriptionVisitor(wio.base)
+      visitor.run(state.asRight)
+    }
+    def onHandleQuery[Qr, QrSt, Resp](wio: WIO.HandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp], state: StIn): DispatchResult = {
+      val visitor = new DescriptionVisitor(wio.inner)
+      s"(Expects query ${wio.queryHandler.ct.runtimeClass.getSimpleName} or ${visitor.run(state.asRight).merge})".asLeft
+    }
 
-    override def onMap[Err, Out1, Out2, StIn, StOut](
-        wio: WIO.Map[Err, Out1, Out2, StIn, StOut],
-        state: StIn,
-    ): Either[DirectOut[StOut, Out2], FlatMapOut[Err, Out2, StOut]] =
-      dispatch[Err, Out1, StIn, StOut](wio.base, state)
+    def onNoop(wio: WIO.Noop): DirectOut = "Noop"
 
   }
 
