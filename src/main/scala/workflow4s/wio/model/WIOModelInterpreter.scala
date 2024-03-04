@@ -33,7 +33,7 @@ object WIOModelInterpreter {
       WIOModel.HandleError(recurse(wio.base), WIOModel.Dynamic()).asLeft
     }
 
-    def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult = new ModelVisitor(wio, wio.name.some, wio.description).run
+    def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult = new ModelVisitor(wio.base, wio.name.some, wio.description).run
 
     def recurse[E1, O1, SIn1, SOut1](wio: WIO[E1, O1, SIn1, SOut1]): WIOModel = {
       new ModelVisitor(wio, name, description).run.merge

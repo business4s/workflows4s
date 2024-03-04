@@ -4,13 +4,17 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxEitherId
 import com.typesafe.scalalogging.StrictLogging
+import org.camunda.bpm.model.bpmn.Bpmn
 import org.scalatest.freespec.AnyFreeSpec
+import workflow4s.bpmn.BPMNConverter
 import workflow4s.example.WithdrawalService.Fee
 import workflow4s.example.WithdrawalSignal.CreateWithdrawal
 import workflow4s.wio.model.WIOModelInterpreter
 import workflow4s.wio.simple.SimpleActor.EventResponse
 import workflow4s.wio.simple.{InMemoryJournal, SimpleActor}
 import workflow4s.wio.{ActiveWorkflow, Interpreter}
+
+import java.io.File
 
 class WithdrawalWorkflowTest extends AnyFreeSpec {
 
@@ -29,6 +33,11 @@ class WithdrawalWorkflowTest extends AnyFreeSpec {
       import io.circe.syntax._
       val modelJson = model.asJson
       print(modelJson.spaces2)
+    }
+    "render bpmn model" in new Fixture {
+      val model = WIOModelInterpreter.run(new WithdrawalWorkflow(service).workflow)
+      val bpmnModel = BPMNConverter.convert(model, "withdrawal-example")
+      Bpmn.writeModelToFile(new File("src/test/resources/withdrawal-example-bpmn.xml"), bpmnModel)
     }
   }
 

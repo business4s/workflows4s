@@ -3,8 +3,8 @@ package workflow4s.example
 import cats.effect.IO
 import cats.implicits.catsSyntaxEitherId
 import workflow4s.example.WithdrawalEvent.{MoneyLocked, WithdrawalInitiated}
-import workflow4s.example.WithdrawalWorkflow.{createWithdrawalSignal, dataQuery}
 import workflow4s.example.WithdrawalSignal.CreateWithdrawal
+import workflow4s.example.WithdrawalWorkflow.{createWithdrawalSignal, dataQuery}
 import workflow4s.example.checks.{ChecksEngine, ChecksInput, ChecksState, Decision}
 import workflow4s.wio.{SignalDef, WIO}
 
@@ -18,7 +18,7 @@ class WithdrawalWorkflow(service: WithdrawalService) {
   val workflow: WIO[WithdrawalRejection, Unit, WithdrawalData.Empty, Nothing] = for {
     _ <- handleDataQuery(
            (for {
-             _ <- initSignal
+             _ <- receiveWithdrawal
              _ <- calculateFees
              _ <- putMoneyOnHold
              _ <- runChecks
@@ -30,13 +30,14 @@ class WithdrawalWorkflow(service: WithdrawalService) {
     _ <- handleDataQuery(WIO.Noop())
   } yield ()
 
-  private def initSignal: WIO[Nothing, Unit, WithdrawalData.Empty, WithdrawalData.Initiated] =
+  private def receiveWithdrawal: WIO[Nothing, Unit, WithdrawalData.Empty, WithdrawalData.Initiated] =
     WIO
       .handleSignal[WithdrawalData.Empty](createWithdrawalSignal) { (_, signal) =>
         IO(WithdrawalInitiated(signal.amount))
       }
       .handleEvent { (st, event) => (st.initiated(event.amount), ()) }
       .produceResponse((_, _) => ())
+      .autoNamed()
 
   private def calculateFees: WIO[Nothing, Unit, WithdrawalData.Initiated, WithdrawalData.Validated] = WIO
     .runIO[WithdrawalData.Initiated](state => service.calculateFees(state.amount).map(WithdrawalEvent.FeeSet))

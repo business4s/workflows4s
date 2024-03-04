@@ -27,7 +27,12 @@ sealed trait WIO[+Err, +Out, -StateIn, +StateOut] {
   def handleError[Err1, StIn1 <: StateIn, Out1 >: Out, StOut1 >: StateOut](f: Err => WIO[Err1, Out1, StIn1, StOut1]): WIO[Err1, Out1, StIn1, StOut1] =
     WIO.HandleError(this, f)
 
-  def named(name: String, description: Option[String] = None) = WIO.Named(this, name, description)
+  def named(name: String, description: Option[String] = None): WIO[Err, Out, StateIn, StateOut] = WIO.Named(this, name, description)
+
+  def autoNamed(description: Option[String] = None)(implicit name: sourcecode.Name): WIO[Err, Out, StateIn, StateOut] = {
+    val polishedName = name.value.capitalize.replaceAll("([a-z])([A-Z])", "$1 $2")
+    WIO.Named(this, polishedName, description)
+  }
 
 }
 
