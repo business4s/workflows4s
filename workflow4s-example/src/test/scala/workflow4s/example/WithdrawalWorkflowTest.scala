@@ -29,21 +29,24 @@ class WithdrawalWorkflowTest extends AnyFreeSpec {
     }
 
     "render model" in new Fixture {
-      val model = WIOModelInterpreter.run(new WithdrawalWorkflow(service).workflow)
+      val model     = WIOModelInterpreter.run(new WithdrawalWorkflow(service).workflow)
       import io.circe.syntax._
       val modelJson = model.asJson
       print(modelJson.spaces2)
     }
     "render bpmn model" in new Fixture {
-      val model = WIOModelInterpreter.run(new WithdrawalWorkflow(service).workflow)
-      val bpmnModel = BPMNConverter.convert(model, "withdrawal-example")
-      Bpmn.writeModelToFile(new File("src/test/resources/withdrawal-example-bpmn.xml"), bpmnModel)
+      val model         = WIOModelInterpreter.run(new WithdrawalWorkflow(service).workflow)
+      val bpmnModel     = BPMNConverter.convert(model, "withdrawal-example")
+      Bpmn.writeModelToFile(new File("src/test/resources/withdrawal-example-bpmn.bpmn"), bpmnModel)
+      val modelDecl     = WIOModelInterpreter.run(new WithdrawalWorkflow(service).workflowDeclarative)
+      val bpmnModelDecl = BPMNConverter.convert(modelDecl, "withdrawal-example")
+      Bpmn.writeModelToFile(new File("src/test/resources/withdrawal-example-bpmn-declarative.bpmn"), bpmnModelDecl)
     }
   }
 
   trait Fixture extends StrictLogging {
-    val journal = new InMemoryJournal
-    lazy val actor   = createActor(journal)
+    val journal    = new InMemoryJournal
+    lazy val actor = createActor(journal)
 
     def checkRecovery() = {
       logger.debug("Checking recovery")
@@ -58,7 +61,7 @@ class WithdrawalWorkflowTest extends AnyFreeSpec {
     actor
   }
 
-  val txId = "abc"
+  val txId    = "abc"
   val fees    = Fee(11)
   val service = new WithdrawalService {
     override def calculateFees(amount: BigDecimal): IO[Fee] = IO(fees)
@@ -67,9 +70,9 @@ class WithdrawalWorkflowTest extends AnyFreeSpec {
   }
 
   class WithdrawalActor(journal: InMemoryJournal)
-    extends SimpleActor(
-      ActiveWorkflow(new WithdrawalWorkflow(service).workflow, new Interpreter(journal), (WithdrawalData.Empty(txId), ()).asRight),
-    ) {
+      extends SimpleActor(
+        ActiveWorkflow(new WithdrawalWorkflow(service).workflow, new Interpreter(journal), (WithdrawalData.Empty(txId), ()).asRight),
+      ) {
     def init(req: CreateWithdrawal): Unit = {
       this.handleSignal(WithdrawalWorkflow.createWithdrawalSignal)(req).extract
     }
@@ -78,7 +81,7 @@ class WithdrawalWorkflowTest extends AnyFreeSpec {
 
     def recover(): Unit = journal.getEvents.foreach(e =>
       this.handleEvent(e) match {
-        case EventResponse.Ok              => ()
+        case EventResponse.Ok                    => ()
         case EventResponse.UnexpectedEvent(desc) => throw new IllegalArgumentException(s"Unexpected event :${desc}")
       },
     )
@@ -87,13 +90,13 @@ class WithdrawalWorkflowTest extends AnyFreeSpec {
 
   implicit class SimpleSignalResponseOps[Resp](value: SimpleActor.SignalResponse[Resp]) {
     def extract: Resp = value match {
-      case SimpleActor.SignalResponse.Ok(result)       => result
+      case SimpleActor.SignalResponse.Ok(result)             => result
       case SimpleActor.SignalResponse.UnexpectedSignal(desc) => throw new IllegalArgumentException(s"Unexpected signal: $desc")
     }
   }
-  implicit class SimpleQueryResponseOps[Resp](value: SimpleActor.QueryResponse[Resp])               {
+  implicit class SimpleQueryResponseOps[Resp](value: SimpleActor.QueryResponse[Resp])   {
     def extract: Resp = value match {
-      case SimpleActor.QueryResponse.Ok(result)        => result
+      case SimpleActor.QueryResponse.Ok(result)            => result
       case SimpleActor.QueryResponse.UnexpectedQuery(desc) => throw new IllegalArgumentException(s"Unexpected query: $desc")
     }
   }

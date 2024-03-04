@@ -14,6 +14,7 @@ object WIOModel {
   // TODO error name?
   case class HandleError(base: WIOModel, handler: WIOModel)                                                            extends WIOModel
   case object Noop                                                                                                     extends WIOModel
+  case class Pure(name: Option[String], description: Option[String])                                                   extends WIOModel
 
   @JsonCodec
   case class Error(name: Option[String])

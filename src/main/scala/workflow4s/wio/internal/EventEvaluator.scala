@@ -4,6 +4,7 @@ import workflow4s.wio.Interpreter.{EventResponse, Visitor}
 import workflow4s.wio.WIO.{EventHandler, HandleSignal}
 import workflow4s.wio.{ActiveWorkflow, Interpreter, WIO, WfAndState}
 import cats.syntax.all._
+import workflow4s.wio.WfAndState.T
 
 object EventEvaluator {
 
@@ -45,9 +46,24 @@ object EventEvaluator {
                 (x: wf.NextValue) =>
                   wf.value
                     .map({ case (_, value) => wio.getNext(x) })
-                    .leftMap(err => WIO.Pure(Left(err)))
+                    .leftMap(err => WIO.raise[StOut1](err))
                     .merge,
               )
+            WfAndState(newWIO, wf.value)
+          })
+      }
+    }
+
+    override def onAndThen[Out1, StOut1](wio: WIO.AndThen[Err, Out1, Out, StIn, StOut1, StOut]): Option[T[Err, Out, StOut]] = {
+      recurse(wio.first) match {
+        case Left(dOutOpt)   =>
+          dOutOpt.map({
+            case Left(err)             => WfAndState(WIO.Noop(), err.asLeft)
+            case Right((state, value)) => WfAndState(wio.second, (state, value).asRight)
+          })
+        case Right(fmOutOpt) =>
+          fmOutOpt.map(wf => {
+            val newWIO: WIO[Err, Out, wf.StIn, StOut] = WIO.AndThen(wf.wio, wio.second)
             WfAndState(newWIO, wf.value)
           })
       }
@@ -80,8 +96,9 @@ object EventEvaluator {
             .asRight
       }
     }
-    def onNoop(wio: WIO.Noop): DirectOut                                               = None
+    def onNoop(wio: WIO.Noop): DirectOut                                        = None
     override def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult = recurse(wio.base)
+    override def onPure(wio: WIO.Pure[Err, Out, StIn, StOut]): DirectOut        = None
 
     def recurse[E1, O1, SOut1](wio: WIO[E1, O1, StIn, SOut1]): EventVisitor[E1, O1, StIn, SOut1]#DispatchResult =
       new EventVisitor(wio, event, state).run

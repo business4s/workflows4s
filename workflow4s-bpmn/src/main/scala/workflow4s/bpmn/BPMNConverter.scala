@@ -16,6 +16,7 @@ object BPMNConverter {
         .startEvent()
 
     handle(model, base)
+      .endEvent()
       .done()
   }
 
@@ -38,6 +39,7 @@ object BPMNConverter {
           .documentation(description.orNull)
       case WIOModel.HandleError(base, handler)                         => handle(base, builder)
       case WIOModel.Noop                                               => builder
+      case WIOModel.Pure(_, _)                                         => builder // TODO remove name if we dont render
     }
 
 }

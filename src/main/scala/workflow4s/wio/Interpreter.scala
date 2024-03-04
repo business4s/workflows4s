@@ -44,21 +44,23 @@ object Interpreter {
     def onMap[Out1](wio: WIO.Map[Err, Out1, Out, StIn, StOut]): DispatchResult
     def onHandleQuery[Qr, QrSt, Resp](wio: WIO.HandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp]): DispatchResult
     def onNoop(wio: WIO.Noop): DirectOut
-
-    def onHandleError[ErrIn](wio: WIO.HandleError[Err, Out, StIn, StOut, ErrIn]): DispatchResult = ???
-
     def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult
+    def onHandleError[ErrIn](wio: WIO.HandleError[Err, Out, StIn, StOut, ErrIn]): DispatchResult = ???
+    def onAndThen[Out1, StOut1](wio: WIO.AndThen[Err, Out1, Out, StIn, StOut1, StOut]): FlatMapOut
+    def onPure(wio: WIO.Pure[Err, Out, StIn, StOut]): DirectOut
 
     def run: DispatchResult = {
       wio match {
-        case x @ HandleSignal(_, _, _, _)             => onSignal(x).asLeft
-        case x @ WIO.HandleQuery(queryHandler, inner) => onHandleQuery(x)
-        case x @ WIO.RunIO(buildIO, evtHandler)       => onRunIO(x).asLeft
-        case x @ WIO.FlatMap(base, getNext)           => onFlatMap(x).asRight.asInstanceOf[DispatchResult] // TODO
-        case x @ WIO.Map(base, f)                     => onMap(x)
-        case x @ WIO.Noop()                           => onNoop(x).asLeft
-        case x @ WIO.HandleError(_, _)                => onHandleError(x)
-        case x @ WIO.Named(_, _, _)                   => onNamed(x)
+        case x @ HandleSignal(_, _, _, _) => onSignal(x).asLeft
+        case x @ WIO.HandleQuery(_, _)    => onHandleQuery(x)
+        case x @ WIO.RunIO(_, _)          => onRunIO(x).asLeft
+        case x @ WIO.FlatMap(_, _)        => onFlatMap(x).asRight
+        case x @ WIO.Map(_, _)            => onMap(x)
+        case x @ WIO.Noop()               => onNoop(x).asLeft
+        case x @ WIO.HandleError(_, _)    => onHandleError(x)
+        case x @ WIO.Named(_, _, _)       => onNamed(x)
+        case x @ WIO.AndThen(_, _)        => onAndThen(x).asRight
+        case x @ WIO.Pure(_)              => onPure(x).asLeft
       }
     }
   }

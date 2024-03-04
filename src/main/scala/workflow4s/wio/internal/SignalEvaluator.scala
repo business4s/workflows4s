@@ -4,6 +4,7 @@ import cats.effect.IO
 import cats.syntax.all._
 import workflow4s.wio.Interpreter.{EventResponse, SignalResponse, Visitor}
 import workflow4s.wio.WIO.{EventHandler, HandleSignal}
+import workflow4s.wio.WfAndState.T
 import workflow4s.wio.{ActiveWorkflow, Interpreter, JournalPersistance, JournalWrite, SignalDef, WIO, WfAndState}
 
 object SignalEvaluator {
@@ -66,14 +67,32 @@ object SignalEvaluator {
                   (x: wf.NextValue) =>
                     wf.value
                       .map({ case (_, value) => wio.getNext(x) })
-                      .leftMap(err => WIO.Pure(Left(err)))
+                      .leftMap(err => WIO.raise[StOut1](err))
                       .merge,
                 )
               WfAndState(newWIO, wf.value) -> resp
             }),
           )
       }
+    }
 
+    override def onAndThen[Out1, StOut1](wio: WIO.AndThen[Err, Out1, Out, StIn, StOut1, StOut]): FlatMapOut = {
+      recurse(wio.first) match {
+        case Left(dOutOpt)   =>
+          dOutOpt.map(dOutIO =>
+            dOutIO.map({
+              case (Left(err), resp)             => ??? //WfAndState(WIO.Noop(), err.asLeft) -> resp
+              case (Right((state, value)), resp) => ??? //WfAndState(wio.getNext(value), (state, value).asRight) -> resp
+            }),
+          )
+        case Right(fmOutOpt) =>
+          fmOutOpt.map(fmOutIO =>
+            fmOutIO.map({ case (wf, resp) =>
+              val newWIO: WIO[Err, Out, wf.StIn, StOut] = WIO.AndThen(wf.wio, wio.second)
+              WfAndState(newWIO, wf.value) -> resp
+            }),
+          )
+      }
     }
 
     def onMap[Out1](wio: WIO.Map[Err, Out1, Out, StIn, StOut]): DispatchResult = {
@@ -120,6 +139,7 @@ object SignalEvaluator {
     def onNoop(wio: WIO.Noop): DirectOut = None
 
     override def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult = recurse(wio.base)
+    override def onPure(wio: WIO.Pure[Err, Out, StIn, StOut]): DirectOut        = None
 
     def recurse[E1, O1, SOut1](wio: WIO[E1, O1, StIn, SOut1]): SignalVisitor[Resp, E1, O1, StIn, SOut1, Req]#DispatchResult =
       new SignalVisitor(wio, interp, signalDef, req, state).run

@@ -33,14 +33,16 @@ object QueryEvaluator {
     def onFlatMap[Out1, StOut1](wio: WIO.FlatMap[Err, Out1, Out, StIn, StOut1, StOut]): FlatMapOut = {
       recurse(wio.base).merge
     }
+    override def onAndThen[Out1, StOut1](wio: WIO.AndThen[Err, Out1, Out, StIn, StOut1, StOut]): FlatMapOut        =
+      recurse(wio.first).merge
     def onMap[Out1](wio: WIO.Map[Err, Out1, Out, StIn, StOut]): DispatchResult = {
       recurse(wio.base)
     }
     def onHandleQuery[Qr, QrSt, Resp](wio: WIO.HandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp]): DispatchResult =
       wio.queryHandler.run(signalDef)(req, state).asLeft
     def onNoop(wio: WIO.Noop): DirectOut                                                                           = None
-
-    override def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult = recurse(wio.base)
+    override def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult                                    = recurse(wio.base)
+    override def onPure(wio: WIO.Pure[Err, Out, StIn, StOut]): DirectOut                                           = None
 
     def recurse[E1, O1, SOut1](wio: WIO[E1, O1, StIn, SOut1]): QueryVisitor[E1, O1, StIn, SOut1, Resp, Req]#DispatchResult =
       new QueryVisitor(wio, signalDef, req, state).run

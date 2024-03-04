@@ -30,6 +30,16 @@ class WithdrawalWorkflow(service: WithdrawalService) {
     _ <- handleDataQuery(WIO.Noop())
   } yield ()
 
+  val workflowDeclarative: WIO[WithdrawalRejection, Unit, WithdrawalData.Empty, Nothing] =
+    handleDataQuery(
+      (receiveWithdrawal >>>
+        calculateFees >>>
+        putMoneyOnHold >>>
+        runChecks >>>
+        execute >>>
+        releaseFunds).handleError(handleRejection),
+    ) >>> handleDataQuery(WIO.Noop())
+
   private def receiveWithdrawal: WIO[Nothing, Unit, WithdrawalData.Empty, WithdrawalData.Initiated] =
     WIO
       .handleSignal[WithdrawalData.Empty](createWithdrawalSignal) { (_, signal) =>
@@ -42,6 +52,7 @@ class WithdrawalWorkflow(service: WithdrawalService) {
   private def calculateFees: WIO[Nothing, Unit, WithdrawalData.Initiated, WithdrawalData.Validated] = WIO
     .runIO[WithdrawalData.Initiated](state => service.calculateFees(state.amount).map(WithdrawalEvent.FeeSet))
     .handleEvent { (state, event) => (state.validated(event.fee), ()) }
+    .autoNamed()
 
   private def putMoneyOnHold: WIO[WithdrawalRejection.NotEnoughFunds, Unit, WithdrawalData.Validated, WithdrawalData.Validated] =
     WIO
@@ -59,6 +70,7 @@ class WithdrawalWorkflow(service: WithdrawalService) {
           case MoneyLocked.NotEnoughFunds() => WithdrawalRejection.NotEnoughFunds().asLeft
         }
       }
+      .autoNamed()
 
   private def runChecks: WIO[WithdrawalRejection.RejectedInChecks, Unit, WithdrawalData.Validated, WithdrawalData.Checked] =
     for {

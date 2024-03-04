@@ -39,6 +39,11 @@ object CurrentStateEvaluator {
 
     override def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult = recurse(wio.base)
 
+    override def onAndThen[Out1, StOut1](wio: WIO.AndThen[Err, Out1, Out, StIn, StOut1, StOut]): String =
+      s"(${recurse(wio.first).merge} and then ${recurse(wio.second).merge})"
+
+    override def onPure(wio: WIO.Pure[Err, Out, StIn, StOut]): String = "pure"
+
     def recurse[E1, O1, SIn1, SOut1](wio: WIO[E1, O1, SIn1, SOut1]): DispatchResult = new DescriptionVisitor(wio).run
 
   }

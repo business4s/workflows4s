@@ -4,6 +4,7 @@ import cats.data.EitherT
 import cats.effect.IO
 import cats.syntax.all._
 import workflow4s.wio.Interpreter.{ProceedResponse, SignalResponse, Visitor}
+import workflow4s.wio.WfAndState.T
 import workflow4s.wio._
 
 object ProceedEvaluator {
@@ -48,7 +49,7 @@ object ProceedEvaluator {
                   (x: wf.NextValue) =>
                     wf.value
                       .map({ case (_, value) => wio.getNext(x) })
-                      .leftMap(err => WIO.Pure(Left(err)))
+                      .leftMap(err => WIO.raise[StOut1](err))
                       .merge,
                 )
               WfAndState(newWIO, wf.value)
@@ -56,6 +57,26 @@ object ProceedEvaluator {
           )
       }
     }
+
+    override def onAndThen[Out1, StOut1](wio: WIO.AndThen[Err, Out1, Out, StIn, StOut1, StOut]): Option[IO[T[Err, Out, StOut]]] = {
+      recurse(wio.first) match {
+        case Left(dOutOpt)   =>
+          dOutOpt.map(dOutIO =>
+            dOutIO.map({
+              case Left(err)             => WfAndState(WIO.Noop(), err.asLeft)
+              case Right((state, value)) => WfAndState(wio.second, (state, value).asRight)
+            }),
+          )
+        case Right(fmOutOpt) =>
+          fmOutOpt.map(fmOutIO =>
+            fmOutIO.map({ wf =>
+              val newWIO: WIO[Err, Out, wf.StIn, StOut] = WIO.AndThen(wf.wio, wio.second)
+              WfAndState(newWIO, wf.value)
+            }),
+          )
+      }
+    }
+
     def onMap[Out1](wio: WIO.Map[Err, Out1, Out, StIn, StOut]): DispatchResult = {
       recurse(wio.base) match {
         case Left(dOutOpt)   => dOutOpt.map(dOutIO => dOutIO.map(_.map({ case (stOut, out) => (stOut, wio.mapValue(out)) }))).asLeft
@@ -90,12 +111,11 @@ object ProceedEvaluator {
 
     }
     def onNoop(wio: WIO.Noop): DirectOut                                                                  = None
+    override def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult                           = recurse(wio.base)
+    override def onPure(wio: WIO.Pure[Err, Out, StIn, StOut]): DirectOut            = Some(wio.value(state).pure[IO])
 
-    override def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult = recurse(wio.base)
-
-    def recurse[E1, O1, SOut1](wio: WIO[E1, O1, StIn, SOut1]): ProceedVisitor[E1, O1, StIn, SOut1]#DispatchResult =
+    private def recurse[E1, O1, SOut1](wio: WIO[E1, O1, StIn, SOut1]): ProceedVisitor[E1, O1, StIn, SOut1]#DispatchResult =
       new ProceedVisitor(wio, interp, state).run
-
   }
 
 }

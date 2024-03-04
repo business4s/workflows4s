@@ -34,6 +34,9 @@ sealed trait WIO[+Err, +Out, -StateIn, +StateOut] {
     WIO.Named(this, polishedName, description)
   }
 
+  def andThen[Err1 >: Err, StateOut1, Out1](next: WIO[Err1, Out1, StateOut, StateOut1]): WIO[Err1, Out1, StateIn, StateOut1] = WIO.AndThen(this, next)
+  def >>>[Err1 >: Err, StateOut1, Out1](next: WIO[Err1, Out1, StateOut, StateOut1]): WIO[Err1, Out1, StateIn, StateOut1]     = andThen(next)
+
 }
 
 object WIO {
@@ -66,7 +69,7 @@ object WIO {
 
   case class Map[+Err, Out1, +Out2, -StIn, +StOut](base: WIO[Err, Out1, StIn, StOut], mapValue: Out1 => Out2) extends WIO[Err, Out2, StIn, StOut]
 
-  case class Pure[+Err, +Out, -StIn, +StOut](value: Either[Err, Out]) extends WIO[Err, Out, StIn, StOut]
+  case class Pure[+Err, +Out, -StIn, +StOut](value: StIn => Either[Err, (StOut, Out)]) extends WIO[Err, Out, StIn, StOut]
 
   // TODO this should ne called `Never` or `Halt` or similar, as the workflow cant proceed from that point.
   case class Noop() extends WIO[Nothing, Nothing, Any, Nothing]
@@ -76,6 +79,9 @@ object WIO {
 
   case class Named[+Err, +Out, -StIn, +StOut](base: WIO[Err, Out, StIn, StOut], name: String, description: Option[String])
       extends WIO[Err, Out, StIn, StOut]
+
+  case class AndThen[+Err, Out1, +Out2, -StIn, StOut, +StOut2](first: WIO[Err, Out1, StIn, StOut], second: WIO[Err, Out2, StOut, StOut2])
+      extends WIO[Err, Out2, StIn, StOut2]
 
   case class SignalHandler[-Sig, +Evt, -StIn](handle: (StIn, Sig) => IO[Evt])(implicit sigCt: ClassTag[Sig])              {
     def run[Req, Resp](signal: SignalDef[Req, Resp])(req: Req, s: StIn): Option[IO[Evt]] =
@@ -158,8 +164,8 @@ object WIO {
       RunIO(getIO, EventHandler(f))
   }
 
-  def getState[St]: WIO[Nothing, St, St, St]            = ???
-  def setState[St](st: St): WIO[Nothing, Unit, Any, St] = ???
+  def getState[St]: WIO[Nothing, St, St, St]            = WIO.Pure(s => (s, s).asRight)
+  def setState[St](st: St): WIO[Nothing, Unit, Any, St] = WIO.Pure(_ => (st, ()).asRight)
 
   def await[St](duration: Duration): WIO[Nothing, Unit, St, St] = ???
 
@@ -172,7 +178,7 @@ object WIO {
 
   def raise[St]: RaisePartiallyApplied[St] = new RaisePartiallyApplied
   class RaisePartiallyApplied[StIn] {
-    def apply[Err](value: Err): WIO[Err, Nothing, StIn, StIn] = ???
+    def apply[Err](value: Err): WIO[Err, Nothing, StIn, Nothing] = ???
   }
 
 }
