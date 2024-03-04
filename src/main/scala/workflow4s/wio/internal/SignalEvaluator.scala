@@ -15,9 +15,8 @@ object SignalEvaluator {
       state: Either[Err, StIn],
       interp: Interpreter,
   ): SignalResponse[Resp] = {
-    val visitor = new SignalVisitor(wio, interp, signalDef, req)
-    visitor
-      .run(state)
+    val visitor = new SignalVisitor(wio, interp, signalDef, req, state.toOption.get)
+    visitor.run
       .leftMap(_.map(dOutIO => dOutIO.map { case (out, resp) => ActiveWorkflow(WIO.Noop(), interp, out) -> resp }))
       .map(_.map(wfIO => wfIO.map({ case (wf, resp) => ActiveWorkflow(wf.wio, interp, wf.value) -> resp })))
       .merge
@@ -30,11 +29,12 @@ object SignalEvaluator {
       interp: Interpreter,
       signalDef: SignalDef[Req, Resp],
       req: Req,
+      state: StIn,
   ) extends Visitor[Err, Out, StIn, StOut](wio) {
     type DirectOut  = Option[IO[(Either[Err, (StOut, Out)], Resp)]]
     type FlatMapOut = Option[IO[(WfAndState.T[Err, Out, StOut], Resp)]]
 
-    def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Sig, StIn, StOut, Evt, Out, Err, Resp], state: StIn): DirectOut = {
+    def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Sig, StIn, StOut, Evt, Out, Err, Resp]): DirectOut = {
       wio.sigHandler
         .run(signalDef)(req, state)
         .map(ioOpt =>
@@ -46,12 +46,10 @@ object SignalEvaluator {
         )
     }
 
-    def onRunIO[Evt](wio: WIO.RunIO[StIn, StOut, Evt, Out, Err], state: StIn): DirectOut = None
+    def onRunIO[Evt](wio: WIO.RunIO[StIn, StOut, Evt, Out, Err]): DirectOut = None
 
-    def onFlatMap[Out1, StOut1](wio: WIO.FlatMap[Err, Out1, Out, StIn, StOut1, StOut], state: StIn): FlatMapOut = {
-      val visitor                          = new SignalVisitor(wio.base, interp, signalDef, req)
-      val newWfOpt: visitor.DispatchResult = visitor.run(state.asRight)
-      newWfOpt match {
+    def onFlatMap[Out1, StOut1](wio: WIO.FlatMap[Err, Out1, Out, StIn, StOut1, StOut]): FlatMapOut = {
+      recurse(wio.base) match {
         case Left(dOutOpt)   =>
           dOutOpt.map(dOutIO =>
             dOutIO.map({
@@ -78,9 +76,8 @@ object SignalEvaluator {
 
     }
 
-    def onMap[Out1](wio: WIO.Map[Err, Out1, Out, StIn, StOut], state: StIn): DispatchResult = {
-      val visitor = new SignalVisitor(wio.base, interp, signalDef, req)
-      visitor.run(state.asRight) match {
+    def onMap[Out1](wio: WIO.Map[Err, Out1, Out, StIn, StOut]): DispatchResult = {
+      recurse(wio.base) match {
         case Left(dOutOpt)   =>
           dOutOpt
             .map(dOutIO =>
@@ -105,9 +102,8 @@ object SignalEvaluator {
       }
     }
 
-    def onHandleQuery[Qr, QrSt, Resp](wio: WIO.HandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp], state: StIn): DispatchResult = {
-      val visitor = new SignalVisitor(wio.inner, interp, signalDef, req)
-      visitor.run(state.asRight) match {
+    def onHandleQuery[Qr, QrSt, Resp](wio: WIO.HandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp]): DispatchResult = {
+      recurse(wio.inner) match {
         case Left(value)  => Left(value) // if its direct, we leave the query
         case Right(value) =>
           value
@@ -122,6 +118,11 @@ object SignalEvaluator {
     }
 
     def onNoop(wio: WIO.Noop): DirectOut = None
+
+    override def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult = recurse(wio.base)
+
+    def recurse[E1, O1, SOut1](wio: WIO[E1, O1, StIn, SOut1]): SignalVisitor[Resp, E1, O1, StIn, SOut1, Req]#DispatchResult =
+      new SignalVisitor(wio, interp, signalDef, req, state).run
 
   }
 }

@@ -13,32 +13,37 @@ object QueryEvaluator {
       wio: WIO[Err, Any, StIn, Any],
       state: Either[Err, StIn],
   ): QueryResponse[Resp] = {
-    val visitor = new QueryVisitor(wio, signalDef, req)
-    visitor
-      .run(state)
-      .merge
+    val visitor = new QueryVisitor(wio, signalDef, req, state.toOption.get)
+    visitor.run.merge
       .map(QueryResponse.Ok(_))
       .getOrElse(QueryResponse.UnexpectedQuery())
   }
 
-  private class QueryVisitor[Err, Out, StIn, StOut, Resp, Req](wio: WIO[Err, Out, StIn, StOut], signalDef: SignalDef[Req, Resp], req: Req)
-      extends Visitor[Err, Out, StIn, StOut](wio) {
+  private class QueryVisitor[Err, Out, StIn, StOut, Resp, Req](
+      wio: WIO[Err, Out, StIn, StOut],
+      signalDef: SignalDef[Req, Resp],
+      req: Req,
+      state: StIn,
+  ) extends Visitor[Err, Out, StIn, StOut](wio) {
     type DirectOut  = Option[Resp]
     type FlatMapOut = Option[Resp]
 
-    def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Sig, StIn, StOut, Evt, Out, Err, Resp], state: StIn): DirectOut                      = None
-    def onRunIO[Evt](wio: WIO.RunIO[StIn, StOut, Evt, Out, Err], state: StIn): DirectOut                                        = None
-    def onFlatMap[Out1, StOut1](wio: WIO.FlatMap[Err, Out1, Out, StIn, StOut1, StOut], state: StIn): FlatMapOut = {
-      val visitor = new QueryVisitor(wio, signalDef, req)
-      visitor.run(state.asRight).merge
+    def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Sig, StIn, StOut, Evt, Out, Err, Resp]): DirectOut          = None
+    def onRunIO[Evt](wio: WIO.RunIO[StIn, StOut, Evt, Out, Err]): DirectOut                                        = None
+    def onFlatMap[Out1, StOut1](wio: WIO.FlatMap[Err, Out1, Out, StIn, StOut1, StOut]): FlatMapOut = {
+      recurse(wio.base).merge
     }
-    def onMap[Out1](wio: WIO.Map[Err, Out1, Out, StIn, StOut], state: StIn): DispatchResult = {
-      val visitor = new QueryVisitor(wio, signalDef, req)
-      visitor.run(state.asRight).merge.asLeft
+    def onMap[Out1](wio: WIO.Map[Err, Out1, Out, StIn, StOut]): DispatchResult = {
+      recurse(wio.base)
     }
-    def onHandleQuery[Qr, QrSt, Resp](wio: WIO.HandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp], state: StIn): DispatchResult =
+    def onHandleQuery[Qr, QrSt, Resp](wio: WIO.HandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp]): DispatchResult =
       wio.queryHandler.run(signalDef)(req, state).asLeft
-    def onNoop(wio: WIO.Noop): DirectOut                                                                                        = None
+    def onNoop(wio: WIO.Noop): DirectOut                                                                           = None
+
+    override def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult = recurse(wio.base)
+
+    def recurse[E1, O1, SOut1](wio: WIO[E1, O1, StIn, SOut1]): QueryVisitor[E1, O1, StIn, SOut1, Resp, Req]#DispatchResult =
+      new QueryVisitor(wio, signalDef, req, state).run
 
   }
 

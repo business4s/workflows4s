@@ -9,9 +9,8 @@ import workflow4s.wio._
 object ProceedEvaluator {
 
   def proceed[StIn, StOut, Err](wio: WIO.States[StIn, StOut], errOrState: Either[Err, StIn], interp: Interpreter): ProceedResponse = {
-    val visitor = new ProceedVisitor(wio, interp)
-    visitor
-      .run(errOrState)
+    val visitor = new ProceedVisitor(wio, interp, errOrState.toOption.get)
+    visitor.run
       .leftMap(_.map(dOutIO => dOutIO.map { errOrValue => ActiveWorkflow(WIO.Noop(), interp, errOrValue) }))
       .map(_.map(wfIO => wfIO.map({ wf => ActiveWorkflow(wf.wio, interp, wf.value) })))
       .merge
@@ -19,22 +18,20 @@ object ProceedEvaluator {
       .getOrElse(ProceedResponse.Noop())
   }
 
-  private class ProceedVisitor[Err, Out, StIn, StOut](wio: WIO[Err, Out, StIn, StOut], interp: Interpreter)
+  private class ProceedVisitor[Err, Out, StIn, StOut](wio: WIO[Err, Out, StIn, StOut], interp: Interpreter, state: StIn)
       extends Visitor[Err, Out, StIn, StOut](wio) {
     type DirectOut  = Option[IO[Either[Err, (StOut, Out)]]]
     type FlatMapOut = Option[IO[WfAndState.T[Err, Out, StOut]]]
 
-    def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Sig, StIn, StOut, Evt, Out, Err, Resp], state: StIn): DirectOut = None
-    def onRunIO[Evt](wio: WIO.RunIO[StIn, StOut, Evt, Out, Err], state: StIn): DirectOut = {
+    def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Sig, StIn, StOut, Evt, Out, Err, Resp]): DirectOut = None
+    def onRunIO[Evt](wio: WIO.RunIO[StIn, StOut, Evt, Out, Err]): DirectOut = {
       (for {
         evt <- wio.buildIO(state)
         _   <- interp.journal.save(evt)(wio.evtHandler.jw)
       } yield wio.evtHandler.handle(state, evt)).some
     }
-    def onFlatMap[Out1, StOut1](wio: WIO.FlatMap[Err, Out1, Out, StIn, StOut1, StOut], state: StIn): FlatMapOut = {
-      val visitor                          = new ProceedVisitor(wio.base, interp)
-      val newWfOpt: visitor.DispatchResult = visitor.run(state.asRight)
-      newWfOpt match {
+    def onFlatMap[Out1, StOut1](wio: WIO.FlatMap[Err, Out1, Out, StIn, StOut1, StOut]): FlatMapOut = {
+      recurse(wio.base) match {
         case Left(dOutOpt)   =>
           dOutOpt.map(dOutIO =>
             dOutIO.map({
@@ -59,9 +56,8 @@ object ProceedEvaluator {
           )
       }
     }
-    def onMap[Out1](wio: WIO.Map[Err, Out1, Out, StIn, StOut], state: StIn): DispatchResult = {
-      val visitor = new ProceedVisitor(wio.base, interp)
-      visitor.run(state.asRight) match {
+    def onMap[Out1](wio: WIO.Map[Err, Out1, Out, StIn, StOut]): DispatchResult = {
+      recurse(wio.base) match {
         case Left(dOutOpt)   => dOutOpt.map(dOutIO => dOutIO.map(_.map({ case (stOut, out) => (stOut, wio.mapValue(out)) }))).asLeft
         case Right(fmOutOpt) =>
           fmOutOpt
@@ -78,9 +74,8 @@ object ProceedEvaluator {
             .asRight
       }
     }
-    def onHandleQuery[Qr, QrSt, Resp](wio: WIO.HandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp], state: StIn): DispatchResult = {
-      val visitor = new ProceedVisitor(wio.inner, interp)
-      visitor.run(state.asRight) match {
+    def onHandleQuery[Qr, QrSt, Resp](wio: WIO.HandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp]): DispatchResult = {
+      recurse(wio.inner) match {
         case Left(value)  => Left(value) // if its direct, we leave the query
         case Right(value) =>
           value
@@ -94,7 +89,12 @@ object ProceedEvaluator {
       }
 
     }
-    def onNoop(wio: WIO.Noop): DirectOut                                                                   = None
+    def onNoop(wio: WIO.Noop): DirectOut                                                                  = None
+
+    override def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult = recurse(wio.base)
+
+    def recurse[E1, O1, SOut1](wio: WIO[E1, O1, StIn, SOut1]): ProceedVisitor[E1, O1, StIn, SOut1]#DispatchResult =
+      new ProceedVisitor(wio, interp, state).run
 
   }
 

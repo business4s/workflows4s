@@ -7,6 +7,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.scalatest.freespec.AnyFreeSpec
 import workflow4s.example.WithdrawalService.Fee
 import workflow4s.example.WithdrawalSignal.CreateWithdrawal
+import workflow4s.wio.model.WIOModelInterpreter
 import workflow4s.wio.simple.SimpleActor.EventResponse
 import workflow4s.wio.simple.{InMemoryJournal, SimpleActor}
 import workflow4s.wio.{ActiveWorkflow, Interpreter}
@@ -16,17 +17,24 @@ class WithdrawalWorkflowTest extends AnyFreeSpec {
   "Withdrawal Example" - {
 
     "init" in new Fixture {
-      assert(actor.queryData() == WithdrawalData.Empty)
+      assert(actor.queryData() == WithdrawalData.Empty(txId))
       actor.init(CreateWithdrawal(100))
-      assert(actor.queryData() == WithdrawalData.Validated(100, fees))
+      assert(actor.queryData() == WithdrawalData.Validated(txId, 100, fees))
 
       checkRecovery()
+    }
+
+    "render model" in new Fixture {
+      val model = WIOModelInterpreter.run(new WithdrawalWorkflow(service).workflow)
+      import io.circe.syntax._
+      val modelJson = model.asJson
+      print(modelJson.spaces2)
     }
   }
 
   trait Fixture extends StrictLogging {
     val journal = new InMemoryJournal
-    val actor   = createActor(journal)
+    lazy val actor   = createActor(journal)
 
     def checkRecovery() = {
       logger.debug("Checking recovery")
@@ -41,6 +49,7 @@ class WithdrawalWorkflowTest extends AnyFreeSpec {
     actor
   }
 
+  val txId = "abc"
   val fees    = Fee(11)
   val service = new WithdrawalService {
     override def calculateFees(amount: BigDecimal): IO[Fee] = IO(fees)
@@ -50,7 +59,7 @@ class WithdrawalWorkflowTest extends AnyFreeSpec {
 
   class WithdrawalActor(journal: InMemoryJournal)
     extends SimpleActor(
-      ActiveWorkflow(new WithdrawalWorkflow(service).workflow, new Interpreter(journal), (WithdrawalData.Empty, ()).asRight),
+      ActiveWorkflow(new WithdrawalWorkflow(service).workflow, new Interpreter(journal), (WithdrawalData.Empty(txId), ()).asRight),
     ) {
     def init(req: CreateWithdrawal): Unit = {
       this.handleSignal(WithdrawalWorkflow.createWithdrawalSignal)(req).extract

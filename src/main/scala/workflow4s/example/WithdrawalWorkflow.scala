@@ -15,7 +15,7 @@ object WithdrawalWorkflow {
 
 class WithdrawalWorkflow(service: WithdrawalService) {
 
-  val workflow: WIO[WithdrawalRejection, Unit, WithdrawalData.Empty.type, Nothing] = for {
+  val workflow: WIO[WithdrawalRejection, Unit, WithdrawalData.Empty, Nothing] = for {
     _ <- handleDataQuery(
            (for {
              _ <- initSignal
@@ -30,12 +30,12 @@ class WithdrawalWorkflow(service: WithdrawalService) {
     _ <- handleDataQuery(WIO.Noop())
   } yield ()
 
-  private def initSignal: WIO[Nothing, Unit, WithdrawalData.Empty.type, WithdrawalData.Initiated] =
+  private def initSignal: WIO[Nothing, Unit, WithdrawalData.Empty, WithdrawalData.Initiated] =
     WIO
-      .handleSignal[WithdrawalData.Empty.type](createWithdrawalSignal) { (_, signal) =>
+      .handleSignal[WithdrawalData.Empty](createWithdrawalSignal) { (_, signal) =>
         IO(WithdrawalInitiated(signal.amount))
       }
-      .handleEvent { (_, event) => (WithdrawalData.Initiated(event.amount), ()) }
+      .handleEvent { (st, event) => (st.initiated(event.amount), ()) }
       .produceResponse((_, _) => ())
 
   private def calculateFees: WIO[Nothing, Unit, WithdrawalData.Initiated, WithdrawalData.Validated] = WIO
@@ -69,9 +69,9 @@ class WithdrawalWorkflow(service: WithdrawalService) {
                       (validated, checkState) => validated.checked(checkState),
                     )
       _        <- decision match {
-                    case Decision.RejectedBySystem()   => WIO.raise[WithdrawalData.Checked](WithdrawalRejection.RejectedInChecks())
+                    case Decision.RejectedBySystem()   => WIO.raise[WithdrawalData.Checked](WithdrawalRejection.RejectedInChecks(state.txId))
                     case Decision.ApprovedBySystem()   => WIO.unit[WithdrawalData.Checked]
-                    case Decision.RejectedByOperator() => WIO.raise[WithdrawalData.Checked](WithdrawalRejection.RejectedInChecks())
+                    case Decision.RejectedByOperator() => WIO.raise[WithdrawalData.Checked](WithdrawalRejection.RejectedInChecks(state.txId))
                     case Decision.ApprovedByOperator() => WIO.unit[WithdrawalData.Checked]
                   }
     } yield ()
@@ -79,11 +79,17 @@ class WithdrawalWorkflow(service: WithdrawalService) {
   // TODO can fail with provider fatal failure, need retries
   private def execute: WIO[WithdrawalRejection.RejectedByExecutionEngine, Unit, WithdrawalData.Checked, WithdrawalData.Executed] = WIO.Noop()
 
-  private def releaseFunds: WIO[Nothing, Unit, WithdrawalData.Executed, WithdrawalData.Executed] = WIO.Noop()
+  private def releaseFunds: WIO[Nothing, Unit, WithdrawalData.Executed, WithdrawalData.Completed] = WIO.Noop()
 
   private def handleDataQuery =
     WIO.handleQuery[WithdrawalData](dataQuery) { (state, _) => state }
 
-  private def handleRejection(r: WithdrawalRejection): WIO[Nothing, Unit, Any, WithdrawalData.Completed] = ???
+  private def handleRejection(r: WithdrawalRejection): WIO[Nothing, Unit, Any, WithdrawalData.Completed] =
+    r match {
+      case WithdrawalRejection.NotEnoughFunds()                => WIO.setState(WithdrawalData.Completed())
+      case WithdrawalRejection.RejectedInChecks(txId)          => cancelFunds(txId)
+      case WithdrawalRejection.RejectedByExecutionEngine(txId) => cancelFunds(txId)
+    }
 
+  private def cancelFunds(txId: String): WIO[Nothing, Unit, Any, WithdrawalData.Completed] = WIO.Noop()
 }

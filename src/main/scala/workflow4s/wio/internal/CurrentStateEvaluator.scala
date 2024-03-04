@@ -12,33 +12,34 @@ object CurrentStateEvaluator {
       wio: WIO[Err, O, StateIn, StateOut],
   ): String = {
     val visitor = new DescriptionVisitor(wio)
-    visitor.run(null).merge
+    visitor.run.merge
   }
 
   class DescriptionVisitor[Err, Out, StIn, StOut](wio: WIO[Err, Out, StIn, StOut]) extends Visitor[Err, Out, StIn, StOut](wio) {
-    type DirectOut = String
-    type FlatMapOut= String
+    type DirectOut  = String
+    type FlatMapOut = String
 
-    def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Sig, StIn, StOut, Evt, Out, Err, Resp], state: StIn): DirectOut =
+    def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Sig, StIn, StOut, Evt, Out, Err, Resp]): DirectOut =
       s"Expects signal ${wio.sigHandler.ct.runtimeClass.getSimpleName}"
 
-    def onRunIO[Evt](wio: WIO.RunIO[StIn, StOut, Evt, Out, Err], state: StIn): DirectOut =
+    def onRunIO[Evt](wio: WIO.RunIO[StIn, StOut, Evt, Out, Err]): DirectOut =
       "Awaits IO execution"
 
-    def onFlatMap[Out1, StOut1](wio: WIO.FlatMap[Err, Out1, Out, StIn, StOut1, StOut], state: StIn): FlatMapOut = {
-      val visitor = new DescriptionVisitor(wio.base)
-      s"(${visitor.run(state.asRight).merge} and more)"
+    def onFlatMap[Out1, StOut1](wio: WIO.FlatMap[Err, Out1, Out, StIn, StOut1, StOut]): FlatMapOut = {
+      s"(${recurse(wio.base).merge} and more)"
     }
-    def onMap[Out1](wio: WIO.Map[Err, Out1, Out, StIn, StOut], state: StIn): DispatchResult = {
-      val visitor = new DescriptionVisitor(wio.base)
-      visitor.run(state.asRight)
+    def onMap[Out1](wio: WIO.Map[Err, Out1, Out, StIn, StOut]): DispatchResult = {
+      recurse(wio.base)
     }
-    def onHandleQuery[Qr, QrSt, Resp](wio: WIO.HandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp], state: StIn): DispatchResult = {
-      val visitor = new DescriptionVisitor(wio.inner)
-      s"(Expects query ${wio.queryHandler.ct.runtimeClass.getSimpleName} or ${visitor.run(state.asRight).merge})".asLeft
+    def onHandleQuery[Qr, QrSt, Resp](wio: WIO.HandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp]): DispatchResult = {
+      s"(Expects query ${wio.queryHandler.ct.runtimeClass.getSimpleName} or ${recurse(wio.inner).merge})".asLeft
     }
 
     def onNoop(wio: WIO.Noop): DirectOut = "Noop"
+
+    override def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult = recurse(wio.base)
+
+    def recurse[E1, O1, SIn1, SOut1](wio: WIO[E1, O1, SIn1, SOut1]): DispatchResult = new DescriptionVisitor(wio).run
 
   }
 
