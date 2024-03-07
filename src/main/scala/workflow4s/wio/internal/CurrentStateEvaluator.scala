@@ -12,32 +12,31 @@ object CurrentStateEvaluator {
       wio: WIO[Err, O, StateIn, StateOut],
   ): String = {
     val visitor = new DescriptionVisitor(wio)
-    visitor.run.merge
+    visitor.run
   }
 
   class DescriptionVisitor[Err, Out, StIn, StOut](wio: WIO[Err, Out, StIn, StOut]) extends Visitor[Err, Out, StIn, StOut](wio) {
-    type DirectOut  = String
-    type FlatMapOut = String
+    override type DispatchResult = String
 
-    def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Sig, StIn, StOut, Evt, Out, Err, Resp]): DirectOut =
+    def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Sig, StIn, StOut, Evt, Out, Err, Resp]): DispatchResult =
       s"Expects signal ${wio.sigHandler.ct.runtimeClass.getSimpleName}"
 
-    def onRunIO[Evt](wio: WIO.RunIO[StIn, StOut, Evt, Out, Err]): DirectOut =
+    def onRunIO[Evt](wio: WIO.RunIO[StIn, StOut, Evt, Out, Err]): DispatchResult =
       "Awaits IO execution"
 
-    def onFlatMap[Out1, StOut1, Err1 <: Err](wio: WIO.FlatMap[Err1, Err, Out1, Out, StIn, StOut1, StOut]): FlatMapOut = {
+    def onFlatMap[Out1, StOut1, Err1 <: Err](wio: WIO.FlatMap[Err1, Err, Out1, Out, StIn, StOut1, StOut]): DispatchResult = {
       s"(${recurse(wio.base)} and more)"
     }
     def onMap[Out1](wio: WIO.Map[Err, Out1, Out, StIn, StOut]): DispatchResult = {
-      recurse(wio.base).asLeft
+      recurse(wio.base)
     }
     def onHandleQuery[Qr, QrSt, Resp](wio: WIO.HandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp]): DispatchResult = {
-      s"(Expects query ${wio.queryHandler.ct.runtimeClass.getSimpleName} or ${recurse(wio.inner)})".asLeft
+      s"(Expects query ${wio.queryHandler.ct.runtimeClass.getSimpleName} or ${recurse(wio.inner)})"
     }
 
-    def onNoop(wio: WIO.Noop): DirectOut = "Noop"
+    def onNoop(wio: WIO.Noop): DispatchResult = "Noop"
 
-    override def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult = recurse(wio.base).asLeft
+    override def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult = recurse(wio.base)
 
     override def onAndThen[Out1, StOut1](wio: WIO.AndThen[Err, Out1, Out, StIn, StOut1, StOut]): String =
       s"(${recurse(wio.first)} and then ${recurse(wio.second)})"
@@ -45,9 +44,9 @@ object CurrentStateEvaluator {
     override def onPure(wio: WIO.Pure[Err, Out, StIn, StOut]): String = "pure"
 
     override def onHandleError[ErrIn <: Err](wio: WIO.HandleError[Err, Out, StIn, StOut, ErrIn]): DispatchResult =
-      s"(Handle error or ${recurse(wio.base)})".asLeft
+      s"(Handle error or ${recurse(wio.base)})"
 
-    private def recurse[E1, O1, SIn1, SOut1](wio: WIO[E1, O1, SIn1, SOut1]): String = new DescriptionVisitor(wio).run.merge
+    private def recurse[E1, O1, SIn1, SOut1](wio: WIO[E1, O1, SIn1, SOut1]): String = new DescriptionVisitor(wio).run
 
   }
 

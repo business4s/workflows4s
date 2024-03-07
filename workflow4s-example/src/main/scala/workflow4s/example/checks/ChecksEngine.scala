@@ -16,7 +16,8 @@ object ChecksEngine extends ChecksEngine {
     (for {
       _        <- refreshChecksUntilAllComplete(input)
       decision <- getDecision()
-    } yield decision).checkpointed((s, decision) => ChecksEvent.CheckCompleted(s.results, decision))((s, e) => (s, e.decision))
+    } yield decision)
+//      .checkpointed((s, decision) => ChecksEvent.CheckCompleted(s.results, decision))((s, e) => (s, e.decision))
 
   private def getDecision(): WIO[Nothing, Decision, ChecksState, ChecksState] = {
     for {

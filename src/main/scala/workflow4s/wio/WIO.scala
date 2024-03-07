@@ -24,7 +24,9 @@ sealed trait WIO[+Err, +Out, -StateIn, +StateOut] {
       g: (NewStateIn, StateOut) => NewStateOut,
   ): WIO[Err, Out, NewStateIn, NewStateOut] = ???
 
-  def handleError[Err1 >: Err, StIn1 <: StateIn, Out1 >: Out, StOut1 >: StateOut](f: Err => WIO[Err1, Out1, StIn1, StOut1]): WIO[Err1, Out1, StIn1, StOut1] =
+  def handleError[Err1 >: Err, StIn1 <: StateIn, Out1 >: Out, StOut1 >: StateOut](
+      f: Err => WIO[Err1, Out1, StIn1, StOut1],
+  ): WIO[Err1, Out1, StIn1, StOut1] =
     WIO.HandleError(this, f)
 
   def named(name: String, description: Option[String] = None): WIO[Err, Out, StateIn, StateOut] = WIO.Named(this, name, description)
@@ -64,9 +66,9 @@ object WIO {
   case class RunIO[-StIn, +StOut, Evt, +O, +Err](buildIO: StIn => IO[Evt], evtHandler: EventHandler[Evt, StIn, StOut, O, Err])
       extends WIO[Err, O, StIn, StOut]
 
-  case class FlatMap[Err1, Err2 >: Err1, Out1, +Out2, -StIn, StOut, +StOut2](
-      base: WIO[Err1, Out1, StIn, StOut],
-      getNext: Out1 => WIO[Err2, Out2, StOut, StOut2],
+  case class FlatMap[Err1, Err2 >: Err1, Out1, +Out2, -StIn, StOut1, +StOut2](
+      base: WIO[Err1, Out1, StIn, StOut1],
+      getNext: Out1 => WIO[Err2, Out2, StOut1, StOut2],
   ) extends WIO[Err2, Out2, StIn, StOut2]
 
   case class Map[+Err, Out1, +Out2, -StIn, +StOut](base: WIO[Err, Out1, StIn, StOut], mapValue: Out1 => Out2) extends WIO[Err, Out2, StIn, StOut]
