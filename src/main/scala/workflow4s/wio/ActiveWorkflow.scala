@@ -68,7 +68,10 @@ object NextWfState {
     }
   }
   object NewBehaviour {
-    def apply[E1, E2 >: E1, O1, O2, S1, S2](wio0: WIO[E2, O2, S1, S2], value0: Either[E1, (S1, O1)]) = new NewBehaviour[E2, O2, S2] {
+    def apply[E1, E2 >: E1, O1, O2, S1, S2](
+        wio0: WIO[E2, O2, S1, S2],
+        value0: Either[E1, (S1, O1)],
+    ): NewBehaviour[E2, O2, S2] = new NewBehaviour[E2, O2, S2] {
       override type State = S1
       override type Error = E1
       override type Value = O1

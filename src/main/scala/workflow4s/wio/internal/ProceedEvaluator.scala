@@ -32,29 +32,29 @@ object ProceedEvaluator {
     }
 
     def onFlatMap[Out1, StOut1, Err1 <: Err](wio: WIO.FlatMap[Err1, Err, Out1, Out, StIn, StOut1, StOut]): DispatchResult = {
-      recurse(wio.base).map(_.map(preserveFlatMap(wio, _)))
+      recurse(wio.base, state).map(_.map(preserveFlatMap(wio, _)))
     }
 
     override def onAndThen[Out1, StOut1](wio: WIO.AndThen[Err, Out1, Out, StIn, StOut1, StOut]): DispatchResult = {
-      recurse(wio.first).map(_.map(preserveAndThen(wio, _)))
+      recurse(wio.first, state).map(_.map(preserveAndThen(wio, _)))
     }
 
-    def onMap[Out1](wio: WIO.Map[Err, Out1, Out, StIn, StOut]): DispatchResult = {
-      recurse(wio.base).map(_.map(preserveMap(wio, _)))
+    def onMap[Out1, StIn1, StOut1](wio: WIO.Map[Err, Out1, Out, StIn1, StIn, StOut1, StOut]): DispatchResult = {
+      recurse(wio.base, wio.contramapState(state)).map(_.map(preserveMap(wio, _, state)))
     }
     def onHandleQuery[Qr, QrSt, Resp](wio: WIO.HandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp]): DispatchResult = {
-      recurse(wio.inner).map(_.map(preserveHandleQuery(wio, _)))
+      recurse(wio.inner, state).map(_.map(preserveHandleQuery(wio, _)))
     }
     def onNoop(wio: WIO.Noop): DispatchResult                                                                  = None
-    override def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult                                = recurse(wio.base)
+    override def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult                                = recurse(wio.base, state)
     override def onPure(wio: WIO.Pure[Err, Out, StIn, StOut]): DispatchResult                                  = Some(NewValue(wio.value(state)).pure[IO])
 
     override def onHandleError[ErrIn <: Err](wio: WIO.HandleError[Err, Out, StIn, StOut, ErrIn]): DispatchResult = {
-      recurse(wio.base).map(_.map(applyHandleError(wio, _)))
+      recurse(wio.base, state).map(_.map(applyHandleError(wio, _)))
     }
 
-    private def recurse[E1, O1, SOut1](wio: WIO[E1, O1, StIn, SOut1]): ProceedVisitor[E1, O1, StIn, SOut1]#DispatchResult =
-      new ProceedVisitor(wio, interp, state).run
+    private def recurse[E1, O1, StIn1, SOut1](wio: WIO[E1, O1, StIn1, SOut1], s: StIn1): ProceedVisitor[E1, O1, StIn, SOut1]#DispatchResult =
+      new ProceedVisitor(wio, interp, s).run
   }
 
 }

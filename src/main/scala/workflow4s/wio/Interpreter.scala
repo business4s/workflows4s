@@ -51,7 +51,7 @@ object Interpreter {
 
     def onFlatMap[Out1, StOut1, Err1 <: Err](wio: WIO.FlatMap[Err1, Err, Out1, Out, StIn, StOut1, StOut]): DispatchResult
 
-    def onMap[Out1](wio: WIO.Map[Err, Out1, Out, StIn, StOut]): DispatchResult
+    def onMap[Out1, StIn1, StOut1](wio: WIO.Map[Err, Out1, Out, StIn1, StIn, StOut1, StOut]): DispatchResult
 
     def onHandleQuery[Qr, QrSt, Resp](wio: WIO.HandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp]): DispatchResult
 
@@ -71,7 +71,7 @@ object Interpreter {
         case x @ WIO.HandleQuery(_, _)    => onHandleQuery(x)
         case x @ WIO.RunIO(_, _)          => onRunIO(x)
         case x @ WIO.FlatMap(_, _)        => onFlatMap(x)
-        case x @ WIO.Map(_, _)            => onMap(x)
+        case x @ WIO.Map(_, _, _)         => onMap(x)
         case x @ WIO.Noop()               => onNoop(x)
         case x @ WIO.HandleError(_, _)    => onHandleError(x)
         case x @ WIO.Named(_, _, _)       => onNamed(x)
@@ -119,13 +119,22 @@ object Interpreter {
         },
       )
 
-    protected def preserveMap[Out1](wio: WIO.Map[Err, Out1, Out, StIn, StOut], wf: NextWfState[Err, Out1, StOut]): NextWfState[Err, Out, StOut] = {
-      wf.fold(
+    def preserveMap[Out1, StIn1, StOut1](
+        wio: WIO.Map[Err, Out1, Out, StIn1, StIn, StOut1, StOut],
+        wf: NextWfState[Err, Out1, StOut1],
+        initState: StIn,
+    ): NextWfState[Err, Out, StOut] = {
+      wf.fold[NextWfState[Err, Out, StOut]](
         b => {
-          val newWIO = WIO.Map(b.wio, (x: Out1) => wio.mapValue(x))
-          NewBehaviour(newWIO, b.value)
+          val newWIO: WIO[Err, Out, b.State, StOut] =
+            WIO.Map(
+              b.wio,
+              identity[b.State],
+              (s1: b.State, s2: StOut1, o1: Out1) => wio.mapValue(initState, s2, o1),
+            )
+          NewBehaviour[b.Error, Err, b.Value, Out, b.State, StOut](newWIO, b.value): NextWfState[Err, Out, StOut]
         },
-        v => NewValue(v.value.map(_.map(wio.mapValue))),
+        v => NewValue(v.value.map(x => wio.mapValue(initState, x._1, x._2))),
       )
     }
 

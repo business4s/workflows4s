@@ -49,30 +49,30 @@ object SignalEvaluator {
     def onRunIO[Evt](wio: WIO.RunIO[StIn, StOut, Evt, Out, Err]): DispatchResult = None
 
     def onFlatMap[Out1, StOut1, Err1 <: Err](wio: WIO.FlatMap[Err1, Err, Out1, Out, StIn, StOut1, StOut]): DispatchResult = {
-      recurse(wio.base).map(_.map({ case (wf, resp) => preserveFlatMap(wio, wf) -> resp }))
+      recurse(wio.base, state).map(_.map({ case (wf, resp) => preserveFlatMap(wio, wf) -> resp }))
     }
 
     override def onAndThen[Out1, StOut1](wio: WIO.AndThen[Err, Out1, Out, StIn, StOut1, StOut]): DispatchResult = {
-      recurse(wio.first).map(_.map({ case (wf, resp) => preserveAndThen(wio, wf) -> resp }))
+      recurse(wio.first, state).map(_.map({ case (wf, resp) => preserveAndThen(wio, wf) -> resp }))
     }
 
-    def onMap[Out1](wio: WIO.Map[Err, Out1, Out, StIn, StOut]): DispatchResult = {
-      recurse(wio.base).map(_.map({ case (wf, resp) => preserveMap(wio, wf) -> resp }))
+    def onMap[Out1, StIn1, StOut1](wio: WIO.Map[Err, Out1, Out, StIn1, StIn, StOut1, StOut]): DispatchResult = {
+      recurse(wio.base, wio.contramapState(state)).map(_.map({ case (wf, resp) => preserveMap(wio, wf, state) -> resp }))
     }
 
     def onHandleQuery[Qr, QrSt, Resp](wio: WIO.HandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp]): DispatchResult = {
-      recurse(wio.inner).map(_.map({ case (wf, resp) => preserveHandleQuery(wio, wf) -> resp }))
+      recurse(wio.inner, state).map(_.map({ case (wf, resp) => preserveHandleQuery(wio, wf) -> resp }))
     }
 
     def onNoop(wio: WIO.Noop): DispatchResult = None
 
-    override def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult                                             = recurse(wio.base)
+    override def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult                                             = recurse(wio.base, state)
     override def onPure(wio: WIO.Pure[Err, Out, StIn, StOut]): DispatchResult                                               = None
     override def onHandleError[ErrIn <: Err](wio: WIO.HandleError[Err, Out, StIn, StOut, ErrIn]): DispatchResult            =
-      recurse(wio.base).map(_.map({ case (wf, resp) => applyHandleError(wio, wf) -> resp }))
+      recurse(wio.base, state).map(_.map({ case (wf, resp) => applyHandleError(wio, wf) -> resp }))
 
-    def recurse[E1, O1, SOut1](wio: WIO[E1, O1, StIn, SOut1]): SignalVisitor[Resp, E1, O1, StIn, SOut1, Req]#DispatchResult =
-      new SignalVisitor(wio, interp, signalDef, req, state).run
+    def recurse[E1, O1, StIn1, SOut1](wio: WIO[E1, O1, StIn1, SOut1], s: StIn1): SignalVisitor[Resp, E1, O1, StIn1, SOut1, Req]#DispatchResult =
+      new SignalVisitor(wio, interp, signalDef, req, s).run
 
   }
 }

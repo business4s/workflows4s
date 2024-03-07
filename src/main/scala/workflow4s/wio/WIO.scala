@@ -2,6 +2,7 @@ package workflow4s.wio
 
 import cats.effect.IO
 import cats.implicits.{catsSyntaxEitherId, toBifunctorOps}
+import workflow4s.wio.WIO.pure
 
 import scala.annotation.unused
 import scala.concurrent.duration.Duration
@@ -12,7 +13,11 @@ sealed trait WIO[+Err, +Out, -StateIn, +StateOut] {
   def flatMap[Err1 >: Err, StateOut1, Out1](f: Out => WIO[Err1, Out1, StateOut, StateOut1]): WIO[Err1, Out1, StateIn, StateOut1] =
     WIO.FlatMap(this, f)
 
-  def map[Out1](f: Out => Out1): WIO[Err, Out1, StateIn, StateOut] = WIO.Map(this, f)
+  def map[Out1](f: Out => Out1): WIO[Err, Out1, StateIn, StateOut] = WIO.Map(
+    this,
+    identity[StateIn],
+    (sIn: StateIn, sOut: StateOut, out: Out) => (sOut, f(out)),
+  )
 
   // TODO, variance can be fooled if moved to extension method
   def checkpointed[Evt, O1, StIn1 <: StateIn, StOut1 >: StateOut](genEvent: (StateOut, Out) => Evt)(
@@ -22,7 +27,11 @@ sealed trait WIO[+Err, +Out, -StateIn, +StateOut] {
   def transformState[NewStateIn, NewStateOut](
       f: NewStateIn => StateIn,
       g: (NewStateIn, StateOut) => NewStateOut,
-  ): WIO[Err, Out, NewStateIn, NewStateOut] = ???
+  ): WIO[Err, Out, NewStateIn, NewStateOut] = WIO.Map[Err, Out, Out, StateIn, NewStateIn, StateOut, NewStateOut](
+    this,
+    f,
+    (sIn: NewStateIn, sOut: StateOut, o: Out) => g(sIn, sOut) -> o,
+  )
 
   def handleError[Err1 >: Err, StIn1 <: StateIn, Out1 >: Out, StOut1 >: StateOut](
       f: Err => WIO[Err1, Out1, StIn1, StOut1],
@@ -71,7 +80,11 @@ object WIO {
       getNext: Out1 => WIO[Err2, Out2, StOut1, StOut2],
   ) extends WIO[Err2, Out2, StIn, StOut2]
 
-  case class Map[+Err, Out1, +Out2, -StIn, +StOut](base: WIO[Err, Out1, StIn, StOut], mapValue: Out1 => Out2) extends WIO[Err, Out2, StIn, StOut]
+  case class Map[Err, Out1, +Out2, StIn1, -StIn2, StOut1, +StOut2](
+      base: WIO[Err, Out1, StIn1, StOut1],
+      contramapState: StIn2 => StIn1,
+      mapValue: (StIn2, StOut1, Out1) => (StOut2, Out2),
+  ) extends WIO[Err, Out2, StIn2, StOut2]
 
   case class Pure[+Err, +Out, -StIn, +StOut](value: StIn => Either[Err, (StOut, Out)]) extends WIO[Err, Out, StIn, StOut]
 
@@ -177,7 +190,7 @@ object WIO {
 
   def pure[St]: PurePartiallyApplied[St] = new PurePartiallyApplied
   class PurePartiallyApplied[StIn] {
-    def apply[O](value: O): WIO[Nothing, O, StIn, StIn] = ???
+    def apply[O](value: O): WIO[Nothing, O, StIn, StIn] = WIO.Pure(s => Right(s -> value))
   }
 
   def unit[St] = pure[St](())

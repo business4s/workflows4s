@@ -26,7 +26,7 @@ object WIOModelInterpreter {
 
     override def onAndThen[Out1, StOut1](wio: WIO.AndThen[Err, Out1, Out, StIn, StOut1, StOut]): WIOModel =
       WIOModel.Sequence(Seq(recurse(wio.first), recurse(wio.second))) // TODO flatten multiple sequences
-    def onMap[Out1](wio: WIO.Map[Err, Out1, Out, StIn, StOut]): DispatchResult                                     =
+    def onMap[Out1, StIn1, StOut1](wio: WIO.Map[Err, Out1, Out, StIn1, StIn, StOut1, StOut]): DispatchResult                                    =
       recurse(wio.base)
     def onHandleQuery[Qr, QrSt, Resp](wio: WIO.HandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp]): DispatchResult =
       recurse(wio.inner)

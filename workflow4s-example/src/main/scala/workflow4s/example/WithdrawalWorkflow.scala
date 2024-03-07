@@ -13,7 +13,7 @@ object WithdrawalWorkflow {
   val dataQuery              = SignalDef[Unit, WithdrawalData]()
 }
 
-class WithdrawalWorkflow(service: WithdrawalService) {
+class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine) {
 
   val workflow: WIO[WithdrawalRejection, Unit, WithdrawalData.Empty, Nothing] = for {
     _ <- handleDataQuery(
@@ -75,7 +75,7 @@ class WithdrawalWorkflow(service: WithdrawalService) {
   private def runChecks: WIO[WithdrawalRejection.RejectedInChecks, Unit, WithdrawalData.Validated, WithdrawalData.Checked] =
     for {
       state    <- WIO.getState
-      decision <- ChecksEngine
+      decision <- checksEngine
                     .runChecks(ChecksInput(state, List()))
                     .transformState[WithdrawalData.Validated, WithdrawalData.Checked](
                       _ => ChecksState.empty,
