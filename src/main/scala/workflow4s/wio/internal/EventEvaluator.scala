@@ -21,7 +21,8 @@ object EventEvaluator {
   private class EventVisitor[Err, Out, StIn, StOut](wio: WIO[Err, Out, StIn, StOut], event: Any, state: StIn)
       extends Visitor[Err, Out, StIn, StOut](wio) {
     override type DirectOut  = Option[Either[Err, (StOut, Out)]]
-    override type FlatMapOut = Option[WfAndState.T[Err, Out, StOut]]
+    type NewWf               = WfAndState.T[Err, Out, StOut]
+    override type FlatMapOut = Option[NewWf]
 
     def doHandle[Evt](handler: EventHandler[Evt, StIn, StOut, Out, Err]): Option[Either[Err, (StOut, Out)]] =
       handler
@@ -31,17 +32,17 @@ object EventEvaluator {
     override def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Sig, StIn, StOut, Evt, Out, Err, Resp]): DirectOut = doHandle(wio.evtHandler)
     def onRunIO[Evt](wio: WIO.RunIO[StIn, StOut, Evt, Out, Err]): DirectOut                                        = doHandle(wio.evtHandler)
 
-    def onFlatMap[Out1, StOut1](wio: WIO.FlatMap[Err, Out1, Out, StIn, StOut1, StOut]): FlatMapOut = {
+    def onFlatMap[Out1, StOut1, Err1 <: Err](wio: WIO.FlatMap[Err1, Err, Out1, Out, StIn, StOut1, StOut]): FlatMapOut = {
       recurse(wio.base) match {
         case Left(dOutOpt)   =>
           dOutOpt.map({
-            case Left(err)             => WfAndState(WIO.Noop(), err.asLeft)
+            case Left(err)             => WfAndState(WIO.Noop(), (err: Err).asLeft)
             case Right((state, value)) => WfAndState(wio.getNext(value), (state, value).asRight)
           })
         case Right(fmOutOpt) =>
           fmOutOpt.map(wf => {
             val newWIO: WIO[Err, Out, wf.StIn, StOut] =
-              WIO.FlatMap(
+              WIO.FlatMap[wf.NextError, Err, Out1, Out, wf.StIn, StOut1, StOut](
                 wf.wio,
                 (x: wf.NextValue) =>
                   wf.value
@@ -99,6 +100,26 @@ object EventEvaluator {
     def onNoop(wio: WIO.Noop): DirectOut                                        = None
     override def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult = recurse(wio.base)
     override def onPure(wio: WIO.Pure[Err, Out, StIn, StOut]): DirectOut        = None
+
+    override def onHandleError[ErrIn <: Err](wio: WIO.HandleError[Err, Out, StIn, StOut, ErrIn]): DispatchResult = {
+      def newWf(err: ErrIn): NewWf = WfAndState(wio.handleError(err), Left(err))
+      val result: DispatchResult   = recurse(wio.base) match {
+        case Left(directOutOpt)    =>
+          directOutOpt match {
+            case Some(Left(err))    => newWf(err).some.asRight
+            case Some(Right(value)) => value.asRight[Err].some.asLeft
+            case None               => None.asLeft
+          }
+        case Right(indirectOutOpt) =>
+          (indirectOutOpt.map(newWfX => {
+            newWfX.value match {
+              case Left(err)    => newWf(err)
+              case Right(value) => WfAndState.widenErr(newWfX)
+            }
+          }): Option[NewWf]).asRight
+      }
+      result
+    }
 
     def recurse[E1, O1, SOut1](wio: WIO[E1, O1, StIn, SOut1]): EventVisitor[E1, O1, StIn, SOut1]#DispatchResult =
       new EventVisitor(wio, event, state).run

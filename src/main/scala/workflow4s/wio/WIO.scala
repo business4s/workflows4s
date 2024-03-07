@@ -24,7 +24,7 @@ sealed trait WIO[+Err, +Out, -StateIn, +StateOut] {
       g: (NewStateIn, StateOut) => NewStateOut,
   ): WIO[Err, Out, NewStateIn, NewStateOut] = ???
 
-  def handleError[Err1, StIn1 <: StateIn, Out1 >: Out, StOut1 >: StateOut](f: Err => WIO[Err1, Out1, StIn1, StOut1]): WIO[Err1, Out1, StIn1, StOut1] =
+  def handleError[Err1 >: Err, StIn1 <: StateIn, Out1 >: Out, StOut1 >: StateOut](f: Err => WIO[Err1, Out1, StIn1, StOut1]): WIO[Err1, Out1, StIn1, StOut1] =
     WIO.HandleError(this, f)
 
   def named(name: String, description: Option[String] = None): WIO[Err, Out, StateIn, StateOut] = WIO.Named(this, name, description)
@@ -64,8 +64,10 @@ object WIO {
   case class RunIO[-StIn, +StOut, Evt, +O, +Err](buildIO: StIn => IO[Evt], evtHandler: EventHandler[Evt, StIn, StOut, O, Err])
       extends WIO[Err, O, StIn, StOut]
 
-  case class FlatMap[+Err, Out1, +Out2, -StIn, StOut, +StOut2](base: WIO[Err, Out1, StIn, StOut], getNext: Out1 => WIO[Err, Out2, StOut, StOut2])
-      extends WIO[Err, Out2, StIn, StOut2]
+  case class FlatMap[Err1, Err2 >: Err1, Out1, +Out2, -StIn, StOut, +StOut2](
+      base: WIO[Err1, Out1, StIn, StOut],
+      getNext: Out1 => WIO[Err2, Out2, StOut, StOut2],
+  ) extends WIO[Err2, Out2, StIn, StOut2]
 
   case class Map[+Err, Out1, +Out2, -StIn, +StOut](base: WIO[Err, Out1, StIn, StOut], mapValue: Out1 => Out2) extends WIO[Err, Out2, StIn, StOut]
 
@@ -74,8 +76,10 @@ object WIO {
   // TODO this should ne called `Never` or `Halt` or similar, as the workflow cant proceed from that point.
   case class Noop() extends WIO[Nothing, Nothing, Any, Nothing]
 
-  case class HandleError[+ErrOut, +Out, -StIn, +StOut, ErrIn](base: WIO[ErrIn, Out, StIn, StOut], handleError: ErrIn => WIO[ErrOut, Out, StIn, StOut])
-      extends WIO[ErrOut, Out, StIn, StOut]
+  case class HandleError[+ErrOut, +Out, -StIn, +StOut, ErrIn <: ErrOut](
+      base: WIO[ErrIn, Out, StIn, StOut],
+      handleError: ErrIn => WIO[ErrOut, Out, StIn, StOut],
+  ) extends WIO[ErrOut, Out, StIn, StOut]
 
   case class Named[+Err, +Out, -StIn, +StOut](base: WIO[Err, Out, StIn, StOut], name: String, description: Option[String])
       extends WIO[Err, Out, StIn, StOut]

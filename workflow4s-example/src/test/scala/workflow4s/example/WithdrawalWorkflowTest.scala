@@ -34,6 +34,7 @@ class WithdrawalWorkflowTest extends AnyFreeSpec {
       val modelJson = model.asJson
       print(modelJson.spaces2)
     }
+
     "render bpmn model" in new Fixture {
       val model         = WIOModelInterpreter.run(new WithdrawalWorkflow(service).workflow)
       val bpmnModel     = BPMNConverter.convert(model, "withdrawal-example")

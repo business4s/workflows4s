@@ -38,26 +38,39 @@ object ActiveWorkflow {
 }
 
 trait WfAndState {
-  type Err
+  type Err <: NextError
   type StIn
   type StOut
   type NextValue
-  def wio: WIO[Err, NextValue, StIn, StOut]
+  type NextError
+  def wio: WIO[NextError, NextValue, StIn, StOut]
   type Value
   val value: Either[Err, (StIn, Value)]
 }
 
 object WfAndState {
 
-  type T[E, O1, SOut] = WfAndState { type Err = E; type StOut = SOut; type NextValue = O1 }
+  type T[E, O1, SOut] = WfAndState { type NextError = E; type StOut = SOut; type NextValue = O1 }
 
-  def apply[E, O1, O2, S1, S2](wio0: WIO[E, O2, S1, S2], value0: Either[E, (S1, O1)]) = new WfAndState {
-    override type Err       = E
+  def apply[E1, E2 >: E1, O1, O2, S1, S2](wio0: WIO[E2, O2, S1, S2], value0: Either[E1, (S1, O1)]): WfAndState.T[E2, O2, S2] = new WfAndState {
+    override type Err       = E1
     override type StIn      = S1
     override type StOut     = S2
     override type NextValue = O2
-    override def wio: WIO[Err, NextValue, StIn, StOut] = wio0
+    override type NextError = E2
+    override def wio: WIO[NextError, NextValue, StIn, StOut] = wio0
     override type Value = O1
     override val value: Either[Err, (StIn, Value)] = value0
+  }
+
+  def widenErr[E1, E2 >: E1, O, SOut](w: WfAndState.T[E1, O, SOut]): WfAndState.T[E2, O, SOut] = new WfAndState {
+    override type Err       = w.Err
+    override type StIn      = w.StIn
+    override type StOut     = w.StOut
+    override type NextValue = w.NextValue
+    override type NextError = E2
+    override def wio: WIO[NextError, NextValue, StIn, StOut] = w.wio
+    override type Value = w.Value
+    override val value: Either[Err, (StIn, Value)] = w.value
   }
 }

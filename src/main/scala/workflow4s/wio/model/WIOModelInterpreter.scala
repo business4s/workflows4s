@@ -19,7 +19,7 @@ object WIOModelInterpreter {
       WIOModel.HandleSignal(wio.sigDef.reqCt.runtimeClass.getSimpleName, None, name, description) // TODO error
     def onRunIO[Evt](wio: WIO.RunIO[StIn, StOut, Evt, Out, Err]): DirectOut =
       WIOModel.RunIO(None, name, description)
-    def onFlatMap[Out1, StOut1](wio: WIO.FlatMap[Err, Out1, Out, StIn, StOut1, StOut]): FlatMapOut = {
+    def onFlatMap[Out1, StOut1, Err1 <: Err](wio: WIO.FlatMap[Err1, Err, Out1, Out, StIn, StOut1, StOut]): FlatMapOut = {
       WIOModel.Sequence(Seq(recurse(wio.base), WIOModel.Dynamic()))
     }
 
@@ -32,7 +32,7 @@ object WIOModelInterpreter {
     def onNoop(wio: WIO.Noop): DirectOut                                                                           = WIOModel.Noop
     override def onPure(wio: WIO.Pure[Err, Out, StIn, StOut]): DirectOut                                                  = WIOModel.Pure(name, description)
 
-    override def onHandleError[ErrIn](wio: WIO.HandleError[Err, Out, StIn, StOut, ErrIn]): DispatchResult = {
+    override def onHandleError[ErrIn <: Err](wio: WIO.HandleError[Err, Out, StIn, StOut, ErrIn]): DispatchResult = {
       WIOModel.HandleError(recurse(wio.base), WIOModel.Dynamic()).asLeft
     }
 

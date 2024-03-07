@@ -49,7 +49,7 @@ object SignalEvaluator {
 
     def onRunIO[Evt](wio: WIO.RunIO[StIn, StOut, Evt, Out, Err]): DirectOut = None
 
-    def onFlatMap[Out1, StOut1](wio: WIO.FlatMap[Err, Out1, Out, StIn, StOut1, StOut]): FlatMapOut = {
+    def onFlatMap[Out1, StOut1, Err1 <: Err](wio: WIO.FlatMap[Err1, Err, Out1, Out, StIn, StOut1, StOut]): FlatMapOut = {
       recurse(wio.base) match {
         case Left(dOutOpt)   =>
           dOutOpt.map(dOutIO =>
@@ -128,7 +128,7 @@ object SignalEvaluator {
           value
             .map(wfIO =>
               wfIO.map({ case (wf, resp) =>
-                val preserved: WIO[wf.Err, wf.NextValue, wf.StIn, wf.StOut] = WIO.HandleQuery(wio.queryHandler, wf.wio)
+                val preserved: WIO[wf.NextError, wf.NextValue, wf.StIn, wf.StOut] = WIO.HandleQuery(wio.queryHandler, wf.wio)
                 WfAndState(preserved, wf.value) -> resp
               }),
             )
@@ -140,6 +140,7 @@ object SignalEvaluator {
 
     override def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult = recurse(wio.base)
     override def onPure(wio: WIO.Pure[Err, Out, StIn, StOut]): DirectOut        = None
+    override def onHandleError[ErrIn <: Err](wio: WIO.HandleError[Err, Out, StIn, StOut, ErrIn]): DispatchResult = ???
 
     def recurse[E1, O1, SOut1](wio: WIO[E1, O1, StIn, SOut1]): SignalVisitor[Resp, E1, O1, StIn, SOut1, Req]#DispatchResult =
       new SignalVisitor(wio, interp, signalDef, req, state).run

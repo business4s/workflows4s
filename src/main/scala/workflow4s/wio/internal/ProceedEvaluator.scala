@@ -22,7 +22,8 @@ object ProceedEvaluator {
   private class ProceedVisitor[Err, Out, StIn, StOut](wio: WIO[Err, Out, StIn, StOut], interp: Interpreter, state: StIn)
       extends Visitor[Err, Out, StIn, StOut](wio) {
     type DirectOut  = Option[IO[Either[Err, (StOut, Out)]]]
-    type FlatMapOut = Option[IO[WfAndState.T[Err, Out, StOut]]]
+    type NewWf = WfAndState.T[Err, Out, StOut]
+    type FlatMapOut = Option[IO[NewWf]]
 
     def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Sig, StIn, StOut, Evt, Out, Err, Resp]): DirectOut = None
     def onRunIO[Evt](wio: WIO.RunIO[StIn, StOut, Evt, Out, Err]): DirectOut = {
@@ -31,7 +32,7 @@ object ProceedEvaluator {
         _   <- interp.journal.save(evt)(wio.evtHandler.jw)
       } yield wio.evtHandler.handle(state, evt)).some
     }
-    def onFlatMap[Out1, StOut1](wio: WIO.FlatMap[Err, Out1, Out, StIn, StOut1, StOut]): FlatMapOut = {
+    def onFlatMap[Out1, StOut1, Err1 <: Err](wio: WIO.FlatMap[Err1, Err, Out1, Out, StIn, StOut1, StOut]): FlatMapOut = {
       recurse(wio.base) match {
         case Left(dOutOpt)   =>
           dOutOpt.map(dOutIO =>
@@ -102,7 +103,7 @@ object ProceedEvaluator {
           value
             .map(wfIO =>
               wfIO.map(wf => {
-                val preserved: WIO[wf.Err, wf.NextValue, wf.StIn, wf.StOut] = WIO.HandleQuery(wio.queryHandler, wf.wio)
+                val preserved: WIO[wf.NextError, wf.NextValue, wf.StIn, wf.StOut] = WIO.HandleQuery(wio.queryHandler, wf.wio)
                 WfAndState(preserved, wf.value)
               }),
             )
@@ -113,6 +114,26 @@ object ProceedEvaluator {
     def onNoop(wio: WIO.Noop): DirectOut                                                                  = None
     override def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult                           = recurse(wio.base)
     override def onPure(wio: WIO.Pure[Err, Out, StIn, StOut]): DirectOut            = Some(wio.value(state).pure[IO])
+
+    override def onHandleError[ErrIn <: Err](wio: WIO.HandleError[Err, Out, StIn, StOut, ErrIn]): DispatchResult = ???
+//      def newWf(err: ErrIn): NewWf = WfAndState(wio.handleError(err), Left(err))
+//      val result: DispatchResult   = recurse(wio.base) match {
+//        case Left(directOut)    =>
+//          directOut.map {
+//            case Some(Left(err))    => newWf(err).some
+//            case Some(Right(value)) => value.asRight[Err].some.asLeft
+//            case None               => None.asLeft
+//          }
+//        case Right(indirectOut) =>
+//          (indirectOut.map(_.map(newWfX => {
+//            newWfX.value match {
+//              case Left(err)    => newWf(err)
+//              case Right(value) => WfAndState.widenErr(newWfX)
+//            }
+//          })): IO[Option[NewWf]]).asRight
+//      }
+//      result
+//    }
 
     private def recurse[E1, O1, SOut1](wio: WIO[E1, O1, StIn, SOut1]): ProceedVisitor[E1, O1, StIn, SOut1]#DispatchResult =
       new ProceedVisitor(wio, interp, state).run
