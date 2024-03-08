@@ -23,4 +23,7 @@ object WithdrawalEvent {
 
   case class ExecutionCompleted(status: WithdrawalSignal.ExecutionCompleted)
   implicit val ExecutionCompletedWrite: JournalWrite[ExecutionCompleted] = null
+
+  case class MoneyReleased()
+  implicit val MoneyReleasedWrite: JournalWrite[MoneyReleased] = null
 }

@@ -20,8 +20,8 @@ abstract class ActiveWorkflow(val interpreter: Interpreter) {
     QueryEvaluator.handleQuery(signalDef, req, wio, errOrState)
   def handleEvent(event: Any): EventResponse                                                   =
     EventEvaluator.handleEvent(event, wio, errOrState, interpreter)
-  def proceed: ProceedResponse                                                                 =
-    ProceedEvaluator.proceed(wio, errOrState, interpreter)
+  def proceed(runIO: Boolean): ProceedResponse                                                                 =
+    ProceedEvaluator.proceed(wio, errOrState, interpreter, runIO)
 
   def getDesc = CurrentStateEvaluator.getCurrentStateDescription(wio)
 

@@ -21,7 +21,11 @@ object WithdrawalData {
   }
 
   case class Executed(txId: String, amount: BigDecimal, recipient: Iban, fee: Fee, checkResults: ChecksState, externalTransactionId: String)
-      extends WithdrawalData
+      extends WithdrawalData {
+
+    def completed(): Completed = Completed()
+
+  }
 
   case class Completed() extends WithdrawalData
 }

@@ -125,7 +125,11 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
       .produceResponse((_, _) => ())
       .autoNamed()
 
-  private def releaseFunds: WIO[Nothing, Unit, WithdrawalData.Executed, WithdrawalData.Completed] = WIO.Noop()
+  private def releaseFunds: WIO[Nothing, Unit, WithdrawalData.Executed, WithdrawalData.Completed] =
+    WIO
+      .runIO[WithdrawalData.Executed](st => service.putMoneyOnHold(st.amount).as(WithdrawalEvent.MoneyReleased()))
+      .handleEvent((st, e) => st.completed() -> ())
+      .autoNamed()
 
   private def handleDataQuery =
     WIO.handleQuery[WithdrawalData](dataQuery) { (state, _) => state }

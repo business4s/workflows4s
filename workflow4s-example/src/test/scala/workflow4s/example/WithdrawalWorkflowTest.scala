@@ -7,7 +7,8 @@ import com.typesafe.scalalogging.StrictLogging
 import org.camunda.bpm.model.bpmn.Bpmn
 import org.scalatest.freespec.AnyFreeSpec
 import workflow4s.bpmn.BPMNConverter
-import workflow4s.example.WithdrawalService.{Fee, Iban}
+import workflow4s.example.WithdrawalEvent.ExecutionCompleted
+import workflow4s.example.WithdrawalService.{ExecutionResponse, Fee, Iban}
 import workflow4s.example.WithdrawalSignal.CreateWithdrawal
 import workflow4s.example.checks.{ChecksEngine, ChecksInput, ChecksState, Decision}
 import workflow4s.wio.model.WIOModelInterpreter
@@ -23,8 +24,12 @@ class WithdrawalWorkflowTest extends AnyFreeSpec {
 
     "init" in new Fixture {
       assert(actor.queryData() == WithdrawalData.Empty(txId))
+
       actor.init(CreateWithdrawal(100, recipient))
       assert(actor.queryData() == WithdrawalData.Executed(txId, 100, recipient, fees, ChecksState(Map()), externalId))
+
+      actor.confirmExecution(WithdrawalSignal.ExecutionCompleted.Succeeded)
+      assert(actor.queryData() == WithdrawalData.Completed())
 
       checkRecovery()
     }
@@ -76,6 +81,8 @@ class WithdrawalWorkflowTest extends AnyFreeSpec {
     override def initiateExecution(amount: BigDecimal, recepient: Iban): IO[WithdrawalService.ExecutionResponse] = IO(
       WithdrawalService.ExecutionResponse.Accepted(externalId),
     )
+
+    override def releaseFunds(amount: BigDecimal): IO[Unit] = IO.unit
   }
 
   object DummyChecksEngine extends ChecksEngine {
@@ -93,6 +100,9 @@ class WithdrawalWorkflowTest extends AnyFreeSpec {
     def init(req: CreateWithdrawal): Unit = {
       this.handleSignal(WithdrawalWorkflow.createWithdrawalSignal)(req).extract
     }
+    def confirmExecution(req: WithdrawalSignal.ExecutionCompleted): Unit = {
+      this.handleSignal(WithdrawalWorkflow.executionCompletedSignal)(req).extract
+    }
 
     def queryData(): WithdrawalData = this.handleQuery(WithdrawalWorkflow.dataQuery)(()).extract
 
@@ -103,7 +113,7 @@ class WithdrawalWorkflowTest extends AnyFreeSpec {
           case EventResponse.UnexpectedEvent(desc) => throw new IllegalArgumentException(s"Unexpected event :${desc}")
         },
       )
-      this.proceed()
+      this.proceed(runIO = true)
     }
   }
 

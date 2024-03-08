@@ -14,7 +14,7 @@ class SimpleActor( /*private*/ var wf: ActiveWorkflow)(implicit IORuntime: IORun
         val (newWf, resp) = value.unsafeRunSync()
         wf = newWf
         logger.debug(s"Signal handled. Next state: ${newWf.getDesc}")
-        proceed()
+        proceed(runIO = true)
         SimpleActor.SignalResponse.Ok(resp)
       case SignalResponse.UnexpectedSignal() =>
         logger.debug(s"Unexpected signal ${req}. Wf: ${wf.getDesc}")
@@ -33,19 +33,20 @@ class SimpleActor( /*private*/ var wf: ActiveWorkflow)(implicit IORuntime: IORun
     val resp = wf.handleEvent(event) match {
       case EventResponse.Ok(newFlow)       =>
         wf = newFlow
+        proceed(false)
         SimpleActor.EventResponse.Ok
       case EventResponse.UnexpectedEvent() => SimpleActor.EventResponse.UnexpectedEvent(wf.getDesc)
     }
-    logger.debug(s"Event response: ${resp}")
+    logger.debug(s"Event response: ${resp}. New wf: ${wf.getDesc}")
     resp
   }
-  def proceed(): Unit = {
-    logger.debug(s"Proceeding to the next step")
-    wf.proceed match {
+  def proceed(runIO: Boolean): Unit = {
+    logger.debug(s"Proceeding to the next step. Run io: ${runIO}")
+    wf.proceed(runIO) match {
       case ProceedResponse.Executed(newFlowIO) =>
         wf = newFlowIO.unsafeRunSync()
         logger.debug(s"Proceeded. New wf: ${wf.getDesc}")
-        proceed()
+        proceed(runIO)
       case ProceedResponse.Noop()              =>
         logger.debug(s"Can't proceed. Wf: ${wf.getDesc}")
         ()

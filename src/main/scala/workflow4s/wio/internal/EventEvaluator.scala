@@ -29,7 +29,8 @@ object EventEvaluator {
 
     override def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Sig, StIn, StOut, Evt, Out, Err, Resp]): DispatchResult =
       doHandle(wio.evtHandler)
-    def onRunIO[Evt](wio: WIO.RunIO[StIn, StOut, Evt, Out, Err]): DispatchResult                                        = doHandle(wio.evtHandler)
+    def onRunIO[Evt](wio: WIO.RunIO[StIn, StOut, Evt, Out, Err]): DispatchResult                                        =
+      doHandle(wio.evtHandler)
 
     def onFlatMap[Out1, StOut1, Err1 <: Err](wio: WIO.FlatMap[Err1, Err, Out1, Out, StIn, StOut1, StOut]): DispatchResult = {
       recurse(wio.base, state).map(preserveFlatMap(wio, _))
@@ -48,7 +49,7 @@ object EventEvaluator {
     }
     def onNoop(wio: WIO.Noop): DispatchResult                                   = None
     override def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult = recurse(wio.base, state)
-    override def onPure(wio: WIO.Pure[Err, Out, StIn, StOut]): DispatchResult   = Some(NewValue(wio.value(state)))
+    override def onPure(wio: WIO.Pure[Err, Out, StIn, StOut]): DispatchResult   = None
 
     override def onHandleError[ErrIn <: Err](wio: WIO.HandleError[Err, Out, StIn, StOut, ErrIn]): DispatchResult = {
       recurse(wio.base, state).map(applyHandleError(wio, _))

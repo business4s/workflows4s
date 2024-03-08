@@ -9,6 +9,8 @@ trait WithdrawalService {
   def putMoneyOnHold(amount: BigDecimal): IO[Either[NotEnoughFunds, Unit]]
 
   def initiateExecution(amount: BigDecimal, recepient: Iban): IO[ExecutionResponse]
+
+  def releaseFunds(amount: BigDecimal): IO[Unit]
 }
 
 object WithdrawalService {
