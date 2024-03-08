@@ -7,7 +7,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.camunda.bpm.model.bpmn.Bpmn
 import org.scalatest.freespec.AnyFreeSpec
 import workflow4s.bpmn.BPMNConverter
-import workflow4s.example.WithdrawalService.Fee
+import workflow4s.example.WithdrawalService.{Fee, Iban}
 import workflow4s.example.WithdrawalSignal.CreateWithdrawal
 import workflow4s.example.checks.{ChecksEngine, ChecksInput, ChecksState, Decision}
 import workflow4s.wio.model.WIOModelInterpreter
@@ -23,8 +23,8 @@ class WithdrawalWorkflowTest extends AnyFreeSpec {
 
     "init" in new Fixture {
       assert(actor.queryData() == WithdrawalData.Empty(txId))
-      actor.init(CreateWithdrawal(100))
-      assert(actor.queryData() == WithdrawalData.Checked(txId, 100, fees, ChecksState(Map())))
+      actor.init(CreateWithdrawal(100, recipient))
+      assert(actor.queryData() == WithdrawalData.Executed(txId, 100, recipient, fees, ChecksState(Map()), externalId))
 
       checkRecovery()
     }
@@ -64,12 +64,18 @@ class WithdrawalWorkflowTest extends AnyFreeSpec {
     actor
   }
 
-  val txId    = "abc"
-  val fees    = Fee(11)
-  val service = new WithdrawalService {
+  val txId       = "abc"
+  val recipient  = Iban("A")
+  val fees       = Fee(11)
+  val externalId = "external-id-1"
+  val service    = new WithdrawalService {
     override def calculateFees(amount: BigDecimal): IO[Fee] = IO(fees)
 
     override def putMoneyOnHold(amount: BigDecimal): IO[Either[WithdrawalService.NotEnoughFunds, Unit]] = IO(Right(()))
+
+    override def initiateExecution(amount: BigDecimal, recepient: Iban): IO[WithdrawalService.ExecutionResponse] = IO(
+      WithdrawalService.ExecutionResponse.Accepted(externalId),
+    )
   }
 
   object DummyChecksEngine extends ChecksEngine {

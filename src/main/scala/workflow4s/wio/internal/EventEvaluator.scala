@@ -48,7 +48,7 @@ object EventEvaluator {
     }
     def onNoop(wio: WIO.Noop): DispatchResult                                   = None
     override def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult = recurse(wio.base, state)
-    override def onPure(wio: WIO.Pure[Err, Out, StIn, StOut]): DispatchResult   = None
+    override def onPure(wio: WIO.Pure[Err, Out, StIn, StOut]): DispatchResult   = Some(NewValue(wio.value(state)))
 
     override def onHandleError[ErrIn <: Err](wio: WIO.HandleError[Err, Out, StIn, StOut, ErrIn]): DispatchResult = {
       recurse(wio.base, state).map(applyHandleError(wio, _))
