@@ -9,8 +9,6 @@ import workflow4s.example.WithdrawalWorkflow.{createWithdrawalSignal, dataQuery,
 import workflow4s.example.checks.{ChecksEngine, ChecksInput, ChecksState, Decision}
 import workflow4s.wio.{SignalDef, WIO}
 
-import scala.reflect.runtime.universe.typeOf
-
 object WithdrawalWorkflow {
   val createWithdrawalSignal   = SignalDef[CreateWithdrawal, Unit]()
   val dataQuery                = SignalDef[Unit, WithdrawalData]()
@@ -137,7 +135,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
     WIO.handleQuery[WithdrawalData](dataQuery) { (state, _) => state }
 
   private def handleRejection(r: WithdrawalRejection): WIO[Nothing, Unit, Any, WithdrawalData.Completed] =
-    (r match {
+    r match {
       case WithdrawalRejection.NotEnoughFunds()                       => WIO.setState(WithdrawalData.Completed())
       case WithdrawalRejection.RejectedInChecks(txId)                 => cancelFunds(txId)
       case WithdrawalRejection.RejectedByExecutionEngine(txId, error) => cancelFunds(txId)

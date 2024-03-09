@@ -1,9 +1,7 @@
 package workflow4s.wio.internal
 
-import cats.syntax.all._
-import workflow4s.wio.Interpreter.{EventResponse, QueryResponse, Visitor}
-import workflow4s.wio.WIO.{EventHandler, HandleSignal}
-import workflow4s.wio.{ActiveWorkflow, Interpreter, SignalDef, WIO, WfAndState}
+import workflow4s.wio.Interpreter.{QueryResponse, Visitor}
+import workflow4s.wio.{SignalDef, WIO}
 
 object QueryEvaluator {
 

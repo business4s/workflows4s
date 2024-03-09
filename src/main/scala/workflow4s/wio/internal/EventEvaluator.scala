@@ -1,11 +1,8 @@
 package workflow4s.wio.internal
 
 import workflow4s.wio.Interpreter.{EventResponse, Visitor}
-import workflow4s.wio.WIO.{EventHandler, HandleSignal}
-import workflow4s.wio.{ActiveWorkflow, Interpreter, NextWfState, WIO, WfAndState}
-import cats.syntax.all._
-import workflow4s.wio.NextWfState.{NewBehaviour, NewValue}
-import workflow4s.wio.WfAndState.T
+import workflow4s.wio.WIO.EventHandler
+import workflow4s.wio.{Interpreter, NextWfState, WIO}
 
 object EventEvaluator {
 
@@ -34,7 +31,6 @@ object EventEvaluator {
 
     def onFlatMap[Out1, StOut1, Err1 <: Err](wio: WIO.FlatMap[Err1, Err, Out1, Out, StIn, StOut1, StOut]): DispatchResult = {
       recurse(wio.base, state).map(preserveFlatMap(wio, _))
-      ???
     }
 
     override def onAndThen[Out1, StOut1](wio: WIO.AndThen[Err, Out1, Out, StIn, StOut1, StOut]): DispatchResult = {

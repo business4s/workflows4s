@@ -1,13 +1,10 @@
 package workflow4s.wio.internal
 
-import cats.data.EitherT
 import cats.effect.IO
 import cats.syntax.all._
-import workflow4s.wio.Interpreter.{ProceedResponse, SignalResponse, Visitor}
-import workflow4s.wio.NextWfState.{NewBehaviour, NewValue}
-import workflow4s.wio.WfAndState.T
+import workflow4s.wio.Interpreter.{ProceedResponse, Visitor}
+import workflow4s.wio.NextWfState.NewValue
 import workflow4s.wio._
-import workflow4s.wio.model.WIOModel.RunIO
 
 object ProceedEvaluator {
 

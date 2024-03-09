@@ -1,12 +1,9 @@
 package workflow4s.wio.internal
 
 import cats.effect.IO
-import cats.syntax.all._
-import workflow4s.wio.Interpreter.{EventResponse, SignalResponse, Visitor}
-import workflow4s.wio.NextWfState.{NewBehaviour, NewValue}
-import workflow4s.wio.WIO.{EventHandler, HandleSignal}
-import workflow4s.wio.WfAndState.T
-import workflow4s.wio.{ActiveWorkflow, Interpreter, JournalPersistance, JournalWrite, NextWfState, SignalDef, WIO, WfAndState}
+import workflow4s.wio.Interpreter.{SignalResponse, Visitor}
+import workflow4s.wio.NextWfState.NewValue
+import workflow4s.wio.{Interpreter, NextWfState, SignalDef, WIO}
 
 object SignalEvaluator {
 
