@@ -43,7 +43,7 @@ object QueryEvaluator {
     override def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult                                    = recurse(wio.base, state)
     override def onPure(wio: WIO.Pure[Err, Out, StIn, StOut]): DispatchResult                                      = None
 
-    override def onHandleError[ErrIn <: Err](wio: WIO.HandleError[Err, Out, StIn, StOut, ErrIn]): DispatchResult = recurse(wio.base, state)
+    override def onHandleError[ErrIn](wio: WIO.HandleError[Err, Out, StIn, StOut, ErrIn]): DispatchResult = recurse(wio.base, state)
 
     def recurse[E1, O1, StIn1, SOut1](wio: WIO[E1, O1, StIn1, SOut1], s: StIn1): QueryVisitor[E1, O1, StIn, SOut1, Resp, Req]#DispatchResult =
       new QueryVisitor(wio, signalDef, req, s).run

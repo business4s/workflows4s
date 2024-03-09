@@ -1,6 +1,6 @@
 package workflow4s.example
 
-sealed trait WithdrawalRejection
+sealed trait WithdrawalRejection extends Product with Serializable
 
 object WithdrawalRejection {
 

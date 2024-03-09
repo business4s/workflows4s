@@ -9,6 +9,8 @@ import workflow4s.example.WithdrawalWorkflow.{createWithdrawalSignal, dataQuery,
 import workflow4s.example.checks.{ChecksEngine, ChecksInput, ChecksState, Decision}
 import workflow4s.wio.{SignalDef, WIO}
 
+import scala.reflect.runtime.universe.typeOf
+
 object WithdrawalWorkflow {
   val createWithdrawalSignal   = SignalDef[CreateWithdrawal, Unit]()
   val dataQuery                = SignalDef[Unit, WithdrawalData]()
@@ -77,9 +79,9 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
       }
       .autoNamed()
 
-  private def runChecks: WIO[WithdrawalRejection.RejectedInChecks, Unit, WithdrawalData.Validated, WithdrawalData.Checked] =
-    for {
-      state    <- WIO.getState
+  private def runChecks: WIO[WithdrawalRejection.RejectedInChecks, Unit, WithdrawalData.Validated, WithdrawalData.Checked]       =
+    (for {
+      state    <- WIO.getState[WithdrawalData.Validated]
       decision <- checksEngine
                     .runChecks(ChecksInput(state, List()))
                     .transformState[WithdrawalData.Validated, WithdrawalData.Checked](
@@ -92,7 +94,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
                     case Decision.RejectedByOperator() => WIO.raise[WithdrawalData.Checked](WithdrawalRejection.RejectedInChecks(state.txId))
                     case Decision.ApprovedByOperator() => WIO.unit[WithdrawalData.Checked]
                   }
-    } yield ()
+    } yield ()).autoNamed()
 
   // TODO can fail with provider fatal failure, need retries, needs cancellation
   private def execute: WIO[WithdrawalRejection.RejectedByExecutionEngine, Unit, WithdrawalData.Checked, WithdrawalData.Executed] =
@@ -135,7 +137,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
     WIO.handleQuery[WithdrawalData](dataQuery) { (state, _) => state }
 
   private def handleRejection(r: WithdrawalRejection): WIO[Nothing, Unit, Any, WithdrawalData.Completed] =
-    r match {
+    (r match {
       case WithdrawalRejection.NotEnoughFunds()                       => WIO.setState(WithdrawalData.Completed())
       case WithdrawalRejection.RejectedInChecks(txId)                 => cancelFunds(txId)
       case WithdrawalRejection.RejectedByExecutionEngine(txId, error) => cancelFunds(txId)

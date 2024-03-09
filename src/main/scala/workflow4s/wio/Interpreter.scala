@@ -59,7 +59,7 @@ object Interpreter {
 
     def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult
 
-    def onHandleError[ErrIn <: Err](wio: WIO.HandleError[Err, Out, StIn, StOut, ErrIn]): DispatchResult
+    def onHandleError[ErrIn](wio: WIO.HandleError[Err, Out, StIn, StOut, ErrIn]): DispatchResult
 
     def onAndThen[Out1, StOut1](wio: WIO.AndThen[Err, Out1, Out, StIn, StOut1, StOut]): DispatchResult
 
@@ -67,16 +67,16 @@ object Interpreter {
 
     def run: DispatchResult = {
       wio match {
-        case x @ HandleSignal(_, _, _, _) => onSignal(x)
-        case x @ WIO.HandleQuery(_, _)    => onHandleQuery(x)
-        case x @ WIO.RunIO(_, _)          => onRunIO(x)
-        case x @ WIO.FlatMap(_, _)        => onFlatMap(x)
-        case x @ WIO.Map(_, _, _)         => onMap(x)
-        case x @ WIO.Noop()               => onNoop(x)
-        case x @ WIO.HandleError(_, _)    => onHandleError(x)
-        case x @ WIO.Named(_, _, _)       => onNamed(x)
-        case x @ WIO.AndThen(_, _)        => onAndThen(x)
-        case x @ WIO.Pure(_)              => onPure(x)
+        case x @ HandleSignal(_, _, _, _, _) => onSignal(x)
+        case x @ WIO.HandleQuery(_, _)       => onHandleQuery(x)
+        case x @ WIO.RunIO(_, _, _)          => onRunIO(x)
+        case x @ WIO.FlatMap(_, _, _)        => onFlatMap(x)
+        case x @ WIO.Map(_, _, _)            => onMap(x)
+        case x @ WIO.Noop()                  => onNoop(x)
+        case x @ WIO.HandleError(_, _, _, _) => onHandleError(x)
+        case x @ WIO.Named(_, _, _, _)       => onNamed(x)
+        case x @ WIO.AndThen(_, _)           => onAndThen(x)
+        case x @ WIO.Pure(_, _)              => onPure(x)
       }
     }
 
@@ -86,15 +86,15 @@ object Interpreter {
     ): NextWfState[Err, Out, StOut] = {
       wf.fold(
         b => {
-          val effectiveWIO = WIO.FlatMap(
-            b.wio,
-            (x: Out1) =>
-              b.value
-                .map({ case (_, value) => wio.getNext(x) })
-                .leftMap(err => WIO.raise[StOut1](err))
-                .merge,
-          )
-          NewBehaviour(effectiveWIO, b.value)
+          b.value match {
+            case Left(err)    =>
+              // TODO this should be safe but we somehow lost information that state produces from evaluating Flatmap.base has Error = Err1
+              val errCasted = err.asInstanceOf[Err]
+              NewValue(errCasted.asLeft)
+            case Right(value) =>
+              val effectiveWIO = WIO.FlatMap(b.wio, (x: Out1) => wio.getNext(x), wio.errorCt)
+              NewBehaviour(effectiveWIO, b.value)
+          }
         },
         v => {
           v.value match {
@@ -151,22 +151,27 @@ object Interpreter {
       )
     }
 
-    protected def applyHandleError[ErrIn <: Err](
+    protected def applyHandleError[ErrIn](
         wio: WIO.HandleError[Err, Out, StIn, StOut, ErrIn],
-        wf: NextWfState[ErrIn, Out, StOut],
+        wf: NextWfState[ErrIn, Out, StOut] { type Error = ErrIn },
     ): NextWfState[Err, Out, StOut] = {
       def newWf(err: ErrIn) = NewBehaviour[ErrIn, Err, Out, Out, StIn, StOut](wio.handleError(err), Left(err))
       wf.fold(
         b => {
           b.value match {
             case Left(value) => newWf(value)
-            case Right(_)    => b.widenErr[Err]
+            case Right(v)    =>
+              // TODO this should be safe but we somehow lost information that state produces from evaluating Flatmap.base has State = StIn
+              val x: ErrIn => WIO[Err, Out, StIn, StOut]          = wio.handleError
+              val xCasted: ErrIn => WIO[Err, Out, b.State, StOut] = wio.handleError.asInstanceOf[ErrIn => WIO[Err, Out, b.State, StOut]]
+              val newWIO: WIO[Err, Out, b.State, StOut]           = WIO.HandleError(b.wio, xCasted, wio.handledErrorCt, wio.newErrorCt)
+              NewBehaviour(newWIO, v.asRight)
           }
         },
         v => {
           v.value match {
             case Left(value) => newWf(value)
-            case Right(_)    => v
+            case Right(vv)   => NewValue(vv.asRight)
           }
         },
       )

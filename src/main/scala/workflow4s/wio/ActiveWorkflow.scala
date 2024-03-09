@@ -20,7 +20,7 @@ abstract class ActiveWorkflow(val interpreter: Interpreter) {
     QueryEvaluator.handleQuery(signalDef, req, wio, errOrState)
   def handleEvent(event: Any): EventResponse                                                   =
     EventEvaluator.handleEvent(event, wio, errOrState, interpreter)
-  def proceed(runIO: Boolean): ProceedResponse                                                                 =
+  def proceed(runIO: Boolean): ProceedResponse                                                 =
     ProceedEvaluator.proceed(wio, errOrState, interpreter, runIO)
 
   def getDesc = CurrentStateEvaluator.getCurrentStateDescription(wio)
@@ -38,37 +38,38 @@ object ActiveWorkflow {
   }
 }
 
-sealed trait NextWfState[+E, +O, +S] {
+sealed trait NextWfState[+E, +O, +S] { self =>
+  type Error
 
   def toActiveWorkflow(interpreter: Interpreter): ActiveWorkflow = this match {
     case behaviour: NextWfState.NewBehaviour[E, O, S] => ActiveWorkflow(behaviour.wio, interpreter, behaviour.value)
     case value: NextWfState.NewValue[E, O, S]         => ActiveWorkflow(WIO.Noop(), interpreter, value.value)
   }
 
-  def fold[T](mapBehaviour: NewBehaviour[E, O, S] => T, mapValue: NewValue[E, O, S] => T): T = this match {
-    case behaviour: NewBehaviour[E, O, S] => mapBehaviour(behaviour)
+  def fold[T](mapBehaviour: NewBehaviour[E, O, S]{ type Error = self.Error} => T, mapValue: NewValue[E, O, S] => T): T = this match {
+    case behaviour: NewBehaviour[E, O, S] { type Error = self.Error} => mapBehaviour(behaviour)
     case value: NewValue[E, O, S]         => mapValue(value)
   }
 }
 object NextWfState {
   trait NewBehaviour[+NextError, +NextValue, +NextState] extends NextWfState[NextError, NextValue, NextState] { self =>
     type State
-    type Error <: NextError
+    type Error
     type Value
 
     def wio: WIO[NextError, NextValue, State, NextState]
     def value: Either[Error, (State, Value)]
 
-    def widenErr[E2 >: NextError]: NewBehaviour[E2, NextValue, NextState] = new NewBehaviour[E2, NextValue, NextState] {
-      type State = self.State
-      type Error = self.Error
-      type Value = self.Value
-      def wio: WIO[NextError, NextValue, State, NextState] = self.wio
-      def value: Either[Error, (State, Value)]             = self.value
-    }
+//    def widenErr[E2 >: NextError]: NewBehaviour[E2, NextValue, NextState] = new NewBehaviour[E2, NextValue, NextState] {
+//      type State = self.State
+//      type Error = self.Error
+//      type Value = self.Value
+//      def wio: WIO[NextError, NextValue, State, NextState] = self.wio
+//      def value: Either[Error, (State, Value)]             = self.value
+//    }
   }
   object NewBehaviour {
-    def apply[E1, E2 >: E1, O1, O2, S1, S2](
+    def apply[E1, E2, O1, O2, S1, S2](
         wio0: WIO[E2, O2, S1, S2],
         value0: Either[E1, (S1, O1)],
     ): NewBehaviour[E2, O2, S2] = new NewBehaviour[E2, O2, S2] {

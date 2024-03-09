@@ -1,17 +1,20 @@
 package workflow4s.wio
 
 import cats.effect.IO
-import cats.implicits.{catsSyntaxEitherId, toBifunctorOps}
-import workflow4s.wio.WIO.pure
+import cats.implicits.{catsSyntaxEitherId, catsSyntaxOptionId}
+import workflow4s.wio.model.ModelUtils
 
 import scala.annotation.unused
 import scala.concurrent.duration.Duration
+import scala.language.implicitConversions
 import scala.reflect.ClassTag
 
 sealed trait WIO[+Err, +Out, -StateIn, +StateOut] {
 
-  def flatMap[Err1 >: Err, StateOut1, Out1](f: Out => WIO[Err1, Out1, StateOut, StateOut1]): WIO[Err1, Out1, StateIn, StateOut1] =
-    WIO.FlatMap(this, f)
+  def flatMap[Err1 >: Err, StateOut1, Out1](f: Out => WIO[Err1, Out1, StateOut, StateOut1])(implicit
+      errorCt: ClassTag[Err1],
+  ): WIO[Err1, Out1, StateIn, StateOut1] =
+    WIO.FlatMap(this, f, errorCt)
 
   def map[Out1](f: Out => Out1): WIO[Err, Out1, StateIn, StateOut] = WIO.Map(
     this,
@@ -33,16 +36,18 @@ sealed trait WIO[+Err, +Out, -StateIn, +StateOut] {
     (sIn: NewStateIn, sOut: StateOut, o: Out) => g(sIn, sOut) -> o,
   )
 
-  def handleError[Err1 >: Err, StIn1 <: StateIn, Out1 >: Out, StOut1 >: StateOut](
-      f: Err => WIO[Err1, Out1, StIn1, StOut1],
-  ): WIO[Err1, Out1, StIn1, StOut1] =
-    WIO.HandleError(this, f)
+  def handleError[Err1, StIn1 <: StateIn, Out1 >: Out, StOut1 >: StateOut, ErrIn >: Err](
+      f: ErrIn => WIO[Err1, Out1, StIn1, StOut1],
+  )(implicit errCt: ClassTag[ErrIn], newErrCt: ClassTag[Err1]): WIO[Err1, Out1, StIn1, StOut1] =
+    WIO.HandleError(this, f, errCt, newErrCt)
 
-  def named(name: String, description: Option[String] = None): WIO[Err, Out, StateIn, StateOut] = WIO.Named(this, name, description)
+  def named(name: String, description: Option[String] = None): WIO[Err, Out, StateIn, StateOut] = WIO.Named(this, name, description, None)
 
-  def autoNamed(description: Option[String] = None)(implicit name: sourcecode.Name): WIO[Err, Out, StateIn, StateOut] = {
-    val polishedName = name.value.capitalize.replaceAll("([a-z])([A-Z])", "$1 $2")
-    WIO.Named(this, polishedName, description)
+  def autoNamed[Err1 >: Err](
+      description: Option[String] = None,
+  )(implicit name: sourcecode.Name, errorCt: ClassTag[Err1]): WIO[Err, Out, StateIn, StateOut] = {
+    val polishedName = ModelUtils.prettifyName(name.value)
+    WIO.Named(this, polishedName, description, errorCt.runtimeClass.getSimpleName.some)
   }
 
   def andThen[Err1 >: Err, StateOut1, Out1](next: WIO[Err1, Out1, StateOut, StateOut1]): WIO[Err1, Out1, StateIn, StateOut1] = WIO.AndThen(this, next)
@@ -61,6 +66,7 @@ object WIO {
       sigHandler: SignalHandler[Sig, Evt, StIn],
       evtHandler: EventHandler[Evt, StIn, StOut, O, Err],
       getResp: (StIn, Evt) => Resp,
+      errorCt: ClassTag[_],
   ) extends WIO[Err, O, StIn, StOut] {
     def expects[Req1, Resp1](@unused signalDef: SignalDef[Req1, Resp1]): Option[HandleSignal[Req1, StIn, StOut, Evt, Resp, Err, Resp1]] =
       Some(this.asInstanceOf[HandleSignal[Req1, StIn, StOut, Evt, Resp, Err, Resp1]]) // TODO
@@ -72,12 +78,16 @@ object WIO {
   ) extends WIO[Err, Out, StIn, StOut]
 
   // theoretically state is not needed, it could be State.extract.flatMap(RunIO)
-  case class RunIO[-StIn, +StOut, Evt, +O, +Err](buildIO: StIn => IO[Evt], evtHandler: EventHandler[Evt, StIn, StOut, O, Err])
-      extends WIO[Err, O, StIn, StOut]
+  case class RunIO[-StIn, +StOut, Evt, +O, +Err](
+      buildIO: StIn => IO[Evt],
+      evtHandler: EventHandler[Evt, StIn, StOut, O, Err],
+      errorCt: ClassTag[_],
+  ) extends WIO[Err, O, StIn, StOut]
 
   case class FlatMap[Err1, Err2 >: Err1, Out1, +Out2, -StIn, StOut1, +StOut2](
       base: WIO[Err1, Out1, StIn, StOut1],
       getNext: Out1 => WIO[Err2, Out2, StOut1, StOut2],
+      errorCt: ClassTag[_],
   ) extends WIO[Err2, Out2, StIn, StOut2]
 
   case class Map[Err, Out1, +Out2, StIn1, -StIn2, StOut1, +StOut2](
@@ -86,21 +96,28 @@ object WIO {
       mapValue: (StIn2, StOut1, Out1) => (StOut2, Out2),
   ) extends WIO[Err, Out2, StIn2, StOut2]
 
-  case class Pure[+Err, +Out, -StIn, +StOut](value: StIn => Either[Err, (StOut, Out)]) extends WIO[Err, Out, StIn, StOut]
+  case class Pure[+Err, +Out, -StIn, +StOut](
+      value: StIn => Either[Err, (StOut, Out)],
+      errorCt: Option[ClassTag[_]],
+  ) extends WIO[Err, Out, StIn, StOut]
 
   // TODO this should ne called `Never` or `Halt` or similar, as the workflow cant proceed from that point.
   case class Noop() extends WIO[Nothing, Nothing, Any, Nothing]
 
-  case class HandleError[+ErrOut, +Out, -StIn, +StOut, ErrIn <: ErrOut](
+  case class HandleError[+ErrOut, +Out, -StIn, +StOut, ErrIn](
       base: WIO[ErrIn, Out, StIn, StOut],
       handleError: ErrIn => WIO[ErrOut, Out, StIn, StOut],
+      handledErrorCt: ClassTag[_], // used for metadata only
+      newErrorCt: ClassTag[_],
   ) extends WIO[ErrOut, Out, StIn, StOut]
 
-  case class Named[+Err, +Out, -StIn, +StOut](base: WIO[Err, Out, StIn, StOut], name: String, description: Option[String])
+  case class Named[+Err, +Out, -StIn, +StOut](base: WIO[Err, Out, StIn, StOut], name: String, description: Option[String], errorName: Option[String])
       extends WIO[Err, Out, StIn, StOut]
 
   case class AndThen[+Err, Out1, +Out2, -StIn, StOut, +StOut2](first: WIO[Err, Out1, StIn, StOut], second: WIO[Err, Out2, StOut, StOut2])
       extends WIO[Err, Out2, StIn, StOut2]
+
+  // -----
 
   case class SignalHandler[-Sig, +Evt, -StIn](handle: (StIn, Sig) => IO[Evt])(implicit sigCt: ClassTag[Sig])              {
     def run[Req, Resp](signal: SignalDef[Req, Resp])(req: Req, s: StIn): Option[IO[Evt]] =
@@ -151,8 +168,8 @@ object WIO {
       signalHandler: SignalHandler[Sig, Evt, StIn],
       eventHandler: EventHandler[Evt, StIn, StOut, Out, Err],
   ) {
-    def produceResponse(f: (StIn, Evt) => Resp): WIO[Err, Out, StIn, StOut] =
-      HandleSignal(signalDef, signalHandler, eventHandler, f)
+    def produceResponse(f: (StIn, Evt) => Resp)(implicit errorCt: ClassTag[Err]): WIO[Err, Out, StIn, StOut] =
+      HandleSignal(signalDef, signalHandler, eventHandler, f, errorCt)
   }
 
   def handleQuery[StIn] = new HandleQueryPartiallyApplied1[StIn]
@@ -177,27 +194,27 @@ object WIO {
   }
 
   class RunIOPartiallyApplied2[StIn, Evt: JournalWrite: ClassTag, Resp](getIO: StIn => IO[Evt]) {
-    def handleEvent[StOut](f: (StIn, Evt) => (StOut, Resp)): WIO[Nothing, Resp, StIn, StOut]                        =
-      RunIO(getIO, EventHandler((s, e: Evt) => f(s, e).asRight))
-    def handleEventWithError[StOut, Err](f: (StIn, Evt) => Either[Err, (StOut, Resp)]): WIO[Err, Resp, StIn, StOut] =
-      RunIO(getIO, EventHandler(f))
+    def handleEvent[StOut](f: (StIn, Evt) => (StOut, Resp)): WIO[Nothing, Resp, StIn, StOut]                                                         =
+      RunIO(getIO, EventHandler((s, e: Evt) => f(s, e).asRight), implicitly[ClassTag[Nothing]])
+    def handleEventWithError[StOut, Err](f: (StIn, Evt) => Either[Err, (StOut, Resp)])(implicit errorCt: ClassTag[Err]): WIO[Err, Resp, StIn, StOut] =
+      RunIO(getIO, EventHandler(f), errorCt)
   }
 
-  def getState[St]: WIO[Nothing, St, St, St]            = WIO.Pure(s => (s, s).asRight)
-  def setState[St](st: St): WIO[Nothing, Unit, Any, St] = WIO.Pure(_ => (st, ()).asRight)
+  def getState[St]: WIO[Nothing, St, St, St]            = WIO.Pure(s => (s, s).asRight, None)
+  def setState[St](st: St): WIO[Nothing, Unit, Any, St] = WIO.Pure(_ => (st, ()).asRight, None)
 
   def await[St](duration: Duration): WIO[Nothing, Unit, St, St] = ???
 
   def pure[St]: PurePartiallyApplied[St] = new PurePartiallyApplied
   class PurePartiallyApplied[StIn] {
-    def apply[O](value: O): WIO[Nothing, O, StIn, StIn] = WIO.Pure(s => Right(s -> value))
+    def apply[O](value: O): WIO[Nothing, O, StIn, StIn] = WIO.Pure(s => Right(s -> value), None)
   }
 
   def unit[St] = pure[St](())
 
   def raise[St]: RaisePartiallyApplied[St] = new RaisePartiallyApplied
   class RaisePartiallyApplied[StIn] {
-    def apply[Err](value: Err): WIO[Err, Nothing, StIn, Nothing] = ???
+    def apply[Err](value: Err)(implicit ct: ClassTag[Err]): WIO[Err, Nothing, StIn, Nothing] = WIO.Pure(s => Left(value), None)
   }
 
 }

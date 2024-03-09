@@ -34,6 +34,7 @@ object EventEvaluator {
 
     def onFlatMap[Out1, StOut1, Err1 <: Err](wio: WIO.FlatMap[Err1, Err, Out1, Out, StIn, StOut1, StOut]): DispatchResult = {
       recurse(wio.base, state).map(preserveFlatMap(wio, _))
+      ???
     }
 
     override def onAndThen[Out1, StOut1](wio: WIO.AndThen[Err, Out1, Out, StIn, StOut1, StOut]): DispatchResult = {
@@ -47,12 +48,15 @@ object EventEvaluator {
     def onHandleQuery[Qr, QrSt, Resp](wio: WIO.HandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp]): DispatchResult = {
       recurse(wio.inner, state).map(preserveHandleQuery(wio, _))
     }
-    def onNoop(wio: WIO.Noop): DispatchResult                                   = None
-    override def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult = recurse(wio.base, state)
-    override def onPure(wio: WIO.Pure[Err, Out, StIn, StOut]): DispatchResult   = None
+    def onNoop(wio: WIO.Noop): DispatchResult                                                                           = None
+    override def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult                                         = recurse(wio.base, state)
+    override def onPure(wio: WIO.Pure[Err, Out, StIn, StOut]): DispatchResult                                           = None
 
-    override def onHandleError[ErrIn <: Err](wio: WIO.HandleError[Err, Out, StIn, StOut, ErrIn]): DispatchResult = {
-      recurse(wio.base, state).map(applyHandleError(wio, _))
+    override def onHandleError[ErrIn](wio: WIO.HandleError[Err, Out, StIn, StOut, ErrIn]): DispatchResult = {
+      recurse(wio.base, state).map((newWf: NextWfState[ErrIn, Out, StOut]) => {
+        val casted: NextWfState[ErrIn, Out, StOut] { type Error = ErrIn } = newWf.asInstanceOf[NextWfState[ErrIn, Out, StOut] { type Error = ErrIn }]
+        applyHandleError(wio, casted)
+      })
     }
 
     def recurse[E1, O1, StIn1, SOut1](wio: WIO[E1, O1, StIn1, SOut1], s: StIn1): EventVisitor[E1, O1, StIn1, SOut1]#DispatchResult =

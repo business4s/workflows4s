@@ -53,8 +53,11 @@ object ProceedEvaluator {
     override def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult                                = recurse(wio.base, state)
     override def onPure(wio: WIO.Pure[Err, Out, StIn, StOut]): DispatchResult                                  = Some(NewValue(wio.value(state)).pure[IO])
 
-    override def onHandleError[ErrIn <: Err](wio: WIO.HandleError[Err, Out, StIn, StOut, ErrIn]): DispatchResult = {
-      recurse(wio.base, state).map(_.map(applyHandleError(wio, _)))
+    override def onHandleError[ErrIn](wio: WIO.HandleError[Err, Out, StIn, StOut, ErrIn]): DispatchResult = {
+      recurse(wio.base, state).map(_.map((newWf: NextWfState[ErrIn, Out, StOut]) => {
+        val casted: NextWfState[ErrIn, Out, StOut] { type Error = ErrIn } = newWf.asInstanceOf[NextWfState[ErrIn, Out, StOut] { type Error = ErrIn }]
+        applyHandleError(wio, casted)
+      }))
     }
 
     private def recurse[E1, O1, StIn1, SOut1](wio: WIO[E1, O1, StIn1, SOut1], s: StIn1): ProceedVisitor[E1, O1, StIn, SOut1]#DispatchResult =
