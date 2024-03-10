@@ -5,8 +5,10 @@ import workflow4s.wio.JournalWrite
 
 sealed trait WithdrawalEvent
 object WithdrawalEvent {
-  case class WithdrawalInitiated(amount: BigDecimal, recipient: Iban)
-  implicit val WithdrawalInitiatedJournalWrite: JournalWrite[WithdrawalInitiated] = null
+  sealed trait ValidationResult                                      extends Product with Serializable
+  case class WithdrawalAccepted(amount: BigDecimal, recipient: Iban) extends ValidationResult
+  case class WithdrawalRejected(error: String)                       extends ValidationResult
+  implicit val ValidationResultJW: JournalWrite[ValidationResult] = null
 
   case class FeeSet(fee: Fee)
   implicit val FeeSetJournalWrite: JournalWrite[FeeSet] = null
@@ -26,4 +28,7 @@ object WithdrawalEvent {
 
   case class MoneyReleased()
   implicit val MoneyReleasedWrite: JournalWrite[MoneyReleased] = null
+
+  case class MoneyLockCancelled()
+  implicit val MoneyLockCancelledJW: JournalWrite[MoneyLockCancelled] = null
 }

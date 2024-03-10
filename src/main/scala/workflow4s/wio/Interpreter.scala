@@ -154,8 +154,9 @@ object Interpreter {
     protected def applyHandleError[ErrIn](
         wio: WIO.HandleError[Err, Out, StIn, StOut, ErrIn],
         wf: NextWfState[ErrIn, Out, StOut] { type Error = ErrIn },
+        originalState: StIn,
     ): NextWfState[Err, Out, StOut] = {
-      def newWf(err: ErrIn) = NewBehaviour[ErrIn, Err, Out, Out, StIn, StOut](wio.handleError(err), Left(err))
+      def newWf(err: ErrIn) = NewBehaviour[ErrIn, Err, Any, Out, StIn, StOut](wio.handleError(err), Right(originalState -> ()))
       wf.fold(
         b => {
           b.value match {

@@ -1,11 +1,13 @@
 package workflow4s.wio.simple
 
 import cats.effect.unsafe.IORuntime
+import cats.implicits.catsSyntaxEitherId
 import com.typesafe.scalalogging.StrictLogging
 import workflow4s.wio.Interpreter.{EventResponse, ProceedResponse, QueryResponse, SignalResponse}
-import workflow4s.wio.{ActiveWorkflow, SignalDef}
+import workflow4s.wio.simple.SimpleActor.EventResponse
+import workflow4s.wio.{ActiveWorkflow, Interpreter, JournalPersistance, SignalDef, WIO}
 
-class SimpleActor( /*private*/ var wf: ActiveWorkflow)(implicit IORuntime: IORuntime) extends StrictLogging {
+class SimpleActor(private var wf: ActiveWorkflow, journal: JournalPersistance)(implicit IORuntime: IORuntime) extends StrictLogging {
 
   def handleSignal[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req): SimpleActor.SignalResponse[Resp] = {
     logger.debug(s"Handling signal ${req}")
@@ -28,18 +30,19 @@ class SimpleActor( /*private*/ var wf: ActiveWorkflow)(implicit IORuntime: IORun
       case QueryResponse.UnexpectedQuery() => SimpleActor.QueryResponse.UnexpectedQuery(wf.getDesc)
     }
 
-  def handleEvent(event: Any): SimpleActor.EventResponse = {
+  protected def handleEvent(event: Any): SimpleActor.EventResponse = {
     logger.debug(s"Handling event: ${event}")
     val resp = wf.handleEvent(event) match {
-      case EventResponse.Ok(newFlow)       =>
+      case Interpreter.EventResponse.Ok(newFlow)       =>
         wf = newFlow
         proceed(false)
         SimpleActor.EventResponse.Ok
-      case EventResponse.UnexpectedEvent() => SimpleActor.EventResponse.UnexpectedEvent(wf.getDesc)
+      case Interpreter.EventResponse.UnexpectedEvent() => SimpleActor.EventResponse.UnexpectedEvent(wf.getDesc)
     }
     logger.debug(s"Event response: ${resp}. New wf: ${wf.getDesc}")
     resp
   }
+
   def proceed(runIO: Boolean): Unit = {
     logger.debug(s"Proceeding to the next step. Run io: ${runIO}")
     wf.proceed(runIO) match {
@@ -53,9 +56,26 @@ class SimpleActor( /*private*/ var wf: ActiveWorkflow)(implicit IORuntime: IORun
     }
   }
 
+  def recover(): Unit = {
+    journal
+      .readEvents()
+      .unsafeRunSync()
+      .foreach(e =>
+        this.handleEvent(e) match {
+          case SimpleActor.EventResponse.Ok                    => ()
+          case SimpleActor.EventResponse.UnexpectedEvent(desc) => throw new IllegalArgumentException(s"Unexpected event :${desc}")
+        },
+      )
+    this.proceed(runIO = true)
+  }
+
 }
 
 object SimpleActor {
+
+  def create[SIn](behaviour: WIO[Nothing, Unit, SIn, Any], state: SIn, journalPersistance: JournalPersistance)(implicit ior: IORuntime): SimpleActor =
+    new SimpleActor(ActiveWorkflow(behaviour, new Interpreter(journalPersistance), (state, ()).asRight), journalPersistance)
+
   sealed trait SignalResponse[+Resp]
   object SignalResponse {
     case class Ok[Resp](result: Resp)        extends SignalResponse[Resp]

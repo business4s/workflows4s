@@ -31,6 +31,7 @@ lazy val `workflow4s-example` = (project in file("workflow4s-example"))
     scalaVersion := "2.13.10",
     libraryDependencies ++= Seq(
       "org.scalatest" %% "scalatest"       % "3.2.17" % Test,
+      "org.scalamock" %% "scalamock"       % "5.1.0"  % Test,
       "ch.qos.logback" % "logback-classic" % "1.4.14" % Test,
     ),
   )

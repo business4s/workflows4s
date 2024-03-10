@@ -10,10 +10,10 @@ class InMemoryJournal extends JournalPersistance with StrictLogging {
 
   private val events: mutable.ListBuffer[Any] = mutable.ListBuffer()
 
-  override def save[E: JournalWrite](evt: E): IO[Unit] = IO{
+  override def save[E: JournalWrite](evt: E): IO[Unit] = IO {
     logger.debug(s"Persisting event: ${evt}")
     events.append(evt)
   }
 
-  def getEvents: List[Any] = events.toList
+  def readEvents(): IO[List[Any]] = IO(events.toList)
 }

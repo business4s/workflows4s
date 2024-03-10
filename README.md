@@ -17,7 +17,7 @@ The following items are planned in scope of this PoC
 - [x] Handling step sequencing (flatMap)
 - [x] Handling IO execution
 - [x] Handling state transitions
-- [ ] Handling errors
+- [x] Handling errors
 - [ ] Handling postponed executions (await)
 - [ ] Typesafe total queries? (currently state is filtered arbitraly by the query)
 - [ ] Splitting the workflow (parallel execution and/or parallel waiting)

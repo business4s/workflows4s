@@ -5,6 +5,7 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxEitherId
 import com.typesafe.scalalogging.StrictLogging
 import org.camunda.bpm.model.bpmn.Bpmn
+import org.scalamock.scalatest.MockFactory
 import org.scalatest.freespec.AnyFreeSpec
 import workflow4s.bpmn.BPMNConverter
 import workflow4s.example.WithdrawalEvent.ExecutionCompleted
@@ -18,18 +19,66 @@ import workflow4s.wio.{ActiveWorkflow, Interpreter, WIO}
 
 import java.io.File
 
-class WithdrawalWorkflowTest extends AnyFreeSpec {
+//noinspection ForwardReference
+class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
 
   "Withdrawal Example" - {
 
-    "init" in new Fixture {
+    "happy path" in new Fixture {
       assert(actor.queryData() == WithdrawalData.Empty(txId))
 
-      actor.init(CreateWithdrawal(100, recipient))
-      assert(actor.queryData() == WithdrawalData.Executed(txId, 100, recipient, fees, ChecksState(Map()), externalId))
+      withFeeCalculation(fees)
+      withMoneyOnHold(success = true)
+      withExecutionInitiated(success = true)
+      withFundsReleased()
+
+      actor.init(CreateWithdrawal(amount, recipient))
+      assert(actor.queryData() == WithdrawalData.Executed(txId, amount, recipient, fees, ChecksState(Map()), externalId))
 
       actor.confirmExecution(WithdrawalSignal.ExecutionCompleted.Succeeded)
-      assert(actor.queryData() == WithdrawalData.Completed())
+      assert(actor.queryData() == WithdrawalData.Completed.Succesfully())
+
+      checkRecovery()
+    }
+
+    "reject in validation" in new Fixture {
+      actor.init(CreateWithdrawal(-100, recipient))
+      assert(actor.queryData() == WithdrawalData.Completed.Failed("Amount must be positive"))
+
+      checkRecovery()
+    }
+
+    "reject in funds lock" in new Fixture {
+      withFeeCalculation(fees)
+      withMoneyOnHold(success = false)
+
+      actor.init(CreateWithdrawal(amount, recipient))
+      assert(actor.queryData() == WithdrawalData.Completed.Failed("Not enough funds on the user's account"))
+
+      checkRecovery()
+    }
+
+    "reject in execution initiation" in new Fixture {
+      withFeeCalculation(fees)
+      withMoneyOnHold(success = true)
+      withExecutionInitiated(success = false)
+      withFundsLockCancelled()
+
+      actor.init(CreateWithdrawal(amount, recipient))
+      assert(actor.queryData() == WithdrawalData.Completed.Failed("Transaction rejected by execution engine"))
+
+      checkRecovery()
+    }
+
+    "reject in execution confirmation" in new Fixture {
+      withFeeCalculation(fees)
+      withMoneyOnHold(success = true)
+      withExecutionInitiated(success = true)
+      withFundsLockCancelled()
+
+      actor.init(CreateWithdrawal(amount, recipient))
+      actor.confirmExecution(WithdrawalSignal.ExecutionCompleted.Failed)
+      assert(actor.queryData() == WithdrawalData.Completed.Failed("Transaction rejected by execution engine"))
 
       checkRecovery()
     }
@@ -61,60 +110,58 @@ class WithdrawalWorkflowTest extends AnyFreeSpec {
       val secondActor = createActor(journal)
       assert(actor.queryData() == secondActor.queryData())
     }
-  }
 
-  def createActor(journal: InMemoryJournal) = {
-    val actor = new WithdrawalActor(journal)
-    actor.recover()
-    actor
-  }
-
-  val txId       = "abc"
-  val recipient  = Iban("A")
-  val fees       = Fee(11)
-  val externalId = "external-id-1"
-  val service    = new WithdrawalService {
-    override def calculateFees(amount: BigDecimal): IO[Fee] = IO(fees)
-
-    override def putMoneyOnHold(amount: BigDecimal): IO[Either[WithdrawalService.NotEnoughFunds, Unit]] = IO(Right(()))
-
-    override def initiateExecution(amount: BigDecimal, recepient: Iban): IO[WithdrawalService.ExecutionResponse] = IO(
-      WithdrawalService.ExecutionResponse.Accepted(externalId),
-    )
-
-    override def releaseFunds(amount: BigDecimal): IO[Unit] = IO.unit
-  }
-
-  object DummyChecksEngine extends ChecksEngine {
-    override def runChecks(input: ChecksInput): WIO[Nothing, Decision, ChecksState, ChecksState] = WIO.pure[ChecksState](Decision.ApprovedBySystem())
-  }
-
-  class WithdrawalActor(journal: InMemoryJournal)
-      extends SimpleActor(
-        ActiveWorkflow(
-          new WithdrawalWorkflow(service, DummyChecksEngine).workflow,
-          new Interpreter(journal),
-          (WithdrawalData.Empty(txId), ()).asRight,
-        ),
-      ) {
-    def init(req: CreateWithdrawal): Unit = {
-      this.handleSignal(WithdrawalWorkflow.createWithdrawalSignal)(req).extract
-    }
-    def confirmExecution(req: WithdrawalSignal.ExecutionCompleted): Unit = {
-      this.handleSignal(WithdrawalWorkflow.executionCompletedSignal)(req).extract
+    def createActor(journal: InMemoryJournal) = {
+      val actor = new WithdrawalActor(journal)
+      actor.recover()
+      actor
     }
 
-    def queryData(): WithdrawalData = this.handleQuery(WithdrawalWorkflow.dataQuery)(()).extract
+    val txId       = "abc"
+    val amount     = 100
+    val recipient  = Iban("A")
+    val fees       = Fee(11)
+    val externalId = "external-id-1"
+    val service    = mock[WithdrawalService]
+    val workflow   = new WithdrawalWorkflow(service, DummyChecksEngine).workflowDeclarative
 
-    def recover(): Unit = {
-      journal.getEvents.foreach(e =>
-        this.handleEvent(e) match {
-          case EventResponse.Ok                    => ()
-          case EventResponse.UnexpectedEvent(desc) => throw new IllegalArgumentException(s"Unexpected event :${desc}")
-        },
-      )
-      this.proceed(runIO = true)
+    def withFeeCalculation(fee: Fee)             =
+      (service.calculateFees _).expects(*).returning(IO(fee))
+    def withMoneyOnHold(success: Boolean)        =
+      (service.putMoneyOnHold _).expects(*).returning(IO(Either.cond(success, (), WithdrawalService.NotEnoughFunds())))
+    def withExecutionInitiated(success: Boolean) =
+      (service.initiateExecution _)
+        .expects(*, *)
+        .returning(IO(if (success) ExecutionResponse.Accepted(externalId) else ExecutionResponse.Rejected("Rejected by execution engine")))
+    def withFundsReleased()                      =
+      (service.releaseFunds _)
+        .expects(*)
+        .returning(IO.unit)
+    def withFundsLockCancelled()                      =
+      (service.cancelFundsLock _)
+        .expects()
+        .returning(IO.unit)
+
+    object DummyChecksEngine extends ChecksEngine {
+      override def runChecks(input: ChecksInput): WIO[Nothing, Decision, ChecksState, ChecksState] =
+        WIO.pure[ChecksState](Decision.ApprovedBySystem())
     }
+
+    class WithdrawalActor(journal: InMemoryJournal) {
+      val delegate = SimpleActor.create(workflow, WithdrawalData.Empty(txId), journal)
+      def init(req: CreateWithdrawal): Unit = {
+        delegate.handleSignal(WithdrawalWorkflow.createWithdrawalSignal)(req).extract
+      }
+      def confirmExecution(req: WithdrawalSignal.ExecutionCompleted): Unit = {
+        delegate.handleSignal(WithdrawalWorkflow.executionCompletedSignal)(req).extract
+      }
+
+      def queryData(): WithdrawalData = delegate.handleQuery(WithdrawalWorkflow.dataQuery)(()).extract
+
+      def recover(): Unit = delegate.recover()
+
+    }
+
   }
 
   implicit class SimpleSignalResponseOps[Resp](value: SimpleActor.SignalResponse[Resp]) {

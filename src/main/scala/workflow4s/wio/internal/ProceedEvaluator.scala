@@ -10,11 +10,16 @@ object ProceedEvaluator {
 
   // runIO required to elimintate Pures showing up after FlatMap
   def proceed[StIn, StOut, Err](wio: WIO.States[StIn, StOut], errOrState: Either[Err, StIn], interp: Interpreter, runIO: Boolean): ProceedResponse = {
-    val visitor = new ProceedVisitor(wio, interp, errOrState.toOption.get, runIO)
-    visitor.run match {
-      case Some(value) => ProceedResponse.Executed(value.map(wf => wf.toActiveWorkflow(interp)))
-      case None        => ProceedResponse.Noop()
+    errOrState match {
+      case Left(value)  => ProceedResponse.Noop()
+      case Right(value) =>
+        val visitor = new ProceedVisitor(wio, interp, value, runIO)
+        visitor.run match {
+          case Some(value) => ProceedResponse.Executed(value.map(wf => wf.toActiveWorkflow(interp)))
+          case None        => ProceedResponse.Noop()
+        }
     }
+
   }
 
   private class ProceedVisitor[Err, Out, StIn, StOut](wio: WIO[Err, Out, StIn, StOut], interp: Interpreter, state: StIn, runIO: Boolean)
@@ -53,7 +58,7 @@ object ProceedEvaluator {
     override def onHandleError[ErrIn](wio: WIO.HandleError[Err, Out, StIn, StOut, ErrIn]): DispatchResult = {
       recurse(wio.base, state).map(_.map((newWf: NextWfState[ErrIn, Out, StOut]) => {
         val casted: NextWfState[ErrIn, Out, StOut] { type Error = ErrIn } = newWf.asInstanceOf[NextWfState[ErrIn, Out, StOut] { type Error = ErrIn }]
-        applyHandleError(wio, casted)
+        applyHandleError(wio, casted, state)
       }))
     }
 

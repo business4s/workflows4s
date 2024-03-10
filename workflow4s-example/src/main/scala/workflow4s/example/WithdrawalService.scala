@@ -11,6 +11,8 @@ trait WithdrawalService {
   def initiateExecution(amount: BigDecimal, recepient: Iban): IO[ExecutionResponse]
 
   def releaseFunds(amount: BigDecimal): IO[Unit]
+
+  def cancelFundsLock(): IO[Unit]
 }
 
 object WithdrawalService {
