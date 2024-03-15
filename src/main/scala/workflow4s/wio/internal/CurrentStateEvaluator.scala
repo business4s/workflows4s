@@ -46,6 +46,9 @@ object CurrentStateEvaluator {
     override def onHandleError[ErrIn](wio: WIO.HandleError[Err, Out, StIn, StOut, ErrIn]): DispatchResult =
       s"(Handle error or ${recurse(wio.base)})"
 
+    override def onHandleErrorWith[ErrIn, HandlerStateIn >: StIn, BaseOut >: Out](wio: WIO.HandleErrorWith[Err, BaseOut, StIn, StOut, ErrIn, HandlerStateIn, Out]): DispatchResult =
+      s"(${recurse(wio.base)}, on error: ${recurse(wio.handleError)}"
+
     private def recurse[E1, O1, SIn1, SOut1](wio: WIO[E1, O1, SIn1, SOut1]): String = new DescriptionVisitor(wio).run
 
   }

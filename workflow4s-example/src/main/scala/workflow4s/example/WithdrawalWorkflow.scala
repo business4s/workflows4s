@@ -1,7 +1,7 @@
 package workflow4s.example
 
 import cats.effect.IO
-import cats.implicits.catsSyntaxEitherId
+import cats.implicits.{catsSyntaxApplicativeId, catsSyntaxEitherId}
 import workflow4s.example.WithdrawalEvent.{MoneyLocked, WithdrawalAccepted, WithdrawalRejected}
 import workflow4s.example.WithdrawalService.ExecutionResponse
 import workflow4s.example.WithdrawalSignal.{CreateWithdrawal, ExecutionCompleted}
@@ -27,7 +27,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
              _ <- execute
              _ <- releaseFunds
            } yield ())
-             .handleError(handleRejection),
+             .handleErrorWith(cancelFundsIfNeeded),
          )
     _ <- handleDataQuery(WIO.Noop())
   } yield ()
@@ -41,7 +41,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
           runChecks >>>
           execute >>>
           releaseFunds
-      ).handleError(handleRejection) >>> WIO.Noop(),
+      ).handleErrorWith(cancelFundsIfNeeded) >>> WIO.Noop(),
     )
 
   private def receiveWithdrawal: WIO[WithdrawalRejection.InvalidInput, Unit, WithdrawalData.Empty, WithdrawalData.Initiated] =
@@ -94,9 +94,9 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
                       (validated, checkState) => validated.checked(checkState),
                     )
       _        <- decision match {
-                    case Decision.RejectedBySystem()   => WIO.raise[WithdrawalData.Checked](WithdrawalRejection.RejectedInChecks(state.txId))
+                    case Decision.RejectedBySystem()   => WIO.raise[WithdrawalData.Checked](WithdrawalRejection.RejectedInChecks())
                     case Decision.ApprovedBySystem()   => WIO.unit[WithdrawalData.Checked]
-                    case Decision.RejectedByOperator() => WIO.raise[WithdrawalData.Checked](WithdrawalRejection.RejectedInChecks(state.txId))
+                    case Decision.RejectedByOperator() => WIO.raise[WithdrawalData.Checked](WithdrawalRejection.RejectedInChecks())
                     case Decision.ApprovedByOperator() => WIO.unit[WithdrawalData.Checked]
                   }
     } yield ()).autoNamed()
@@ -115,7 +115,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
       .handleEventWithError((s, event) =>
         event.response match {
           case ExecutionResponse.Accepted(externalId) => Right(s.executed(externalId) -> ())
-          case ExecutionResponse.Rejected(error)      => Left(WithdrawalRejection.RejectedByExecutionEngine(s.txId, error))
+          case ExecutionResponse.Rejected(error)      => Left(WithdrawalRejection.RejectedByExecutionEngine(error))
         },
       )
       .autoNamed()
@@ -126,7 +126,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
       .handleEventWithError((s, e: WithdrawalEvent.ExecutionCompleted) =>
         e.status match {
           case ExecutionCompleted.Succeeded => Right(s, ())
-          case ExecutionCompleted.Failed    => Left(WithdrawalRejection.RejectedByExecutionEngine(s.txId, "Execution failed"))
+          case ExecutionCompleted.Failed    => Left(WithdrawalRejection.RejectedByExecutionEngine("Execution failed"))
         },
       )
       .produceResponse((_, _) => ())
@@ -134,23 +134,25 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
 
   private def releaseFunds: WIO[Nothing, Unit, WithdrawalData.Executed, WithdrawalData.Completed] =
     WIO
-      .runIO[WithdrawalData.Executed](st => service.releaseFunds(st.amount).as(WithdrawalEvent.MoneyLockCancelled()))
+      .runIO[WithdrawalData.Executed](st => service.releaseFunds(st.amount).as(WithdrawalEvent.MoneyReleased()))
       .handleEvent((st, e) => st.completed() -> ())
       .autoNamed()
 
   private def handleDataQuery =
     WIO.handleQuery[WithdrawalData](dataQuery) { (state, _) => state }
 
-  private def handleRejection(r: WithdrawalRejection): WIO[Nothing, Unit, Any, WithdrawalData.Completed.Failed] =
-    (r match {
-      case WithdrawalRejection.InvalidInput(error)                    => WIO.setState(WithdrawalData.Completed.Failed(error))
-      case WithdrawalRejection.NotEnoughFunds()                       => WIO.setState(WithdrawalData.Completed.Failed("Not enough funds on the user's account"))
-      case WithdrawalRejection.RejectedInChecks(txId)                 => cancelFunds(txId, "Transaction rejected in checks")
-      case WithdrawalRejection.RejectedByExecutionEngine(txId, error) => cancelFunds(txId, "Transaction rejected by execution engine")
-    })
-
-  private def cancelFunds(txId: String, error: String): WIO[Nothing, Unit, Any, WithdrawalData.Completed.Failed] =
+  private def cancelFundsIfNeeded: WIO[Nothing, Unit, (WithdrawalData, WithdrawalRejection), WithdrawalData.Completed.Failed] = {
     WIO
-      .runIO((st: Any) => service.cancelFundsLock().as(WithdrawalEvent.MoneyLockCancelled()))
-      .handleEvent((_, _) => WithdrawalData.Completed.Failed(error) -> ())
+      .runIO[(WithdrawalData, WithdrawalRejection)]({ case (_, r) =>
+        r match {
+          case WithdrawalRejection.InvalidInput(error)              => WithdrawalEvent.RejectionHandled(error).pure[IO]
+          case WithdrawalRejection.NotEnoughFunds()                 => WithdrawalEvent.RejectionHandled("Not enough funds on the user's account").pure[IO]
+          case WithdrawalRejection.RejectedInChecks()               =>
+            service.cancelFundsLock().as(WithdrawalEvent.RejectionHandled("Transaction rejected in checks"))
+          case WithdrawalRejection.RejectedByExecutionEngine(error) => service.cancelFundsLock().as(WithdrawalEvent.RejectionHandled(error))
+        }
+      })
+      .handleEvent((_: (WithdrawalData, WithdrawalRejection), evt) => WithdrawalData.Completed.Failed(evt.error) -> ())
+      .autoNamed()
+  }
 }

@@ -29,6 +29,6 @@ object WithdrawalEvent {
   case class MoneyReleased()
   implicit val MoneyReleasedWrite: JournalWrite[MoneyReleased] = null
 
-  case class MoneyLockCancelled()
-  implicit val MoneyLockCancelledJW: JournalWrite[MoneyLockCancelled] = null
+  case class RejectionHandled(error: String)
+  implicit val MoneyLockCancelledJW: JournalWrite[RejectionHandled] = null
 }

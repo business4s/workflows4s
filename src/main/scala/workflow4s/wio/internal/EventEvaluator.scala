@@ -50,8 +50,15 @@ object EventEvaluator {
 
     override def onHandleError[ErrIn](wio: WIO.HandleError[Err, Out, StIn, StOut, ErrIn]): DispatchResult = {
       recurse(wio.base, state).map((newWf: NextWfState[ErrIn, Out, StOut]) => {
-        val casted: NextWfState[ErrIn, Out, StOut] { type Error = ErrIn } = newWf.asInstanceOf[NextWfState[ErrIn, Out, StOut] { type Error = ErrIn }]
+        val casted: NextWfState[ErrIn, Out, StOut] { type Error = ErrIn } = newWf.asInstanceOf[NextWfState[ErrIn, Out, StOut] { type Error = ErrIn }] // TODO casting
         applyHandleError(wio, casted, state)
+      })
+    }
+
+    override def onHandleErrorWith[ErrIn, HandlerStateIn >: StIn, BaseOut >: Out](wio: WIO.HandleErrorWith[Err, BaseOut, StIn, StOut, ErrIn, HandlerStateIn, Out]): DispatchResult = {
+      recurse(wio.base, state).map((newWf: NextWfState[ErrIn, BaseOut, StOut]) => {
+        val casted: NextWfState[ErrIn, Out, StOut] { type Error = ErrIn } = newWf.asInstanceOf[NextWfState[ErrIn, Out, StOut] { type Error = ErrIn }] // TODO casting
+        applyHandleErrorWith(wio, casted, state)
       })
     }
 

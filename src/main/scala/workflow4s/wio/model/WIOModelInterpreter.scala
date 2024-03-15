@@ -51,6 +51,15 @@ object WIOModelInterpreter {
       WIOModel.HandleError(recurse(wio.base, None), WIOModel.Dynamic(m.name, newError), errorName.some)
     }
 
+    override def onHandleErrorWith[ErrIn, HandlerStateIn >: StIn, BaseOut >: Out](
+                                                                                   wio: WIO.HandleErrorWith[Err, BaseOut, StIn, StOut, ErrIn, HandlerStateIn, Out],
+                                                                                 ): DispatchResult = {
+      val errorName = ModelUtils.getPrettyNameForClass(wio.handledErrorCt)
+      val newError  = ModelUtils.getError(wio.newErrorCt)
+      WIOModel.HandleError(recurse(wio.base, None), recurse(wio.handleError, None), errorName.some)
+    }
+
+
     def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult =
       new ModelVisitor(wio.base, Metadata(wio.name.some, wio.description)).run
 

@@ -3,7 +3,9 @@ package workflow4s.example
 import workflow4s.example.WithdrawalService.{Fee, Iban}
 import workflow4s.example.checks.ChecksState
 
-sealed trait WithdrawalData
+sealed trait WithdrawalData {
+  def txId: String
+}
 
 object WithdrawalData {
   case class Empty(txId: String)                                                                             extends WithdrawalData {
@@ -29,7 +31,11 @@ object WithdrawalData {
 
   sealed trait Completed extends WithdrawalData
   object Completed {
-    case class Succesfully() extends Completed
-    case class Failed(error: String) extends Completed
+    case class Succesfully() extends Completed {
+      override def txId: String = ???
+    }
+    case class Failed(error: String) extends Completed {
+      override def txId: String = ???
+    }
   }
 }

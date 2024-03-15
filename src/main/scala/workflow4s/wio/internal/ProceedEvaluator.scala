@@ -62,6 +62,15 @@ object ProceedEvaluator {
       }))
     }
 
+
+    override def onHandleErrorWith[ErrIn, HandlerStateIn >: StIn, BaseOut >: Out](wio: WIO.HandleErrorWith[Err, BaseOut, StIn, StOut, ErrIn, HandlerStateIn, Out]): DispatchResult = {
+      recurse(wio.base, state).map(_.map((newWf: NextWfState[ErrIn, BaseOut, StOut]) => {
+        val casted: NextWfState[ErrIn, Out, StOut] { type Error = ErrIn } =
+          newWf.asInstanceOf[NextWfState[ErrIn, Out, StOut] { type Error = ErrIn }] // TODO casting
+        applyHandleErrorWith(wio, casted, state)
+      }))
+    }
+
     private def recurse[E1, O1, StIn1, SOut1](wio: WIO[E1, O1, StIn1, SOut1], s: StIn1): ProceedVisitor[E1, O1, StIn, SOut1]#DispatchResult =
       new ProceedVisitor(wio, interp, s, runIO).run
   }

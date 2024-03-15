@@ -70,6 +70,14 @@ object SignalEvaluator {
         val casted: NextWfState[ErrIn, Out, StOut] { type Error = ErrIn } = wf.asInstanceOf[NextWfState[ErrIn, Out, StOut] { type Error = ErrIn }]
         applyHandleError(wio, casted, state) -> resp
       }))
+    override def onHandleErrorWith[ErrIn, HandlerStateIn >: StIn, BaseOut >: Out](
+        wio: WIO.HandleErrorWith[Err, BaseOut, StIn, StOut, ErrIn, HandlerStateIn, Out],
+    ): DispatchResult                                                                                     =
+      recurse(wio.base, state).map(_.map({ case (wf, resp) =>
+        val casted: NextWfState[ErrIn, Out, StOut] { type Error = ErrIn } =
+          wf.asInstanceOf[NextWfState[ErrIn, Out, StOut] { type Error = ErrIn }] // TODO casting
+        applyHandleErrorWith(wio, casted, state) -> resp
+      }))
 
     def recurse[E1, O1, StIn1, SOut1](wio: WIO[E1, O1, StIn1, SOut1], s: StIn1): SignalVisitor[Resp, E1, O1, StIn1, SOut1, Req]#DispatchResult =
       new SignalVisitor(wio, interp, signalDef, req, s).run

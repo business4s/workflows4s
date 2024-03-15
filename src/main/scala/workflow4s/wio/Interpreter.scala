@@ -61,22 +61,25 @@ object Interpreter {
 
     def onHandleError[ErrIn](wio: WIO.HandleError[Err, Out, StIn, StOut, ErrIn]): DispatchResult
 
+    def onHandleErrorWith[ErrIn, HandlerStateIn >: StIn, BaseOut >: Out](wio: WIO.HandleErrorWith[Err, BaseOut, StIn, StOut, ErrIn, HandlerStateIn, Out]): DispatchResult
+
     def onAndThen[Out1, StOut1](wio: WIO.AndThen[Err, Out1, Out, StIn, StOut1, StOut]): DispatchResult
 
     def onPure(wio: WIO.Pure[Err, Out, StIn, StOut]): DispatchResult
 
     def run: DispatchResult = {
       wio match {
-        case x @ HandleSignal(_, _, _, _, _) => onSignal(x)
-        case x @ WIO.HandleQuery(_, _)       => onHandleQuery(x)
-        case x @ WIO.RunIO(_, _, _)          => onRunIO(x)
-        case x @ WIO.FlatMap(_, _, _)        => onFlatMap(x)
-        case x @ WIO.Map(_, _, _)            => onMap(x)
-        case x @ WIO.Noop()                  => onNoop(x)
-        case x @ WIO.HandleError(_, _, _, _) => onHandleError(x)
-        case x @ WIO.Named(_, _, _, _)       => onNamed(x)
-        case x @ WIO.AndThen(_, _)           => onAndThen(x)
-        case x @ WIO.Pure(_, _)              => onPure(x)
+        case x @ HandleSignal(_, _, _, _, _)     => onSignal(x)
+        case x @ WIO.HandleQuery(_, _)           => onHandleQuery(x)
+        case x @ WIO.RunIO(_, _, _)              => onRunIO(x)
+        case x @ WIO.FlatMap(_, _, _)            => onFlatMap(x)
+        case x @ WIO.Map(_, _, _)                => onMap(x)
+        case x @ WIO.Noop()                      => onNoop(x)
+        case x @ WIO.HandleError(_, _, _, _)     => onHandleError(x)
+        case x @ WIO.Named(_, _, _, _)           => onNamed(x)
+        case x @ WIO.AndThen(_, _)               => onAndThen(x)
+        case x @ WIO.Pure(_, _)                  => onPure(x)
+        case x @ WIO.HandleErrorWith(_, _, _, _) => onHandleErrorWith(x)
       }
     }
 
@@ -162,10 +165,36 @@ object Interpreter {
           b.value match {
             case Left(value) => newWf(value)
             case Right(v)    =>
-              // TODO this should be safe but we somehow lost information that state produces from evaluating Flatmap.base has State = StIn
-              val x: ErrIn => WIO[Err, Out, StIn, StOut]          = wio.handleError
-              val xCasted: ErrIn => WIO[Err, Out, b.State, StOut] = wio.handleError.asInstanceOf[ErrIn => WIO[Err, Out, b.State, StOut]]
-              val newWIO: WIO[Err, Out, b.State, StOut]           = WIO.HandleError(b.wio, xCasted, wio.handledErrorCt, wio.newErrorCt)
+              val adjustedHandler: ErrIn => WIO[Err, Out, b.State, StOut] = err => wio.handleError(err).transformInputState[Any](x => originalState)
+              val newWIO: WIO[Err, Out, b.State, StOut]                   = WIO.HandleError(b.wio, adjustedHandler, wio.handledErrorCt, wio.newErrorCt)
+              NewBehaviour(newWIO, v.asRight)
+          }
+        },
+        v => {
+          v.value match {
+            case Left(value) => newWf(value)
+            case Right(vv)   => NewValue(vv.asRight)
+          }
+        },
+      )
+    }
+
+    protected def applyHandleErrorWith[ErrIn, HandlerStIn >: StIn, BaseOut >: Out](
+        wio: WIO.HandleErrorWith[Err, BaseOut, StIn, StOut, ErrIn, HandlerStIn, Out],
+        wf: NextWfState[ErrIn, Out, StOut] { type Error = ErrIn },
+        originalState: StIn,
+    ): NextWfState[Err, Out, StOut] = {
+      def newWf(err: ErrIn) = NewBehaviour[ErrIn, Err, Any, Out, StIn, StOut](
+        wio.handleError.transformInputState[Any](_ => (originalState, err)),
+        Right(originalState -> ()),
+      )
+      wf.fold(
+        b => {
+          b.value match {
+            case Left(value) => newWf(value)
+            case Right(v)    =>
+              val adjustedHandler                       = wio.handleError.transformInputState[(Any, ErrIn)](x => (originalState, x._2))
+              val newWIO: WIO[Err, Out, b.State, StOut] = WIO.HandleErrorWith(b.wio, adjustedHandler, wio.handledErrorCt, wio.newErrorCt)
               NewBehaviour(newWIO, v.asRight)
           }
         },

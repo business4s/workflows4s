@@ -35,11 +35,19 @@ sealed trait WIO[+Err, +Out, -StateIn, +StateOut] {
     f,
     (sIn: NewStateIn, sOut: StateOut, o: Out) => g(sIn, sOut) -> o,
   )
+  def transformInputState[NewStateIn](
+      f: NewStateIn => StateIn,
+  ): WIO[Err, Out, NewStateIn, StateOut]    = transformState(f, (_, x) => x)
 
   def handleError[Err1, StIn1 <: StateIn, Out1 >: Out, StOut1 >: StateOut, ErrIn >: Err](
       f: ErrIn => WIO[Err1, Out1, StIn1, StOut1],
   )(implicit errCt: ClassTag[ErrIn], newErrCt: ClassTag[Err1]): WIO[Err1, Out1, StIn1, StOut1] =
     WIO.HandleError(this, f, errCt, newErrCt)
+
+  def handleErrorWith[Err1, Out1 >: Out, StOut1 >: StateOut, ErrIn >: Err, StIn0 <: StateIn, StIn1 >: StIn0](
+      wio: WIO[Err1, Out1, (StIn1, ErrIn), StOut1],
+  )(implicit errCt: ClassTag[ErrIn], newErrCt: ClassTag[Err1]): WIO[Err1, Out1, StIn0, StOut1] =
+    WIO.HandleErrorWith[Err1, Out1, StIn0, StOut1, Err, StIn1, Out1](this, wio, errCt, newErrCt)
 
   def named(name: String, description: Option[String] = None): WIO[Err, Out, StateIn, StateOut] = WIO.Named(this, name, description, None)
 
@@ -110,6 +118,13 @@ object WIO {
       handledErrorCt: ClassTag[_], // used for metadata only
       newErrorCt: ClassTag[_],
   ) extends WIO[ErrOut, Out, StIn, StOut]
+
+  case class HandleErrorWith[+ErrOut, +BaseOut, -BaseStIn, +StOut, ErrIn, -HandlerStIn >: BaseStIn, +HandlerOut <: BaseOut](
+      base: WIO[ErrIn, BaseOut, BaseStIn, StOut],
+      handleError: WIO[ErrOut, HandlerOut, (HandlerStIn, ErrIn), StOut],
+      handledErrorCt: ClassTag[_], // used for metadata only
+      newErrorCt: ClassTag[_],
+  ) extends WIO[ErrOut, HandlerOut, BaseStIn, StOut]
 
   case class Named[+Err, +Out, -StIn, +StOut](base: WIO[Err, Out, StIn, StOut], name: String, description: Option[String], errorName: Option[String])
       extends WIO[Err, Out, StIn, StOut]
