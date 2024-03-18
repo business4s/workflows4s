@@ -13,31 +13,28 @@ object ChecksEngine extends ChecksEngine {
   val reviewSignalDef: SignalDef[ReviewDecision, Unit] = SignalDef()
 
   def runChecks(input: ChecksInput): WIO[Nothing, Decision, ChecksState, ChecksState] =
-    (for {
-      _        <- refreshChecksUntilAllComplete(input)
-      decision <- getDecision()
-    } yield decision)
-//      .checkpointed((s, decision) => ChecksEvent.CheckCompleted(s.results, decision))((s, e) => (s, e.decision))
+    refreshChecksUntilAllComplete(input) >>> getDecision()
+  //      .checkpointed((s, decision) => ChecksEvent.CheckCompleted(s.results, decision))((s, e) => (s, e.decision))
 
   private def getDecision(): WIO[Nothing, Decision, ChecksState, ChecksState] = {
-    for {
-      state    <- WIO.getState
-      decision <- detectRejected(state)
-                    .orElse(handleSignalAwaiting(state))
-                    .orElse(decideThroughReview(state))
-                    .getOrElse(WIO.pure(Decision.ApprovedBySystem()))
-    } yield decision
+    WIO
+      .fork[ChecksState]
+      .addBranch(requiresReviewBranch)
+      .addBranch(decidedBySystemBranch) // TODO if/else api
+      .done
   }
 
   private def refreshChecksUntilAllComplete(input: ChecksInput): WIO[Nothing, Unit, ChecksState, ChecksState] = {
-    for {
-      state         <- WIO.getState[ChecksState]
-      pending        = (input.checks -- state.finished).values.toList
-      _             <- doRun(pending, input.data)
-      stateAfterRun <- WIO.getState[ChecksState]
-      allFinished    = stateAfterRun.finished.size == input.checks.size
-      _             <- if (allFinished) WIO.Noop() else refreshChecksUntilAllComplete(input)
-    } yield ()
+    val refreshChecks = (for {
+      state  <- WIO.getState[ChecksState]
+      pending = (input.checks -- state.finished).values.toList
+      _      <- doRun(pending, input.data)
+    } yield ()).autoNamed()
+
+    WIO.doWhile(refreshChecks)((state, _) => {
+      val allFinished = state.finished.size == input.checks.size
+      allFinished
+    })
   }
 
   private def doRun[Data](checks: List[Check[Data]], data: Data): WIO[Nothing, Unit, ChecksState, ChecksState] =
@@ -54,38 +51,32 @@ object ChecksEngine extends ChecksEngine {
       )
       .handleEvent((state, evt) => (state.addResults(evt.results), ()))
 
-  private def detectRejected(state: ChecksState): Option[WIO[Nothing, Decision.RejectedBySystem, ChecksState, ChecksState]] =
-    state.results.collectFirst({ case (_, CheckResult.Rejected()) =>
-      WIO.pure[ChecksState](Decision.RejectedBySystem())
-    })
+  private def decidedBySystemBranch =
+    WIO
+      .branch[ChecksState]
+      .when(_.requiresReview)(
+        WIO.pure.make(st =>
+          if (st.isRejected) Decision.RejectedBySystem()
+          else Decision.ApprovedBySystem(),
+        ),
+      )
 
-  private def handleSignalAwaiting(state: ChecksState): Option[WIO[Nothing, Decision, ChecksState, ChecksState]] =
-    state.results.collectFirst({ case (key, CheckResult.RequiresSignal(signalDef)) =>
-      WIO
-        .handleSignal[ChecksState](signalDef)({ case (_, _) => IO(ChecksEvent.ApproveSignalReceived(key)) })
-        .handleEvent({ case (st, evt) =>
-          st.addResults(Map(evt.check -> CheckResult.Approved())) -> ()
-        })
-        .produceResponse((_, _) => ())
-        .flatMap(_ => getDecision())
-    })
+  private def requiresReviewBranch =
+    WIO.branch[ChecksState].when(_.requiresReview)(handleReview)
 
-  private def decideThroughReview(state: ChecksState): Option[WIO[Nothing, Decision, ChecksState, ChecksState]] =
-    state.results.collectFirst({ case (_, CheckResult.RequiresReview()) =>
-      WIO
-        .handleSignal[ChecksState](reviewSignalDef)({ case (_, sig) => IO(ChecksEvent.ReviewDecisionTaken(sig)) })
-        .handleEvent({ case (st, evt) =>
-          (
-            st,
-            evt.decision match {
-              case ReviewDecision.Approve => Decision.ApprovedByOperator()
-              case ReviewDecision.Reject  => Decision.RejectedByOperator()
-            },
-          )
-        })
-        .produceResponse((_, _) => ())
+  private def handleReview: WIO[Nothing, Decision, ChecksState, ChecksState] = WIO
+    .handleSignal[ChecksState](reviewSignalDef)({ case (_, sig) => IO(ChecksEvent.ReviewDecisionTaken(sig)) })
+    .handleEvent({ case (st, evt) =>
+      (
+        st,
+        evt.decision match {
+          case ReviewDecision.Approve => Decision.ApprovedByOperator()
+          case ReviewDecision.Reject  => Decision.RejectedByOperator()
+        },
+      )
     })
+    .produceResponse((_, _) => ())
 
-//  def handleInterruption
+  //  def handleInterruption
 
 }

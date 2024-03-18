@@ -23,10 +23,12 @@ object BPMNConverter {
       .done()
   }
 
-  private def handle[B <: AbstractFlowNodeBuilder[B, E], E <: FlowNode](
+  type Builder = AbstractFlowNodeBuilder[B, E] forSome { type B <: AbstractFlowNodeBuilder[B, E]; type E <: FlowNode }
+
+  private def handle(
       model: WIOModel,
-      builder: AbstractFlowNodeBuilder[B, E],
-  ): AbstractFlowNodeBuilder[_, _] =
+      builder: Builder,
+  ): Builder =
     model match {
       case WIOModel.Sequence(steps)                                    =>
         steps.foldLeft[AbstractFlowNodeBuilder[_, _]](builder)((builder, step) => handle(step, builder))
@@ -70,6 +72,34 @@ object BPMNConverter {
           .subProcessDone()
       case WIOModel.Noop                                               => builder
       case WIOModel.Pure(_, _)                                         => builder // TODO remove name if we dont render
+      case WIOModel.Loop(base, conditionName)                          =>
+        val loopStartGwId      = Random.alphanumeric.filter(_.isLetter).take(10).mkString
+        val newBuilder         = builder.exclusiveGateway(loopStartGwId)
+        val loopEndGwId        = Random.alphanumeric.filter(_.isLetter).take(10).mkString
+        val nextTaskTempNodeId = Random.alphanumeric.filter(_.isLetter).take(10).mkString
+        handle(base, newBuilder)
+          .exclusiveGateway(loopEndGwId)
+          .serviceTask(nextTaskTempNodeId)
+          .moveToLastGateway()
+          .connectTo(loopStartGwId)
+          .moveToNode(nextTaskTempNodeId)
+      case WIOModel.Fork(branches)                                     =>
+        val base                     = builder.exclusiveGateway()
+        val gwId                     = base.getElement.getId
+        val (resultBuilder, Some(endGwId)) = branches.zipWithIndex.foldLeft[(Builder, Option[String])](base -> None)({
+          case ((builder1, endGw), (branch, idx)) =>
+            val b2     = builder1.moveToNode(gwId).condition(branch.label.getOrElse(s"Branch ${idx}"), "")
+            println()
+            val result = handle(branch.logic, b2)
+            endGw match {
+              case Some(value) =>
+                result.connectTo(value) -> endGw
+              case None =>
+                val gwId = result.exclusiveGateway().getElement.getId
+                result -> Some(gwId)
+            }
+        })
+        resultBuilder.moveToNode(endGwId)
     }
 
   def renderError[B <: AbstractActivityBuilder[B, E], E <: Activity](

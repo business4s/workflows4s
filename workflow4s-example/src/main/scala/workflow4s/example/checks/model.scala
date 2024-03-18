@@ -19,12 +19,11 @@ object Decision {
 
 sealed trait CheckResult
 object CheckResult {
-  sealed trait Final                                              extends CheckResult
-  case class Approved()                                           extends Final
-  case class Rejected()                                           extends Final
-  case class Pending()                                            extends CheckResult
-  case class RequiresReview()                                     extends CheckResult
-  case class RequiresSignal[Req](signalDef: SignalDef[Req, Unit]) extends CheckResult // TODO will be hard to serialize
+  sealed trait Final          extends CheckResult
+  case class Approved()       extends Final
+  case class Rejected()       extends Final
+  case class Pending()        extends CheckResult
+  case class RequiresReview() extends CheckResult
 }
 
 case class CheckKey(value: String)
@@ -37,6 +36,10 @@ case class ChecksState(results: Map[CheckKey, CheckResult]) {
   def finished: Set[CheckKey] = ???
 
   def addResults(newResults: Map[CheckKey, CheckResult]) = ChecksState(results ++ newResults)
+
+  def isRejected     = results.exists(_._2 == CheckResult.Rejected())
+  def requiresReview = !isRejected && results.exists(_._2 == CheckResult.RequiresReview())
+  def isApproved     = !isRejected && !requiresReview
 }
 
 object ChecksState {

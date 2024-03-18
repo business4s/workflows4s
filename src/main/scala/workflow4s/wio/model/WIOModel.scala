@@ -15,8 +15,13 @@ object WIOModel {
   case class HandleError(base: WIOModel, handler: WIOModel, errorName: Option[String])                                 extends WIOModel
   case object Noop                                                                                                     extends WIOModel
   case class Pure(name: Option[String], description: Option[String])                                                   extends WIOModel
+  case class Loop(base: WIOModel, conditionLabel: Option[String])                                                      extends WIOModel
+  case class Fork(branches: Vector[Branch])                                                                            extends WIOModel
 
   @JsonCodec
   case class Error(name: String)
+
+  @JsonCodec
+  case class Branch(logic: WIOModel, label: Option[String])
 
 }

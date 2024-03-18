@@ -52,16 +52,21 @@ object WIOModelInterpreter {
     }
 
     override def onHandleErrorWith[ErrIn, HandlerStateIn >: StIn, BaseOut >: Out](
-                                                                                   wio: WIO.HandleErrorWith[Err, BaseOut, StIn, StOut, ErrIn, HandlerStateIn, Out],
-                                                                                 ): DispatchResult = {
+        wio: WIO.HandleErrorWith[Err, BaseOut, StIn, StOut, ErrIn, HandlerStateIn, Out],
+    ): DispatchResult = {
       val errorName = ModelUtils.getPrettyNameForClass(wio.handledErrorCt)
       val newError  = ModelUtils.getError(wio.newErrorCt)
       WIOModel.HandleError(recurse(wio.base, None), recurse(wio.handleError, None), errorName.some)
     }
 
-
     def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult =
       new ModelVisitor(wio.base, Metadata(wio.name.some, wio.description)).run
+
+    override def onDoWhile(wio: WIO.DoWhile[Err, Out, StOut]): FlatMapOut =
+      WIOModel.Loop(recurse(wio.action), None)
+
+    override def onFork(wio: WIO.Fork[Err, Out, StIn, StOut]): FlatMapOut =
+      WIOModel.Fork(wio.branches.map(x => WIOModel.Branch(recurse(x.wio), None)))
 
     def recurse[E1, O1, SIn1, SOut1](wio: WIO[E1, O1, SIn1, SOut1], meta: Option[Metadata] = Some(m)): WIOModel = {
       new ModelVisitor(wio, meta.getOrElse(Metadata.empty)).run

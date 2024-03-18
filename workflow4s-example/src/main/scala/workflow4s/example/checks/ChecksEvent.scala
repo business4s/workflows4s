@@ -10,9 +10,6 @@ object ChecksEvent {
   case class CheckCompleted(results: Map[CheckKey, CheckResult], decision: Decision)
   implicit val CheckCompletedJW: JournalWrite[CheckCompleted] = null
 
-  case class ApproveSignalReceived(check: CheckKey) // TODO should it be a list? In case multiple checks require the same signal?
-  implicit val ApproveSignalReceivedJW: JournalWrite[ApproveSignalReceived] = null
-
   case class ReviewDecisionTaken(decision: ReviewDecision)
   implicit val ReviewDecisionTakenJW: JournalWrite[ReviewDecisionTaken] = null
 }

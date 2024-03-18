@@ -61,11 +61,15 @@ object Interpreter {
 
     def onHandleError[ErrIn](wio: WIO.HandleError[Err, Out, StIn, StOut, ErrIn]): DispatchResult
 
-    def onHandleErrorWith[ErrIn, HandlerStateIn >: StIn, BaseOut >: Out](wio: WIO.HandleErrorWith[Err, BaseOut, StIn, StOut, ErrIn, HandlerStateIn, Out]): DispatchResult
+    def onHandleErrorWith[ErrIn, HandlerStateIn >: StIn, BaseOut >: Out](
+        wio: WIO.HandleErrorWith[Err, BaseOut, StIn, StOut, ErrIn, HandlerStateIn, Out],
+    ): DispatchResult
 
     def onAndThen[Out1, StOut1](wio: WIO.AndThen[Err, Out1, Out, StIn, StOut1, StOut]): DispatchResult
 
     def onPure(wio: WIO.Pure[Err, Out, StIn, StOut]): DispatchResult
+    def onDoWhile(wio: WIO.DoWhile[Err, Out, StOut]): DispatchResult = ???
+    def onFork(wio: WIO.Fork[Err, Out, StIn, StOut]): DispatchResult = ???
 
     def run: DispatchResult = {
       wio match {
@@ -80,6 +84,8 @@ object Interpreter {
         case x @ WIO.AndThen(_, _)               => onAndThen(x)
         case x @ WIO.Pure(_, _)                  => onPure(x)
         case x @ WIO.HandleErrorWith(_, _, _, _) => onHandleErrorWith(x)
+        case x @ WIO.DoWhile(_, _)               => onDoWhile(x)
+        case x @ WIO.Fork(_)                     => onFork(x)
       }
     }
 

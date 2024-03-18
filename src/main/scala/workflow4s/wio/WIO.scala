@@ -132,6 +132,11 @@ object WIO {
   case class AndThen[+Err, Out1, +Out2, -StIn, StOut, +StOut2](first: WIO[Err, Out1, StIn, StOut], second: WIO[Err, Out2, StOut, StOut2])
       extends WIO[Err, Out2, StIn, StOut2]
 
+  //TODO name for condition
+  case class DoWhile[Err, Out, State](action: WIO[Err, Out, State, State], stopCondition: (State, Out) => Boolean) extends WIO[Err, Out, State, State]
+
+  case class Fork[+Err, +Out, -StIn, +StOut](branches: Vector[Branch[Err, Out, StIn, StOut]]) extends WIO[Err, Out, StIn, StOut]
+
   // -----
 
   case class SignalHandler[-Sig, +Evt, -StIn](handle: (StIn, Sig) => IO[Evt])(implicit sigCt: ClassTag[Sig])              {
@@ -222,7 +227,8 @@ object WIO {
 
   def pure[St]: PurePartiallyApplied[St] = new PurePartiallyApplied
   class PurePartiallyApplied[StIn] {
-    def apply[O](value: O): WIO[Nothing, O, StIn, StIn] = WIO.Pure(s => Right(s -> value), None)
+    def apply[O](value: O): WIO[Nothing, O, StIn, StIn]    = WIO.Pure(s => Right(s -> value), None)
+    def make[O](f: StIn => O): WIO[Nothing, O, StIn, StIn] = WIO.Pure(s => Right(s -> f(s)), None)
   }
 
   def unit[St] = pure[St](())
@@ -232,4 +238,49 @@ object WIO {
     def apply[Err](value: Err)(implicit ct: ClassTag[Err]): WIO[Err, Nothing, StIn, Nothing] = WIO.Pure(s => Left(value), None)
   }
 
+  def doWhile[Err, Out, State](action: WIO[Err, Out, State, State])(stopCondition: (State, Out) => Boolean) = WIO.DoWhile(action, stopCondition)
+  def whileDo[Err, Out, State, T](condition: State => Option[T])(action: WIO[Err, Out, (State, T), State])  = ???
+
+  def fork[State]: ForkBuilder[Nothing, Nothing, State, Nothing] = ForkBuilder(Vector())
+
+  trait Branch[+Err, +Out, -StIn, +StOut] {
+    type I // Intermediate
+    def condition: StIn => Option[I]
+    def wio: WIO[Err, Out, (StIn, I), StOut]
+  }
+  object Branch                           {
+    def apply[State, T, Err, Out, StOut](cond: State => Option[T], wio0: WIO[Err, Out, (State, T), StOut]): Branch[Err, Out, State, StOut] =
+      new Branch[Err, Out, State, StOut] {
+        override type I = T
+        override def condition: State => Option[I]         = cond
+        override def wio: WIO[Err, Out, (State, I), StOut] = wio0
+      }
+  }
+
+  // can be removed and replaced with direct instance of WIO.Fork?
+  case class ForkBuilder[+Err, +Out, -StIn, +StOut](branches: Vector[Branch[Err, Out, StIn, StOut]]) {
+    def branch[T, Err1 >: Err, Out1 >: Out, StOu1 >: StOut, StIn1 <: StIn](cond: StIn1 => Option[T])(
+        wio: WIO[Err1, Out1, (StIn1, T), StOu1],
+    ): ForkBuilder[Err1, Out1, StIn1, StOu1] = addBranch(Branch(cond, wio))
+
+    def addBranch[T, Err1 >: Err, Out1 >: Out, StOu1 >: StOut, StIn1 <: StIn](
+        b: Branch[Err1, Out1, StIn1, StOu1],
+    ): ForkBuilder[Err1, Out1, StIn1, StOu1] =
+      ForkBuilder(
+        branches.appended(b),
+      )
+
+    def done: WIO[Err, Out, StIn, StOut] = WIO.Fork(branches)
+  }
+
+  def branch[State]: BranchBuilder[State] = BranchBuilder[State]()
+
+  case class BranchBuilder[State]() {
+    def when[Err, Out, StOut](cond: State => Boolean)(
+        wio: WIO[Err, Out, State, StOut],
+    ): Branch[Err, Out, State, StOut] = Branch(cond.andThen(Option.when(_)(())), wio.transformInputState((x: (State, Any)) => x._1))
+    def create[T, Err, Out, StOut](cond: State => Option[T])(
+        wio: WIO[Err, Out, (State, T), StOut],
+    ): Branch[Err, Out, State, StOut] = Branch(cond, wio)
+  }
 }
