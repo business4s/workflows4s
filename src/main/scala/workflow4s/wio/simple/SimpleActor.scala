@@ -73,7 +73,7 @@ class SimpleActor(private var wf: ActiveWorkflow, journal: JournalPersistance)(i
 
 object SimpleActor {
 
-  def create[SIn](behaviour: WIO[Nothing, Unit, SIn, Any], state: SIn, journalPersistance: JournalPersistance)(implicit ior: IORuntime): SimpleActor =
+  def create[SIn](behaviour: WIO[Nothing, Any, SIn, Any], state: SIn, journalPersistance: JournalPersistance)(implicit ior: IORuntime): SimpleActor =
     new SimpleActor(ActiveWorkflow(behaviour, new Interpreter(journalPersistance), (state, ()).asRight), journalPersistance)
 
   sealed trait SignalResponse[+Resp]

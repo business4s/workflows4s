@@ -62,8 +62,8 @@ object WIOModelInterpreter {
     def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult =
       new ModelVisitor(wio.base, Metadata(wio.name.some, wio.description)).run
 
-    override def onDoWhile(wio: WIO.DoWhile[Err, Out, StOut]): FlatMapOut =
-      WIOModel.Loop(recurse(wio.action), None)
+    override def onDoWhile(wio: WIO.DoWhile[Err, Out, StIn, StOut]): FlatMapOut =
+      WIOModel.Loop(recurse(wio.loop), None)
 
     override def onFork(wio: WIO.Fork[Err, Out, StIn, StOut]): FlatMapOut =
       WIOModel.Fork(wio.branches.map(x => WIOModel.Branch(recurse(x.wio), None)))

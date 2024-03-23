@@ -79,6 +79,11 @@ object SignalEvaluator {
         applyHandleErrorWith(wio, casted, state) -> resp
       }))
 
+    override def onDoWhile(wio: WIO.DoWhile[Err, Out, StIn, StOut]): DispatchResult                                                            =
+      recurse(wio.current, state).map(_.map({ case (wf, resp) => applyOnDoWhile(wio, wf) -> resp }))
+
+    override def onFork(wio: WIO.Fork[Err, Out, StIn, StOut]): Option[IO[(NewWf, Resp)]] = ??? // TODO, proper error handling, should never happen
+
     def recurse[E1, O1, StIn1, SOut1](wio: WIO[E1, O1, StIn1, SOut1], s: StIn1): SignalVisitor[Resp, E1, O1, StIn1, SOut1, Req]#DispatchResult =
       new SignalVisitor(wio, interp, signalDef, req, s).run
 

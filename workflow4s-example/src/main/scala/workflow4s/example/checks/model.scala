@@ -33,7 +33,13 @@ trait Check[Data] {
 }
 
 case class ChecksState(results: Map[CheckKey, CheckResult]) {
-  def finished: Set[CheckKey] = ???
+  def finished: Set[CheckKey] = results.flatMap({ case (key, result) =>
+    result match {
+      case value: CheckResult.Final     => Some(key)
+      case CheckResult.Pending()        => None
+      case CheckResult.RequiresReview() => Some(key)
+    }
+  }).toSet
 
   def addResults(newResults: Map[CheckKey, CheckResult]) = ChecksState(results ++ newResults)
 

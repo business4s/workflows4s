@@ -133,7 +133,11 @@ object WIO {
       extends WIO[Err, Out2, StIn, StOut2]
 
   //TODO name for condition
-  case class DoWhile[Err, Out, State](action: WIO[Err, Out, State, State], stopCondition: (State, Out) => Boolean) extends WIO[Err, Out, State, State]
+  case class DoWhile[Err, Out, StIn, StOut](
+      loop: WIO[Err, Out, StOut, StOut],
+      stopCondition: (StOut, Out) => Boolean,
+      current: WIO[Err, Out, StIn, StOut],
+  ) extends WIO[Err, Out, StIn, StOut]
 
   case class Fork[+Err, +Out, -StIn, +StOut](branches: Vector[Branch[Err, Out, StIn, StOut]]) extends WIO[Err, Out, StIn, StOut]
 
@@ -238,7 +242,7 @@ object WIO {
     def apply[Err](value: Err)(implicit ct: ClassTag[Err]): WIO[Err, Nothing, StIn, Nothing] = WIO.Pure(s => Left(value), None)
   }
 
-  def doWhile[Err, Out, State](action: WIO[Err, Out, State, State])(stopCondition: (State, Out) => Boolean) = WIO.DoWhile(action, stopCondition)
+  def doWhile[Err, Out, State](action: WIO[Err, Out, State, State])(stopCondition: (State, Out) => Boolean) = WIO.DoWhile(action, stopCondition, action)
   def whileDo[Err, Out, State, T](condition: State => Option[T])(action: WIO[Err, Out, (State, T), State])  = ???
 
   def fork[State]: ForkBuilder[Nothing, Nothing, State, Nothing] = ForkBuilder(Vector())

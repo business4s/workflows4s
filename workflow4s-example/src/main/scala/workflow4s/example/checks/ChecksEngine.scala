@@ -54,7 +54,7 @@ object ChecksEngine extends ChecksEngine {
   private def decidedBySystemBranch =
     WIO
       .branch[ChecksState]
-      .when(_.requiresReview)(
+      .when(!_.requiresReview)(
         WIO.pure.make(st =>
           if (st.isRejected) Decision.RejectedBySystem()
           else Decision.ApprovedBySystem(),

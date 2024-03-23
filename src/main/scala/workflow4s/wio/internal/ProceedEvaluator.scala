@@ -3,7 +3,7 @@ package workflow4s.wio.internal
 import cats.effect.IO
 import cats.syntax.all._
 import workflow4s.wio.Interpreter.{ProceedResponse, Visitor}
-import workflow4s.wio.NextWfState.NewValue
+import workflow4s.wio.NextWfState.{NewBehaviour, NewValue}
 import workflow4s.wio._
 
 object ProceedEvaluator {
@@ -62,14 +62,24 @@ object ProceedEvaluator {
       }))
     }
 
-
-    override def onHandleErrorWith[ErrIn, HandlerStateIn >: StIn, BaseOut >: Out](wio: WIO.HandleErrorWith[Err, BaseOut, StIn, StOut, ErrIn, HandlerStateIn, Out]): DispatchResult = {
+    override def onHandleErrorWith[ErrIn, HandlerStateIn >: StIn, BaseOut >: Out](
+        wio: WIO.HandleErrorWith[Err, BaseOut, StIn, StOut, ErrIn, HandlerStateIn, Out],
+    ): DispatchResult = {
       recurse(wio.base, state).map(_.map((newWf: NextWfState[ErrIn, BaseOut, StOut]) => {
         val casted: NextWfState[ErrIn, Out, StOut] { type Error = ErrIn } =
           newWf.asInstanceOf[NextWfState[ErrIn, Out, StOut] { type Error = ErrIn }] // TODO casting
         applyHandleErrorWith(wio, casted, state)
       }))
     }
+
+    override def onDoWhile(wio: WIO.DoWhile[Err, Out, StIn, StOut]): DispatchResult = {
+      recurse(wio.current, state).map(_.map((newWf: NextWfState[Err, Out, StOut]) => {
+        applyOnDoWhile(wio, newWf)
+      }))
+    }
+
+    override def onFork(wio: WIO.Fork[Err, Out, StIn, StOut]): DispatchResult =
+      selectMatching(wio, state).map(nextWio => IO(NewBehaviour(nextWio, Right(state, ()))))
 
     private def recurse[E1, O1, StIn1, SOut1](wio: WIO[E1, O1, StIn1, SOut1], s: StIn1): ProceedVisitor[E1, O1, StIn, SOut1]#DispatchResult =
       new ProceedVisitor(wio, interp, s, runIO).run

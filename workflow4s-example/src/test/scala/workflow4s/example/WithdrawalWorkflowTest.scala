@@ -65,7 +65,7 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
       withFundsLockCancelled()
 
       actor.init(CreateWithdrawal(amount, recipient))
-      assert(actor.queryData() == WithdrawalData.Completed.Failed("Transaction rejected by execution engine"))
+      assert(actor.queryData() == WithdrawalData.Completed.Failed("Rejected by execution engine"))
 
       checkRecovery()
     }
@@ -78,7 +78,7 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
 
       actor.init(CreateWithdrawal(amount, recipient))
       actor.confirmExecution(WithdrawalSignal.ExecutionCompleted.Failed)
-      assert(actor.queryData() == WithdrawalData.Completed.Failed("Transaction rejected by execution engine"))
+      assert(actor.queryData() == WithdrawalData.Completed.Failed("Execution failed"))
 
       checkRecovery()
     }
