@@ -10,6 +10,7 @@ import workflow4s.wio.model.WIOModelInterpreter
 import workflow4s.wio.simple.{InMemoryJournal, SimpleActor}
 
 import java.io.File
+import scala.util.Random
 
 class ChecksEngineTest extends AnyFreeSpec {
 
@@ -25,10 +26,25 @@ class ChecksEngineTest extends AnyFreeSpec {
     val wf    = createWorkflow(List(check))
     wf.run()
     assert(check.run == 2)
+    assert(wf.state == ChecksState.Decided(Map(check.key -> CheckResult.Approved()), Decision.ApprovedBySystem()))
   }
 
-  "reject if any rejects" in {
-    fail()
+  "reject if any rejects" in new Fixture {
+    val check1 = StaticCheck(CheckResult.Approved())
+    val check2 = StaticCheck(CheckResult.Rejected())
+    val check3 = StaticCheck(CheckResult.RequiresReview())
+    val wf     = createWorkflow(List(check1, check2, check3))
+    wf.run()
+    assert(
+      wf.state == ChecksState.Decided(
+        Map(
+          check1.key -> check1.result,
+          check2.key -> check2.result,
+          check3.key -> check3.result,
+        ),
+        Decision.RejectedBySystem(),
+      ),
+    )
   }
 
   "require review if needed and no rejections" in {
@@ -40,7 +56,7 @@ class ChecksEngineTest extends AnyFreeSpec {
   }
 
   "render bpmn model" in {
-    val wf        = ChecksEngine.runChecks(ChecksInput((), List()))
+    val wf        = ChecksEngine.runChecks
     val model     = WIOModelInterpreter.run(wf)
     val bpmnModel = BPMNConverter.convert(model, "checks-engine")
     Bpmn.writeModelToFile(new File("src/test/resources/checks-engine.bpmn"), bpmnModel)
@@ -52,10 +68,19 @@ class ChecksEngineTest extends AnyFreeSpec {
     def createWorkflow(checks: List[Check[Unit]]) = new ChecksActor(journal, ChecksInput((), checks))
   }
   class ChecksActor(journal: InMemoryJournal, input: ChecksInput) {
-    val delegate        = SimpleActor.create(ChecksEngine.runChecks(input), ChecksState.empty, journal)
+    val delegate        = SimpleActor.create(ChecksEngine.runChecks, input, journal)
     def run(): Unit     = delegate.proceed(runIO = true)
     def recover(): Unit = delegate.recover()
 
+    def state: ChecksState = {
+      val Right(st) = delegate.state
+      st.asInstanceOf[ChecksState]
+    }
+  }
+
+  case class StaticCheck[T <: CheckResult](result: T) extends Check[Unit] {
+    override val key: CheckKey                    = CheckKey(Random.alphanumeric.take(10).mkString)
+    override def run(data: Unit): IO[CheckResult] = IO(result)
   }
 
 }

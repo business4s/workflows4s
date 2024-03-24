@@ -56,7 +56,7 @@ object EventEvaluator {
       })
     }
 
-    override def onDoWhile(wio: WIO.DoWhile[Err, Out, StIn, StOut]): DispatchResult =
+    override def onDoWhile[StOut1](wio: WIO.DoWhile[Err, Out, StIn, StOut1, StOut]): DispatchResult =
       recurse(wio.current, state).map(applyOnDoWhile(wio, _))
 
     override def onHandleErrorWith[ErrIn, HandlerStateIn >: StIn, BaseOut >: Out](

@@ -51,7 +51,7 @@ object CurrentStateEvaluator {
     ): DispatchResult =
       s"(${recurse(wio.base)}, on error: ${recurse(wio.handleError)}"
 
-    override def onDoWhile(wio: WIO.DoWhile[Err, Out, StIn, StOut]): DispatchResult = s"do-while; current = ${recurse(wio.current)}"
+    override def onDoWhile[StOut1](wio: WIO.DoWhile[Err, Out, StIn, StOut1, StOut]): DispatchResult = s"do-while; current = ${recurse(wio.current)}"
 
     override def onFork(wio: WIO.Fork[Err, Out, StIn, StOut]): String = "fork"
 

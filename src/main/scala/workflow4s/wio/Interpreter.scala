@@ -68,7 +68,7 @@ object Interpreter {
     def onAndThen[Out1, StOut1](wio: WIO.AndThen[Err, Out1, Out, StIn, StOut1, StOut]): DispatchResult
 
     def onPure(wio: WIO.Pure[Err, Out, StIn, StOut]): DispatchResult
-    def onDoWhile(wio: WIO.DoWhile[Err, Out, StIn, StOut]): DispatchResult
+    def onDoWhile[StOut1](wio: WIO.DoWhile[Err, Out, StIn, StOut1, StOut]): DispatchResult
     def onFork(wio: WIO.Fork[Err, Out, StIn, StOut]): DispatchResult
 
     def run: DispatchResult = {
@@ -213,9 +213,9 @@ object Interpreter {
       )
     }
 
-    def applyOnDoWhile(
-        wio: WIO.DoWhile[Err, Out, StIn, StOut],
-        wf: NextWfState[Err, Out, StOut],
+    def applyOnDoWhile[StOut1](
+        wio: WIO.DoWhile[Err, Out, StIn, StOut1, StOut],
+        wf: NextWfState[Err, Out, StOut1],
     ): NextWfState[Err, Out, StOut] = {
       wf.fold[NextWfState[Err, Out, StOut]](
         b => {
@@ -224,12 +224,13 @@ object Interpreter {
         },
         v =>
           v.value match {
-            case Left(value)           => v
+            case Left(err)             => NewValue(Left(err))
             case Right((state, value)) =>
-              if (wio.stopCondition(state, value)) v
-              else {
-                val newWIO = WIO.DoWhile(wio.loop, wio.stopCondition, wio.loop)
-                NewBehaviour(newWIO, v.value)
+              wio.stopCondition(state) match {
+                case Some(newState) => NewValue(Right((newState, value)))
+                case None           =>
+                  val newWIO = WIO.DoWhile(wio.loop, wio.stopCondition, wio.loop)
+                  NewBehaviour(newWIO, v.value)
               }
           },
       )

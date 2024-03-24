@@ -19,11 +19,12 @@ object Decision {
 
 sealed trait CheckResult
 object CheckResult {
-  sealed trait Final          extends CheckResult
+  sealed trait Finished       extends CheckResult
+  sealed trait Final          extends Finished
+  case class Pending()        extends CheckResult
   case class Approved()       extends Final
   case class Rejected()       extends Final
-  case class Pending()        extends CheckResult
-  case class RequiresReview() extends CheckResult
+  case class RequiresReview() extends Finished
 }
 
 case class CheckKey(value: String)
@@ -32,24 +33,33 @@ trait Check[Data] {
   def run(data: Data): IO[CheckResult]
 }
 
-case class ChecksState(results: Map[CheckKey, CheckResult]) {
-  def finished: Set[CheckKey] = results.flatMap({ case (key, result) =>
-    result match {
-      case value: CheckResult.Final     => Some(key)
-      case CheckResult.Pending()        => None
-      case CheckResult.RequiresReview() => Some(key)
-    }
-  }).toSet
+sealed trait ChecksState {
+  def results: Map[CheckKey, CheckResult]
 
-  def addResults(newResults: Map[CheckKey, CheckResult]) = ChecksState(results ++ newResults)
-
-  def isRejected     = results.exists(_._2 == CheckResult.Rejected())
-  def requiresReview = !isRejected && results.exists(_._2 == CheckResult.RequiresReview())
-  def isApproved     = !isRejected && !requiresReview
 }
 
 object ChecksState {
-  val empty = ChecksState(Map())
+
+  case class Pending(input: ChecksInput, results: Map[CheckKey, CheckResult])          extends ChecksState {
+    private def finishedChecks: Map[CheckKey, CheckResult.Finished] = results.collect({ case (key, result: CheckResult.Finished) => key -> result })
+    def pendingChecks: Set[CheckKey]                                = input.checks.keySet -- finishedChecks.keySet
+
+    def addResults(newResults: Map[CheckKey, CheckResult]) = ChecksState.Pending(input, results ++ newResults)
+
+    def asExecuted: Option[ChecksState.Executed] = {
+      val finished = finishedChecks
+      Option.when(finished.size == input.checks.size)(Executed(finished))
+    }
+  }
+  case class Executed(results: Map[CheckKey, CheckResult.Finished])                    extends ChecksState {
+    def isRejected     = results.exists(_._2 == CheckResult.Rejected())
+    def requiresReview = !isRejected && results.exists(_._2 == CheckResult.RequiresReview())
+    def isApproved     = !isRejected && !requiresReview
+
+    def asDecided(decision: Decision) = ChecksState.Decided(results, decision)
+  }
+  case class Decided(results: Map[CheckKey, CheckResult.Finished], decision: Decision) extends ChecksState
+
 }
 
 trait ChecksInput {

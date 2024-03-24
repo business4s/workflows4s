@@ -79,7 +79,7 @@ object SignalEvaluator {
         applyHandleErrorWith(wio, casted, state) -> resp
       }))
 
-    override def onDoWhile(wio: WIO.DoWhile[Err, Out, StIn, StOut]): DispatchResult                                                            =
+    override def onDoWhile[StOut1](wio: WIO.DoWhile[Err, Out, StIn, StOut1, StOut]): DispatchResult                                                            =
       recurse(wio.current, state).map(_.map({ case (wf, resp) => applyOnDoWhile(wio, wf) -> resp }))
 
     override def onFork(wio: WIO.Fork[Err, Out, StIn, StOut]): Option[IO[(NewWf, Resp)]] = ??? // TODO, proper error handling, should never happen

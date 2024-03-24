@@ -9,6 +9,8 @@ import workflow4s.wio.{ActiveWorkflow, Interpreter, JournalPersistance, SignalDe
 
 class SimpleActor(private var wf: ActiveWorkflow, journal: JournalPersistance)(implicit IORuntime: IORuntime) extends StrictLogging {
 
+  def state: Either[Any, Any] = wf.value.map(_._1)
+
   def handleSignal[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req): SimpleActor.SignalResponse[Resp] = {
     logger.debug(s"Handling signal ${req}")
     wf.handleSignal(signalDef)(req) match {

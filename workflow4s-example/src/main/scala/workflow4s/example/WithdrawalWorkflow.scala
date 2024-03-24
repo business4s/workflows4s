@@ -84,22 +84,22 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
       }
       .autoNamed()
 
-  private def runChecks: WIO[WithdrawalRejection.RejectedInChecks, Unit, WithdrawalData.Validated, WithdrawalData.Checked] =
-    (for {
-      state    <- WIO.getState[WithdrawalData.Validated]
-      decision <- checksEngine
-                    .runChecks(ChecksInput(state, List()))
-                    .transformState[WithdrawalData.Validated, WithdrawalData.Checked](
-                      _ => ChecksState.empty,
-                      (validated, checkState) => validated.checked(checkState),
-                    )
-      _        <- decision match {
-                    case Decision.RejectedBySystem()   => WIO.raise[WithdrawalData.Checked](WithdrawalRejection.RejectedInChecks())
-                    case Decision.ApprovedBySystem()   => WIO.unit[WithdrawalData.Checked]
-                    case Decision.RejectedByOperator() => WIO.raise[WithdrawalData.Checked](WithdrawalRejection.RejectedInChecks())
-                    case Decision.ApprovedByOperator() => WIO.unit[WithdrawalData.Checked]
-                  }
-    } yield ()).autoNamed()
+  private def runChecks: WIO[WithdrawalRejection.RejectedInChecks, Unit, WithdrawalData.Validated, WithdrawalData.Checked] = {
+    val doRunChecks: WIO[Nothing, Unit, WithdrawalData.Validated, WithdrawalData.Checked] = checksEngine.runChecks
+      .transformInputState((x: WithdrawalData.Validated) => ChecksInput(x, List()))
+      .transformOutputState((validated, checkState) => validated.checked(checkState))
+
+    val actOnDecision = WIO
+      .pure[WithdrawalData.Checked]
+      .makeError(_.checkResults.decision match {
+        case Decision.RejectedBySystem()   => Some(WithdrawalRejection.RejectedInChecks())
+        case Decision.ApprovedBySystem()   => None
+        case Decision.RejectedByOperator() => Some(WithdrawalRejection.RejectedInChecks())
+        case Decision.ApprovedByOperator() => None
+      })
+
+    doRunChecks >>> actOnDecision
+  }
 
   // TODO can fail with provider fatal failure, need retries, needs cancellation
   private def execute: WIO[WithdrawalRejection.RejectedByExecutionEngine, Unit, WithdrawalData.Checked, WithdrawalData.Executed] =

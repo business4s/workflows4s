@@ -72,8 +72,8 @@ object ProceedEvaluator {
       }))
     }
 
-    override def onDoWhile(wio: WIO.DoWhile[Err, Out, StIn, StOut]): DispatchResult = {
-      recurse(wio.current, state).map(_.map((newWf: NextWfState[Err, Out, StOut]) => {
+    override def onDoWhile[StOut1](wio: WIO.DoWhile[Err, Out, StIn, StOut1, StOut]): DispatchResult = {
+      recurse(wio.current, state).map(_.map((newWf: NextWfState[Err, Out, StOut1]) => {
         applyOnDoWhile(wio, newWf)
       }))
     }

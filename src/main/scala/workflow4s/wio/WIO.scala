@@ -38,6 +38,9 @@ sealed trait WIO[+Err, +Out, -StateIn, +StateOut] {
   def transformInputState[NewStateIn](
       f: NewStateIn => StateIn,
   ): WIO[Err, Out, NewStateIn, StateOut]    = transformState(f, (_, x) => x)
+  def transformOutputState[NewStateOut, StIn1 <: StateIn](
+      f: (StIn1, StateOut) => NewStateOut,
+  ): WIO[Err, Out, StIn1, NewStateOut]      = transformState(identity, f)
 
   def handleError[Err1, StIn1 <: StateIn, Out1 >: Out, StOut1 >: StateOut, ErrIn >: Err](
       f: ErrIn => WIO[Err1, Out1, StIn1, StOut1],
@@ -133,11 +136,11 @@ object WIO {
       extends WIO[Err, Out2, StIn, StOut2]
 
   //TODO name for condition
-  case class DoWhile[Err, Out, StIn, StOut](
+  case class DoWhile[Err, Out, StIn, StOut, StOut2](
       loop: WIO[Err, Out, StOut, StOut],
-      stopCondition: (StOut, Out) => Boolean,
+      stopCondition: StOut => Option[StOut2],
       current: WIO[Err, Out, StIn, StOut],
-  ) extends WIO[Err, Out, StIn, StOut]
+  ) extends WIO[Err, Out, StIn, StOut2]
 
   case class Fork[+Err, +Out, -StIn, +StOut](branches: Vector[Branch[Err, Out, StIn, StOut]]) extends WIO[Err, Out, StIn, StOut]
 
@@ -231,8 +234,12 @@ object WIO {
 
   def pure[St]: PurePartiallyApplied[St] = new PurePartiallyApplied
   class PurePartiallyApplied[StIn] {
-    def apply[O](value: O): WIO[Nothing, O, StIn, StIn]    = WIO.Pure(s => Right(s -> value), None)
-    def make[O](f: StIn => O): WIO[Nothing, O, StIn, StIn] = WIO.Pure(s => Right(s -> f(s)), None)
+    def apply[O](value: O): WIO[Nothing, O, StIn, StIn]                                                = WIO.Pure(s => Right(s -> value), None)
+    def state[StOut](value: StOut): WIO[Nothing, Unit, StIn, StOut]                                    = WIO.Pure(s => Right(value -> ()), None)
+    def make[O](f: StIn => O): WIO[Nothing, O, StIn, StIn]                                             = WIO.Pure(s => Right(s -> f(s)), None)
+    def makeState[StOut](f: StIn => StOut): WIO[Nothing, Unit, StIn, StOut]                            = WIO.Pure(s => Right(f(s) -> ()), None)
+    def makeError[Err](f: StIn => Option[Err])(implicit ct: ClassTag[Err]): WIO[Err, Unit, StIn, StIn] =
+      WIO.Pure(s => f(s).map(Left(_)).getOrElse(Right(s, ())), Some(ct))
   }
 
   def unit[St] = pure[St](())
@@ -242,8 +249,11 @@ object WIO {
     def apply[Err](value: Err)(implicit ct: ClassTag[Err]): WIO[Err, Nothing, StIn, Nothing] = WIO.Pure(s => Left(value), None)
   }
 
-  def doWhile[Err, Out, State](action: WIO[Err, Out, State, State])(stopCondition: (State, Out) => Boolean) = WIO.DoWhile(action, stopCondition, action)
-  def whileDo[Err, Out, State, T](condition: State => Option[T])(action: WIO[Err, Out, (State, T), State])  = ???
+  def repeat[Err, Out, State](action: WIO[Err, Out, State, State]) = RepeatBuilder(action)
+
+  case class RepeatBuilder[Err, Out, State](action: WIO[Err, Out, State, State]) {
+    def untilSome[StOut](f: State => Option[StOut]): WIO[Err, Out, State, StOut] = WIO.DoWhile(action, f, action)
+  }
 
   def fork[State]: ForkBuilder[Nothing, Nothing, State, Nothing] = ForkBuilder(Vector())
 

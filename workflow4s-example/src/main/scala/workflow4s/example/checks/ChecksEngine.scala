@@ -5,75 +5,77 @@ import cats.syntax.all._
 import workflow4s.wio.{SignalDef, WIO}
 
 trait ChecksEngine {
-  def runChecks(input: ChecksInput): WIO[Nothing, Decision, ChecksState, ChecksState]
+  def runChecks: WIO[Nothing, Unit, ChecksInput, ChecksState.Decided]
 }
 
 object ChecksEngine extends ChecksEngine {
 
   val reviewSignalDef: SignalDef[ReviewDecision, Unit] = SignalDef()
 
-  def runChecks(input: ChecksInput): WIO[Nothing, Decision, ChecksState, ChecksState] =
-    refreshChecksUntilAllComplete(input) >>> getDecision()
+  def runChecks: WIO[Nothing, Unit, ChecksInput, ChecksState.Decided] =
+    refreshChecksUntilAllComplete >>> getDecision()
   //      .checkpointed((s, decision) => ChecksEvent.CheckCompleted(s.results, decision))((s, e) => (s, e.decision))
 
-  private def getDecision(): WIO[Nothing, Decision, ChecksState, ChecksState] = {
+  private def getDecision(): WIO[Nothing, Unit, ChecksState.Executed, ChecksState.Decided] = {
     WIO
-      .fork[ChecksState]
+      .fork[ChecksState.Executed]
       .addBranch(requiresReviewBranch)
       .addBranch(decidedBySystemBranch) // TODO if/else api
       .done
   }
 
-  private def refreshChecksUntilAllComplete(input: ChecksInput): WIO[Nothing, Unit, ChecksState, ChecksState] = {
-    val refreshChecks = (for {
-      state  <- WIO.getState[ChecksState]
-      pending = (input.checks -- state.finished).values.toList
-      _      <- doRun(pending, input.data)
-    } yield ()).autoNamed()
+  private def refreshChecksUntilAllComplete: WIO[Nothing, Unit, ChecksInput, ChecksState.Executed] = {
 
-    WIO.doWhile(refreshChecks)((state, _) => {
-      val allFinished = state.finished.size == input.checks.size
-      allFinished
-    })
+    def initialize: WIO[Nothing, Unit, ChecksInput, ChecksState.Pending] =
+      WIO.pure[ChecksInput].makeState(ci => ChecksState.Pending(ci, Map()))
+
+    def isDone(checksState: ChecksState.Pending): Option[ChecksState.Executed] = checksState.asExecuted
+
+    initialize >>> WIO
+      .repeat(runPendingChecks)
+      .untilSome(isDone)
   }
 
-  private def doRun[Data](checks: List[Check[Data]], data: Data): WIO[Nothing, Unit, ChecksState, ChecksState] =
+  private def runPendingChecks: WIO[Nothing, Unit, ChecksState.Pending, ChecksState.Pending] =
     WIO
-      .runIO[ChecksState](_ =>
+      .runIO[ChecksState.Pending](state => {
+        val pending = state.pendingChecks
+        val checks  = state.input.checks.view.filterKeys(pending.contains).values.toList
         checks
           .traverse(check =>
             check
-              .run(data)
+              .run(state.input.data)
               .handleError(_ => CheckResult.RequiresReview()) // TODO logging
               .tupleLeft(check.key),
           )
-          .map(results => ChecksEvent.ChecksRun(results.toMap)),
-      )
+          .map(results => ChecksEvent.ChecksRun(results.toMap))
+      })
       .handleEvent((state, evt) => (state.addResults(evt.results), ()))
+      .autoNamed()
 
-  private def decidedBySystemBranch =
+  private val decidedBySystemBranch: WIO.Branch[Nothing, Unit, ChecksState.Executed, ChecksState.Decided] =
     WIO
-      .branch[ChecksState]
+      .branch[ChecksState.Executed]
       .when(!_.requiresReview)(
-        WIO.pure.make(st =>
-          if (st.isRejected) Decision.RejectedBySystem()
-          else Decision.ApprovedBySystem(),
-        ),
+        WIO.pure.makeState(st => {
+          val decision =
+            if (st.isRejected) Decision.RejectedBySystem()
+            else Decision.ApprovedBySystem()
+          st.asDecided(decision)
+        }),
       )
 
-  private def requiresReviewBranch =
-    WIO.branch[ChecksState].when(_.requiresReview)(handleReview)
+  private val requiresReviewBranch: WIO.Branch[Nothing, Unit, ChecksState.Executed, ChecksState.Decided] =
+    WIO.branch[ChecksState.Executed].when(_.requiresReview)(handleReview)
 
-  private def handleReview: WIO[Nothing, Decision, ChecksState, ChecksState] = WIO
-    .handleSignal[ChecksState](reviewSignalDef)({ case (_, sig) => IO(ChecksEvent.ReviewDecisionTaken(sig)) })
+  private def handleReview: WIO[Nothing, Unit, ChecksState.Executed, ChecksState.Decided] = WIO
+    .handleSignal[ChecksState.Executed](reviewSignalDef)({ case (_, sig) => IO(ChecksEvent.ReviewDecisionTaken(sig)) })
     .handleEvent({ case (st, evt) =>
-      (
-        st,
-        evt.decision match {
-          case ReviewDecision.Approve => Decision.ApprovedByOperator()
-          case ReviewDecision.Reject  => Decision.RejectedByOperator()
-        },
-      )
+      val decision = evt.decision match {
+        case ReviewDecision.Approve => Decision.ApprovedByOperator()
+        case ReviewDecision.Reject  => Decision.RejectedByOperator()
+      }
+      (st.asDecided(decision), ())
     })
     .produceResponse((_, _) => ())
 

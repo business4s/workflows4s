@@ -33,7 +33,10 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
       withFundsReleased()
 
       actor.init(CreateWithdrawal(amount, recipient))
-      assert(actor.queryData() == WithdrawalData.Executed(txId, amount, recipient, fees, ChecksState(Map()), externalId))
+      assert(
+        actor.queryData() ==
+          WithdrawalData.Executed(txId, amount, recipient, fees, ChecksState.Decided(Map(), Decision.ApprovedBySystem()), externalId),
+      )
 
       actor.confirmExecution(WithdrawalSignal.ExecutionCompleted.Succeeded)
       assert(actor.queryData() == WithdrawalData.Completed.Succesfully())
@@ -137,14 +140,14 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
       (service.releaseFunds _)
         .expects(*)
         .returning(IO.unit)
-    def withFundsLockCancelled()                      =
+    def withFundsLockCancelled()                 =
       (service.cancelFundsLock _)
         .expects()
         .returning(IO.unit)
 
     object DummyChecksEngine extends ChecksEngine {
-      override def runChecks(input: ChecksInput): WIO[Nothing, Decision, ChecksState, ChecksState] =
-        WIO.pure[ChecksState](Decision.ApprovedBySystem())
+      override def runChecks: WIO[Nothing, Unit, ChecksInput, ChecksState.Decided] =
+        WIO.pure.state(ChecksState.Decided(Map(), Decision.ApprovedBySystem()))
     }
 
     class WithdrawalActor(journal: InMemoryJournal) {

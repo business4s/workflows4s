@@ -47,7 +47,7 @@ object QueryEvaluator {
         wio: WIO.HandleErrorWith[Err, BaseOut, StIn, StOut, ErrIn, HandlerStateIn, Out],
     ): DispatchResult = recurse(wio.base, state)
 
-    override def onDoWhile(wio: WIO.DoWhile[Err, Out, StIn, StOut]): DispatchResult = recurse(wio.current, state)
+    override def onDoWhile[StOut1](wio: WIO.DoWhile[Err, Out, StIn, StOut1, StOut]): DispatchResult = recurse(wio.current, state)
 
     def recurse[E1, O1, StIn1, SOut1](wio: WIO[E1, O1, StIn1, SOut1], s: StIn1): QueryVisitor[E1, O1, StIn, SOut1, Resp, Req]#DispatchResult =
       new QueryVisitor(wio, signalDef, req, s).run
