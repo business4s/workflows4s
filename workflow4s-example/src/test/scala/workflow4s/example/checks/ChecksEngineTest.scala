@@ -6,6 +6,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.camunda.bpm.model.bpmn.Bpmn
 import org.scalatest.freespec.AnyFreeSpec
 import workflow4s.bpmn.BPMNConverter
+import workflow4s.example.testuitls.TestUtils.SimpleSignalResponseOps
 import workflow4s.wio.model.WIOModelInterpreter
 import workflow4s.wio.simple.{InMemoryJournal, SimpleActor}
 
@@ -47,12 +48,37 @@ class ChecksEngineTest extends AnyFreeSpec {
     )
   }
 
-  "require review if needed and no rejections" in {
-    fail()
+  "approve through review" in new Fixture {
+    val check1 = StaticCheck(CheckResult.Approved())
+    val check2 = StaticCheck(CheckResult.RequiresReview())
+    val wf     = createWorkflow(List(check1, check2))
+    wf.run()
+    wf.review(ReviewDecision.Approve)
+    assert(
+      wf.state == ChecksState.Decided(
+        Map(
+          check1.key -> check1.result,
+          check2.key -> check2.result,
+        ),
+        Decision.ApprovedByOperator(),
+      ),
+    )
   }
 
-  "approve if all checks approve" in {
-    fail()
+  "approve if all checks approve" in new Fixture {
+    val check1 = StaticCheck(CheckResult.Approved())
+    val check2 = StaticCheck(CheckResult.Approved())
+    val wf     = createWorkflow(List(check1, check2))
+    wf.run()
+    assert(
+      wf.state == ChecksState.Decided(
+        Map(
+          check1.key -> check1.result,
+          check2.key -> check2.result,
+        ),
+        Decision.ApprovedBySystem(),
+      ),
+    )
   }
 
   "render bpmn model" in {
@@ -76,6 +102,8 @@ class ChecksEngineTest extends AnyFreeSpec {
       val Right(st) = delegate.state
       st.asInstanceOf[ChecksState]
     }
+
+    def review(decision: ReviewDecision) = delegate.handleSignal(ChecksEngine.reviewSignalDef)(decision).extract
   }
 
   case class StaticCheck[T <: CheckResult](result: T) extends Check[Unit] {
