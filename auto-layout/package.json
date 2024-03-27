@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "bpmn-auto-layout": "^0.5.0"
+  }
+}
