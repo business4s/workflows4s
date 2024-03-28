@@ -11,9 +11,5 @@ object ModelUtils {
 //      .split('$').filter(_.nonEmpty).map(prettifyName).mkString(" / ")
     prettifyName(ct.runtimeClass.getSimpleName)
   }
-
-  def getError(errorCt: ClassTag[_]): Option[WIOModel.Error] =
-    if(errorCt != implicitly[ClassTag[Nothing]]) Some(WIOModel.Error(getPrettyNameForClass(errorCt)))
-    else None
-
+  
 }

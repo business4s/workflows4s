@@ -22,18 +22,15 @@ object WIOModelInterpreter {
 
     def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Sig, StIn, StOut, Evt, Out, Err, Resp]): DirectOut = {
       val signalName = ModelUtils.getPrettyNameForClass(wio.sigDef.reqCt)
-      val errorName  = ModelUtils.getError(wio.errorCt)
-      WIOModel.HandleSignal(signalName, errorName, m.name, m.description) // TODO error
+      WIOModel.HandleSignal(signalName, wio.errorCt, m.name, m.description) // TODO error
     }
 
     def onRunIO[Evt](wio: WIO.RunIO[StIn, StOut, Evt, Out, Err]): DirectOut = {
-      val error = ModelUtils.getError(wio.errorCt)
-      WIOModel.RunIO(error, m.name, m.description)
+      WIOModel.RunIO(wio.errorCt, m.name, m.description)
     }
 
     def onFlatMap[Out1, StOut1, Err1 <: Err](wio: WIO.FlatMap[Err1, Err, Out1, Out, StIn, StOut1, StOut]): FlatMapOut = {
-      val error = ModelUtils.getError(wio.errorCt)
-      WIOModel.Sequence(Seq(recurse(wio.base, None), WIOModel.Dynamic(m.name, error)))
+      WIOModel.Sequence(Seq(recurse(wio.base, None), WIOModel.Dynamic(m.name, wio.errorCt)))
     }
 
     override def onAndThen[Out1, StOut1](wio: WIO.AndThen[Err, Out1, Out, StIn, StOut1, StOut]): WIOModel =
@@ -46,17 +43,13 @@ object WIOModelInterpreter {
     override def onPure(wio: WIO.Pure[Err, Out, StIn, StOut]): DirectOut                                           = WIOModel.Pure(m.name, m.description)
 
     override def onHandleError[ErrIn](wio: WIO.HandleError[Err, Out, StIn, StOut, ErrIn]): DispatchResult = {
-      val errorName = ModelUtils.getPrettyNameForClass(wio.handledErrorCt)
-      val newError  = ModelUtils.getError(wio.newErrorCt)
-      WIOModel.HandleError(recurse(wio.base, None), WIOModel.Dynamic(m.name, newError), errorName.some)
+      WIOModel.HandleError(recurse(wio.base, None), WIOModel.Dynamic(m.name, wio.newErrorCt), wio.handledErrorCt)
     }
 
     override def onHandleErrorWith[ErrIn, HandlerStateIn >: StIn, BaseOut >: Out](
         wio: WIO.HandleErrorWith[Err, BaseOut, StIn, StOut, ErrIn, HandlerStateIn, Out],
     ): DispatchResult = {
-      val errorName = ModelUtils.getPrettyNameForClass(wio.handledErrorCt)
-      val newError  = ModelUtils.getError(wio.newErrorCt)
-      WIOModel.HandleError(recurse(wio.base, None), recurse(wio.handleError, None), errorName.some)
+      WIOModel.HandleError(recurse(wio.base, None), recurse(wio.handleError, None), wio.handledErrorMeta)
     }
 
     def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult =

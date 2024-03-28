@@ -1,6 +1,7 @@
+
 lazy val `workflow4s`      = (project in file("."))
+  .settings(commonSettings)
   .settings(
-    scalaVersion := "2.13.10",
     libraryDependencies ++= Seq(
       "org.typelevel"              %% "cats-effect"     % "3.5.3",
       // should be required only for simple actor, probably worth separate module
@@ -11,13 +12,11 @@ lazy val `workflow4s`      = (project in file("."))
       "io.circe"                   %% "circe-generic"   % "0.15.0-M1", // for model serialization
       "com.lihaoyi"                %% "sourcecode"      % "0.3.1", // for auto naming
     ),
-    scalacOptions := Seq(
-      "-Ymacro-annotations",
-    ),
   )
+
 lazy val `workflow4s-bpmn` = (project in file("workflow4s-bpmn"))
+  .settings(commonSettings)
   .settings(
-    scalaVersion := "2.13.10",
     libraryDependencies ++= Seq(
       "org.scalatest"        %% "scalatest"          % "3.2.17" % Test,
       "ch.qos.logback"        % "logback-classic"    % "1.4.14" % Test,
@@ -27,12 +26,17 @@ lazy val `workflow4s-bpmn` = (project in file("workflow4s-bpmn"))
   .dependsOn(`workflow4s`)
 
 lazy val `workflow4s-example` = (project in file("workflow4s-example"))
+  .settings(commonSettings)
   .settings(
-    scalaVersion := "2.13.10",
     libraryDependencies ++= Seq(
       "org.scalatest" %% "scalatest"       % "3.2.17" % Test,
-      "org.scalamock" %% "scalamock"       % "5.1.0"  % Test,
+      "org.scalamock" %% "scalamock"       % "6.0.0-M2"  % Test,
       "ch.qos.logback" % "logback-classic" % "1.4.14" % Test,
     ),
   )
   .dependsOn(`workflow4s`, `workflow4s-bpmn`)
+
+lazy val commonSettings = Seq(
+  scalaVersion := "3.3.3",
+  scalacOptions ++= Seq("-no-indent"),
+)

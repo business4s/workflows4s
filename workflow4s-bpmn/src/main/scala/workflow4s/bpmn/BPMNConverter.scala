@@ -3,6 +3,7 @@ package workflow4s.bpmn
 import org.camunda.bpm.model.bpmn.builder.{AbstractActivityBuilder, AbstractFlowNodeBuilder, ProcessBuilder}
 import org.camunda.bpm.model.bpmn.instance.{Activity, FlowNode}
 import org.camunda.bpm.model.bpmn.{Bpmn, BpmnModelInstance}
+import workflow4s.wio.ErrorMeta
 import workflow4s.wio.model.WIOModel
 
 import java.nio.file.Path
@@ -13,22 +14,23 @@ import scala.util.chaining.scalaUtilChainingOps
 object BPMNConverter {
 
   def convert(model: WIOModel, name: String): BpmnModelInstance = {
-    val base =
+    val base = {
       Bpmn
         .createExecutableProcess(name)
         .startEvent()
+    }
 
     handle(model, base)
       .endEvent()
       .done()
   }
 
-  type Builder = AbstractFlowNodeBuilder[B, E] forSome { type B <: AbstractFlowNodeBuilder[B, E]; type E <: FlowNode }
+  private type Builder = AbstractFlowNodeBuilder[? <: AbstractFlowNodeBuilder[?, ? <: FlowNode], ? <: FlowNode]
 
   private def handle(
       model: WIOModel,
       builder: Builder,
-  ): Builder =
+  ): Builder = {
     model match {
       case WIOModel.Sequence(steps)                                    =>
         steps.foldLeft[AbstractFlowNodeBuilder[_, _]](builder)((builder, step) => handle(step, builder))
@@ -65,7 +67,7 @@ object BPMNConverter {
           .subProcessDone()
           .boundaryEvent()
           .error()
-          .name(errName.getOrElse(""))
+          .name(errName.nameOpt.get)
         handle(handler, errPath)
           .endEvent()
           .moveToNode(subProcessStartEventId)
@@ -84,32 +86,36 @@ object BPMNConverter {
           .connectTo(loopStartGwId)
           .moveToNode(nextTaskTempNodeId)
       case WIOModel.Fork(branches)                                     =>
-        val base                     = builder.exclusiveGateway()
-        val gwId                     = base.getElement.getId
-        val (resultBuilder, Some(endGwId)) = branches.zipWithIndex.foldLeft[(Builder, Option[String])](base -> None)({
-          case ((builder1, endGw), (branch, idx)) =>
-            val b2     = builder1.moveToNode(gwId).condition(branch.label.getOrElse(s"Branch ${idx}"), "")
-            println()
-            val result = handle(branch.logic, b2)
+        val base                           = builder.exclusiveGateway()
+        val gwId                           = base.getElement.getId
+        val (resultBuilder, Some(endGwId)) = {
+          branches.zipWithIndex.foldLeft[(Builder, Option[String])](base -> None)({ case ((builder1, endGw), (branch, idx)) =>
+            val b2              = builder1.moveToNode(gwId).condition(branch.label.getOrElse(s"Branch ${idx}"), "")
+            val result: Builder = handle(branch.logic, b2)
             endGw match {
               case Some(value) =>
-                result.connectTo(value) -> endGw
-              case None =>
+                (result.connectTo(value), endGw)
+              case None        =>
                 val gwId = result.exclusiveGateway().getElement.getId
-                result -> Some(gwId)
+                
+                (result, Some(gwId))
             }
-        })
+          })
+        }
         resultBuilder.moveToNode(endGwId)
     }
+  }
 
   def renderError[B <: AbstractActivityBuilder[B, E], E <: Activity](
-      error: Option[WIOModel.Error],
-  ): AbstractActivityBuilder[B, E] => (AbstractFlowNodeBuilder[B, E]) forSome { type B <: AbstractFlowNodeBuilder[B, E]; type E <: FlowNode } =
-    (x: AbstractActivityBuilder[B, E]) =>
-      error match {
+      error: ErrorMeta[_],
+  ): AbstractActivityBuilder[B, E] => Builder = { (x: AbstractActivityBuilder[B, E]) =>
+    {
+      error.nameOpt match {
         case Some(value) =>
-          x.boundaryEvent().error().name(value.name).moveToNode(x.getElement.getId)
+          x.boundaryEvent().error().name(value).moveToNode(x.getElement.getId)
         case None        => x
       }
+    }
+  }
 
 }

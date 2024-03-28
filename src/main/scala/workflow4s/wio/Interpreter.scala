@@ -73,19 +73,22 @@ object Interpreter {
 
     def run: DispatchResult = {
       wio match {
-        case x @ HandleSignal(_, _, _, _, _)     => onSignal(x)
-        case x @ WIO.HandleQuery(_, _)           => onHandleQuery(x)
-        case x @ WIO.RunIO(_, _, _)              => onRunIO(x)
-        case x @ WIO.FlatMap(_, _, _)            => onFlatMap(x)
-        case x @ WIO.Map(_, _, _)                => onMap(x)
-        case x @ WIO.Noop()                      => onNoop(x)
-        case x @ WIO.HandleError(_, _, _, _)     => onHandleError(x)
-        case x @ WIO.Named(_, _, _, _)           => onNamed(x)
-        case x @ WIO.AndThen(_, _)               => onAndThen(x)
-        case x @ WIO.Pure(_, _)                  => onPure(x)
-        case x @ WIO.HandleErrorWith(_, _, _, _) => onHandleErrorWith(x)
-        case x @ WIO.DoWhile(_, _, _)            => onDoWhile(x)
-        case x @ WIO.Fork(_)                     => onFork(x)
+        case x @ HandleSignal(_, _, _, _, _)                           => onSignal(x)
+        case x @ WIO.HandleQuery(_, _)                                 => onHandleQuery(x)
+        case x @ WIO.RunIO(_, _, _)                                    => onRunIO(x)
+        // https://github.com/scala/scala3/issues/20040
+        case x: WIO.FlatMap[? <: Err, Err, ?, Out, StIn, ?, StOut] => x match {
+          case x: WIO.FlatMap[err1, Err, out1, Out, StIn, stOut1, StOut] => onFlatMap[out1, stOut1, err1](x)
+        }
+        case x: WIO.Map[Err, out1, Out, stIn1, StIn, stOut1, StOut]    => onMap(x)
+        case x @ WIO.Noop()                                            => onNoop(x)
+        case x @ WIO.HandleError(_, _, _, _)                           => onHandleError(x)
+        case x @ WIO.Named(_, _, _, _)                                 => onNamed(x)
+        case x @ WIO.AndThen(_, _)                                     => onAndThen(x)
+        case x @ WIO.Pure(_, _)                                        => onPure(x)
+        case x @ WIO.HandleErrorWith(_, _, _, _)                       => onHandleErrorWith(x)
+        case x: WIO.DoWhile[Err, Out, StIn, stOut1, StOut]             => onDoWhile(x)
+        case x @ WIO.Fork(_)                                           => onFork(x)
       }
     }
 
@@ -200,7 +203,7 @@ object Interpreter {
             case Left(value) => newWf(value)
             case Right(v)    =>
               val adjustedHandler                       = wio.handleError.transformInputState[(Any, ErrIn)](x => (originalState, x._2))
-              val newWIO: WIO[Err, Out, b.State, StOut] = WIO.HandleErrorWith(b.wio, adjustedHandler, wio.handledErrorCt, wio.newErrorCt)
+              val newWIO: WIO[Err, Out, b.State, StOut] = WIO.HandleErrorWith(b.wio, adjustedHandler, wio.handledErrorMeta, wio.newErrorCt)
               NewBehaviour(newWIO, v.asRight)
           }
         },

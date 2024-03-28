@@ -27,7 +27,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
              _ <- execute
              _ <- releaseFunds
            } yield ())
-             .handleErrorWith(cancelFundsIfNeeded),
+             .handleErrorWith(cancelFundsIfNeeded)
          )
     _ <- handleDataQuery(WIO.Noop())
   } yield ()

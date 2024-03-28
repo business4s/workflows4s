@@ -9,6 +9,7 @@ import workflow4s.bpmn.BPMNConverter
 import workflow4s.example.testuitls.TestUtils.SimpleSignalResponseOps
 import workflow4s.wio.model.WIOModelInterpreter
 import workflow4s.wio.simple.{InMemoryJournal, SimpleActor}
+import scala.reflect.Selectable.reflectiveSelectable
 
 import java.io.File
 import scala.util.Random
@@ -16,17 +17,17 @@ import scala.util.Random
 class ChecksEngineTest extends AnyFreeSpec {
 
   "re-run pending checks until complete" in new Fixture {
-    val check = new Check[Unit] {
-      var run                                       = 0
+    val check: Check[Unit] { val runNum: Int } = new Check[Unit] {
+      var runNum                                       = 0
       override val key: CheckKey                    = CheckKey("foo")
-      override def run(data: Unit): IO[CheckResult] = run match {
-        case 0 | 1 => IO { run += 1 }.as(CheckResult.Pending())
+      override def run(data: Unit): IO[CheckResult] = runNum match {
+        case 0 | 1 => IO { runNum += 1 }.as(CheckResult.Pending())
         case _     => IO(CheckResult.Approved())
       }
     }
     val wf    = createWorkflow(List(check))
     wf.run()
-    assert(check.run == 2)
+    assert(check.runNum == 2)
     assert(wf.state == ChecksState.Decided(Map(check.key -> CheckResult.Approved()), Decision.ApprovedBySystem()))
   }
 
