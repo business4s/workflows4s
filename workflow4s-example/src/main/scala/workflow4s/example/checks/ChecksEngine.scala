@@ -1,16 +1,21 @@
 package workflow4s.example.checks
 
 import cats.effect.IO
-import cats.syntax.all._
-import workflow4s.wio.{SignalDef, WIO}
+import cats.syntax.all.*
+import workflow4s.wio.{SignalDef, WorkflowContext}
 
 trait ChecksEngine {
-  def runChecks: WIO[Nothing, Unit, ChecksInput, ChecksState.Decided]
+  def runChecks: ChecksEngine.Context.WIO[Nothing, Unit, ChecksInput, ChecksState.Decided]
 }
 
 object ChecksEngine extends ChecksEngine {
+  
+  object Context extends WorkflowContext {
+    
+  }
 
   val reviewSignalDef: SignalDef[ReviewDecision, Unit] = SignalDef()
+  import Context.WIO
 
   def runChecks: WIO[Nothing, Unit, ChecksInput, ChecksState.Decided] =
     refreshChecksUntilAllComplete >>> getDecision()

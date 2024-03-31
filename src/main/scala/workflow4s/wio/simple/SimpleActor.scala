@@ -5,7 +5,7 @@ import cats.implicits.catsSyntaxEitherId
 import com.typesafe.scalalogging.StrictLogging
 import workflow4s.wio.Interpreter.{EventResponse, ProceedResponse, QueryResponse, SignalResponse}
 import workflow4s.wio.simple.SimpleActor.EventResponse
-import workflow4s.wio.{ActiveWorkflow, Interpreter, JournalPersistance, SignalDef, WIO}
+import workflow4s.wio.{ActiveWorkflow, Interpreter, JournalPersistance, SignalDef, WIOT}
 
 class SimpleActor(private var wf: ActiveWorkflow, journal: JournalPersistance)(implicit IORuntime: IORuntime) extends StrictLogging {
 
@@ -75,7 +75,7 @@ class SimpleActor(private var wf: ActiveWorkflow, journal: JournalPersistance)(i
 
 object SimpleActor {
 
-  def create[SIn](behaviour: WIO[Nothing, Any, SIn, Any], state: SIn, journalPersistance: JournalPersistance)(implicit ior: IORuntime): SimpleActor =
+  def create[SIn](behaviour: WIOT[Nothing, Any, SIn, Any], state: SIn, journalPersistance: JournalPersistance)(implicit ior: IORuntime): SimpleActor =
     new SimpleActor(ActiveWorkflow(behaviour, new Interpreter(journalPersistance), (state, ()).asRight), journalPersistance)
 
   sealed trait SignalResponse[+Resp]

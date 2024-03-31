@@ -7,15 +7,20 @@ import workflow4s.example.WithdrawalService.ExecutionResponse
 import workflow4s.example.WithdrawalSignal.{CreateWithdrawal, ExecutionCompleted}
 import workflow4s.example.WithdrawalWorkflow.{createWithdrawalSignal, dataQuery, executionCompletedSignal}
 import workflow4s.example.checks.{ChecksEngine, ChecksInput, ChecksState, Decision}
-import workflow4s.wio.{SignalDef, WIO}
+import workflow4s.wio.{SignalDef, WorkflowContext}
 
 object WithdrawalWorkflow {
+
+  object WithdrawalWorkflowContext extends WorkflowContext {}
+
   val createWithdrawalSignal   = SignalDef[CreateWithdrawal, Unit]()
   val dataQuery                = SignalDef[Unit, WithdrawalData]()
   val executionCompletedSignal = SignalDef[ExecutionCompleted, Unit]()
 }
 
 class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine) {
+
+  import WithdrawalWorkflow.WithdrawalWorkflowContext.WIO
 
   val workflow: WIO[WithdrawalRejection, Unit, WithdrawalData.Empty, Nothing] = for {
     _ <- handleDataQuery(
@@ -27,7 +32,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
              _ <- execute
              _ <- releaseFunds
            } yield ())
-             .handleErrorWith(cancelFundsIfNeeded)
+             .handleErrorWith(cancelFundsIfNeeded),
          )
     _ <- handleDataQuery(WIO.Noop())
   } yield ()
@@ -62,7 +67,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
       .autoNamed()
 
   private def calculateFees: WIO[Nothing, Unit, WithdrawalData.Initiated, WithdrawalData.Validated] = WIO
-    .runIO[WithdrawalData.Initiated](state => service.calculateFees(state.amount).map(WithdrawalEvent.FeeSet))
+    .runIO[WithdrawalData.Initiated](state => service.calculateFees(state.amount).map(WithdrawalEvent.FeeSet.apply))
     .handleEvent { (state, event) => (state.validated(event.fee), ()) }
     .autoNamed()
 
@@ -85,9 +90,12 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
       .autoNamed()
 
   private def runChecks: WIO[WithdrawalRejection.RejectedInChecks, Unit, WithdrawalData.Validated, WithdrawalData.Checked] = {
-    val doRunChecks: WIO[Nothing, Unit, WithdrawalData.Validated, WithdrawalData.Checked] = checksEngine.runChecks
-      .transformInputState((x: WithdrawalData.Validated) => ChecksInput(x, List()))
-      .transformOutputState((validated, checkState) => validated.checked(checkState))
+    val doRunChecks: WIO[Nothing, Unit, WithdrawalData.Validated, WithdrawalData.Checked] =
+      WIO.embed(
+        checksEngine.runChecks
+          .transformInputState((x: WithdrawalData.Validated) => ChecksInput(x, List()))
+          .transformOutputState((validated, checkState) => validated.checked(checkState)),
+      )
 
     val actOnDecision = WIO
       .pure[WithdrawalData.Checked]
@@ -110,7 +118,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
       .runIO[WithdrawalData.Checked](s =>
         service
           .initiateExecution(s.netAmount, s.recipient)
-          .map(WithdrawalEvent.ExecutionInitiated),
+          .map(WithdrawalEvent.ExecutionInitiated.apply),
       )
       .handleEventWithError((s, event) =>
         event.response match {

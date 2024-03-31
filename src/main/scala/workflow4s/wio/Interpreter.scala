@@ -3,8 +3,6 @@ package workflow4s.wio
 import cats.effect.IO
 import cats.syntax.all._
 import workflow4s.wio.Interpreter.ProceedResponse
-import workflow4s.wio.NextWfState.{NewBehaviour, NewValue}
-import workflow4s.wio.WIO.HandleSignal
 
 class Interpreter(val journal: JournalPersistance)
 
@@ -42,7 +40,15 @@ object Interpreter {
     case class UnexpectedQuery[Resp]() extends QueryResponse[Resp]
   }
 
-  abstract class Visitor[Err, Out, StIn, StOut](wio: WIO[Err, Out, StIn, StOut]) {
+}
+
+trait VisitorModule {
+  val c: WorkflowContext
+
+  import c.WIO
+  import NextWfState.{NewBehaviour, NewValue}
+
+  abstract class Visitor[Err, Out, StIn, StOut](wio: WIOT[Err, Out, StIn, StOut]) {
     type DispatchResult
 
     def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Sig, StIn, StOut, Evt, Out, Err, Resp]): DispatchResult
@@ -68,27 +74,30 @@ object Interpreter {
     def onAndThen[Out1, StOut1](wio: WIO.AndThen[Err, Out1, Out, StIn, StOut1, StOut]): DispatchResult
 
     def onPure(wio: WIO.Pure[Err, Out, StIn, StOut]): DispatchResult
+
     def onDoWhile[StOut1](wio: WIO.DoWhile[Err, Out, StIn, StOut1, StOut]): DispatchResult
+
     def onFork(wio: WIO.Fork[Err, Out, StIn, StOut]): DispatchResult
 
     def run: DispatchResult = {
       wio match {
-        case x @ HandleSignal(_, _, _, _, _)                           => onSignal(x)
-        case x @ WIO.HandleQuery(_, _)                                 => onHandleQuery(x)
-        case x @ WIO.RunIO(_, _, _)                                    => onRunIO(x)
+        case x @ WIO.HandleSignal(_, _, _, _, _)                    => onSignal(x)
+        case x @ WIO.HandleQuery(_, _)                              => onHandleQuery(x)
+        case x @ WIO.RunIO(_, _, _)                                 => onRunIO(x)
         // https://github.com/scala/scala3/issues/20040
-        case x: WIO.FlatMap[? <: Err, Err, ?, Out, StIn, ?, StOut] => x match {
-          case x: WIO.FlatMap[err1, Err, out1, Out, StIn, stOut1, StOut] => onFlatMap[out1, stOut1, err1](x)
-        }
-        case x: WIO.Map[Err, out1, Out, stIn1, StIn, stOut1, StOut]    => onMap(x)
-        case x @ WIO.Noop()                                            => onNoop(x)
-        case x @ WIO.HandleError(_, _, _, _)                           => onHandleError(x)
-        case x @ WIO.Named(_, _, _, _)                                 => onNamed(x)
-        case x @ WIO.AndThen(_, _)                                     => onAndThen(x)
-        case x @ WIO.Pure(_, _)                                        => onPure(x)
-        case x @ WIO.HandleErrorWith(_, _, _, _)                       => onHandleErrorWith(x)
-        case x: WIO.DoWhile[Err, Out, StIn, stOut1, StOut]             => onDoWhile(x)
-        case x @ WIO.Fork(_)                                           => onFork(x)
+        case x: WIO.FlatMap[? <: Err, Err, ?, Out, StIn, ?, StOut]  =>
+          x match {
+            case x: WIO.FlatMap[err1, Err, out1, Out, StIn, stOut1, StOut] => onFlatMap[out1, stOut1, err1](x)
+          }
+        case x: WIO.Map[Err, out1, Out, stIn1, StIn, stOut1, StOut] => onMap(x)
+        case x @ WIO.Noop()                                         => onNoop(x)
+        case x @ WIO.HandleError(_, _, _, _)                        => onHandleError(x)
+        case x @ WIO.Named(_, _, _, _)                              => onNamed(x)
+        case x @ WIO.AndThen(_, _)                                  => onAndThen(x)
+        case x @ WIO.Pure(_, _)                                     => onPure(x)
+        case x @ WIO.HandleErrorWith(_, _, _, _)                    => onHandleErrorWith(x)
+        case x: WIO.DoWhile[Err, Out, StIn, stOut1, StOut]          => onDoWhile(x)
+        case x @ WIO.Fork(_)                                        => onFork(x)
       }
     }
 
@@ -169,6 +178,7 @@ object Interpreter {
         originalState: StIn,
     ): NextWfState[Err, Out, StOut] = {
       def newWf(err: ErrIn) = NewBehaviour[ErrIn, Err, Any, Out, StIn, StOut](wio.handleError(err), Right(originalState -> ()))
+
       wf.fold(
         b => {
           b.value match {
@@ -197,6 +207,7 @@ object Interpreter {
         wio.handleError.transformInputState[Any](_ => (originalState, err)),
         Right(originalState -> ()),
       )
+
       wf.fold(
         b => {
           b.value match {
@@ -244,4 +255,60 @@ object Interpreter {
     }
 
   }
+
+  sealed trait NextWfState[+E, +O, +S] {
+    self =>
+    type Error
+
+    def toActiveWorkflow(interpreter: Interpreter): ActiveWorkflow = this match {
+      case behaviour: NextWfState.NewBehaviour[E, O, S] => ActiveWorkflow(behaviour.wio, interpreter, behaviour.value)
+      case value: NextWfState.NewValue[E, O, S]         => ActiveWorkflow(WIO.Noop(), interpreter, value.value)
+    }
+
+    def fold[T](mapBehaviour: NewBehaviour[E, O, S] { type Error = self.Error } => T, mapValue: NewValue[E, O, S] => T): T = this match {
+      case behaviour: NewBehaviour[E, O, S] { type Error = self.Error } => mapBehaviour(behaviour)
+      case value: NewValue[E, O, S]                                     => mapValue(value)
+    }
+  }
+
+  object NextWfState {
+    trait NewBehaviour[+NextError, +NextValue, +NextState] extends NextWfState[NextError, NextValue, NextState] {
+      self =>
+      type State
+      type Error
+      type Value
+
+      def wio: WIO[NextError, NextValue, State, NextState]
+
+      def value: Either[Error, (State, Value)]
+
+    }
+
+    object NewBehaviour {
+      def apply[E1, E2, O1, O2, S1, S2](
+          wio0: WIO[E2, O2, S1, S2],
+          value0: Either[E1, (S1, O1)],
+      ): NewBehaviour[E2, O2, S2] = new NewBehaviour[E2, O2, S2] {
+        override type State = S1
+        override type Error = E1
+        override type Value = O1
+
+        override def wio: WIO[E2, O2, State, S2] = wio0
+
+        override def value: Either[Error, (State, Value)] = value0
+      }
+    }
+
+    trait NewValue[+E, +O, +S] extends NextWfState[E, O, S] {
+      def value: Either[E, (S, O)]
+    }
+
+    object NewValue {
+      def apply[E, O, S](value0: Either[E, (S, O)]) = new NewValue[E, O, S] {
+        override def value: Either[E, (S, O)] = value0
+      }
+    }
+
+  }
+
 }

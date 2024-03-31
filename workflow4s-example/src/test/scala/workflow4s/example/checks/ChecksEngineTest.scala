@@ -6,12 +6,13 @@ import com.typesafe.scalalogging.StrictLogging
 import org.camunda.bpm.model.bpmn.Bpmn
 import org.scalatest.freespec.AnyFreeSpec
 import workflow4s.bpmn.BPMNConverter
+import workflow4s.example.checks
 import workflow4s.example.testuitls.TestUtils.SimpleSignalResponseOps
-import workflow4s.wio.model.WIOModelInterpreter
+import workflow4s.wio.model.{WIOModel, WIOModelInterpreterModule}
 import workflow4s.wio.simple.{InMemoryJournal, SimpleActor}
-import scala.reflect.Selectable.reflectiveSelectable
 
 import java.io.File
+import scala.reflect.Selectable.reflectiveSelectable
 import scala.util.Random
 
 class ChecksEngineTest extends AnyFreeSpec {
@@ -84,7 +85,7 @@ class ChecksEngineTest extends AnyFreeSpec {
 
   "render bpmn model" in {
     val wf        = ChecksEngine.runChecks
-    val model     = WIOModelInterpreter.run(wf)
+    val model     = getModel(wf)
     val bpmnModel = BPMNConverter.convert(model, "checks-engine")
     Bpmn.writeModelToFile(new File("src/test/resources/checks-engine.bpmn"), bpmnModel)
   }
@@ -110,6 +111,13 @@ class ChecksEngineTest extends AnyFreeSpec {
   case class StaticCheck[T <: CheckResult](result: T) extends Check[Unit] {
     override val key: CheckKey                    = CheckKey(Random.alphanumeric.take(10).mkString)
     override def run(data: Unit): IO[CheckResult] = IO(result)
+  }
+
+  def getModel(wio: ChecksEngine.Context.WIO[?, ?, ?, ?]): WIOModel = {
+    val m = new WIOModelInterpreterModule {
+      override val c: ChecksEngine.Context.type = ChecksEngine.Context
+    }
+    m.WIOModelInterpreter.run(wio)
   }
 
 }

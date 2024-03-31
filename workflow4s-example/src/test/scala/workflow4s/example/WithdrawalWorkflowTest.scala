@@ -13,10 +13,10 @@ import workflow4s.example.WithdrawalService.{ExecutionResponse, Fee, Iban}
 import workflow4s.example.WithdrawalSignal.CreateWithdrawal
 import workflow4s.example.checks.{ChecksEngine, ChecksInput, ChecksState, Decision}
 import workflow4s.example.testuitls.TestUtils.{SimpleQueryResponseOps, SimpleSignalResponseOps}
-import workflow4s.wio.model.WIOModelInterpreter
+import workflow4s.wio.model.{WIOModel, WIOModelInterpreterModule}
 import workflow4s.wio.simple.SimpleActor.EventResponse
 import workflow4s.wio.simple.{InMemoryJournal, SimpleActor}
-import workflow4s.wio.{ActiveWorkflow, Interpreter, WIO}
+import workflow4s.wio.{ActiveWorkflow, Interpreter, WorkflowContext}
 
 import java.io.File
 
@@ -88,18 +88,18 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
     }
 
     "render model" in new Fixture {
-      val model     = WIOModelInterpreter.run(new WithdrawalWorkflow(service, DummyChecksEngine).workflow)
-      import io.circe.syntax._
+      val model     = getModel(new WithdrawalWorkflow(service, DummyChecksEngine).workflow)
+      import io.circe.syntax.*
       val modelJson = model.asJson
       print(modelJson.spaces2)
     }
 
     "render bpmn model" in new Fixture {
       val wf            = new WithdrawalWorkflow(service, DummyChecksEngine)
-      val model         = WIOModelInterpreter.run(wf.workflow)
+      val model         = getModel(wf.workflow)
       val bpmnModel     = BPMNConverter.convert(model, "withdrawal-example")
       Bpmn.writeModelToFile(new File("src/test/resources/withdrawal-example-bpmn.bpmn"), bpmnModel)
-      val modelDecl     = WIOModelInterpreter.run(wf.workflowDeclarative)
+      val modelDecl     = getModel(wf.workflowDeclarative)
       val bpmnModelDecl = BPMNConverter.convert(modelDecl, "withdrawal-example")
       Bpmn.writeModelToFile(new File("src/test/resources/withdrawal-example-bpmn-declarative.bpmn"), bpmnModelDecl)
     }
@@ -147,8 +147,8 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
         .returning(IO.unit)
 
     object DummyChecksEngine extends ChecksEngine {
-      override def runChecks: WIO[Nothing, Unit, ChecksInput, ChecksState.Decided] =
-        WIO.pure.state(ChecksState.Decided(Map(), Decision.ApprovedBySystem()))
+      override def runChecks: ChecksEngine.Context.WIO[Nothing, Unit, ChecksInput, ChecksState.Decided] =
+        ChecksEngine.Context.WIO.pure.state(ChecksState.Decided(Map(), Decision.ApprovedBySystem()))
     }
 
     class WithdrawalActor(journal: InMemoryJournal) {
@@ -164,6 +164,13 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
 
       def recover(): Unit = delegate.recover()
 
+    }
+    
+    def getModel(wio: WithdrawalWorkflow.WithdrawalWorkflowContext.WIO[?,?,?,?]): WIOModel = {
+      val m = new WIOModelInterpreterModule {
+        override val c: WithdrawalWorkflow.WithdrawalWorkflowContext.type = WithdrawalWorkflow.WithdrawalWorkflowContext
+      }
+      m.WIOModelInterpreter.run(wio)
     }
 
   }
