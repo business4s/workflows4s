@@ -15,120 +15,122 @@ trait WorkflowContext extends WIOMethodsParent { parentCtx =>
   type State
   type F[T] // todo, rename not IO
 
-  sealed trait WIO[+Err, +Out, -StateIn, +StateOut] extends WIOMethods[Err, Out, StateIn, StateOut] {
-    val context                                             = parentCtx
-    val asParents: context.WIO[Err, Out, StateIn, StateOut] = this.asInstanceOf // TODO
+  sealed trait WIO[-In, +Err, +Out] extends WIOMethods[In, Err, Out] {
+    val context                              = parentCtx
+    val asParents: context.WIO[In, Err, Out] = this.asInstanceOf // TODO
   }
 
   object WIO {
 
-    type Total[St]           = WIO[Any, Any, St, Any]
-    type States[StIn, StOut] = WIO[Any, Any, StIn, StOut]
+    type Total[In]       = WIO[In, Any, Any]
+    type States[In, Out] = WIO[In, Any, Out]
 
-    case class HandleSignal[Sig, -StIn, +StOut, Evt, +O, +Err, Resp](
+    case class HandleSignal[-In, +Out, +Err, Sig, Resp, Evt](
         sigDef: SignalDef[Sig, Resp],
-        sigHandler: SignalHandler[Sig, Evt, StIn],
-        evtHandler: EventHandler[Evt, StIn, StOut, O, Err],
-        getResp: (StIn, Evt) => Resp,
+        sigHandler: SignalHandler[Sig, Evt, In],
+        evtHandler: EventHandler[Evt, In, Out, Err],
+        getResp: (In, Evt) => Resp,
         errorCt: ErrorMeta[_],
-    ) extends WIO[Err, O, StIn, StOut] {
-      def expects[Req1, Resp1](@unused signalDef: SignalDef[Req1, Resp1]): Option[HandleSignal[Req1, StIn, StOut, Evt, Resp, Err, Resp1]] = {
-        Some(this.asInstanceOf[HandleSignal[Req1, StIn, StOut, Evt, Resp, Err, Resp1]]) // TODO
+    ) extends WIO[In, Err, Out] {
+      def expects[Req1, Resp1](@unused signalDef: SignalDef[Req1, Resp1]): Option[HandleSignal[In, Out, Err, Req1, Resp1, Evt]] = {
+        Some(this.asInstanceOf[HandleSignal[In, Out, Err, Req1, Resp1, Evt]]) // TODO
       }
     }
 
-    case class HandleQuery[+Err, +Out, -StIn, +StOut, -Qr, -QrState, +Resp](
+    case class HandleQuery[-In, +Err, +Out, -Qr, -QrState, +Resp](
         queryHandler: QueryHandler[Qr, QrState, Resp],
-        inner: WIO[Err, Out, StIn, StOut],
-    ) extends WIO[Err, Out, StIn, StOut]
+        inner: WIO[In, Err, Out],
+    ) extends WIO[In, Err, Out]
 
     // theoretically state is not needed, it could be State.extract.flatMap(RunIO)
-    case class RunIO[-StIn, +StOut, Evt, +O, +Err](
-        buildIO: StIn => IO[Evt],
-        evtHandler: EventHandler[Evt, StIn, StOut, O, Err],
+    case class RunIO[-In, +Err, +Out, Evt](
+        buildIO: In => IO[Evt],
+        evtHandler: EventHandler[Evt, In, Out, Err],
         errorCt: ErrorMeta[_],
-    ) extends WIO[Err, O, StIn, StOut]
+    ) extends WIO[In, Err, Out]
 
-    case class FlatMap[Err1 <: Err2, Err2, Out1, +Out2, -StIn, StOut1, +StOut2](
-        base: WIO[Err1, Out1, StIn, StOut1],
-        getNext: Out1 => WIO[Err2, Out2, StOut1, StOut2],
+    case class FlatMap[Err1 <: Err2, Err2, Out1, +Out2, -In](
+        base: WIO[In, Err1, Out1],
+        getNext: Out1 => WIO[Out1, Err2, Out2],
         errorCt: ErrorMeta[_],
-    ) extends WIO[Err2, Out2, StIn, StOut2]
+    ) extends WIO[In, Err2, Out2]
 
-    case class Map[Err, Out1, +Out2, StIn1, -StIn2, StOut1, +StOut2](
-        base: WIO[Err, Out1, StIn1, StOut1],
-        contramapState: StIn2 => StIn1,
-        mapValue: (StIn2, StOut1, Out1) => (StOut2, Out2),
-    ) extends WIO[Err, Out2, StIn2, StOut2]
+    case class Map[In, Err, Out1, -In2, +Out2](
+        base: WIO[In, Err, Out1],
+        contramapInput: In2 => In,
+        mapValue: (In2, Out1) => Out2,
+    ) extends WIO[In2, Err, Out2]
 
-    case class Pure[+Err, +Out, -StIn, +StOut](
-        value: StIn => Either[Err, (StOut, Out)],
-        errorCt: ErrorMeta[_],
-    ) extends WIO[Err, Out, StIn, StOut]
+    case class Pure[-In, +Err, +Out](
+        value: In => Either[Err, Out],
+        errorMeta: ErrorMeta[_],
+    ) extends WIO[In, Err, Out]
 
     // TODO this should ne called `Never` or `Halt` or similar, as the workflow cant proceed from that point.
-    case class Noop() extends WIO[Nothing, Nothing, Any, Nothing]
+    case class Noop() extends WIO[Any, Nothing, Nothing]
 
-    case class HandleError[+ErrOut, +Out, -StIn, +StOut, ErrIn](
-        base: WIO[ErrIn, Out, StIn, StOut],
-        handleError: ErrIn => WIO[ErrOut, Out, StIn, StOut],
-        handledErrorCt: ErrorMeta[_], // used for metadata only
-        newErrorCt: ErrorMeta[_],
-    ) extends WIO[ErrOut, Out, StIn, StOut]
+    case class HandleError[-In, +Err, +Out, ErrIn](
+        base: WIO[In, ErrIn, Out],
+        handleError: ErrIn => WIO[In, Err, Out],
+        handledErrorMeta: ErrorMeta[_],
+        newErrorMeta: ErrorMeta[_],
+    ) extends WIO[In, Err, Out]
 
-    case class HandleErrorWith[+ErrOut, +BaseOut, -BaseStIn, +StOut, ErrIn, -HandlerStIn >: BaseStIn, +HandlerOut <: BaseOut](
-        base: WIO[ErrIn, BaseOut, BaseStIn, StOut],
-        handleError: WIO[ErrOut, HandlerOut, (HandlerStIn, ErrIn), StOut],
+    case class HandleErrorWith[-In, Err, +Out, +ErrOut](
+        base: WIO[In, Err, Out],
+        handleError: WIO[(In, Err), ErrOut, Out],
         handledErrorMeta: ErrorMeta[_],
         newErrorCt: ErrorMeta[_],
-    ) extends WIO[ErrOut, HandlerOut, BaseStIn, StOut]
+    ) extends WIO[In, ErrOut, Out]
 
-    case class Named[+Err, +Out, -StIn, +StOut](base: WIO[Err, Out, StIn, StOut], name: String, description: Option[String], errorMeta: ErrorMeta[_])
-        extends WIO[Err, Out, StIn, StOut]
+    case class Named[-In, +Err, +Out](base: WIO[In, Err, Out], name: String, description: Option[String], errorMeta: ErrorMeta[_])
+        extends WIO[In, Err, Out]
 
-    case class AndThen[+Err, Out1, +Out2, -StIn, StOut, +StOut2](first: WIO[Err, Out1, StIn, StOut], second: WIO[Err, Out2, StOut, StOut2])
-        extends WIO[Err, Out2, StIn, StOut2]
+    case class AndThen[-In, +Err, Out1, +Out2](
+        first: WIO[In, Err, Out1],
+        second: WIO[Out1, Err, Out2],
+    ) extends WIO[In, Err, Out2]
 
     // TODO name for condition
-    case class DoWhile[Err, Out, StIn, StOut, StOut2](
-        loop: WIO[Err, Out, StOut, StOut],
-        stopCondition: StOut => Option[StOut2],
-        current: WIO[Err, Out, StIn, StOut],
-    ) extends WIO[Err, Out, StIn, StOut2]
+    case class DoWhile[-In, +Err, LoopOut, +Out](
+        loop: WIO[LoopOut, Err, LoopOut],
+        stopCondition: LoopOut => Option[Out],
+        current: WIO[In, Err, LoopOut],
+    ) extends WIO[In, Err, Out]
 
-    case class Fork[+Err, +Out, -StIn, +StOut](branches: Vector[Branch[Err, Out, StIn, StOut]]) extends WIO[Err, Out, StIn, StOut]
+    case class Fork[-In, +Err, +Out](branches: Vector[Branch[In, Err, Out]]) extends WIO[In, Err, Out]
 
     // -----
 
     def handleSignal[StIn] = new HandleSignalPartiallyApplied1[StIn]
 
-    class HandleSignalPartiallyApplied1[StIn] {
+    class HandleSignalPartiallyApplied1[In] {
       def apply[Sig: ClassTag, Evt: JournalWrite: ClassTag, Resp](@unused signalDef: SignalDef[Sig, Resp])(
-          f: (StIn, Sig) => IO[Evt],
-      ): HandleSignalPartiallyApplied2[Sig, StIn, Evt, Resp] = new HandleSignalPartiallyApplied2[Sig, StIn, Evt, Resp](SignalHandler(f), signalDef)
+          f: (In, Sig) => IO[Evt],
+      ): HandleSignalPartiallyApplied2[Sig, In, Evt, Resp] = new HandleSignalPartiallyApplied2[Sig, In, Evt, Resp](SignalHandler(f), signalDef)
     }
 
-    class HandleSignalPartiallyApplied2[Sig: ClassTag, StIn, Evt: JournalWrite: ClassTag, Resp](
-        signalHandler: SignalHandler[Sig, Evt, StIn],
+    class HandleSignalPartiallyApplied2[Sig: ClassTag, In, Evt: JournalWrite: ClassTag, Resp](
+        signalHandler: SignalHandler[Sig, Evt, In],
         signalDef: SignalDef[Sig, Resp],
     ) {
-      def handleEvent[StOut, Out](f: (StIn, Evt) => (StOut, Out)): HandleSignalPartiallyApplied3[Sig, StIn, Evt, Resp, StOut, Nothing, Out] = {
-        new HandleSignalPartiallyApplied3(signalDef, signalHandler, EventHandler((s: StIn, e: Evt) => f(s, e).asRight))
+      def handleEvent[Out](f: (In, Evt) => Out): HandleSignalPartiallyApplied3[Sig, In, Evt, Resp, Nothing, Out] = {
+        new HandleSignalPartiallyApplied3(signalDef, signalHandler, EventHandler((s: In, e: Evt) => f(s, e).asRight))
       }
 
       def handleEventWithError[StOut, Err, Out](
-          f: (StIn, Evt) => Either[Err, (StOut, Out)],
-      ): HandleSignalPartiallyApplied3[Sig, StIn, Evt, Resp, StOut, Err, Out] = {
-        new HandleSignalPartiallyApplied3(signalDef, signalHandler, EventHandler((s: StIn, e: Evt) => f(s, e)))
+          f: (In, Evt) => Either[Err, Out],
+      ): HandleSignalPartiallyApplied3[Sig, In, Evt, Resp, Err, Out] = {
+        new HandleSignalPartiallyApplied3(signalDef, signalHandler, EventHandler((s: In, e: Evt) => f(s, e)))
       }
     }
 
-    class HandleSignalPartiallyApplied3[Sig: ClassTag, StIn, Evt: JournalWrite: ClassTag, Resp, StOut, Err, Out](
+    class HandleSignalPartiallyApplied3[Sig: ClassTag, In, Evt: JournalWrite: ClassTag, Resp, Err, Out](
         signalDef: SignalDef[Sig, Resp],
-        signalHandler: SignalHandler[Sig, Evt, StIn],
-        eventHandler: EventHandler[Evt, StIn, StOut, Out, Err],
+        signalHandler: SignalHandler[Sig, Evt, In],
+        eventHandler: EventHandler[Evt, In, Out, Err],
     ) {
-      def produceResponse(f: (StIn, Evt) => Resp)(implicit errorCt: ErrorMeta[Err]): WIO[Err, Out, StIn, StOut] = {
+      def produceResponse(f: (In, Evt) => Resp)(implicit errorCt: ErrorMeta[Err]): WIO[In, Err, Out] = {
         HandleSignal(signalDef, signalHandler, eventHandler, f, errorCt)
       }
     }
@@ -144,7 +146,7 @@ trait WorkflowContext extends WIOMethodsParent { parentCtx =>
     }
 
     class HandleQueryPartiallyApplied2[QrSt: ClassTag, Sig: ClassTag, Resp](f: (QrSt, Sig) => Resp) {
-      def apply[Err, Out, StIn, StOut](wio: WIO[Err, Out, StIn, StOut]): HandleQuery[Err, Out, StIn, StOut, Sig, QrSt, Resp] = {
+      def apply[Err, Out, In, StOut](wio: WIO[In, Err, Out]): HandleQuery[In, Err, Out, Sig, QrSt, Resp] = {
         WIO.HandleQuery(QueryHandler(f), wio)
       }
     }
@@ -152,114 +154,100 @@ trait WorkflowContext extends WIOMethodsParent { parentCtx =>
     def runIO[State] = new RunIOPartiallyApplied1[State]
 
     class RunIOPartiallyApplied1[StIn] {
-      def apply[Evt: JournalWrite: ClassTag, Resp](f: StIn => IO[Evt]): RunIOPartiallyApplied2[StIn, Evt, Resp] = {
-        new RunIOPartiallyApplied2[StIn, Evt, Resp](f)
+      def apply[Evt: JournalWrite: ClassTag](f: StIn => IO[Evt]): RunIOPartiallyApplied2[StIn, Evt] = {
+        new RunIOPartiallyApplied2[StIn, Evt](f)
       }
     }
 
-    class RunIOPartiallyApplied2[StIn, Evt: JournalWrite: ClassTag, Resp](getIO: StIn => IO[Evt]) {
-      def handleEvent[StOut](f: (StIn, Evt) => (StOut, Resp)): WIO[Nothing, Resp, StIn, StOut] = {
+    class RunIOPartiallyApplied2[In, Evt: JournalWrite: ClassTag](getIO: In => IO[Evt]) {
+      def handleEvent[Out](f: (In, Evt) => Out): WIO[In, Nothing, Out] = {
         RunIO(getIO, EventHandler((s, e: Evt) => f(s, e).asRight), ErrorMeta.noError)
       }
 
-      def handleEventWithError[StOut, Err](
-          f: (StIn, Evt) => Either[Err, (StOut, Resp)],
-      )(implicit errorCt: ErrorMeta[Err]): WIO[Err, Resp, StIn, StOut] = {
+      def handleEventWithError[Err, Out](
+          f: (In, Evt) => Either[Err, Out],
+      )(implicit errorCt: ErrorMeta[Err]): WIO[In, Err, Out] = {
         RunIO(getIO, EventHandler(f), errorCt)
       }
     }
 
-    def getState[St]: WIO[Nothing, St, St, St] = WIO.Pure(s => (s, s).asRight, ErrorMeta.noError)
+    def getState[St]: WIO[St, Nothing, St] = WIO.Pure(s => s.asRight, ErrorMeta.noError)
 
-    def setState[St](st: St): WIO[Nothing, Unit, Any, St] = WIO.Pure(_ => (st, ()).asRight, ErrorMeta.noError)
-
-    def await[St](duration: Duration): WIO[Nothing, Unit, St, St] = ???
+    def await[In](duration: Duration): WIO[In, Nothing, Unit] = ???
 
     def pure[St]: PurePartiallyApplied[St] = new PurePartiallyApplied
 
-    class PurePartiallyApplied[StIn] {
-      def apply[O](value: O): WIO[Nothing, O, StIn, StIn] = WIO.Pure(s => Right(s -> value), ErrorMeta.noError)
+    class PurePartiallyApplied[In] {
+      def apply[O](value: O): WIO[In, Nothing, O] = WIO.Pure(_ => Right(value), ErrorMeta.noError)
 
-      def state[StOut](value: StOut): WIO[Nothing, Unit, StIn, StOut] = WIO.Pure(s => Right(value -> ()), ErrorMeta.noError)
+      def make[O](f: In => O): WIO[In, Nothing, O] = WIO.Pure(s => Right(f(s)), ErrorMeta.noError)
 
-      def make[O](f: StIn => O): WIO[Nothing, O, StIn, StIn] = WIO.Pure(s => Right(s -> f(s)), ErrorMeta.noError)
-
-      def makeState[StOut](f: StIn => StOut): WIO[Nothing, Unit, StIn, StOut] = WIO.Pure(s => Right(f(s) -> ()), ErrorMeta.noError)
-
-      def makeError[Err](f: StIn => Option[Err])(implicit ct: ErrorMeta[Err]): WIO[Err, Unit, StIn, StIn] = {
-        WIO.Pure(s => f(s).map(Left(_)).getOrElse(Right(s, ())), ct)
+      def makeError[Err](f: In => Option[Err])(implicit ct: ErrorMeta[Err]): WIO[In, Err, In] = {
+        WIO.Pure(s => f(s).map(Left(_)).getOrElse(Right(s)), ct)
       }
     }
 
-    def unit[St] = pure[St](())
+    def unit[In] = pure[In](())
 
-    def raise[St]: RaisePartiallyApplied[St] = new RaisePartiallyApplied
+    def raise[In]: RaisePartiallyApplied[In] = new RaisePartiallyApplied
 
-    class RaisePartiallyApplied[StIn] {
-      def apply[Err](value: Err)(implicit ct: ClassTag[Err]): WIO[Err, Nothing, StIn, Nothing] = WIO.Pure(s => Left(value), ErrorMeta.noError)
+    class RaisePartiallyApplied[In] {
+      def apply[Err](value: Err)(implicit ct: ErrorMeta[Err]): WIO[In, Err, Nothing] = WIO.Pure(s => Left(value), ct)
     }
 
-    def repeat[Err, Out, State](action: WIO[Err, Out, State, State]) = RepeatBuilder(action)
+    def repeat[Err, Out](action: WIO[Out, Err, Out]) = RepeatBuilder(action)
 
-    case class RepeatBuilder[Err, Out, State](action: WIO[Err, Out, State, State]) {
-      def untilSome[StOut](f: State => Option[StOut]): WIO[Err, Out, State, StOut] = WIO.DoWhile(action, f, action)
+    case class RepeatBuilder[Err, Out](action: WIO[Out, Err, Out]) {
+      def untilSome[Out1](f: Out => Option[Out1]): WIO[Out, Err, Out1] = WIO.DoWhile(action, f, action)
     }
 
-    def fork[State]: ForkBuilder[Nothing, Nothing, State, Nothing] = ForkBuilder(Vector())
+    def fork[In]: ForkBuilder[In, Nothing, Nothing] = ForkBuilder(Vector())
 
-    trait Branch[+Err, +Out, -StIn, +StOut] {
+    trait Branch[-In, +Err, +Out] {
       type I // Intermediate
 
-      def condition: StIn => Option[I]
+      def condition: In => Option[I]
 
-      def wio: WIO[Err, Out, (StIn, I), StOut]
+      def wio: WIO[(In, I), Err, Out]
     }
 
     object Branch {
-      def apply[State, T, Err, Out, StOut](cond: State => Option[T], wio0: WIO[Err, Out, (State, T), StOut]): Branch[Err, Out, State, StOut] = {
-        new Branch[Err, Out, State, StOut] {
+      def apply[In, T, Err, Out](cond: In => Option[T], wio0: WIO[(In, T), Err, Out]): Branch[In, Err, Out] = {
+        new Branch[In, Err, Out] {
           override type I = T
-
-          override def condition: State => Option[I] = cond
-
-          override def wio: WIO[Err, Out, (State, I), StOut] = wio0
+          override def condition: In => Option[I]  = cond
+          override def wio: WIO[(In, I), Err, Out] = wio0
         }
       }
     }
 
     // can be removed and replaced with direct instance of WIO.Fork?
-    case class ForkBuilder[+Err, +Out, -StIn, +StOut](branches: Vector[Branch[Err, Out, StIn, StOut]]) {
-      def branch[T, Err1 >: Err, Out1 >: Out, StOu1 >: StOut, StIn1 <: StIn](cond: StIn1 => Option[T])(
-          wio: WIO[Err1, Out1, (StIn1, T), StOu1],
-      ): ForkBuilder[Err1, Out1, StIn1, StOu1] = addBranch(Branch(cond, wio))
+    case class ForkBuilder[-In, +Err, +Out](branches: Vector[Branch[In, Err, Out]]) {
+      def branch[T, Err1 >: Err, Out1 >: Out, In1 <: In](cond: In1 => Option[T])(
+          wio: WIO[(In1, T), Err1, Out1],
+      ): ForkBuilder[In1, Err1, Out1] = addBranch(Branch(cond, wio))
 
-      def addBranch[T, Err1 >: Err, Out1 >: Out, StOu1 >: StOut, StIn1 <: StIn](
-          b: Branch[Err1, Out1, StIn1, StOu1],
-      ): ForkBuilder[Err1, Out1, StIn1, StOu1] = {
-        ForkBuilder(
-          branches.appended(b),
-        )
-      }
+      def addBranch[T, Err1 >: Err, Out1 >: Out, In1 <: In](
+          b: Branch[In1, Err1, Out1],
+      ): ForkBuilder[In1, Err1, Out1] = ForkBuilder(branches.appended(b))
 
-      def done: WIO[Err, Out, StIn, StOut] = WIO.Fork(branches)
+      def done: WIO[In, Err, Out] = WIO.Fork(branches)
     }
 
-    def branch[State]: BranchBuilder[State] = BranchBuilder[State]()
+    def branch[In]: BranchBuilder[In] = BranchBuilder()
 
-    case class BranchBuilder[State]() {
-      def when[Err, Out, StOut](cond: State => Boolean)(
-          wio: WIO[Err, Out, State, StOut],
-      ): Branch[Err, Out, State, StOut] = Branch(cond.andThen(Option.when(_)(())), wio.transformInputState((x: (State, Any)) => x._1))
+    case class BranchBuilder[In]() {
+      def when[Err, Out, StOut](cond: In => Boolean)(wio: WIO[In, Err, Out]): Branch[In, Err, Out] =
+        Branch(cond.andThen(Option.when(_)(())), wio.transformInput((x: (In, Any)) => x._1))
 
-      def create[T, Err, Out, StOut](cond: State => Option[T])(
-          wio: WIO[Err, Out, (State, T), StOut],
-      ): Branch[Err, Out, State, StOut] = Branch(cond, wio)
+      def create[T, Err, Out, StOut](cond: In => Option[T])(wio: WIO[(In, T), Err, Out]): Branch[In, Err, Out] =
+        Branch(cond, wio)
     }
 
-    def embed[E, O, SIn, SOut](wio: WIOT[E, O, SIn, SOut]): WIO[E, O, SIn, SOut] = {
+    def embed[In, Err, Out](wio: WIOT[In, Err, Out]): WIO[In, Err, Out] = {
       val m = new WorkflowConversionEvaluatorModule {
         override val destCtx: parentCtx.type = parentCtx
-        override val c: wio.context.type = wio.context
+        override val c: wio.context.type     = wio.context
       }
       //    val wioCasted = wio.asInstanceOf[m.c.WIO[E, O, SIn, SOut]]
       m.convert(wio.asParents) // TODO cast

@@ -48,144 +48,131 @@ trait VisitorModule {
   import c.WIO
   import NextWfState.{NewBehaviour, NewValue}
 
-  abstract class Visitor[Err, Out, StIn, StOut](wio: WIOT[Err, Out, StIn, StOut]) {
-    type DispatchResult
+  abstract class Visitor[In, Err, Out](wio: c.WIO[In, Err, Out]) {
+    type Result
 
-    def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Sig, StIn, StOut, Evt, Out, Err, Resp]): DispatchResult
+    def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[In, Out, Err, Sig, Resp, Evt]): Result
+    def onRunIO[Evt](wio: WIO.RunIO[In, Err, Out, Evt]): Result
+    def onFlatMap[Out1, Err1 <: Err](wio: WIO.FlatMap[Err1, Err, Out1, Out, In]): Result
+    def onMap[In1, Out1](wio: WIO.Map[In1, Err, Out1, In, Out]): Result
+    def onHandleQuery[Qr, QrState, Resp](wio: WIO.HandleQuery[In, Err, Out, Qr, QrState, Resp]): Result
+    def onNoop(wio: WIO.Noop): Result
+    def onNamed(wio: WIO.Named[In, Err, Out]): Result
+    def onHandleError[ErrIn](wio: WIO.HandleError[In, Err, Out, ErrIn]): Result
+    def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[In, ErrIn, Out, Err]): Result
+    def onAndThen[Out1](wio: WIO.AndThen[In, Err, Out1, Out]): Result
+    def onPure(wio: WIO.Pure[In, Err, Out]): Result
+    def onDoWhile[Out1](wio: WIO.DoWhile[In, Err, Out1, Out]): Result
+    def onFork(wio: WIO.Fork[In, Err, Out]): Result
 
-    def onRunIO[Evt](wio: WIO.RunIO[StIn, StOut, Evt, Out, Err]): DispatchResult
-
-    def onFlatMap[Out1, StOut1, Err1 <: Err](wio: WIO.FlatMap[Err1, Err, Out1, Out, StIn, StOut1, StOut]): DispatchResult
-
-    def onMap[Out1, StIn1, StOut1](wio: WIO.Map[Err, Out1, Out, StIn1, StIn, StOut1, StOut]): DispatchResult
-
-    def onHandleQuery[Qr, QrSt, Resp](wio: WIO.HandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp]): DispatchResult
-
-    def onNoop(wio: WIO.Noop): DispatchResult
-
-    def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult
-
-    def onHandleError[ErrIn](wio: WIO.HandleError[Err, Out, StIn, StOut, ErrIn]): DispatchResult
-
-    def onHandleErrorWith[ErrIn, HandlerStateIn >: StIn, BaseOut >: Out](
-        wio: WIO.HandleErrorWith[Err, BaseOut, StIn, StOut, ErrIn, HandlerStateIn, Out],
-    ): DispatchResult
-
-    def onAndThen[Out1, StOut1](wio: WIO.AndThen[Err, Out1, Out, StIn, StOut1, StOut]): DispatchResult
-
-    def onPure(wio: WIO.Pure[Err, Out, StIn, StOut]): DispatchResult
-
-    def onDoWhile[StOut1](wio: WIO.DoWhile[Err, Out, StIn, StOut1, StOut]): DispatchResult
-
-    def onFork(wio: WIO.Fork[Err, Out, StIn, StOut]): DispatchResult
-
-    def run: DispatchResult = {
+    def run: Result = {
       wio match {
-        case x @ WIO.HandleSignal(_, _, _, _, _)                    => onSignal(x)
-        case x @ WIO.HandleQuery(_, _)                              => onHandleQuery(x)
-        case x @ WIO.RunIO(_, _, _)                                 => onRunIO(x)
+        case x @ WIO.HandleSignal(_, _, _, _, _)       => onSignal(x)
+        case x @ WIO.HandleQuery(_, _)                 => onHandleQuery(x)
+        case x @ WIO.RunIO(_, _, _)                    => onRunIO(x)
         // https://github.com/scala/scala3/issues/20040
-        case x: WIO.FlatMap[? <: Err, Err, ?, Out, StIn, ?, StOut]  =>
+        case x: WIO.FlatMap[? <: Err, Err, ?, Out, In] =>
           x match {
-            case x: WIO.FlatMap[err1, Err, out1, Out, StIn, stOut1, StOut] => onFlatMap[out1, stOut1, err1](x)
+            case x: WIO.FlatMap[err1, Err, out1, Out, In] => onFlatMap[out1, err1](x)
           }
-        case x: WIO.Map[Err, out1, Out, stIn1, StIn, stOut1, StOut] => onMap(x)
-        case x @ WIO.Noop()                                         => onNoop(x)
-        case x @ WIO.HandleError(_, _, _, _)                        => onHandleError(x)
-        case x @ WIO.Named(_, _, _, _)                              => onNamed(x)
-        case x @ WIO.AndThen(_, _)                                  => onAndThen(x)
-        case x @ WIO.Pure(_, _)                                     => onPure(x)
-        case x @ WIO.HandleErrorWith(_, _, _, _)                    => onHandleErrorWith(x)
-        case x: WIO.DoWhile[Err, Out, StIn, stOut1, StOut]          => onDoWhile(x)
-        case x @ WIO.Fork(_)                                        => onFork(x)
+        case x: WIO.Map[?, Err, ?, In, Out]            => onMap(x)
+        case x @ WIO.Noop()                            => onNoop(x)
+        case x @ WIO.HandleError(_, _, _, _)           => onHandleError(x)
+        case x @ WIO.Named(_, _, _, _)                 => onNamed(x)
+        case x @ WIO.AndThen(_, _)                     => onAndThen(x)
+        case x @ WIO.Pure(_, _)                        => onPure(x)
+        case x @ WIO.HandleErrorWith(_, _, _, _)       => onHandleErrorWith(x)
+        case x: WIO.DoWhile[In, Err, stOut1, Out]      => onDoWhile(x)
+        case x @ WIO.Fork(_)                           => onFork(x)
       }
     }
 
-    protected def preserveFlatMap[Out1, StOut1, Err1 <: Err](
-        wio: WIO.FlatMap[Err1, Err, Out1, Out, StIn, StOut1, StOut],
-        wf: NextWfState[Err1, Out1, StOut1],
-    ): NextWfState[Err, Out, StOut] = {
+    protected def preserveFlatMap[Out1, Err1 <: Err](
+        wio: WIO.FlatMap[Err1, Err, Out1, Out, In],
+        wf: NextWfState[Err1, Out1],
+    ): NextWfState[Err, Out] = {
       wf.fold(
         b => {
-          b.value match {
+          b.state match {
             case Left(err)    =>
               // TODO this should be safe but we somehow lost information that state produces from evaluating Flatmap.base has Error = Err1
               val errCasted = err.asInstanceOf[Err]
               NewValue(errCasted.asLeft)
             case Right(value) =>
-              val effectiveWIO = WIO.FlatMap(b.wio, (x: Out1) => wio.getNext(x), wio.errorCt)
-              NewBehaviour(effectiveWIO, b.value)
+              val effectiveWIO: c.WIO.FlatMap[Err1, Err, Out1, Out, b.State] = WIO.FlatMap(b.wio, (x: Out1) => wio.getNext(x), wio.errorCt)
+              NewBehaviour(effectiveWIO, b.state)
           }
         },
         v => {
           v.value match {
-            case Left(err)         => NewValue(Left(err))
-            case Right((st, vall)) => NewBehaviour(wio.getNext(vall), Right((st, vall)))
+            case Left(err)     => NewValue(Left(err))
+            case Right(output) => NewBehaviour(wio.getNext(output), Right(output))
           }
         },
       )
     }
 
-    protected def preserveAndThen[Out1, StOut1](
-        wio: WIO.AndThen[Err, Out1, Out, StIn, StOut1, StOut],
-        wf: NextWfState[Err, Out1, StOut1],
-    ): NextWfState[Err, Out, StOut] =
+    protected def preserveAndThen[Out1](
+        wio: WIO.AndThen[In, Err, Out1, Out],
+        wf: NextWfState[Err, Out1],
+    ): NextWfState[Err, Out] =
       wf.fold(
         b => {
           val newWIO = WIO.AndThen(b.wio, wio.second)
-          NewBehaviour(newWIO, b.value)
+          NewBehaviour(newWIO, b.state)
         },
         v => {
           NewBehaviour(wio.second, v.value) // we ignore error, might backfire
         },
       )
 
-    def preserveMap[Out1, StIn1, StOut1](
-        wio: WIO.Map[Err, Out1, Out, StIn1, StIn, StOut1, StOut],
-        wf: NextWfState[Err, Out1, StOut1],
-        initState: StIn,
-    ): NextWfState[Err, Out, StOut] = {
-      wf.fold[NextWfState[Err, Out, StOut]](
+    def preserveMap[Out1, In1](
+        wio: WIO.Map[In1, Err, Out1, In, Out],
+        wf: NextWfState[Err, Out1],
+        initState: In,
+    ): NextWfState[Err, Out] = {
+      wf.fold[NextWfState[Err, Out]](
         b => {
-          val newWIO: WIO[Err, Out, b.State, StOut] =
+          val newWIO: WIO[b.State, Err, Out] =
             WIO.Map(
               b.wio,
               identity[b.State],
-              (s1: b.State, s2: StOut1, o1: Out1) => wio.mapValue(initState, s2, o1),
+              (s1: b.State, o1: Out1) => wio.mapValue(initState, o1),
             )
-          NewBehaviour[b.Error, Err, b.Value, Out, b.State, StOut](newWIO, b.value): NextWfState[Err, Out, StOut]
+//          NewBehaviour[b.Error, Err, b.Value, Out, b.State](newWIO, b.state): NextWfState[Err, Out]
+          NewBehaviour(newWIO, b.state)
         },
-        v => NewValue(v.value.map(x => wio.mapValue(initState, x._1, x._2))),
+        v => NewValue(v.value.map(x => wio.mapValue(initState, x))),
       )
     }
 
     protected def preserveHandleQuery[Qr, QrSt, Resp](
-        wio: WIO.HandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp],
-        wf: NextWfState[Err, Out, StOut],
-    ): NextWfState[Err, Out, StOut] = {
+        wio: WIO.HandleQuery[In, Err, Out, Qr, QrSt, Resp],
+        wf: NextWfState[Err, Out],
+    ): NextWfState[Err, Out] = {
       wf.fold(
         b => {
           val newWio = WIO.HandleQuery(wio.queryHandler, b.wio)
-          NewBehaviour(newWio, b.value)
+          NewBehaviour(newWio, b.state)
         },
         v => v, // if its direct, we leave the query
       )
     }
 
     protected def applyHandleError[ErrIn](
-        wio: WIO.HandleError[Err, Out, StIn, StOut, ErrIn],
-        wf: NextWfState[ErrIn, Out, StOut] { type Error = ErrIn },
-        originalState: StIn,
-    ): NextWfState[Err, Out, StOut] = {
-      def newWf(err: ErrIn) = NewBehaviour[ErrIn, Err, Any, Out, StIn, StOut](wio.handleError(err), Right(originalState -> ()))
+        wio: WIO.HandleError[In, Err, Out, ErrIn],
+        wf: NextWfState[ErrIn, Out] { type Error = ErrIn },
+        originalState: In,
+    ): NextWfState[Err, Out] = {
+      def newWf(err: ErrIn) = NewBehaviour(wio.handleError(err), Right(originalState))
 
       wf.fold(
         b => {
-          b.value match {
+          b.state match {
             case Left(value) => newWf(value)
             case Right(v)    =>
-              val adjustedHandler: ErrIn => WIO[Err, Out, b.State, StOut] = err => wio.handleError(err).transformInputState[Any](x => originalState)
-              val newWIO: WIO[Err, Out, b.State, StOut]                   = WIO.HandleError(b.wio, adjustedHandler, wio.handledErrorCt, wio.newErrorCt)
+              val adjustedHandler: ErrIn => WIO[b.State, Err, Out] = err => wio.handleError(err).transformInput[Any](x => originalState)
+              val newWIO: WIO[b.State, Err, Out]                   = WIO.HandleError(b.wio, adjustedHandler, wio.handledErrorMeta, wio.newErrorMeta)
               NewBehaviour(newWIO, v.asRight)
           }
         },
@@ -198,23 +185,23 @@ trait VisitorModule {
       )
     }
 
-    protected def applyHandleErrorWith[ErrIn, HandlerStIn >: StIn, BaseOut >: Out](
-        wio: WIO.HandleErrorWith[Err, BaseOut, StIn, StOut, ErrIn, HandlerStIn, Out],
-        wf: NextWfState[ErrIn, Out, StOut] { type Error = ErrIn },
-        originalState: StIn,
-    ): NextWfState[Err, Out, StOut] = {
-      def newWf(err: ErrIn) = NewBehaviour[ErrIn, Err, Any, Out, StIn, StOut](
-        wio.handleError.transformInputState[Any](_ => (originalState, err)),
+    protected def applyHandleErrorWith[ErrIn](
+        wio: WIO.HandleErrorWith[In, ErrIn, Out, Err],
+        wf: NextWfState[ErrIn, Out] { type Error = ErrIn },
+        originalState: In,
+    ): NextWfState[Err, Out] = {
+      def newWf(err: ErrIn) = NewBehaviour(
+        wio.handleError.transformInput[Any](_ => (originalState, err)),
         Right(originalState -> ()),
       )
 
       wf.fold(
         b => {
-          b.value match {
+          b.state match {
             case Left(value) => newWf(value)
             case Right(v)    =>
-              val adjustedHandler                       = wio.handleError.transformInputState[(Any, ErrIn)](x => (originalState, x._2))
-              val newWIO: WIO[Err, Out, b.State, StOut] = WIO.HandleErrorWith(b.wio, adjustedHandler, wio.handledErrorMeta, wio.newErrorCt)
+              val adjustedHandler                = wio.handleError.transformInput[(Any, ErrIn)](x => (originalState, x._2))
+              val newWIO: WIO[b.State, Err, Out] = WIO.HandleErrorWith(b.wio, adjustedHandler, wio.handledErrorMeta, wio.newErrorCt)
               NewBehaviour(newWIO, v.asRight)
           }
         },
@@ -227,21 +214,21 @@ trait VisitorModule {
       )
     }
 
-    def applyOnDoWhile[StOut1](
-        wio: WIO.DoWhile[Err, Out, StIn, StOut1, StOut],
-        wf: NextWfState[Err, Out, StOut1],
-    ): NextWfState[Err, Out, StOut] = {
-      wf.fold[NextWfState[Err, Out, StOut]](
+    def applyOnDoWhile[LoopOut](
+        wio: WIO.DoWhile[In, Err, LoopOut, Out],
+        wf: NextWfState[Err, LoopOut],
+    ): NextWfState[Err, Out] = {
+      wf.fold[NextWfState[Err, Out]](
         b => {
-          val newWIO: WIO[Err, Out, b.State, StOut] = WIO.DoWhile(wio.loop, wio.stopCondition, b.wio)
-          NewBehaviour[b.Error, Err, b.Value, Out, b.State, StOut](newWIO, b.value): NextWfState[Err, Out, StOut]
+          val newWIO: WIO[b.State, Err, Out] = WIO.DoWhile(wio.loop, wio.stopCondition, b.wio)
+          NewBehaviour(newWIO, b.state): NextWfState[Err, Out]
         },
         v =>
           v.value match {
             case Left(err)             => NewValue(Left(err))
-            case Right((state, value)) =>
-              wio.stopCondition(state) match {
-                case Some(newState) => NewValue(Right((newState, value)))
+            case Right(value) =>
+              wio.stopCondition(value) match {
+                case Some(newState) => NewValue(Right(newState))
                 case None           =>
                   val newWIO = WIO.DoWhile(wio.loop, wio.stopCondition, wio.loop)
                   NewBehaviour(newWIO, v.value)
@@ -250,62 +237,55 @@ trait VisitorModule {
       )
     }
 
-    def selectMatching(wio: WIO.Fork[Err, Out, StIn, StOut], in: StIn): Option[WIO[Err, Out, StIn, StOut]] = {
-      wio.branches.collectFirstSome(b => b.condition(in).map(interm => b.wio.transformInputState[StIn](s => (s, interm))))
+    def selectMatching(wio: WIO.Fork[In, Err, Out], in: In): Option[WIO[In, Err, Out]] = {
+      wio.branches.collectFirstSome(b => b.condition(in).map(interm => b.wio.transformInput[In](s => (s, interm))))
     }
 
   }
 
-  sealed trait NextWfState[+E, +O, +S] {
-    self =>
+  sealed trait NextWfState[+E, +O] { self =>
     type Error
 
     def toActiveWorkflow(interpreter: Interpreter): ActiveWorkflow = this match {
-      case behaviour: NextWfState.NewBehaviour[E, O, S] => ActiveWorkflow(behaviour.wio, interpreter, behaviour.value)
-      case value: NextWfState.NewValue[E, O, S]         => ActiveWorkflow(WIO.Noop(), interpreter, value.value)
+      case behaviour: NextWfState.NewBehaviour[E, O] => ActiveWorkflow(behaviour.wio, interpreter, behaviour.state)
+      case value: NextWfState.NewValue[E, O]         => ActiveWorkflow(WIO.Noop(), interpreter, value.value)
     }
 
-    def fold[T](mapBehaviour: NewBehaviour[E, O, S] { type Error = self.Error } => T, mapValue: NewValue[E, O, S] => T): T = this match {
-      case behaviour: NewBehaviour[E, O, S] { type Error = self.Error } => mapBehaviour(behaviour)
-      case value: NewValue[E, O, S]                                     => mapValue(value)
+    def fold[T](mapBehaviour: NewBehaviour[E, O] { type Error = self.Error } => T, mapValue: NewValue[E, O] => T): T = this match {
+      case behaviour: NewBehaviour[E, O] { type Error = self.Error } => mapBehaviour(behaviour)
+      case value: NewValue[E, O]                                     => mapValue(value)
     }
   }
 
   object NextWfState {
-    trait NewBehaviour[+NextError, +NextValue, +NextState] extends NextWfState[NextError, NextValue, NextState] {
+    trait NewBehaviour[+NextError, +NextValue] extends NextWfState[NextError, NextValue] {
       self =>
       type State
       type Error
-      type Value
 
-      def wio: WIO[NextError, NextValue, State, NextState]
-
-      def value: Either[Error, (State, Value)]
-
+      def wio: WIO[State, NextError, NextValue]
+      def state: Either[Error, State]
     }
 
     object NewBehaviour {
-      def apply[E1, E2, O1, O2, S1, S2](
-          wio0: WIO[E2, O2, S1, S2],
-          value0: Either[E1, (S1, O1)],
-      ): NewBehaviour[E2, O2, S2] = new NewBehaviour[E2, O2, S2] {
+      def apply[E1, E2, O2, S1](
+          wio0: WIO[S1, E2, O2],
+          value0: Either[E1, S1],
+      ): NewBehaviour[E2, O2] = new NewBehaviour[E2, O2] {
         override type State = S1
         override type Error = E1
-        override type Value = O1
-
-        override def wio: WIO[E2, O2, State, S2] = wio0
-
-        override def value: Either[Error, (State, Value)] = value0
+        override def wio: WIO[State, E2, O2]     = wio0
+        override def state: Either[Error, State] = value0
       }
     }
 
-    trait NewValue[+E, +O, +S] extends NextWfState[E, O, S] {
-      def value: Either[E, (S, O)]
+    trait NewValue[+E, +O] extends NextWfState[E, O] {
+      def value: Either[E, O]
     }
 
     object NewValue {
-      def apply[E, O, S](value0: Either[E, (S, O)]) = new NewValue[E, O, S] {
-        override def value: Either[E, (S, O)] = value0
+      def apply[E, O, S](value0: Either[E, O]): NextWfState.NewValue[E, O] = new NewValue[E, O] {
+        override def value: Either[E, O] = value0
       }
     }
 

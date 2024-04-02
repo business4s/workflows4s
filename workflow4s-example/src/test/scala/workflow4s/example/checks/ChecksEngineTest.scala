@@ -113,7 +113,7 @@ class ChecksEngineTest extends AnyFreeSpec {
     override def run(data: Unit): IO[CheckResult] = IO(result)
   }
 
-  def getModel(wio: ChecksEngine.Context.WIO[?, ?, ?, ?]): WIOModel = {
+  def getModel(wio: ChecksEngine.Context.WIO[?, ?, ?]): WIOModel = {
     val m = new WIOModelInterpreterModule {
       override val c: ChecksEngine.Context.type = ChecksEngine.Context
     }

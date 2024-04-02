@@ -22,7 +22,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
 
   import WithdrawalWorkflow.WithdrawalWorkflowContext.WIO
 
-  val workflow: WIO[WithdrawalRejection, Unit, WithdrawalData.Empty, Nothing] = for {
+  val workflow: WIO[WithdrawalData.Empty, Nothing, Unit] = for {
     _ <- handleDataQuery(
            (for {
              _ <- receiveWithdrawal
@@ -37,7 +37,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
     _ <- handleDataQuery(WIO.Noop())
   } yield ()
 
-  val workflowDeclarative: WIO[Nothing, Unit, WithdrawalData.Empty, WithdrawalData.Completed] =
+  val workflowDeclarative: WIO[WithdrawalData.Empty, Nothing, Unit] =
     handleDataQuery(
       (
         receiveWithdrawal >>>
@@ -49,7 +49,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
       ).handleErrorWith(cancelFundsIfNeeded) >>> WIO.Noop(),
     )
 
-  private def receiveWithdrawal: WIO[WithdrawalRejection.InvalidInput, Unit, WithdrawalData.Empty, WithdrawalData.Initiated] =
+  private def receiveWithdrawal: WIO[WithdrawalData.Empty, WithdrawalRejection.InvalidInput, WithdrawalData.Initiated] =
     WIO
       .handleSignal[WithdrawalData.Empty](createWithdrawalSignal) { (_, signal) =>
         IO {
@@ -59,19 +59,19 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
       }
       .handleEventWithError { (st, event) =>
         event match {
-          case WithdrawalAccepted(amount, recipient) => (st.initiated(amount, recipient) -> ()).asRight
+          case WithdrawalAccepted(amount, recipient) => st.initiated(amount, recipient).asRight
           case WithdrawalRejected(error)             => WithdrawalRejection.InvalidInput(error).asLeft
         }
       }
       .produceResponse((_, _) => ())
       .autoNamed()
 
-  private def calculateFees: WIO[Nothing, Unit, WithdrawalData.Initiated, WithdrawalData.Validated] = WIO
+  private def calculateFees: WIO[WithdrawalData.Initiated, Nothing, WithdrawalData.Validated] = WIO
     .runIO[WithdrawalData.Initiated](state => service.calculateFees(state.amount).map(WithdrawalEvent.FeeSet.apply))
-    .handleEvent { (state, event) => (state.validated(event.fee), ()) }
+    .handleEvent { (state, event) => state.validated(event.fee) }
     .autoNamed()
 
-  private def putMoneyOnHold: WIO[WithdrawalRejection.NotEnoughFunds, Unit, WithdrawalData.Validated, WithdrawalData.Validated] =
+  private def putMoneyOnHold: WIO[WithdrawalData.Validated, WithdrawalRejection.NotEnoughFunds, WithdrawalData.Validated] =
     WIO
       .runIO[WithdrawalData.Validated](state =>
         service
@@ -83,18 +83,18 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
       )
       .handleEventWithError { (state, evt) =>
         evt match {
-          case MoneyLocked.Success()        => (state, ()).asRight
+          case MoneyLocked.Success()        => state.asRight
           case MoneyLocked.NotEnoughFunds() => WithdrawalRejection.NotEnoughFunds().asLeft
         }
       }
       .autoNamed()
 
-  private def runChecks: WIO[WithdrawalRejection.RejectedInChecks, Unit, WithdrawalData.Validated, WithdrawalData.Checked] = {
-    val doRunChecks: WIO[Nothing, Unit, WithdrawalData.Validated, WithdrawalData.Checked] =
+  private def runChecks: WIO[WithdrawalData.Validated, WithdrawalRejection.RejectedInChecks, WithdrawalData.Checked] = {
+    val doRunChecks: WIO[WithdrawalData.Validated, Nothing, WithdrawalData.Checked] =
       WIO.embed(
         checksEngine.runChecks
-          .transformInputState((x: WithdrawalData.Validated) => ChecksInput(x, List()))
-          .transformOutputState((validated, checkState) => validated.checked(checkState)),
+          .transformInput((x: WithdrawalData.Validated) => ChecksInput(x, List()))
+          .transformOutput((validated, checkState) => validated.checked(checkState)),
       )
 
     val actOnDecision = WIO
@@ -110,10 +110,10 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
   }
 
   // TODO can fail with provider fatal failure, need retries, needs cancellation
-  private def execute: WIO[WithdrawalRejection.RejectedByExecutionEngine, Unit, WithdrawalData.Checked, WithdrawalData.Executed] =
+  private def execute: WIO[WithdrawalData.Checked, WithdrawalRejection.RejectedByExecutionEngine, WithdrawalData.Executed] =
     initiateExecution >>> awaitExecutionCompletion
 
-  private def initiateExecution: WIO[WithdrawalRejection.RejectedByExecutionEngine, Unit, WithdrawalData.Checked, WithdrawalData.Executed] =
+  private def initiateExecution: WIO[WithdrawalData.Checked, WithdrawalRejection.RejectedByExecutionEngine, WithdrawalData.Executed] =
     WIO
       .runIO[WithdrawalData.Checked](s =>
         service
@@ -122,34 +122,34 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
       )
       .handleEventWithError((s, event) =>
         event.response match {
-          case ExecutionResponse.Accepted(externalId) => Right(s.executed(externalId) -> ())
+          case ExecutionResponse.Accepted(externalId) => Right(s.executed(externalId))
           case ExecutionResponse.Rejected(error)      => Left(WithdrawalRejection.RejectedByExecutionEngine(error))
         },
       )
       .autoNamed()
 
-  private def awaitExecutionCompletion: WIO[WithdrawalRejection.RejectedByExecutionEngine, Unit, WithdrawalData.Executed, WithdrawalData.Executed] =
+  private def awaitExecutionCompletion: WIO[WithdrawalData.Executed, WithdrawalRejection.RejectedByExecutionEngine, WithdrawalData.Executed] =
     WIO
-      .handleSignal[WithdrawalData.Executed](executionCompletedSignal)((state, sig) => IO(WithdrawalEvent.ExecutionCompleted(sig)))
+      .handleSignal[WithdrawalData.Executed](executionCompletedSignal)((_, sig) => IO(WithdrawalEvent.ExecutionCompleted(sig)))
       .handleEventWithError((s, e: WithdrawalEvent.ExecutionCompleted) =>
         e.status match {
-          case ExecutionCompleted.Succeeded => Right(s, ())
+          case ExecutionCompleted.Succeeded => Right(s)
           case ExecutionCompleted.Failed    => Left(WithdrawalRejection.RejectedByExecutionEngine("Execution failed"))
         },
       )
       .produceResponse((_, _) => ())
       .autoNamed()
 
-  private def releaseFunds: WIO[Nothing, Unit, WithdrawalData.Executed, WithdrawalData.Completed] =
+  private def releaseFunds: WIO[WithdrawalData.Executed, Nothing, WithdrawalData.Completed] =
     WIO
       .runIO[WithdrawalData.Executed](st => service.releaseFunds(st.amount).as(WithdrawalEvent.MoneyReleased()))
-      .handleEvent((st, e) => st.completed() -> ())
+      .handleEvent((st, _) => st.completed())
       .autoNamed()
 
   private def handleDataQuery =
     WIO.handleQuery[WithdrawalData](dataQuery) { (state, _) => state }
 
-  private def cancelFundsIfNeeded: WIO[Nothing, Unit, (WithdrawalData, WithdrawalRejection), WithdrawalData.Completed.Failed] = {
+  private def cancelFundsIfNeeded: WIO[(WithdrawalData, WithdrawalRejection), Nothing, WithdrawalData.Completed.Failed] = {
     WIO
       .runIO[(WithdrawalData, WithdrawalRejection)]({ case (_, r) =>
         r match {
@@ -160,7 +160,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
           case WithdrawalRejection.RejectedByExecutionEngine(error) => service.cancelFundsLock().as(WithdrawalEvent.RejectionHandled(error))
         }
       })
-      .handleEvent((_: (WithdrawalData, WithdrawalRejection), evt) => WithdrawalData.Completed.Failed(evt.error) -> ())
+      .handleEvent((_: (WithdrawalData, WithdrawalRejection), evt) => WithdrawalData.Completed.Failed(evt.error))
       .autoNamed()
   }
 }

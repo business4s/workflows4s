@@ -1,70 +1,52 @@
 package workflow4s.wio.internal
 
-import workflow4s.wio.Interpreter.{QueryResponse}
+import workflow4s.wio.Interpreter.QueryResponse
 import workflow4s.wio.{SignalDef, VisitorModule, WorkflowContext}
 
-trait QueryEvaluatorModule extends VisitorModule{
+trait QueryEvaluatorModule extends VisitorModule {
   import c.WIO
 
   object QueryEvaluator {
 
     def handleQuery[Req, Resp, StIn, Err](
-                                           signalDef: SignalDef[Req, Resp],
-                                           req: Req,
-                                           wio: WIO[Err, Any, StIn, Any],
-                                           state: Either[Err, StIn],
-                                         ): QueryResponse[Resp] = {
+        signalDef: SignalDef[Req, Resp],
+        req: Req,
+        wio: WIO[StIn, Err, Any],
+        state: Either[Any, StIn],
+    ): QueryResponse[Resp] = {
       val visitor = new QueryVisitor(wio, signalDef, req, state.toOption.get)
       visitor.run
         .map(QueryResponse.Ok(_))
         .getOrElse(QueryResponse.UnexpectedQuery())
     }
 
-    private class QueryVisitor[Err, Out, StIn, StOut, Resp, Req](
-                                                                  wio: WIO[Err, Out, StIn, StOut],
-                                                                  signalDef: SignalDef[Req, Resp],
-                                                                  req: Req,
-                                                                  state: StIn,
-                                                                ) extends Visitor[Err, Out, StIn, StOut](wio) {
-      override type DispatchResult = Option[Resp]
-
-      def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Sig, StIn, StOut, Evt, Out, Err, Resp]): DispatchResult = None
-
-      def onRunIO[Evt](wio: WIO.RunIO[StIn, StOut, Evt, Out, Err]): DispatchResult = None
-
-      def onFlatMap[Out1, StOut1, Err1 <: Err](wio: WIO.FlatMap[Err1, Err, Out1, Out, StIn, StOut1, StOut]): DispatchResult = {
-        recurse(wio.base, state)
-      }
-
-      override def onAndThen[Out1, StOut1](wio: WIO.AndThen[Err, Out1, Out, StIn, StOut1, StOut]): DispatchResult =
-        recurse(wio.first, state)
-
-      def onMap[Out1, StIn1, StOut1](wio: WIO.Map[Err, Out1, Out, StIn1, StIn, StOut1, StOut]): DispatchResult = {
-        recurse(wio.base, wio.contramapState(state))
-      }
-
-      def onHandleQuery[Qr, QrSt, Resp](wio: WIO.HandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp]): DispatchResult =
+    private class QueryVisitor[Err, Out, In, Resp, Req](
+        wio: WIO[In, Err, Out],
+        signalDef: SignalDef[Req, Resp],
+        req: Req,
+        state: In,
+    ) extends Visitor[In, Err, Out](wio) {
+      override type Result = Option[Resp]
+      
+      def onHandleQuery[Qr, QrState, Resp](wio: WIO.HandleQuery[In, Err, Out, Qr, QrState, Resp]): Result=
         wio.queryHandler.run(signalDef)(req, state)
 
-      def onNoop(wio: WIO.Noop): DispatchResult = None
+      def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[In, Out, Err, Sig, Resp, Evt]): Result = None
+      def onRunIO[Evt](wio: WIO.RunIO[In, Err, Out, Evt]): Result = None
+      def onFlatMap[Out1, Err1 <: Err](wio: WIO.FlatMap[Err1, Err, Out1, Out, In]): Result = recurse(wio.base, state)
+      def onMap[In1, Out1](wio: WIO.Map[In1, Err, Out1, In, Out]): Result = recurse(wio.base, wio.contramapInput(state))
+      def onNoop(wio: WIO.Noop): Result = None
+      def onNamed(wio: WIO.Named[In, Err, Out]): Result = recurse(wio.base, state)
+      def onHandleError[ErrIn](wio: WIO.HandleError[In, Err, Out, ErrIn]): Result = recurse(wio.base, state)
+      def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[In, ErrIn, Out, Err]): Result = recurse(wio.base, state)
+      def onAndThen[Out1](wio: WIO.AndThen[In, Err, Out1, Out]): Result = recurse(wio.first, state)
+      def onPure(wio: WIO.Pure[In, Err, Out]): Result = None
+      def onDoWhile[Out1](wio: WIO.DoWhile[In, Err, Out1, Out]): Result = recurse(wio.current, state)
+      def onFork(wio: WIO.Fork[In, Err, Out]): Result = ??? // TODO, proper error handling, should never happen
 
-      override def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult = recurse(wio.base, state)
-
-      override def onPure(wio: WIO.Pure[Err, Out, StIn, StOut]): DispatchResult = None
-
-      override def onHandleError[ErrIn](wio: WIO.HandleError[Err, Out, StIn, StOut, ErrIn]): DispatchResult = recurse(wio.base, state)
-
-      override def onHandleErrorWith[ErrIn, HandlerStateIn >: StIn, BaseOut >: Out](
-                                                                                     wio: WIO.HandleErrorWith[Err, BaseOut, StIn, StOut, ErrIn, HandlerStateIn, Out],
-                                                                                   ): DispatchResult = recurse(wio.base, state)
-
-      override def onDoWhile[StOut1](wio: WIO.DoWhile[Err, Out, StIn, StOut1, StOut]): DispatchResult = recurse(wio.current, state)
-
-      def recurse[E1, O1, StIn1, SOut1](wio: WIO[E1, O1, StIn1, SOut1], s: StIn1): QueryVisitor[E1, O1, StIn, SOut1, Resp, Req]#DispatchResult =
+      def recurse[In1, E1, O1](wio: WIO[In1, E1, O1], s: In1): QueryVisitor[E1, O1, In1, Resp, Req]#Result =
         new QueryVisitor(wio, signalDef, req, s).run
 
-      override def onFork(wio: WIO.Fork[Err, Out, StIn, StOut]): Option[Resp] = ??? // TODO, proper error handling, should never happen
     }
-
   }
 }

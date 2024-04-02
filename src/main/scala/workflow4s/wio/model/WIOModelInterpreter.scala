@@ -8,7 +8,7 @@ trait WIOModelInterpreterModule extends VisitorModule {
 
   object WIOModelInterpreter {
 
-    def run(wio: WIO[_, _, _, _]): WIOModel = {
+    def run(wio: WIO[_, _, _]): WIOModel = {
       new ModelVisitor(wio, Metadata.empty).run
     }
 
@@ -18,55 +18,39 @@ trait WIOModelInterpreterModule extends VisitorModule {
       val empty = Metadata(None, None)
     }
 
-    private class ModelVisitor[Err, Out, StIn, StOut](wio: WIO[Err, Out, StIn, StOut], m: Metadata) extends Visitor[Err, Out, StIn, StOut](wio) {
-      override type DispatchResult = WIOModel
+    private class ModelVisitor[In, Err, Out](wio: WIO[In, Err, Out], m: Metadata) extends Visitor[In, Err, Out](wio) {
+      override type Result = WIOModel
 
-      override def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Sig, StIn, StOut, Evt, Out, Err, Resp]): DispatchResult = {
+      def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[In, Out, Err, Sig, Resp, Evt]): Result           = {
         val signalName = ModelUtils.getPrettyNameForClass(wio.sigDef.reqCt)
         WIOModel.HandleSignal(signalName, wio.errorCt, m.name, m.description) // TODO error
       }
-
-      override def onRunIO[Evt](wio: WIO.RunIO[StIn, StOut, Evt, Out, Err]): DispatchResult = {
+      def onRunIO[Evt](wio: WIO.RunIO[In, Err, Out, Evt]): Result                                         = {
         WIOModel.RunIO(wio.errorCt, m.name, m.description)
       }
-
-      override def onFlatMap[Out1, StOut1, Err1 <: Err](wio: WIO.FlatMap[Err1, Err, Out1, Out, StIn, StOut1, StOut]): DispatchResult = {
+      def onFlatMap[Out1, Err1 <: Err](wio: WIO.FlatMap[Err1, Err, Out1, Out, In]): Result                = {
         WIOModel.Sequence(Seq(recurse(wio.base, None), WIOModel.Dynamic(m.name, wio.errorCt)))
       }
-
-      override def onAndThen[Out1, StOut1](wio: WIO.AndThen[Err, Out1, Out, StIn, StOut1, StOut]): DispatchResult =
-        WIOModel.Sequence(Seq(recurse(wio.first, None), recurse(wio.second, None))) // TODO flatten multiple sequences
-
-      override def onMap[Out1, StIn1, StOut1](wio: WIO.Map[Err, Out1, Out, StIn1, StIn, StOut1, StOut]): DispatchResult =
-        recurse(wio.base)
-
-      override def onHandleQuery[Qr, QrSt, Resp](wio: WIO.HandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp]): DispatchResult =
-        recurse(wio.inner)
-
-      override def onNoop(wio: WIO.Noop): WIOModel = WIOModel.Noop
-
-      override def onPure(wio: WIO.Pure[Err, Out, StIn, StOut]): WIOModel = WIOModel.Pure(m.name, m.description)
-
-      override def onHandleError[ErrIn](wio: WIO.HandleError[Err, Out, StIn, StOut, ErrIn]): DispatchResult = {
-        WIOModel.HandleError(recurse(wio.base, None), WIOModel.Dynamic(m.name, wio.newErrorCt), wio.handledErrorCt)
+      def onMap[In1, Out1](wio: WIO.Map[In1, Err, Out1, In, Out]): Result                                 = recurse(wio.base)
+      def onHandleQuery[Qr, QrState, Resp](wio: WIO.HandleQuery[In, Err, Out, Qr, QrState, Resp]): Result = recurse(wio.inner)
+      def onNoop(wio: WIO.Noop): Result                                                                   = WIOModel.Noop
+      def onNamed(wio: WIO.Named[In, Err, Out]): Result                                                   =
+        new ModelVisitor(wio.base, Metadata(wio.name.some, wio.description)).run
+      def onHandleError[ErrIn](wio: WIO.HandleError[In, Err, Out, ErrIn]): Result                         = {
+        WIOModel.HandleError(recurse(wio.base, None), WIOModel.Dynamic(m.name, wio.newErrorMeta), wio.handledErrorMeta)
       }
-
-      override def onHandleErrorWith[ErrIn, HandlerStateIn >: StIn, BaseOut >: Out](
-          wio: WIO.HandleErrorWith[Err, BaseOut, StIn, StOut, ErrIn, HandlerStateIn, Out],
-      ): DispatchResult = {
+      def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[In, ErrIn, Out, Err]): Result                 = {
         WIOModel.HandleError(recurse(wio.base, None), recurse(wio.handleError, None), wio.handledErrorMeta)
       }
-
-      override def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult =
-        new ModelVisitor(wio.base, Metadata(wio.name.some, wio.description)).run
-
-      override def onDoWhile[StOut1](wio: WIO.DoWhile[Err, Out, StIn, StOut1, StOut]): WIOModel =
+      def onAndThen[Out1](wio: WIO.AndThen[In, Err, Out1, Out]): Result                                   =
+        WIOModel.Sequence(Seq(recurse(wio.first, None), recurse(wio.second, None))) // TODO flatten multiple sequences
+      def onPure(wio: WIO.Pure[In, Err, Out]): Result                   = WIOModel.Pure(m.name, m.description)
+      def onDoWhile[Out1](wio: WIO.DoWhile[In, Err, Out1, Out]): Result =
         WIOModel.Loop(recurse(wio.loop), None)
-
-      override def onFork(wio: WIO.Fork[Err, Out, StIn, StOut]): WIOModel =
+      def onFork(wio: WIO.Fork[In, Err, Out]): Result                   =
         WIOModel.Fork(wio.branches.map(x => WIOModel.Branch(recurse(x.wio), None)))
 
-      def recurse[E1, O1, SIn1, SOut1](wio: WIO[E1, O1, SIn1, SOut1], meta: Option[Metadata] = Some(m)): WIOModel = {
+      def recurse[I1, E1, O1](wio: WIO[I1, E1, O1], meta: Option[Metadata] = Some(m)): WIOModel = {
         new ModelVisitor(wio, meta.getOrElse(Metadata.empty)).run
       }
 

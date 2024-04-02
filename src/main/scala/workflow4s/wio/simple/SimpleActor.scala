@@ -9,7 +9,7 @@ import workflow4s.wio.{ActiveWorkflow, Interpreter, JournalPersistance, SignalDe
 
 class SimpleActor(private var wf: ActiveWorkflow, journal: JournalPersistance)(implicit IORuntime: IORuntime) extends StrictLogging {
 
-  def state: Either[Any, Any] = wf.value.map(_._1)
+  def state: Either[Any, Any] = wf.state
 
   def handleSignal[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req): SimpleActor.SignalResponse[Resp] = {
     logger.debug(s"Handling signal ${req}")
@@ -75,8 +75,8 @@ class SimpleActor(private var wf: ActiveWorkflow, journal: JournalPersistance)(i
 
 object SimpleActor {
 
-  def create[SIn](behaviour: WIOT[Nothing, Any, SIn, Any], state: SIn, journalPersistance: JournalPersistance)(implicit ior: IORuntime): SimpleActor =
-    new SimpleActor(ActiveWorkflow(behaviour, new Interpreter(journalPersistance), (state, ()).asRight), journalPersistance)
+  def create[SIn](behaviour: WIOT[SIn, Nothing, Any], state: SIn, journalPersistance: JournalPersistance)(implicit ior: IORuntime): SimpleActor =
+    new SimpleActor(ActiveWorkflow(behaviour, new Interpreter(journalPersistance), state.asRight), journalPersistance)
 
   sealed trait SignalResponse[+Resp]
   object SignalResponse {

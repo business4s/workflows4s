@@ -2,11 +2,11 @@ package workflow4s
 
 package object wio {
 
-  type WIOT[+Err, +Out, -StIn, +StOut] = WorkflowContext#WIO[Err, Out, StIn, StOut]
+  type WIOT[-In, +Err, +Out] = WorkflowContext#WIO[In, Err, Out]
 
   object WIOT {
-    type Total[St] = WIOT[Any, Any, St, Any]
-    type States[StIn, StOut] = WIOT[Any, Any, StIn, StOut]
+    type Total[In] = WIOT[In, Any, Any]
+    type States[In, Out] = WIOT[In, Any, Out]
   }
 
 }

@@ -147,8 +147,8 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
         .returning(IO.unit)
 
     object DummyChecksEngine extends ChecksEngine {
-      override def runChecks: ChecksEngine.Context.WIO[Nothing, Unit, ChecksInput, ChecksState.Decided] =
-        ChecksEngine.Context.WIO.pure.state(ChecksState.Decided(Map(), Decision.ApprovedBySystem()))
+      override def runChecks: ChecksEngine.Context.WIO[ChecksInput, Nothing, ChecksState.Decided] =
+        ChecksEngine.Context.WIO.pure(ChecksState.Decided(Map(), Decision.ApprovedBySystem()))
     }
 
     class WithdrawalActor(journal: InMemoryJournal) {
@@ -166,7 +166,7 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
 
     }
     
-    def getModel(wio: WithdrawalWorkflow.WithdrawalWorkflowContext.WIO[?,?,?,?]): WIOModel = {
+    def getModel(wio: WithdrawalWorkflow.WithdrawalWorkflowContext.WIO[?,?,?]): WIOModel = {
       val m = new WIOModelInterpreterModule {
         override val c: WithdrawalWorkflow.WithdrawalWorkflowContext.type = WithdrawalWorkflow.WithdrawalWorkflowContext
       }

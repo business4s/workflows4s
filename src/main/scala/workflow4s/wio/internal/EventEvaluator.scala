@@ -1,6 +1,6 @@
 package workflow4s.wio.internal
 
-import workflow4s.wio.Interpreter.{EventResponse}
+import workflow4s.wio.Interpreter.EventResponse
 import workflow4s.wio.{Interpreter, VisitorModule, WorkflowContext}
 
 trait EventEvaluatorModule extends VisitorModule {
@@ -16,68 +16,42 @@ trait EventEvaluatorModule extends VisitorModule {
         .getOrElse(EventResponse.UnexpectedEvent())
     }
 
-    private class EventVisitor[Err, Out, StIn, StOut](wio: WIO[Err, Out, StIn, StOut], event: Any, state: StIn)
-        extends Visitor[Err, Out, StIn, StOut](wio) {
-      type NewWf                   = NextWfState[Err, Out, StOut]
-      override type DispatchResult = Option[NewWf]
+    private class EventVisitor[In, Err, Out](wio: WIO[In, Err, Out], event: Any, state: In) extends Visitor[In, Err, Out](wio) {
+      type NewWf           = NextWfState[Err, Out]
+      override type Result = Option[NewWf]
 
-      def doHandle[Evt](handler: EventHandler[Evt, StIn, StOut, Out, Err]): DispatchResult =
+      def doHandle[Evt](handler: EventHandler[Evt, In, Out, Err]): Result =
         handler
           .expects(event)
           .map(x => NextWfState.NewValue(handler.handle(state, x)))
 
-      override def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Sig, StIn, StOut, Evt, Out, Err, Resp]): DispatchResult =
-        doHandle(wio.evtHandler)
-
-      def onRunIO[Evt](wio: WIO.RunIO[StIn, StOut, Evt, Out, Err]): DispatchResult =
-        doHandle(wio.evtHandler)
-
-      def onFlatMap[Out1, StOut1, Err1 <: Err](wio: WIO.FlatMap[Err1, Err, Out1, Out, StIn, StOut1, StOut]): DispatchResult = {
-        recurse(wio.base, state).map(preserveFlatMap(wio, _))
-      }
-
-      override def onAndThen[Out1, StOut1](wio: WIO.AndThen[Err, Out1, Out, StIn, StOut1, StOut]): DispatchResult = {
-        recurse(wio.first, state).map(preserveAndThen(wio, _))
-      }
-
-      def onMap[Out1, StIn1, StOut1](wio: WIO.Map[Err, Out1, Out, StIn1, StIn, StOut1, StOut]): DispatchResult = {
-        recurse(wio.base, wio.contramapState(state)).map(preserveMap(wio, _, state))
-      }
-
-      def onHandleQuery[Qr, QrSt, Resp](wio: WIO.HandleQuery[Err, Out, StIn, StOut, Qr, QrSt, Resp]): DispatchResult = {
+      def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[In, Out, Err, Sig, Resp, Evt]): Result           = doHandle(wio.evtHandler)
+      def onRunIO[Evt](wio: WIO.RunIO[In, Err, Out, Evt]): Result                                         = doHandle(wio.evtHandler)
+      def onFlatMap[Out1, Err1 <: Err](wio: WIO.FlatMap[Err1, Err, Out1, Out, In]): Result                = recurse(wio.base, state).map(preserveFlatMap(wio, _))
+      def onMap[In1, Out1](wio: WIO.Map[In1, Err, Out1, In, Out]): Result                                 =
+        recurse(wio.base, wio.contramapInput(state)).map(preserveMap(wio, _, state))
+      def onHandleQuery[Qr, QrState, Resp](wio: WIO.HandleQuery[In, Err, Out, Qr, QrState, Resp]): Result =
         recurse(wio.inner, state).map(preserveHandleQuery(wio, _))
-      }
-
-      def onNoop(wio: WIO.Noop): DispatchResult = None
-
-      override def onNamed(wio: WIO.Named[Err, Out, StIn, StOut]): DispatchResult = recurse(wio.base, state)
-
-      override def onPure(wio: WIO.Pure[Err, Out, StIn, StOut]): DispatchResult = None
-
-      override def onHandleError[ErrIn](wio: WIO.HandleError[Err, Out, StIn, StOut, ErrIn]): DispatchResult = {
-        recurse(wio.base, state).map((newWf: NextWfState[ErrIn, Out, StOut]) => {
-          val casted: NextWfState[ErrIn, Out, StOut] { type Error = ErrIn } =
-            newWf.asInstanceOf[NextWfState[ErrIn, Out, StOut] { type Error = ErrIn }] // TODO casting
+      def onNoop(wio: WIO.Noop): Result                                                                   = None
+      def onNamed(wio: WIO.Named[In, Err, Out]): Result                                                   = recurse(wio.base, state)
+      def onHandleError[ErrIn](wio: WIO.HandleError[In, Err, Out, ErrIn]): Result                         =
+        recurse(wio.base, state).map((newWf: NextWfState[ErrIn, Out]) => {
+          val casted: NextWfState[ErrIn, Out] { type Error = ErrIn } =
+            newWf.asInstanceOf[NextWfState[ErrIn, Out] { type Error = ErrIn }] // TODO casting
           applyHandleError(wio, casted, state)
         })
-      }
-
-      override def onDoWhile[StOut1](wio: WIO.DoWhile[Err, Out, StIn, StOut1, StOut]): DispatchResult =
-        recurse(wio.current, state).map(applyOnDoWhile(wio, _))
-
-      override def onHandleErrorWith[ErrIn, HandlerStateIn >: StIn, BaseOut >: Out](
-          wio: WIO.HandleErrorWith[Err, BaseOut, StIn, StOut, ErrIn, HandlerStateIn, Out],
-      ): DispatchResult = {
-        recurse(wio.base, state).map((newWf: NextWfState[ErrIn, BaseOut, StOut]) => {
-          val casted: NextWfState[ErrIn, Out, StOut] { type Error = ErrIn } =
-            newWf.asInstanceOf[NextWfState[ErrIn, Out, StOut] { type Error = ErrIn }] // TODO casting
+      def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[In, ErrIn, Out, Err]): Result                 =
+        recurse(wio.base, state).map((newWf: NextWfState[ErrIn, Out]) => {
+          val casted: NextWfState[ErrIn, Out] { type Error = ErrIn } =
+            newWf.asInstanceOf[NextWfState[ErrIn, Out] { type Error = ErrIn }] // TODO casting
           applyHandleErrorWith(wio, casted, state)
         })
-      }
+      def onAndThen[Out1](wio: WIO.AndThen[In, Err, Out1, Out]): Result                                   = recurse(wio.first, state).map(preserveAndThen(wio, _))
+      def onPure(wio: WIO.Pure[In, Err, Out]): Result                                                     = None
+      def onDoWhile[Out1](wio: WIO.DoWhile[In, Err, Out1, Out]): Result                                   = recurse(wio.current, state).map(applyOnDoWhile(wio, _))
+      def onFork(wio: WIO.Fork[In, Err, Out]): Result                                                     = ??? // TODO, proper error handling, should never happen
 
-      override def onFork(wio: WIO.Fork[Err, Out, StIn, StOut]): DispatchResult = ??? // TODO, proper error handling, should never happen
-
-      def recurse[E1, O1, StIn1, SOut1](wio: WIO[E1, O1, StIn1, SOut1], s: StIn1): EventVisitor[E1, O1, StIn1, SOut1]#DispatchResult =
+      def recurse[I1, E1, O1](wio: WIO[I1, E1, O1], s: I1): EventVisitor[I1, E1, O1]#Result =
         new EventVisitor(wio, event, s).run
 
     }

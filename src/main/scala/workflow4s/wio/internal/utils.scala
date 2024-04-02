@@ -5,7 +5,7 @@ import workflow4s.wio.{JournalWrite, SignalDef}
 
 import scala.reflect.ClassTag
 
-case class EventHandler[Evt, -StIn, +StOut, +Out, +Err](handle: (StIn, Evt) => Either[Err, (StOut, Out)])(implicit
+case class EventHandler[Evt, -In, +Out, +Err](handle: (In, Evt) => Either[Err, Out])(implicit
     val jw: JournalWrite[Evt],
     ct: ClassTag[Evt],
 ) {
@@ -26,9 +26,9 @@ case class QueryHandler[-Qr, -StIn, +Out](handle: (StIn, Qr) => Out)(implicit in
   def ct: ClassTag[_] = inCt
 }
 
-case class SignalHandler[-Sig, +Evt, -StIn](handle: (StIn, Sig) => IO[Evt])(implicit sigCt: ClassTag[Sig]) {
-  def run[Req, Resp](signal: SignalDef[Req, Resp])(req: Req, s: StIn): Option[IO[Evt]] = {
-    sigCt.unapply(req).map(handle(s, _))
+case class SignalHandler[-Sig, +Evt, -In](handle: (In, Sig) => IO[Evt])(implicit sigCt: ClassTag[Sig]) {
+  def run[Req, Resp](signal: SignalDef[Req, Resp])(req: Req, in: In): Option[IO[Evt]] = {
+    sigCt.unapply(req).map(handle(in, _))
   }
 
   def ct: ClassTag[_] = sigCt
