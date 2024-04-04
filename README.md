@@ -5,7 +5,7 @@ This repository contains an experiment to provide a bew way for achieveing durab
 It tries to merge Temporal's execution model with native event-sourcing while removing the most of the magic from the
 solution.
 
-See the [Example](src/main/scala/workflow4s/example) to see the end result.
+See the [Example](workflow4s-example/src/main/scala/workflow4s/example) to see the end result.
 
 ## TODO
 
