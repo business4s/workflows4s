@@ -12,11 +12,11 @@ abstract class ActiveWorkflow {
   def wio: Context#WIO[State, Nothing, Any]
   def interpreter: Interpreter[Context]
 
-  lazy val proceedEvaluator      = new ProceedEvaluator[Context](context, interpreter)
-  lazy val signalEvaluator       = new SignalEvaluator[Context](context, interpreter)
-  lazy val eventEvaluator        = new EventEvaluator[Context](context, interpreter)
-  lazy val queryEvaluator        = new QueryEvaluator[Context](context, interpreter)
-  lazy val currentStateEvaluator = new CurrentStateEvaluator(context)
+  private lazy val proceedEvaluator      = new ProceedEvaluator[Context](context, interpreter)
+  private lazy val signalEvaluator       = new SignalEvaluator[Context](context, interpreter)
+  private lazy val eventEvaluator        = new EventEvaluator[Context](context, interpreter)
+  private lazy val queryEvaluator        = new QueryEvaluator[Context](context, interpreter)
+  private lazy val currentStateEvaluator = new CurrentStateEvaluator(context)
 
   def handleSignal[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req): SignalResponse[Context, Resp] =
     signalEvaluator.handleSignal(signalDef, req, wio, state)
