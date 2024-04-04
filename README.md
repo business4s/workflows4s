@@ -5,7 +5,11 @@ This repository contains an experiment to provide a bew way for achieveing durab
 It tries to merge Temporal's execution model with native event-sourcing while removing the most of the magic from the
 solution.
 
-See the [Example](workflow4s-example/src/main/scala/workflow4s/example) to see the end result.
+See the [Example](workflow4s-example/src/main/scala/workflow4s/example) to see the end result. 
+
+This example is rendered
+into bpmn ([withdrawal](workflow4s-example/src/test/resources/withdrawal-example-bpmn-declarative.bpmn),
+[checks](workflow4s-example/src/test/resources/checks-engine.bpmn)) that can be opened in camunda modeler or at [bpmn.io](http://bpmn.io)
 
 ## TODO
 
@@ -19,13 +23,13 @@ The following items are planned in scope of this PoC
 - [x] Handling state transitions
 - [x] Handling errors
 - [x] Declarative API + graph rendering
-- [ ] Handling postponed executions (await)
 - [ ] Typesafe total queries? (currently state is filtered arbitraly by the query)
+- [ ] Handling interruptions (through signals or timeouts)
+- [ ] Handling postponed executions (await)
 - [ ] Splitting the workflow (parallel execution and/or parallel waiting)
-- [ ] Pekko backend PoC
-- [ ] Full example
+- [ ] Pekko/Shardcake/Postgres runtime PoC
 - [ ] Test harness
-- [ ] Explicit stance on handling workflow evolutions
+- [ ] Explicit approach to handling workflow evolutions
 
 ## Design
 
