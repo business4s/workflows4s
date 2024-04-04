@@ -8,7 +8,7 @@ import org.scalatest.freespec.AnyFreeSpec
 import workflow4s.bpmn.BPMNConverter
 import workflow4s.example.checks
 import workflow4s.example.testuitls.TestUtils.SimpleSignalResponseOps
-import workflow4s.wio.model.{WIOModel, WIOModelInterpreterModule}
+import workflow4s.wio.model.{WIOModel, WIOModelInterpreter}
 import workflow4s.wio.simple.{InMemoryJournal, SimpleActor}
 
 import java.io.File
@@ -91,17 +91,18 @@ class ChecksEngineTest extends AnyFreeSpec {
   }
 
   trait Fixture extends StrictLogging {
-    val journal = new InMemoryJournal
+    val journal = new InMemoryJournal[ChecksEvent]
 
     def createWorkflow(checks: List[Check[Unit]]) = new ChecksActor(journal, ChecksInput((), checks))
   }
-  class ChecksActor(journal: InMemoryJournal, input: ChecksInput) {
+  class ChecksActor(journal: InMemoryJournal[ChecksEvent], input: ChecksInput) {
     val delegate        = SimpleActor.create(ChecksEngine.runChecks, input, journal)
     def run(): Unit     = delegate.proceed(runIO = true)
     def recover(): Unit = delegate.recover()
 
     def state: ChecksState = {
       val Right(st) = delegate.state
+
       st.asInstanceOf[ChecksState]
     }
 
@@ -114,9 +115,7 @@ class ChecksEngineTest extends AnyFreeSpec {
   }
 
   def getModel(wio: ChecksEngine.Context.WIO[?, ?, ?]): WIOModel = {
-    val m = new WIOModelInterpreterModule {
-      override val c: ChecksEngine.Context.type = ChecksEngine.Context
-    }
+    val m = new WIOModelInterpreter(ChecksEngine.Context)
     m.WIOModelInterpreter.run(wio)
   }
 

@@ -3,43 +3,47 @@ package workflow4s.wio
 import workflow4s.wio.Interpreter.{EventResponse, ProceedResponse, QueryResponse, SignalResponse}
 import workflow4s.wio.internal.*
 
-abstract class ActiveWorkflow(val interpreter: Interpreter) {
+abstract class ActiveWorkflow {
+  type Context <: WorkflowContext
+  val context: Context
   type State
-  type Error
-  val state: Either[Error, State]
-  def wio: WIOT.Total[State]
+  type Error = Any
+  val state: State
+  def wio: Context#WIO[State, Nothing, Any]
+  def interpreter: Interpreter[Context]
 
-  val m = new VisitorModule
-    with SignalEvaluatorModule
-    with EventEvaluatorModule
-    with QueryEvaluatorModule
-    with ProceedEvaluatorModule
-    with CurrentStateEvaluatorModule {
-    override val c: WorkflowContext = wio.context
-  }
+  lazy val proceedEvaluator      = new ProceedEvaluator[Context](context, interpreter)
+  lazy val signalEvaluator       = new SignalEvaluator[Context](context, interpreter)
+  lazy val eventEvaluator        = new EventEvaluator[Context](context, interpreter)
+  lazy val queryEvaluator        = new QueryEvaluator[Context](context, interpreter)
+  lazy val currentStateEvaluator = new CurrentStateEvaluator(context)
 
-  val wioHack: m.c.WIO.Total[State] = wio.asInstanceOf
-  
-  def handleSignal[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req): SignalResponse[Resp] =
-    m.SignalEvaluator.handleSignal(signalDef, req, wioHack, state, interpreter)
-  def handleQuery[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req): QueryResponse[Resp]   =
-    m.QueryEvaluator.handleQuery(signalDef, req, wioHack, state)
-  def handleEvent(event: Any): EventResponse                                                   =
-    m.EventEvaluator.handleEvent(event, wioHack, state, interpreter)
-  def proceed(runIO: Boolean): ProceedResponse                                                 =
-    m.ProceedEvaluator.proceed(wioHack, state, interpreter, runIO)
+  def handleSignal[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req): SignalResponse[Context, Resp] =
+    signalEvaluator.handleSignal(signalDef, req, wio, state)
+  def handleQuery[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req): QueryResponse[Resp]            =
+    queryEvaluator.handleQuery(signalDef, req, wio, state)
+  def handleEvent(event: Context#Event): EventResponse[Context]                                         =
+    eventEvaluator.handleEvent(event, wio, state)
+  def proceed(runIO: Boolean): ProceedResponse[Context]                                                 =
+    proceedEvaluator.proceed(wio, state, runIO)
 
-  def getDesc = m.CurrentStateEvaluator.getCurrentStateDescription(wioHack)
+  def getDesc = currentStateEvaluator.getCurrentStateDescription(wio)
 }
 
 object ActiveWorkflow {
 
-  def apply[St, E](wio0: WIOT.Total[St], interpreter: Interpreter, value0: Either[E, St]) = new ActiveWorkflow(interpreter) {
-    override def wio: WIOT.Total[St] = wio0
-    override type State = St
-    override type Error  = E
-    override val state: Either[Error, State] = value0
-  }
+  type ForCtx[Ctx] = ActiveWorkflow { type Context = Ctx }
+
+  // TODO Out will become Ctx#State
+  def apply[Ctx <: WorkflowContext, In, Out](wio0: Ctx#WIO[In, Nothing, Out], value0: In)(
+      interpreter0: Interpreter[Ctx],
+  ): ActiveWorkflow.ForCtx[Ctx] =
+    new ActiveWorkflow {
+      override type Context = Ctx
+      override type State   = In
+      override val state: State                       = value0
+      override def wio: Context#WIO[In, Nothing, Out] = wio0
+      override val context: Ctx                       = wio0.context
+      override def interpreter: Interpreter[Ctx]      = interpreter0
+    }
 }
-
-

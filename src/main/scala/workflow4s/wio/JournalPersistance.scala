@@ -2,10 +2,10 @@ package workflow4s.wio
 
 import cats.effect.IO
 
-trait JournalPersistance {
+trait JournalPersistance[Event] {
 
-  def save[E: JournalWrite](evt: E): IO[Unit]
+  def save(evt: Event): IO[Unit]
 
-  def readEvents(): IO[List[Any]]
+  def readEvents(): IO[List[Event]]
 
 }

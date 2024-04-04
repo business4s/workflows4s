@@ -2,21 +2,18 @@ package workflow4s.example
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import cats.implicits.catsSyntaxEitherId
 import com.typesafe.scalalogging.StrictLogging
 import org.camunda.bpm.model.bpmn.Bpmn
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.freespec.AnyFreeSpec
 import workflow4s.bpmn.BPMNConverter
-import workflow4s.example.WithdrawalEvent.ExecutionCompleted
 import workflow4s.example.WithdrawalService.{ExecutionResponse, Fee, Iban}
 import workflow4s.example.WithdrawalSignal.CreateWithdrawal
 import workflow4s.example.checks.{ChecksEngine, ChecksInput, ChecksState, Decision}
 import workflow4s.example.testuitls.TestUtils.{SimpleQueryResponseOps, SimpleSignalResponseOps}
-import workflow4s.wio.model.{WIOModel, WIOModelInterpreterModule}
-import workflow4s.wio.simple.SimpleActor.EventResponse
+import workflow4s.wio.model.{WIOModel, WIOModelInterpreter}
 import workflow4s.wio.simple.{InMemoryJournal, SimpleActor}
-import workflow4s.wio.{ActiveWorkflow, Interpreter, WorkflowContext}
+import io.circe.syntax.*
 
 import java.io.File
 
@@ -89,7 +86,6 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
 
     "render model" in new Fixture {
       val model     = getModel(new WithdrawalWorkflow(service, DummyChecksEngine).workflow)
-      import io.circe.syntax.*
       val modelJson = model.asJson
       print(modelJson.spaces2)
     }
@@ -106,7 +102,7 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
   }
 
   trait Fixture extends StrictLogging {
-    val journal    = new InMemoryJournal
+    val journal    = new InMemoryJournal[WithdrawalEvent]
     lazy val actor = createActor(journal)
 
     def checkRecovery() = {
@@ -115,19 +111,20 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
       assert(actor.queryData() == secondActor.queryData())
     }
 
-    def createActor(journal: InMemoryJournal) = {
+    def createActor(journal: InMemoryJournal[WithdrawalEvent]) = {
       val actor = new WithdrawalActor(journal)
       actor.recover()
       actor
     }
 
-    val txId       = "abc"
-    val amount     = 100
-    val recipient  = Iban("A")
-    val fees       = Fee(11)
-    val externalId = "external-id-1"
-    val service    = mock[WithdrawalService]
-    val workflow   = new WithdrawalWorkflow(service, DummyChecksEngine).workflowDeclarative
+    val txId                                                                                              = "abc"
+    val amount                                                                                            = 100
+    val recipient                                                                                         = Iban("A")
+    val fees                                                                                              = Fee(11)
+    val externalId                                                                                        = "external-id-1"
+    val service                                                                                           = mock[WithdrawalService]
+    val workflow: WithdrawalWorkflow.Context.WIO[WithdrawalData.Empty, Nothing, WithdrawalData.Completed] =
+      new WithdrawalWorkflow(service, DummyChecksEngine).workflowDeclarative
 
     def withFeeCalculation(fee: Fee)             =
       (service.calculateFees _).expects(*).returning(IO(fee))
@@ -151,9 +148,9 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
         ChecksEngine.Context.WIO.pure(ChecksState.Decided(Map(), Decision.ApprovedBySystem()))
     }
 
-    class WithdrawalActor(journal: InMemoryJournal) {
-      val delegate = SimpleActor.create(workflow, WithdrawalData.Empty(txId), journal)
-      def init(req: CreateWithdrawal): Unit = {
+    class WithdrawalActor(journal: InMemoryJournal[WithdrawalEvent]) {
+      val delegate                                                         = SimpleActor.create[WithdrawalWorkflow.Context.type, WithdrawalData.Empty](workflow, WithdrawalData.Empty(txId), journal)
+      def init(req: CreateWithdrawal): Unit                                = {
         delegate.handleSignal(WithdrawalWorkflow.createWithdrawalSignal)(req).extract
       }
       def confirmExecution(req: WithdrawalSignal.ExecutionCompleted): Unit = {
@@ -165,11 +162,9 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
       def recover(): Unit = delegate.recover()
 
     }
-    
-    def getModel(wio: WithdrawalWorkflow.WithdrawalWorkflowContext.WIO[?,?,?]): WIOModel = {
-      val m = new WIOModelInterpreterModule {
-        override val c: WithdrawalWorkflow.WithdrawalWorkflowContext.type = WithdrawalWorkflow.WithdrawalWorkflowContext
-      }
+
+    def getModel(wio: WithdrawalWorkflow.Context.WIO[?, ?, ?]): WIOModel = {
+      val m = new WIOModelInterpreter(WithdrawalWorkflow.Context)
       m.WIOModelInterpreter.run(wio)
     }
 

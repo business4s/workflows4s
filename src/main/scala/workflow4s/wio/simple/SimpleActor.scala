@@ -5,11 +5,15 @@ import cats.implicits.catsSyntaxEitherId
 import com.typesafe.scalalogging.StrictLogging
 import workflow4s.wio.Interpreter.{EventResponse, ProceedResponse, QueryResponse, SignalResponse}
 import workflow4s.wio.simple.SimpleActor.EventResponse
-import workflow4s.wio.{ActiveWorkflow, Interpreter, JournalPersistance, SignalDef, WIOT}
+import workflow4s.wio.{ActiveWorkflow, Interpreter, JournalPersistance, SignalDef, WIOT, WorkflowContext}
 
-class SimpleActor(private var wf: ActiveWorkflow, journal: JournalPersistance)(implicit IORuntime: IORuntime) extends StrictLogging {
+abstract class SimpleActor()(implicit IORuntime: IORuntime) extends StrictLogging {
 
-  def state: Either[Any, Any] = wf.state
+  type Ctx <: WorkflowContext
+  // Its initialized to null because compile doesnt allow overriding vars, and it has to be like that to parametrize by type member (Context)
+  // https://stackoverflow.com/questions/31398344/why-it-is-not-possible-to-override-mutable-variable-in-scala
+  protected var wf: ActiveWorkflow.ForCtx[Ctx] = _
+  def state: Any = wf.state
 
   def handleSignal[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req): SimpleActor.SignalResponse[Resp] = {
     logger.debug(s"Handling signal ${req}")
@@ -32,7 +36,7 @@ class SimpleActor(private var wf: ActiveWorkflow, journal: JournalPersistance)(i
       case QueryResponse.UnexpectedQuery() => SimpleActor.QueryResponse.UnexpectedQuery(wf.getDesc)
     }
 
-  protected def handleEvent(event: Any): SimpleActor.EventResponse = {
+  protected def handleEvent(event: Ctx#Event): SimpleActor.EventResponse = {
     logger.debug(s"Handling event: ${event}")
     val resp = wf.handleEvent(event) match {
       case Interpreter.EventResponse.Ok(newFlow)       =>
@@ -54,12 +58,13 @@ class SimpleActor(private var wf: ActiveWorkflow, journal: JournalPersistance)(i
         proceed(runIO)
       case ProceedResponse.Noop()              =>
         logger.debug(s"Can't proceed. Wf: ${wf.getDesc}")
+
         ()
     }
   }
 
   def recover(): Unit = {
-    journal
+    wf.interpreter.journal
       .readEvents()
       .unsafeRunSync()
       .foreach(e =>
@@ -75,8 +80,15 @@ class SimpleActor(private var wf: ActiveWorkflow, journal: JournalPersistance)(i
 
 object SimpleActor {
 
-  def create[SIn](behaviour: WIOT[SIn, Nothing, Any], state: SIn, journalPersistance: JournalPersistance)(implicit ior: IORuntime): SimpleActor =
-    new SimpleActor(ActiveWorkflow(behaviour, new Interpreter(journalPersistance), state.asRight), journalPersistance)
+  def create[Ctx0 <: WorkflowContext, In](behaviour: Ctx0#WIO[In, Nothing, Any], state0: In, journalPersistance: JournalPersistance[Ctx0#Event])(implicit
+      ior: IORuntime,
+  ): SimpleActor = {
+    val activeWf: ActiveWorkflow.ForCtx[Ctx0]= ActiveWorkflow(behaviour, state0)(new Interpreter(journalPersistance))
+    new SimpleActor {
+      override type Ctx = Ctx0
+      wf = activeWf
+    }
+  }
 
   sealed trait SignalResponse[+Resp]
   object SignalResponse {

@@ -2,7 +2,8 @@ package workflow4s.wio
 
 import cats.effect.IO
 import cats.implicits.{catsSyntaxEitherId, catsSyntaxOptionId}
-import workflow4s.wio.internal.{EventHandler, QueryHandler, SignalHandler, WorkflowConversionEvaluatorModule}
+import workflow4s.wio.internal.WorkflowConversionEvaluator.WorkflowEmbedding
+import workflow4s.wio.internal.{EventHandler, QueryHandler, SignalHandler, WorkflowConversionEvaluator}
 import workflow4s.wio.model.ModelUtils
 
 import scala.annotation.{targetName, unused}
@@ -16,20 +17,19 @@ trait WorkflowContext extends WIOMethodsParent { parentCtx =>
   type F[T] // todo, rename not IO
 
   sealed trait WIO[-In, +Err, +Out] extends WIOMethods[In, Err, Out] {
-    val context                              = parentCtx
+    val context: parentCtx.type              = parentCtx
     val asParents: context.WIO[In, Err, Out] = this.asInstanceOf // TODO
   }
 
   object WIO {
 
-    type Total[In]       = WIO[In, Any, Any]
+    type Total[In]       = WIO[In, Nothing, Any]
     type States[In, Out] = WIO[In, Any, Out]
 
     case class HandleSignal[-In, +Out, +Err, Sig, Resp, Evt](
         sigDef: SignalDef[Sig, Resp],
         sigHandler: SignalHandler[Sig, Evt, In],
-        evtHandler: EventHandler[Evt, In, Out, Err],
-        getResp: (In, Evt) => Resp,
+        evtHandler: EventHandler[In, (Either[Err, Out], Resp), Event, Evt],
         errorCt: ErrorMeta[_],
     ) extends WIO[In, Err, Out] {
       def expects[Req1, Resp1](@unused signalDef: SignalDef[Req1, Resp1]): Option[HandleSignal[In, Out, Err, Req1, Resp1, Evt]] = {
@@ -45,7 +45,7 @@ trait WorkflowContext extends WIOMethodsParent { parentCtx =>
     // theoretically state is not needed, it could be State.extract.flatMap(RunIO)
     case class RunIO[-In, +Err, +Out, Evt](
         buildIO: In => IO[Evt],
-        evtHandler: EventHandler[Evt, In, Out, Err],
+        evtHandler: EventHandler[In, Either[Err, Out], Event, Evt],
         errorCt: ErrorMeta[_],
     ) extends WIO[In, Err, Out]
 
@@ -105,33 +105,36 @@ trait WorkflowContext extends WIOMethodsParent { parentCtx =>
     def handleSignal[StIn] = new HandleSignalPartiallyApplied1[StIn]
 
     class HandleSignalPartiallyApplied1[In] {
-      def apply[Sig: ClassTag, Evt: JournalWrite: ClassTag, Resp](@unused signalDef: SignalDef[Sig, Resp])(
+      def apply[Sig: ClassTag, Evt <: Event: ClassTag, Resp](@unused signalDef: SignalDef[Sig, Resp])(
           f: (In, Sig) => IO[Evt],
       ): HandleSignalPartiallyApplied2[Sig, In, Evt, Resp] = new HandleSignalPartiallyApplied2[Sig, In, Evt, Resp](SignalHandler(f), signalDef)
     }
 
-    class HandleSignalPartiallyApplied2[Sig: ClassTag, In, Evt: JournalWrite: ClassTag, Resp](
+    class HandleSignalPartiallyApplied2[Sig: ClassTag, In, Evt <: Event: ClassTag, Resp](
         signalHandler: SignalHandler[Sig, Evt, In],
         signalDef: SignalDef[Sig, Resp],
     ) {
+
       def handleEvent[Out](f: (In, Evt) => Out): HandleSignalPartiallyApplied3[Sig, In, Evt, Resp, Nothing, Out] = {
-        new HandleSignalPartiallyApplied3(signalDef, signalHandler, EventHandler((s: In, e: Evt) => f(s, e).asRight))
+        new HandleSignalPartiallyApplied3(signalDef, signalHandler, (s: In, e: Evt) => f(s, e).asRight)
       }
 
-      def handleEventWithError[StOut, Err, Out](
+      def handleEventWithError[Err, Out](
           f: (In, Evt) => Either[Err, Out],
       ): HandleSignalPartiallyApplied3[Sig, In, Evt, Resp, Err, Out] = {
-        new HandleSignalPartiallyApplied3(signalDef, signalHandler, EventHandler((s: In, e: Evt) => f(s, e)))
+        new HandleSignalPartiallyApplied3(signalDef, signalHandler, f)
       }
     }
 
-    class HandleSignalPartiallyApplied3[Sig: ClassTag, In, Evt: JournalWrite: ClassTag, Resp, Err, Out](
+    class HandleSignalPartiallyApplied3[Sig: ClassTag, In, Evt <: Event: ClassTag, Resp, Err, Out](
         signalDef: SignalDef[Sig, Resp],
         signalHandler: SignalHandler[Sig, Evt, In],
-        eventHandler: EventHandler[Evt, In, Out, Err],
+        handleEvent: (In, Evt) => Either[Err, Out],
     ) {
-      def produceResponse(f: (In, Evt) => Resp)(implicit errorCt: ErrorMeta[Err]): WIO[In, Err, Out] = {
-        HandleSignal(signalDef, signalHandler, eventHandler, f, errorCt)
+      def produceResponse(f: (In, Evt) => Resp)(implicit errorMeta: ErrorMeta[Err]): WIO[In, Err, Out] = {
+        val combined                                                        = (s: In, e: Evt) => (handleEvent(s, e), f(s, e))
+        val eventHandler: EventHandler[In, (Either[Err, Out], Resp), Event, Evt] = EventHandler(summon[ClassTag[Evt]].unapply, identity, combined)
+        HandleSignal(signalDef, signalHandler, eventHandler, errorMeta)
       }
     }
 
@@ -146,7 +149,7 @@ trait WorkflowContext extends WIOMethodsParent { parentCtx =>
     }
 
     class HandleQueryPartiallyApplied2[QrSt: ClassTag, Sig: ClassTag, Resp](f: (QrSt, Sig) => Resp) {
-      def apply[Err, Out, In, StOut](wio: WIO[In, Err, Out]): HandleQuery[In, Err, Out, Sig, QrSt, Resp] = {
+      def apply[Err, Out, In](wio: WIO[In, Err, Out]): HandleQuery[In, Err, Out, Sig, QrSt, Resp] = {
         WIO.HandleQuery(QueryHandler(f), wio)
       }
     }
@@ -154,20 +157,20 @@ trait WorkflowContext extends WIOMethodsParent { parentCtx =>
     def runIO[State] = new RunIOPartiallyApplied1[State]
 
     class RunIOPartiallyApplied1[StIn] {
-      def apply[Evt: JournalWrite: ClassTag](f: StIn => IO[Evt]): RunIOPartiallyApplied2[StIn, Evt] = {
+      def apply[Evt <: Event: ClassTag](f: StIn => IO[Evt]): RunIOPartiallyApplied2[StIn, Evt] = {
         new RunIOPartiallyApplied2[StIn, Evt](f)
       }
     }
 
-    class RunIOPartiallyApplied2[In, Evt: JournalWrite: ClassTag](getIO: In => IO[Evt]) {
+    class RunIOPartiallyApplied2[In, Evt <: Event: ClassTag](getIO: In => IO[Evt]) {
       def handleEvent[Out](f: (In, Evt) => Out): WIO[In, Nothing, Out] = {
-        RunIO(getIO, EventHandler((s, e: Evt) => f(s, e).asRight), ErrorMeta.noError)
+        RunIO(getIO, EventHandler(summon[ClassTag[Evt]].unapply, identity, (s, e: Evt) => f(s, e).asRight), ErrorMeta.noError)
       }
 
       def handleEventWithError[Err, Out](
           f: (In, Evt) => Either[Err, Out],
       )(implicit errorCt: ErrorMeta[Err]): WIO[In, Err, Out] = {
-        RunIO(getIO, EventHandler(f), errorCt)
+        RunIO(getIO, EventHandler(summon[ClassTag[Evt]].unapply, identity, f), errorCt)
       }
     }
 
@@ -244,10 +247,11 @@ trait WorkflowContext extends WIOMethodsParent { parentCtx =>
         Branch(cond, wio)
     }
 
-    def embed[In, Err, Out](wio: WIOT[In, Err, Out]): WIO[In, Err, Out] = {
-      val m = new WorkflowConversionEvaluatorModule {
-        override val destCtx: parentCtx.type = parentCtx
-        override val c: wio.context.type     = wio.context
+    def embed[In, Err, Out](wio: WIOT[In, Err, Out])(embedding0: WorkflowEmbedding[wio.context.type, parentCtx.type]): WIO[In, Err, Out] = {
+      val m = new WorkflowConversionEvaluator[wio.context.type] {
+        override val destCtx: parentCtx.type                   = parentCtx
+        override val c: wio.context.type                       = wio.context
+        val embedding: WorkflowEmbedding[c.type, destCtx.type] = embedding0
       }
       //    val wioCasted = wio.asInstanceOf[m.c.WIO[E, O, SIn, SOut]]
       m.convert(wio.asParents) // TODO cast

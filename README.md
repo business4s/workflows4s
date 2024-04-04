@@ -18,6 +18,7 @@ The following items are planned in scope of this PoC
 - [x] Handling IO execution
 - [x] Handling state transitions
 - [x] Handling errors
+- [x] Declarative API + graph rendering
 - [ ] Handling postponed executions (await)
 - [ ] Typesafe total queries? (currently state is filtered arbitraly by the query)
 - [ ] Splitting the workflow (parallel execution and/or parallel waiting)
@@ -25,7 +26,6 @@ The following items are planned in scope of this PoC
 - [ ] Full example
 - [ ] Test harness
 - [ ] Explicit stance on handling workflow evolutions
-- [ ] Declarative API + graph rendering
 
 ## Design
 

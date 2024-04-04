@@ -2,18 +2,18 @@ package workflow4s.wio.simple
 
 import cats.effect.IO
 import com.typesafe.scalalogging.StrictLogging
-import workflow4s.wio.{JournalPersistance, JournalWrite}
+import workflow4s.wio.JournalPersistance
 
 import scala.collection.mutable
 
-class InMemoryJournal extends JournalPersistance with StrictLogging {
+class InMemoryJournal[E] extends JournalPersistance[E] with StrictLogging {
 
-  private val events: mutable.ListBuffer[Any] = mutable.ListBuffer()
+  private val events: mutable.ListBuffer[E] = mutable.ListBuffer()
 
-  override def save[E: JournalWrite](evt: E): IO[Unit] = IO {
+  override def save(evt: E): IO[Unit] = IO {
     logger.debug(s"Persisting event: ${evt}")
     events.append(evt)
   }
 
-  def readEvents(): IO[List[Any]] = IO(events.toList)
+  def readEvents(): IO[List[E]] = IO(events.toList)
 }

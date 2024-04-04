@@ -10,7 +10,9 @@ trait ChecksEngine {
 
 object ChecksEngine extends ChecksEngine {
 
-  object Context extends WorkflowContext {}
+  object Context extends WorkflowContext {
+    override type Event = ChecksEvent
+  }
 
   val reviewSignalDef: SignalDef[ReviewDecision, Unit] = SignalDef()
   import Context.WIO

@@ -6,12 +6,15 @@ import workflow4s.example.WithdrawalEvent.{MoneyLocked, WithdrawalAccepted, With
 import workflow4s.example.WithdrawalService.ExecutionResponse
 import workflow4s.example.WithdrawalSignal.{CreateWithdrawal, ExecutionCompleted}
 import workflow4s.example.WithdrawalWorkflow.{createWithdrawalSignal, dataQuery, executionCompletedSignal}
-import workflow4s.example.checks.{ChecksEngine, ChecksInput, ChecksState, Decision}
+import workflow4s.example.checks.{ChecksEngine, ChecksEvent, ChecksInput, ChecksState, Decision}
+import workflow4s.wio.internal.WorkflowConversionEvaluator.WorkflowEmbedding
 import workflow4s.wio.{SignalDef, WorkflowContext}
 
 object WithdrawalWorkflow {
 
-  object WithdrawalWorkflowContext extends WorkflowContext {}
+  object Context extends WorkflowContext {
+    override type Event = WithdrawalEvent
+  }
 
   val createWithdrawalSignal   = SignalDef[CreateWithdrawal, Unit]()
   val dataQuery                = SignalDef[Unit, WithdrawalData]()
@@ -20,7 +23,7 @@ object WithdrawalWorkflow {
 
 class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine) {
 
-  import WithdrawalWorkflow.WithdrawalWorkflowContext.WIO
+  import WithdrawalWorkflow.Context.WIO
 
   val workflow: WIO[WithdrawalData.Empty, Nothing, Unit] = for {
     _ <- handleDataQuery(
@@ -37,7 +40,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
     _ <- handleDataQuery(WIO.Noop())
   } yield ()
 
-  val workflowDeclarative: WIO[WithdrawalData.Empty, Nothing, Unit] =
+  val workflowDeclarative: WIO[WithdrawalData.Empty, Nothing, WithdrawalData.Completed] =
     handleDataQuery(
       (
         receiveWithdrawal >>>
@@ -95,7 +98,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
         checksEngine.runChecks
           .transformInput((x: WithdrawalData.Validated) => ChecksInput(x, List()))
           .transformOutput((validated, checkState) => validated.checked(checkState)),
-      )
+      )(checksEmbedding)
 
     val actOnDecision = WIO
       .pure[WithdrawalData.Checked]
@@ -162,5 +165,13 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
       })
       .handleEvent((_: (WithdrawalData, WithdrawalRejection), evt) => WithdrawalData.Completed.Failed(evt.error))
       .autoNamed()
+  }
+
+  val checksEmbedding = new WorkflowEmbedding[ChecksEngine.Context.type, WithdrawalWorkflow.Context.type] {
+    override def convertEvent(e: ChecksEvent): WithdrawalEvent           = WithdrawalEvent.ChecksRun(e)
+    override def unconvertEvent(e: WithdrawalEvent): Option[ChecksEvent] = e match {
+      case WithdrawalEvent.ChecksRun(inner) => Some(inner)
+      case _                                => None
+    }
   }
 }
