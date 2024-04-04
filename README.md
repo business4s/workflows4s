@@ -9,7 +9,8 @@ See the [Example](workflow4s-example/src/main/scala/workflow4s/example) to see t
 
 This example is rendered
 into bpmn ([withdrawal](workflow4s-example/src/test/resources/withdrawal-example-bpmn-declarative.bpmn),
-[checks](workflow4s-example/src/test/resources/checks-engine.bpmn)) that can be opened in camunda modeler or at [bpmn.io](http://bpmn.io)
+[checks](workflow4s-example/src/test/resources/checks-engine.bpmn)) that can be opened in camunda modeler or at [bpmn.io](http://bpmn.io). 
+The checks diagram is not layouted correctly but can be fixed by running `node ./auto-layout/autolayout.mjs` 
 
 ## TODO
 
