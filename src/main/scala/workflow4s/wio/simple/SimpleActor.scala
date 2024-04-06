@@ -1,11 +1,9 @@
 package workflow4s.wio.simple
 
 import cats.effect.unsafe.IORuntime
-import cats.implicits.catsSyntaxEitherId
 import com.typesafe.scalalogging.StrictLogging
-import workflow4s.wio.Interpreter.{EventResponse, ProceedResponse, QueryResponse, SignalResponse}
-import workflow4s.wio.simple.SimpleActor.EventResponse
-import workflow4s.wio.{ActiveWorkflow, Interpreter, JournalPersistance, SignalDef, WIOT, WorkflowContext}
+import workflow4s.wio.Interpreter.{ProceedResponse, QueryResponse, SignalResponse}
+import workflow4s.wio.*
 
 abstract class SimpleActor()(implicit IORuntime: IORuntime) extends StrictLogging {
 
@@ -80,7 +78,7 @@ abstract class SimpleActor()(implicit IORuntime: IORuntime) extends StrictLoggin
 
 object SimpleActor {
 
-  def create[Ctx0 <: WorkflowContext, In](behaviour: Ctx0#WIO[In, Nothing, Any], state0: In, journalPersistance: JournalPersistance[Ctx0#Event])(implicit
+  def create[Ctx0 <: WorkflowContext, In](behaviour: WIO[In, Nothing, Ctx0#State, Ctx0], state0: In, journalPersistance: JournalPersistance[Ctx0#Event])(implicit
       ior: IORuntime,
   ): SimpleActor = {
     val activeWf: ActiveWorkflow.ForCtx[Ctx0]= ActiveWorkflow(behaviour, state0)(new Interpreter(journalPersistance))

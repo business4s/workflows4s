@@ -12,6 +12,7 @@ object ChecksEngine extends ChecksEngine {
 
   object Context extends WorkflowContext {
     override type Event = ChecksEvent
+    override type State = ChecksState
   }
 
   val reviewSignalDef: SignalDef[ReviewDecision, Unit] = SignalDef()

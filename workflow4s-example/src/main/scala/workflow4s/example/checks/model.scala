@@ -40,7 +40,9 @@ sealed trait ChecksState {
 
 object ChecksState {
 
-  case class Pending(input: ChecksInput, results: Map[CheckKey, CheckResult])          extends ChecksState {
+  sealed trait InProgress extends ChecksState
+
+  case class Pending(input: ChecksInput, results: Map[CheckKey, CheckResult])          extends InProgress {
     private def finishedChecks: Map[CheckKey, CheckResult.Finished] = results.collect({ case (key, result: CheckResult.Finished) => key -> result })
     def pendingChecks: Set[CheckKey]                                = input.checks.keySet -- finishedChecks.keySet
 
@@ -51,7 +53,7 @@ object ChecksState {
       Option.when(finished.size == input.checks.size)(Executed(finished))
     }
   }
-  case class Executed(results: Map[CheckKey, CheckResult.Finished])                    extends ChecksState {
+  case class Executed(results: Map[CheckKey, CheckResult.Finished])                    extends InProgress {
     def isRejected     = results.exists(_._2 == CheckResult.Rejected())
     def requiresReview = !isRejected && results.exists(_._2 == CheckResult.RequiresReview())
     def isApproved     = !isRejected && !requiresReview

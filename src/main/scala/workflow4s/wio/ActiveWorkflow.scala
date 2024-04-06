@@ -5,29 +5,22 @@ import workflow4s.wio.internal.*
 
 abstract class ActiveWorkflow {
   type Context <: WorkflowContext
-  val context: Context
-  type State
+  type CurrentState
   type Error = Any
-  val state: State
-  def wio: Context#WIO[State, Nothing, Any]
+  val state: CurrentState
+  def wio: WIO[CurrentState, Nothing, Context#State, Context]
   def interpreter: Interpreter[Context]
 
-  private lazy val proceedEvaluator      = new ProceedEvaluator[Context](context, interpreter)
-  private lazy val signalEvaluator       = new SignalEvaluator[Context](context, interpreter)
-  private lazy val eventEvaluator        = new EventEvaluator[Context](context, interpreter)
-  private lazy val queryEvaluator        = new QueryEvaluator[Context](context, interpreter)
-  private lazy val currentStateEvaluator = new CurrentStateEvaluator(context)
-
   def handleSignal[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req): SignalResponse[Context, Resp] =
-    signalEvaluator.handleSignal(signalDef, req, wio, state)
+    SignalEvaluator.handleSignal(signalDef, req, wio, state, interpreter)
   def handleQuery[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req): QueryResponse[Resp]            =
-    queryEvaluator.handleQuery(signalDef, req, wio, state)
+    QueryEvaluator.handleQuery(signalDef, req, wio, state)
   def handleEvent(event: Context#Event): EventResponse[Context]                                         =
-    eventEvaluator.handleEvent(event, wio, state)
+    EventEvaluator.handleEvent(event, wio, state, interpreter)
   def proceed(runIO: Boolean): ProceedResponse[Context]                                                 =
-    proceedEvaluator.proceed(wio, state, runIO)
+    ProceedEvaluator.proceed(wio, state, runIO, interpreter)
 
-  def getDesc = currentStateEvaluator.getCurrentStateDescription(wio)
+  def getDesc = CurrentStateEvaluator.getCurrentStateDescription(wio)
 }
 
 object ActiveWorkflow {
@@ -35,15 +28,14 @@ object ActiveWorkflow {
   type ForCtx[Ctx] = ActiveWorkflow { type Context = Ctx }
 
   // TODO Out will become Ctx#State
-  def apply[Ctx <: WorkflowContext, In, Out](wio0: Ctx#WIO[In, Nothing, Out], value0: In)(
+  def apply[Ctx <: WorkflowContext, In](wio0: WIO[In, Nothing, Ctx#State, Ctx], value0: In)(
       interpreter0: Interpreter[Ctx],
   ): ActiveWorkflow.ForCtx[Ctx] =
     new ActiveWorkflow {
-      override type Context = Ctx
-      override type State   = In
-      override val state: State                       = value0
-      override def wio: Context#WIO[In, Nothing, Out] = wio0
-      override val context: Ctx                       = wio0.context
-      override def interpreter: Interpreter[Ctx]      = interpreter0
+      override type Context      = Ctx
+      override type CurrentState = In
+      override val state: CurrentState                                 = value0
+      override def wio: WIO[CurrentState, Nothing, Context#State, Ctx] = wio0
+      override def interpreter: Interpreter[Ctx]                       = interpreter0
     }
 }

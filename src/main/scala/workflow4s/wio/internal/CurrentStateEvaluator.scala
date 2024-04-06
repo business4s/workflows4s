@@ -5,36 +5,38 @@ import cats.syntax.all._
 import workflow4s.wio.Interpreter.SignalResponse
 import workflow4s.wio._
 
-class CurrentStateEvaluator(val c: WorkflowContext) extends VisitorModule[WorkflowContext] {
-  
+object CurrentStateEvaluator {
   def getCurrentStateDescription(
-      wio: WIOT[?, ?, ?],
+      wio: WIO[?, ?, ?, ?],
   ): String = {
     val visitor = new DescriptionVisitor(wio)
     visitor.run
   }
 
-  private class DescriptionVisitor[In, Err, Out](wio: WIO[In, Err, Out]) extends Visitor[In, Err, Out](wio) {
+  private class DescriptionVisitor[Ctx <: WorkflowContext, In, Err, Out <: Ctx#State](wio: WIO[In, Err, Out, Ctx])
+      extends Visitor[Ctx, In, Err, Out](wio) {
     override type Result = String
 
-    def onSignal[Sig, Evt, Resp](wio: WIOC#HandleSignal[In, Out, Err, Sig, Resp, Evt]): Result =
+    def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result                                            =
       s"Expects signal ${wio.sigHandler.ct.runtimeClass.getSimpleName}"
-    def onRunIO[Evt](wio: WIOC#RunIO[In, Err, Out, Evt]): Result                               = "Awaits IO execution"
-    def onFlatMap[Out1, Err1 <: Err](wio: WIOC#FlatMap[Err1, Err, Out1, Out, In]): Result                 = recurse(wio.base)
-    def onMap[In1, Out1](wio: WIOC#Map[In1, Err, Out1, In, Out]): Result                                  = recurse(wio.base)
-    def onHandleQuery[Qr, QrState, Resp](wio: WIOC#HandleQuery[In, Err, Out, Qr, QrState, Resp]): Result  =
+    def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result                                                                          = "Awaits IO execution"
+    def onFlatMap[Out1 <: State, Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result                                        = recurse(wio.base)
+    def onMap[In1, Out1 <: State](wio: WIO.Map[Ctx, In1, Err, Out1, In, Out]): Result                                                         = recurse(wio.base)
+    def onHandleQuery[Qr, QrState, Resp](wio: WIO.HandleQuery[Ctx, In, Err, Out, Qr, QrState, Resp]): Result                                  =
       s"(Expects query ${wio.queryHandler.ct.runtimeClass.getSimpleName} or ${recurse(wio.inner)})"
-    def onNoop(wio: WIOC#Noop): Result                                                                    = "Noop"
-    def onNamed(wio: WIOC#Named[In, Err, Out]): Result                                                    = recurse(wio.base)
-    def onHandleError[ErrIn](wio: WIOC#HandleError[In, Err, Out, ErrIn]): Result                          = s"(Handle error or ${recurse(wio.base)})"
-    def onHandleErrorWith[ErrIn](wio: WIOC#HandleErrorWith[In, ErrIn, Out, Err]): Result                  =
+    def onNoop(wio: WIO.Noop[Ctx]): Result                                                                                                    = "Noop"
+    def onNamed(wio: WIO.Named[Ctx, In, Err, Out]): Result                                                                                    = recurse(wio.base)
+    def onHandleError[ErrIn](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn]): Result                                                          = s"(Handle error or ${recurse(wio.base)})"
+    def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result                                                  =
       s"(${recurse(wio.base)}, on error: ${recurse(wio.handleError)}"
-    def onAndThen[Out1](wio: WIOC#AndThen[In, Err, Out1, Out]): Result                                    = recurse(wio.first)
-    def onPure(wio: WIOC#Pure[In, Err, Out]): Result                                                      = "pure"
-    def onDoWhile[Out1](wio: WIOC#DoWhile[In, Err, Out1, Out]): Result                                    = s"do-while; current = ${recurse(wio.current)}"
-    def onFork(wio: WIOC#Fork[In, Err, Out]): Result                                                      = "fork"
+    def onAndThen[Out1 <: State](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result                                                           = recurse(wio.first)
+    def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                                                                                      = "pure"
+    def onDoWhile[Out1 <: State](wio: WIO.DoWhile[Ctx, In, Err, Out1, Out]): Result                                                           = s"do-while; current = ${recurse(wio.current)}"
+    def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                                                                                      = "fork"
+    def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: InnerCtx#State, MappingOutput[_] <: Ctx#State](wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput]): Result =
+      recurse(wio.inner)
 
-    private def recurse[I1, E1, O1, SIn1, SOut1](wio: WIO[I1, E1, O1]): String = new DescriptionVisitor(wio).run
+    private def recurse[C <: WorkflowContext, I1, E1, O1 <: C#State](wio: WIO[I1, E1, O1, C]): String = new DescriptionVisitor(wio).run
 
   }
 

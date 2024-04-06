@@ -96,7 +96,7 @@ class ChecksEngineTest extends AnyFreeSpec {
     def createWorkflow(checks: List[Check[Unit]]) = new ChecksActor(journal, ChecksInput((), checks))
   }
   class ChecksActor(journal: InMemoryJournal[ChecksEvent], input: ChecksInput) {
-    val delegate        = SimpleActor.create(ChecksEngine.runChecks, input, journal)
+    val delegate        = SimpleActor.create[ChecksEngine.Context.type, ChecksInput](ChecksEngine.runChecks, input, journal)
     def run(): Unit     = delegate.proceed(runIO = true)
     def recover(): Unit = delegate.recover()
 
@@ -115,8 +115,7 @@ class ChecksEngineTest extends AnyFreeSpec {
   }
 
   def getModel(wio: ChecksEngine.Context.WIO[?, ?, ?]): WIOModel = {
-    val m = new WIOModelInterpreter(ChecksEngine.Context)
-    m.WIOModelInterpreter.run(wio)
+    WIOModelInterpreter.run(wio)
   }
 
 }

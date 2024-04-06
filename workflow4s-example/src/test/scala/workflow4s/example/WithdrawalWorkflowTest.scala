@@ -164,8 +164,7 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
     }
 
     def getModel(wio: WithdrawalWorkflow.Context.WIO[?, ?, ?]): WIOModel = {
-      val m = new WIOModelInterpreter(WithdrawalWorkflow.Context)
-      m.WIOModelInterpreter.run(wio)
+      WIOModelInterpreter.run(wio)
     }
 
   }

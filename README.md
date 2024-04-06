@@ -100,11 +100,12 @@ List of related projects:
 | [Conductor](https://github.com/Netflix/conductor)                             | ❌              | ❌          | ✅           |
 | [Golem Cloud](https://www.golem.cloud/)                                       | ❌              | ✅          | ❌           |
 | [Aws Step Functions](https://aws.amazon.com/step-functions/)                  | ❌              | ❌          | ✅           |
-| [zio-flow](https://github.com/zio/zio-flow)                                   | ❌              | ✅          | ❌           |
+| [zio-flow](https://github.com/zio/zio-flow)                                   | ❌              | ✅          | ~ [2]       |
 | [aecor](https://github.com/notxcain/aecor)                                    | ✅              | ✅          | ❌           |
 | [endless](https://github.com/endless4s/endless)                               | ✅              | ✅          | ❌           |
 | [infintic](infinitic.io)                                                      | ~ [1]          | ✅          | ❌           |
 
 * [1] - Infintic requires Apache Pulsar, which can be seen as a database and is not specific to Infintic
+* [2] - zio-flow could theoretically render the diagrams but its not implemented at the moment
 
 A longer list of similar tools can be found [here](https://meirwah.github.io/awesome-workflow-engines/)
