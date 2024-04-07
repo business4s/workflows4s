@@ -4,7 +4,6 @@ import workflow4s.wio.model.ModelUtils
 
 import scala.annotation.targetName
 
-
 trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self: WIO[In, Err, Out, Ctx] =>
   def flatMap[Err1 >: Err, Out1 <: WCState[Ctx]](f: Out => WIO[Out, Err1, Out1, Ctx])(implicit
       errorCt: ErrorMeta[Err1],
@@ -33,10 +32,11 @@ trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self
   //  )(implicit errCt: ClassTag[ErrIn], newErrCt: ClassTag[Err1]): WIO[Err1, Out1, StIn1, StOut1] =
   //    WIO.HandleError(this, f, errCt, newErrCt)
 
-  def handleErrorWith[Err1, Out1 >: Out <: WCState[Ctx], ErrIn >: Err, In0 <: In, In1 >: In0](
+  def handleErrorWith[Err1, Out1 >: Out <: WCState[Ctx], ErrIn >: Err, In0 <: In, In1 >: In0 <: WCState[Ctx]](
       wio: WIO[(In1, ErrIn), Err1, Out1, Ctx],
   )(implicit errMeta: ErrorMeta[ErrIn], newErrMeta: ErrorMeta[Err1]): WIO[In0, Err1, Out1, Ctx] = {
-    WIO.HandleErrorWith(this, wio, errMeta, newErrMeta)
+    val recoverState: (In1, Err) => WCState[Ctx] = (i, _) => i
+    WIO.HandleErrorWith(this, wio, recoverState, errMeta, newErrMeta)
   }
 
   def named(name: String, description: Option[String] = None): WIO[In, Err, Out, Ctx] = {

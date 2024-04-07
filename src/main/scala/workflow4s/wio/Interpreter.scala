@@ -55,7 +55,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
   def onHandleQuery[Qr, QrState, Resp](wio: WIO.HandleQuery[Ctx, In, Err, Out, Qr, QrState, Resp]): Result
   def onNoop(wio: WIO.Noop[Ctx]): Result
   def onNamed(wio: WIO.Named[Ctx, In, Err, Out]): Result
-  def onHandleError[ErrIn](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn]): Result
+  def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result
   def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result
   def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result
   def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result
@@ -77,7 +77,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
         }
       case x: WIO.Map[?, ?, Err, ? <: State, In, Out]                => onMap(x)
       case x: WIO.Noop[?]                                            => onNoop(x)
-      case x: WIO.HandleError[?, ?, ?, ?, ?]                         => onHandleError(x)
+      case x: WIO.HandleError[?, ?, ?, ?, ?, ? <: State]                         => onHandleError(x)
       case x: WIO.Named[?, ?, ?, ?]                                  => onNamed(x)
       case x: WIO.AndThen[?, ?, ?, ? <: State, ? <: State]           => onAndThen(x)
       case x: WIO.Pure[?, ?, ?, ?]                                   => onPure(x)
@@ -169,19 +169,25 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
     )
   }
 
-  protected def applyHandleError[ErrIn](
-      wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn],
+  protected def applyHandleError[ErrIn, TempOut <: WCState[Ctx]](
+      wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut],
       wf: NextWfState[Ctx, ErrIn, Out] { type Error = ErrIn },
       originalState: In,
   ): NextWfState[Ctx, Err, Out] = {
-    def newWf(err: ErrIn) = NewBehaviour(wio.handleError(err), Right(originalState))
+    def newWf(err: ErrIn): NewBehaviour[Ctx, Err, Out] = {
+      val (newState, newWio) = wio.handleError(err)
+      NewBehaviour(newWio, Right(newState))
+    }
 
     wf.fold(
       b => {
         b.state match {
           case Left(value) => newWf(value)
           case Right(v)    =>
-            val adjustedHandler: ErrIn => WIO[b.State, Err, Out, Ctx] = err => wio.handleError(err).transformInput[Any](x => originalState)
+            val adjustedHandler: ErrIn => (TempOut, WIO[TempOut, Err, Out, Ctx]) = err => {
+              val (newState, newWio) = wio.handleError(err)
+              (newState, newWio.transformInput[Any](_ => newState))
+            }
             val newWIO: WIO[b.State, Err, Out, Ctx]                   = WIO.HandleError(b.wio, adjustedHandler, wio.handledErrorMeta, wio.newErrorMeta)
             NewBehaviour(newWIO, v.asRight)
         }
@@ -200,9 +206,9 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
       wf: NextWfState[Ctx, ErrIn, Out] { type Error = ErrIn },
       originalState: In,
   ): NextWfState[Ctx, Err, Out] = {
-    def newWf(err: ErrIn) = NewBehaviour(
+    def newWf(err: ErrIn): NewBehaviour[Ctx, Err, Out] = NewBehaviour(
       wio.handleError.transformInput[Any](_ => (originalState, err)),
-      Right(originalState -> ()),
+      Right(wio.recoverState(originalState, err)),
     )
 
     wf.fold(
@@ -211,7 +217,8 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
           case Left(value) => newWf(value)
           case Right(v)    =>
             val adjustedHandler                     = wio.handleError.transformInput[(Any, ErrIn)](x => (originalState, x._2))
-            val newWIO: WIO[b.State, Err, Out, Ctx] = WIO.HandleErrorWith(b.wio, adjustedHandler, wio.handledErrorMeta, wio.newErrorCt)
+            val adjustedStateRecovery: (Any, ErrIn) => WCState[Ctx] = (_, err) => wio.recoverState(originalState, err)
+            val newWIO: WIO[b.State, Err, Out, Ctx] = WIO.HandleErrorWith(b.wio, adjustedHandler, adjustedStateRecovery, wio.handledErrorMeta, wio.newErrorCt)
             NewBehaviour(newWIO, v.asRight)
         }
       },
@@ -280,7 +287,7 @@ sealed trait NextWfState[C <: WorkflowContext, +E, +O <: WCState[C]] { self =>
     case behaviour: NextWfState.NewBehaviour[C, E, O] =>
       def cast[I](wio: workflow4s.wio.WIO[I, E, O, C])(using E <:< Nothing): workflow4s.wio.WIO[I, Nothing, O, C] = wio.asInstanceOf // TODO, cast
       ActiveWorkflow[C, behaviour.State](cast(behaviour.wio), behaviour.state.toOption.get)(interpreter)
-    case value: NextWfState.NewValue[C, E, O]         => ActiveWorkflow(WIO.Noop(), value.value)(interpreter)
+    case value: NextWfState.NewValue[C, E, O]         => ActiveWorkflow(WIO.Noop(), value.value.toOption.get)(interpreter)
   }
 
   def fold[T](mapBehaviour: NewBehaviour[C, E, O] { type Error = self.Error } => T, mapValue: NewValue[C, E, O] => T): T = this match {
@@ -292,7 +299,7 @@ sealed trait NextWfState[C <: WorkflowContext, +E, +O <: WCState[C]] { self =>
 object NextWfState {
   trait NewBehaviour[C <: WorkflowContext, +NextError, +NextValue <: WCState[C]] extends NextWfState[C, NextError, NextValue] {
     self =>
-    type State
+    type State <: WCState[C]
     type Error
 
     def wio: workflow4s.wio.WIO[State, NextError, NextValue, C]
@@ -300,7 +307,7 @@ object NextWfState {
   }
 
   object NewBehaviour {
-    def apply[C <: WorkflowContext, E1, E2, O2 <: WCState[C], S1](
+    def apply[C <: WorkflowContext, E1, E2, O2 <: WCState[C], S1 <: WCState[C]](
         wio0: workflow4s.wio.WIO[S1, E2, O2, C],
         value0: Either[E1, S1],
     ): NewBehaviour[C, E2, O2] = new NewBehaviour[C, E2, O2] {

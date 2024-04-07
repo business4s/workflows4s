@@ -53,7 +53,7 @@ object ProceedEvaluator {
     }
     def onNoop(wio: WIO.Noop[Ctx]): Result                                                                   = None
     def onNamed(wio: WIO.Named[Ctx, In, Err, Out]): Result                                                   = recurse(wio.base, state) // TODO, should name be preserved?
-    def onHandleError[ErrIn](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn]): Result                         = {
+    def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result                         = {
       recurse(wio.base, state).map(_.map((newWf: NextWfState[Ctx, ErrIn, Out]) => {
         val casted: NextWfState[Ctx, ErrIn, Out] { type Error = ErrIn } =
           newWf.asInstanceOf[NextWfState[Ctx, ErrIn, Out] { type Error = ErrIn }]
@@ -77,7 +77,7 @@ object ProceedEvaluator {
       }))
     }
     def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                                                     =
-      selectMatching(wio, state).map(nextWio => IO(NewBehaviour(nextWio, Right(state))))
+      selectMatching(wio, state).flatMap(nextWio => recurse(nextWio, state))
 
     def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_] <: WCState[Ctx]](wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput]): Result = {
       val newJournal = journal.contraMap(wio.embedding.convertEvent)

@@ -34,7 +34,7 @@ object QueryEvaluator {
     def onMap[In1, Out1 <: WCState[Ctx]](wio: WIO.Map[Ctx, In1, Err, Out1, In, Out]): Result                                                     = recurse(wio.base, wio.contramapInput(state))
     def onNoop(wio: WIO.Noop[Ctx]): Result                                                                                                    = None
     def onNamed(wio: WIO.Named[Ctx, In, Err, Out]): Result                                                                                    = recurse(wio.base, state)
-    def onHandleError[ErrIn](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn]): Result                                                          = recurse(wio.base, state)
+    def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result                                                          = recurse(wio.base, state)
     def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result                                                  = recurse(wio.base, state)
     def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result                                                       = recurse(wio.first, state)
     def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                                                                                      = None

@@ -149,7 +149,7 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
     }
 
     class WithdrawalActor(journal: InMemoryJournal[WithdrawalEvent]) {
-      val delegate                                                         = SimpleActor.create[WithdrawalWorkflow.Context.type, WithdrawalData.Empty](workflow, WithdrawalData.Empty(txId), journal)
+      val delegate: SimpleActor[WithdrawalData] = SimpleActor.create[WithdrawalWorkflow.Context.type, WithdrawalData.Empty](workflow, WithdrawalData.Empty(txId), journal)
       def init(req: CreateWithdrawal): Unit                                = {
         delegate.handleSignal(WithdrawalWorkflow.createWithdrawalSignal)(req).extract
       }
@@ -157,7 +157,7 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
         delegate.handleSignal(WithdrawalWorkflow.executionCompletedSignal)(req).extract
       }
 
-      def queryData(): WithdrawalData = delegate.handleQuery(WithdrawalWorkflow.dataQuery)(()).extract
+      def queryData(): WithdrawalData = delegate.state
 
       def recover(): Unit = delegate.recover()
 

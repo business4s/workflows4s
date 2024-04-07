@@ -4,14 +4,16 @@ import cats.effect.unsafe.IORuntime
 import com.typesafe.scalalogging.StrictLogging
 import workflow4s.wio.Interpreter.{ProceedResponse, QueryResponse, SignalResponse}
 import workflow4s.wio.*
+import workflow4s.wio.ActiveWorkflow.ForCtx
 
-abstract class SimpleActor()(implicit IORuntime: IORuntime) extends StrictLogging {
+abstract class SimpleActor[State]()(implicit IORuntime: IORuntime) extends StrictLogging {
 
   type Ctx <: WorkflowContext
   // Its initialized to null because compile doesnt allow overriding vars, and it has to be like that to parametrize by type member (Context)
   // https://stackoverflow.com/questions/31398344/why-it-is-not-possible-to-override-mutable-variable-in-scala
   protected var wf: ActiveWorkflow.ForCtx[Ctx] = _
-  def state: Any = wf.state
+  def state: State                             = extractState(wf)
+  protected def extractState(wf: ActiveWorkflow.ForCtx[Ctx]): State
 
   def handleSignal[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req): SimpleActor.SignalResponse[Resp] = {
     logger.debug(s"Handling signal ${req}")
@@ -27,12 +29,6 @@ abstract class SimpleActor()(implicit IORuntime: IORuntime) extends StrictLoggin
         SimpleActor.SignalResponse.UnexpectedSignal(wf.getDesc)
     }
   }
-
-  def handleQuery[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req): SimpleActor.QueryResponse[Resp] =
-    wf.handleQuery(signalDef)(req) match {
-      case QueryResponse.Ok(value)         => SimpleActor.QueryResponse.Ok(value)
-      case QueryResponse.UnexpectedQuery() => SimpleActor.QueryResponse.UnexpectedQuery(wf.getDesc)
-    }
 
   protected def handleEvent(event: WCEvent[Ctx]): SimpleActor.EventResponse = {
     logger.debug(s"Handling event: ${event}")
@@ -78,13 +74,36 @@ abstract class SimpleActor()(implicit IORuntime: IORuntime) extends StrictLoggin
 
 object SimpleActor {
 
-  def create[Ctx0 <: WorkflowContext, In](behaviour: WIO[In, Nothing, WCState[Ctx0], Ctx0], state0: In, journalPersistance: JournalPersistance[WCEvent[Ctx0]])(implicit
+  def create[Ctx0 <: WorkflowContext, In <: WCState[Ctx0]](
+      behaviour: WIO[In, Nothing, WCState[Ctx0], Ctx0],
+      state0: In,
+      journalPersistance: JournalPersistance[WCEvent[Ctx0]],
+  )(implicit
       ior: IORuntime,
-  ): SimpleActor = {
-    val activeWf: ActiveWorkflow.ForCtx[Ctx0]= ActiveWorkflow(behaviour, state0)(new Interpreter(journalPersistance))
+  ): SimpleActor[WCState[Ctx0]] = {
+    val activeWf: ActiveWorkflow.ForCtx[Ctx0] = ActiveWorkflow(behaviour, state0)(new Interpreter(journalPersistance))
     new SimpleActor {
       override type Ctx = Ctx0
       wf = activeWf
+      override protected def extractState(wf: ForCtx[Ctx0]): WCState[Ctx0] = wf.state
+    }
+  }
+
+  // this might need to evolve, we provide initial state in case the input can't be one.
+  // its needed because (theoretically) state can be queried before any succesfull execution.
+  def createWithState[Ctx0 <: WorkflowContext, In](
+      behaviour: WIO[In, Nothing, WCState[Ctx0], Ctx0],
+      input: In,
+      state: WCState[Ctx0],
+      journalPersistance: JournalPersistance[WCEvent[Ctx0]],
+  )(implicit
+      ior: IORuntime,
+  ): SimpleActor[WCState[Ctx0]] = {
+    val activeWf: ActiveWorkflow.ForCtx[Ctx0] = ActiveWorkflow(behaviour.transformInput[Any](_ => input), state)(new Interpreter(journalPersistance))
+    new SimpleActor {
+      override type Ctx = Ctx0
+      wf = activeWf
+      override protected def extractState(wf: ForCtx[Ctx0]): WCState[Ctx0] = wf.state
     }
   }
 

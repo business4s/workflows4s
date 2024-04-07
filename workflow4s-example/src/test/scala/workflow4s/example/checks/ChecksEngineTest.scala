@@ -96,15 +96,11 @@ class ChecksEngineTest extends AnyFreeSpec {
     def createWorkflow(checks: List[Check[Unit]]) = new ChecksActor(journal, ChecksInput((), checks))
   }
   class ChecksActor(journal: InMemoryJournal[ChecksEvent], input: ChecksInput) {
-    val delegate        = SimpleActor.create[ChecksEngine.Context.type, ChecksInput](ChecksEngine.runChecks, input, journal)
+    val delegate        = SimpleActor.createWithState[ChecksEngine.Context.type, ChecksInput](ChecksEngine.runChecks, input, null: ChecksState, journal)
     def run(): Unit     = delegate.proceed(runIO = true)
     def recover(): Unit = delegate.recover()
 
-    def state: ChecksState = {
-      val Right(st) = delegate.state
-
-      st.asInstanceOf[ChecksState]
-    }
+    def state: ChecksState = delegate.state
 
     def review(decision: ReviewDecision) = delegate.handleSignal(ChecksEngine.reviewSignalDef)(decision).extract
   }

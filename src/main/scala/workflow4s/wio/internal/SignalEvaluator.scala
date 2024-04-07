@@ -54,7 +54,7 @@ object SignalEvaluator {
     }
     def onNoop(wio: WIO.Noop[Ctx]): Result                                                                                                    = None
     def onNamed(wio: WIO.Named[Ctx, In, Err, Out]): Result                                                                                    = recurse(wio.base, state)
-    def onHandleError[ErrIn](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn]): Result                                                          =
+    def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result                                                          =
       recurse(wio.base, state).map(_.map({ case (wf, resp) =>
         val casted: NextWfState[Ctx, ErrIn, Out] { type Error = ErrIn } = wf.asInstanceOf[NextWfState[Ctx, ErrIn, Out] { type Error = ErrIn }]
         applyHandleError(wio, casted, state) -> resp
@@ -71,7 +71,8 @@ object SignalEvaluator {
     def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                                                                                      = None
     def onDoWhile[Out1 <: WCState[Ctx]](wio: WIO.DoWhile[Ctx, In, Err, Out1, Out]): Result                                                       =
       recurse(wio.current, state).map(_.map({ case (wf, resp) => applyOnDoWhile(wio, wf) -> resp }))
-    def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                                                                                      = ??? // TODO, proper error handling, should never happen
+    def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                                                                                      =
+      selectMatching(wio, state).flatMap(nextWio => recurse(nextWio, state))
     def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_] <: WCState[Ctx]](wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput]): Result = {
       new SignalVisitor(wio.inner, signalDef, req, state, journal.contraMap(wio.embedding.convertEvent)).run
         .map(_.map((newWf, resp) => convertResult(wio.embedding, newWf, state) -> resp))

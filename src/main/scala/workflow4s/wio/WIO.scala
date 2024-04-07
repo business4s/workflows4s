@@ -78,9 +78,9 @@ object WIO {
   // TODO this should ne called `Never` or `Halt` or similar, as the workflow cant proceed from that point.
   case class Noop[Ctx <: WorkflowContext]() extends WIO[Any, Nothing, Nothing, Ctx]
 
-  case class HandleError[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx], ErrIn](
+  case class HandleError[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx], ErrIn, TempOut <: WCState[Ctx]](
       base: WIO[In, ErrIn, Out, Ctx],
-      handleError: ErrIn => WIO[In, Err, Out, Ctx],
+      handleError: ErrIn => (TempOut, WIO[TempOut, Err, Out, Ctx]),
       handledErrorMeta: ErrorMeta[_],
       newErrorMeta: ErrorMeta[_],
   ) extends WIO[In, Err, Out, Ctx]
@@ -88,6 +88,7 @@ object WIO {
   case class HandleErrorWith[Ctx <: WorkflowContext, -In, Err, +Out <: WCState[Ctx], +ErrOut](
       base: WIO[In, Err, Out, Ctx],
       handleError: WIO[(In, Err), ErrOut, Out, Ctx],
+      recoverState: (In, Err) => WCState[Ctx],
       handledErrorMeta: ErrorMeta[_],
       newErrorCt: ErrorMeta[_],
   ) extends WIO[In, ErrOut, Out, Ctx]

@@ -33,7 +33,7 @@ object WIOModelInterpreter {
     def onNoop(wio: WIO.Noop[Ctx]): Result                                                                   = WIOModel.Noop
     def onNamed(wio: WIO.Named[Ctx, In, Err, Out]): Result                                                   =
       new ModelVisitor(wio.base, Metadata(wio.name.some, wio.description)).run
-    def onHandleError[ErrIn](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn]): Result                         = {
+    def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result                         = {
       WIOModel.HandleError(recurse(wio.base, None), WIOModel.Dynamic(m.name, wio.newErrorMeta), wio.handledErrorMeta)
     }
     def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result                 = {
