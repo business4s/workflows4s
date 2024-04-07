@@ -34,7 +34,7 @@ abstract class SimpleActor()(implicit IORuntime: IORuntime) extends StrictLoggin
       case QueryResponse.UnexpectedQuery() => SimpleActor.QueryResponse.UnexpectedQuery(wf.getDesc)
     }
 
-  protected def handleEvent(event: Ctx#Event): SimpleActor.EventResponse = {
+  protected def handleEvent(event: WCEvent[Ctx]): SimpleActor.EventResponse = {
     logger.debug(s"Handling event: ${event}")
     val resp = wf.handleEvent(event) match {
       case Interpreter.EventResponse.Ok(newFlow)       =>
@@ -78,7 +78,7 @@ abstract class SimpleActor()(implicit IORuntime: IORuntime) extends StrictLoggin
 
 object SimpleActor {
 
-  def create[Ctx0 <: WorkflowContext, In](behaviour: WIO[In, Nothing, Ctx0#State, Ctx0], state0: In, journalPersistance: JournalPersistance[Ctx0#Event])(implicit
+  def create[Ctx0 <: WorkflowContext, In](behaviour: WIO[In, Nothing, WCState[Ctx0], Ctx0], state0: In, journalPersistance: JournalPersistance[WCEvent[Ctx0]])(implicit
       ior: IORuntime,
   ): SimpleActor = {
     val activeWf: ActiveWorkflow.ForCtx[Ctx0]= ActiveWorkflow(behaviour, state0)(new Interpreter(journalPersistance))

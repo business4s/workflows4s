@@ -10,7 +10,7 @@ object ProceedEvaluator {
 
   // runIO required to eliminate Pures showing up after FlatMap
   def proceed[Ctx <: WorkflowContext, StIn, StOut](
-      wio: WIO[StIn, Nothing, Ctx#State, Ctx],
+      wio: WIO[StIn, Nothing, WCState[Ctx], Ctx],
       state: StIn,
       runIO: Boolean,
       interpreter: Interpreter[Ctx],
@@ -23,11 +23,11 @@ object ProceedEvaluator {
 
   }
 
-  private class ProceedVisitor[Ctx <: WorkflowContext, In, Err, Out <: Ctx#State](
+  private class ProceedVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](
       wio: WIO[In, Err, Out, Ctx],
       state: In,
       runIO: Boolean,
-      journal: JournalPersistance.Write[Ctx#Event],
+      journal: JournalPersistance.Write[WCEvent[Ctx]],
   ) extends Visitor[Ctx, In, Err, Out](wio) {
     type NewWf           = NextWfState[Ctx, Err, Out]
     override type Result = Option[IO[NewWf]]
@@ -41,11 +41,11 @@ object ProceedEvaluator {
         } yield NewValue(wio.evtHandler.handle(state, evt))).some
       } else None
     }
-    def onFlatMap[Out1 <: Ctx#State, Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result   = {
+    def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result   = {
       val x: Option[IO[NextWfState[Ctx, Err1, Out1]]] = recurse(wio.base, state)
       x.map(_.map(preserveFlatMap(wio, _)))
     }
-    def onMap[In1, Out1 <: Ctx#State](wio: WIO.Map[Ctx, In1, Err, Out1, In, Out]): Result                    = {
+    def onMap[In1, Out1 <: WCState[Ctx]](wio: WIO.Map[Ctx, In1, Err, Out1, In, Out]): Result                    = {
       recurse(wio.base, wio.contramapInput(state)).map(_.map(preserveMap(wio, _, state)))
     }
     def onHandleQuery[Qr, QrState, Resp](wio: WIO.HandleQuery[Ctx, In, Err, Out, Qr, QrState, Resp]): Result = {
@@ -67,11 +67,11 @@ object ProceedEvaluator {
         applyHandleErrorWith(wio, casted, state)
       }))
     }
-    def onAndThen[Out1 <: Ctx#State](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result                      = {
+    def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result                      = {
       recurse(wio.first, state).map(_.map(preserveAndThen(wio, _)))
     }
     def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                                                     = Some(NewValue(wio.value(state)).pure[IO])
-    def onDoWhile[Out1 <: Ctx#State](wio: WIO.DoWhile[Ctx, In, Err, Out1, Out]): Result                      = {
+    def onDoWhile[Out1 <: WCState[Ctx]](wio: WIO.DoWhile[Ctx, In, Err, Out1, Out]): Result                      = {
       recurse(wio.current, state).map(_.map((newWf: NextWfState[Ctx, Err, Out1]) => {
         applyOnDoWhile(wio, newWf)
       }))
@@ -79,13 +79,13 @@ object ProceedEvaluator {
     def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                                                     =
       selectMatching(wio, state).map(nextWio => IO(NewBehaviour(nextWio, Right(state))))
 
-    def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: InnerCtx#State, MappingOutput[_] <: Ctx#State](wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput]): Result = {
+    def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_] <: WCState[Ctx]](wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput]): Result = {
       val newJournal = journal.contraMap(wio.embedding.convertEvent)
       new ProceedVisitor(wio.inner, state, runIO, newJournal).run
         .map(_.map(convertResult(wio.embedding, _, state)))
     }
 
-    private def recurse[I1, E1, O1 <: Ctx#State](wio: WIO[I1, E1, O1, Ctx], s: I1): Option[IO[NextWfState[Ctx, E1, O1]]] =
+    private def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], s: I1): Option[IO[NextWfState[Ctx, E1, O1]]] =
       new ProceedVisitor(wio, s, runIO, journal).run
   }
 

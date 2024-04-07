@@ -13,7 +13,7 @@ object CurrentStateEvaluator {
     visitor.run
   }
 
-  private class DescriptionVisitor[Ctx <: WorkflowContext, In, Err, Out <: Ctx#State](wio: WIO[In, Err, Out, Ctx])
+  private class DescriptionVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio: WIO[In, Err, Out, Ctx])
       extends Visitor[Ctx, In, Err, Out](wio) {
     override type Result = String
 
@@ -33,10 +33,10 @@ object CurrentStateEvaluator {
     def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                                                                                      = "pure"
     def onDoWhile[Out1 <: State](wio: WIO.DoWhile[Ctx, In, Err, Out1, Out]): Result                                                           = s"do-while; current = ${recurse(wio.current)}"
     def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                                                                                      = "fork"
-    def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: InnerCtx#State, MappingOutput[_] <: Ctx#State](wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput]): Result =
+    def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_] <: WCState[Ctx]](wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput]): Result =
       recurse(wio.inner)
 
-    private def recurse[C <: WorkflowContext, I1, E1, O1 <: C#State](wio: WIO[I1, E1, O1, C]): String = new DescriptionVisitor(wio).run
+    private def recurse[C <: WorkflowContext, I1, E1, O1 <: WCState[C]](wio: WIO[I1, E1, O1, C]): String = new DescriptionVisitor(wio).run
 
   }
 

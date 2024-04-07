@@ -5,7 +5,7 @@ import cats.syntax.all.*
 import workflow4s.wio.Interpreter.ProceedResponse
 import workflow4s.wio.internal.WorkflowConversionEvaluator.WorkflowEmbedding
 
-class Interpreter[C <: WorkflowContext](val journal: JournalPersistance[C#Event])
+class Interpreter[C <: WorkflowContext](val journal: JournalPersistance[WCEvent[C]])
 
 object Interpreter {
 
@@ -44,24 +44,24 @@ object Interpreter {
 }
 
 import NextWfState.{NewBehaviour, NewValue}
-abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: Ctx#State](wio: WIO[In, Err, Out, Ctx]) {
+abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio: WIO[In, Err, Out, Ctx]) {
   type Result
-  type State = Ctx#State
+  type State = WCState[Ctx]
 
   def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result
   def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result
-  def onFlatMap[Out1 <: Ctx#State, Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result
-  def onMap[In1, Out1 <: Ctx#State](wio: WIO.Map[Ctx, In1, Err, Out1, In, Out]): Result
+  def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result
+  def onMap[In1, Out1 <: WCState[Ctx]](wio: WIO.Map[Ctx, In1, Err, Out1, In, Out]): Result
   def onHandleQuery[Qr, QrState, Resp](wio: WIO.HandleQuery[Ctx, In, Err, Out, Qr, QrState, Resp]): Result
   def onNoop(wio: WIO.Noop[Ctx]): Result
   def onNamed(wio: WIO.Named[Ctx, In, Err, Out]): Result
   def onHandleError[ErrIn](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn]): Result
   def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result
-  def onAndThen[Out1 <: Ctx#State](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result
+  def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result
   def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result
-  def onDoWhile[Out1 <: Ctx#State](wio: WIO.DoWhile[Ctx, In, Err, Out1, Out]): Result
+  def onDoWhile[Out1 <: WCState[Ctx]](wio: WIO.DoWhile[Ctx, In, Err, Out1, Out]): Result
   def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result
-  def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: InnerCtx#State, MappingOutput[_] <: Ctx#State](
+  def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_] <: WCState[Ctx]](
       wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
   ): Result
 
@@ -71,7 +71,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: Ctx#State](wio: W
       case x: WIO.HandleQuery[?, ?, ?, ?, ?, ?, ?]                   => onHandleQuery(x)
       case x: WIO.RunIO[?, ?, ?, ?, ?]                               => onRunIO(x)
       // https://github.com/scala/scala3/issues/20040
-      case x: WIO.FlatMap[?, ? <: Err, Err, ? <: Ctx#State, Out, In] =>
+      case x: WIO.FlatMap[?, ? <: Err, Err, ? <: WCState[Ctx], Out, In] =>
         x match {
           case x: WIO.FlatMap[?, err1, Err, out1, Out, In] => onFlatMap[out1, err1](x)
         }
@@ -88,16 +88,16 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: Ctx#State](wio: W
         x match {
           case x: WIO.Embedded[?, ?, ?, ic, ?, ?] =>
             x match {
-              case x: WIO.Embedded[?, ?, ?, ?, ? <: ic#State, ?] =>
+              case x: WIO.Embedded[?, ?, ?, ?, ? <: WCState[ic], ?] =>
                 x match {
-                  case x: WIO.Embedded[?, ?, ?, ?, io, mp] => onEmbedded[ic, io, mp](x)
+                  case x: WIO.Embedded[Ctx, In, Err, ?, io, mp] => onEmbedded(x.asInstanceOf) // TODO
                 }
             }
         }
     }
   }
 
-  protected def preserveFlatMap[Out1 <: Ctx#State, Err1 <: Err](
+  protected def preserveFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](
       wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In],
       wf: NextWfState[Ctx, Err1, Out1],
   ): NextWfState[Ctx, Err, Out] = {
@@ -122,7 +122,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: Ctx#State](wio: W
     )
   }
 
-  protected def preserveAndThen[Out1 <: Ctx#State](
+  protected def preserveAndThen[Out1 <: WCState[Ctx]](
       wio: WIO.AndThen[Ctx, In, Err, Out1, Out],
       wf: NextWfState[Ctx, Err, Out1],
   ): NextWfState[Ctx, Err, Out] =
@@ -136,7 +136,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: Ctx#State](wio: W
       },
     )
 
-  def preserveMap[Out1 <: Ctx#State, In1](
+  def preserveMap[Out1 <: WCState[Ctx], In1](
       wio: WIO.Map[Ctx, In1, Err, Out1, In, Out],
       wf: NextWfState[Ctx, Err, Out1],
       initState: In,
@@ -224,7 +224,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: Ctx#State](wio: W
     )
   }
 
-  def applyOnDoWhile[LoopOut <: Ctx#State](
+  def applyOnDoWhile[LoopOut <: WCState[Ctx]](
       wio: WIO.DoWhile[Ctx, In, Err, LoopOut, Out],
       wf: NextWfState[Ctx, Err, LoopOut],
   ): NextWfState[Ctx, Err, Out] = {
@@ -251,7 +251,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: Ctx#State](wio: W
     wio.branches.collectFirstSome(b => b.condition(in).map(interm => b.wio.transformInput[In](s => (s, interm))))
   }
 
-  def convertResult[InnerCtx <: WorkflowContext, E, InnerOut <: InnerCtx#State, O1[_] <: Ctx#State, Input](
+  def convertResult[InnerCtx <: WorkflowContext, E, InnerOut <: WCState[InnerCtx], O1[_] <: WCState[Ctx], Input](
       embedding: WorkflowEmbedding.Aux[InnerCtx, Ctx, O1, Input],
       newWf: NextWfState[InnerCtx, E, InnerOut],
       input: Input,
@@ -273,7 +273,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: Ctx#State](wio: W
 
 }
 
-sealed trait NextWfState[C <: WorkflowContext, +E, +O <: C#State] { self =>
+sealed trait NextWfState[C <: WorkflowContext, +E, +O <: WCState[C]] { self =>
   type Error
 
   def toActiveWorkflow(interpreter: Interpreter[C])(using E <:< Nothing): ActiveWorkflow.ForCtx[C] = this match {
@@ -290,7 +290,7 @@ sealed trait NextWfState[C <: WorkflowContext, +E, +O <: C#State] { self =>
 }
 
 object NextWfState {
-  trait NewBehaviour[C <: WorkflowContext, +NextError, +NextValue <: C#State] extends NextWfState[C, NextError, NextValue] {
+  trait NewBehaviour[C <: WorkflowContext, +NextError, +NextValue <: WCState[C]] extends NextWfState[C, NextError, NextValue] {
     self =>
     type State
     type Error
@@ -300,7 +300,7 @@ object NextWfState {
   }
 
   object NewBehaviour {
-    def apply[C <: WorkflowContext, E1, E2, O2 <: C#State, S1](
+    def apply[C <: WorkflowContext, E1, E2, O2 <: WCState[C], S1](
         wio0: workflow4s.wio.WIO[S1, E2, O2, C],
         value0: Either[E1, S1],
     ): NewBehaviour[C, E2, O2] = new NewBehaviour[C, E2, O2] {
@@ -311,12 +311,12 @@ object NextWfState {
     }
   }
 
-  trait NewValue[C <: WorkflowContext, +E, +O <: C#State] extends NextWfState[C, E, O] {
+  trait NewValue[C <: WorkflowContext, +E, +O <: WCState[C]] extends NextWfState[C, E, O] {
     def value: Either[E, O]
   }
 
   object NewValue {
-    def apply[C <: WorkflowContext, E, O <: C#State, S](value0: Either[E, O]): NextWfState.NewValue[C, E, O] = new NewValue[C, E, O] {
+    def apply[C <: WorkflowContext, E, O <: WCState[C], S](value0: Either[E, O]): NextWfState.NewValue[C, E, O] = new NewValue[C, E, O] {
       override def value: Either[E, O] = value0
     }
   }

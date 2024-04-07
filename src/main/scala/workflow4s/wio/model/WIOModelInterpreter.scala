@@ -1,7 +1,7 @@
 package workflow4s.wio.model
 
 import cats.syntax.all.*
-import workflow4s.wio.{Visitor, WIO, WorkflowContext}
+import workflow4s.wio.{Visitor, WCState, WIO, WorkflowContext}
 object WIOModelInterpreter {
 
   def run(wio: WIO[?, ?, ?, ?]): WIOModel = {
@@ -14,7 +14,7 @@ object WIOModelInterpreter {
     val empty = Metadata(None, None)
   }
 
-  private class ModelVisitor[Ctx <: WorkflowContext, In, Err, Out <: Ctx#State](wio: WIO[In, Err, Out, Ctx], m: Metadata)
+  private class ModelVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio: WIO[In, Err, Out, Ctx], m: Metadata)
       extends Visitor[Ctx, In, Err, Out](wio) {
     override type Result = WIOModel
 
@@ -25,10 +25,10 @@ object WIOModelInterpreter {
     def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result                                         = {
       WIOModel.RunIO(wio.errorCt, m.name, m.description)
     }
-    def onFlatMap[Out1 <: Ctx#State, Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result   = {
+    def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result   = {
       WIOModel.Sequence(Seq(recurse(wio.base, None), WIOModel.Dynamic(m.name, wio.errorCt)))
     }
-    def onMap[In1, Out1 <: Ctx#State](wio: WIO.Map[Ctx, In1, Err, Out1, In, Out]): Result                    = recurse(wio.base)
+    def onMap[In1, Out1 <: WCState[Ctx]](wio: WIO.Map[Ctx, In1, Err, Out1, In, Out]): Result                    = recurse(wio.base)
     def onHandleQuery[Qr, QrState, Resp](wio: WIO.HandleQuery[Ctx, In, Err, Out, Qr, QrState, Resp]): Result = recurse(wio.inner)
     def onNoop(wio: WIO.Noop[Ctx]): Result                                                                   = WIOModel.Noop
     def onNamed(wio: WIO.Named[Ctx, In, Err, Out]): Result                                                   =
@@ -39,18 +39,18 @@ object WIOModelInterpreter {
     def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result                 = {
       WIOModel.HandleError(recurse(wio.base, None), recurse(wio.handleError, None), wio.handledErrorMeta)
     }
-    def onAndThen[Out1 <: Ctx#State](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result                      =
+    def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result                      =
       WIOModel.Sequence(Seq(recurse(wio.first, None), recurse(wio.second, None))) // TODO flatten multiple sequences
     def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                                                                                      = WIOModel.Pure(m.name, m.description)
-    def onDoWhile[Out1 <: Ctx#State](wio: WIO.DoWhile[Ctx, In, Err, Out1, Out]): Result                                                       =
+    def onDoWhile[Out1 <: WCState[Ctx]](wio: WIO.DoWhile[Ctx, In, Err, Out1, Out]): Result                                                       =
       WIOModel.Loop(recurse(wio.loop), None)
     def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                                                                                      =
       WIOModel.Fork(wio.branches.map(x => WIOModel.Branch(recurse(x.wio), None)))
-    def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: InnerCtx#State, MappingOutput[_] <: Ctx#State](wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput]): Result = {
+    def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_] <: WCState[Ctx]](wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput]): Result = {
       recurse(wio.inner)
     }
 
-    def recurse[C <: WorkflowContext, I1, E1, O1 <: C#State](wio: WIO[I1, E1, O1, C], meta: Option[Metadata] = Some(m)): WIOModel = {
+    def recurse[C <: WorkflowContext, I1, E1, O1 <: WCState[C]](wio: WIO[I1, E1, O1, C], meta: Option[Metadata] = Some(m)): WIOModel = {
       new ModelVisitor(wio, meta.getOrElse(Metadata.empty)).run
     }
 

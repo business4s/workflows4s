@@ -5,7 +5,7 @@ import cats.implicits.{catsSyntaxApplicativeId, catsSyntaxEitherId}
 import workflow4s.example.WithdrawalEvent.{MoneyLocked, WithdrawalAccepted, WithdrawalRejected}
 import workflow4s.example.WithdrawalService.ExecutionResponse
 import workflow4s.example.WithdrawalSignal.{CreateWithdrawal, ExecutionCompleted}
-import workflow4s.example.WithdrawalWorkflow.{createWithdrawalSignal, dataQuery, executionCompletedSignal}
+import workflow4s.example.WithdrawalWorkflow.{checksEmbedding, createWithdrawalSignal, dataQuery, executionCompletedSignal}
 import workflow4s.example.checks.{ChecksEngine, ChecksEvent, ChecksInput, ChecksState, Decision}
 import workflow4s.wio.internal.WorkflowConversionEvaluator.WorkflowEmbedding
 import workflow4s.wio.{SignalDef, WorkflowContext}
@@ -20,6 +20,26 @@ object WithdrawalWorkflow {
   val createWithdrawalSignal   = SignalDef[CreateWithdrawal, Unit]()
   val dataQuery                = SignalDef[Unit, WithdrawalData]()
   val executionCompletedSignal = SignalDef[ExecutionCompleted, Unit]()
+
+  val checksEmbedding = new WorkflowEmbedding[ChecksEngine.Context.type, WithdrawalWorkflow.Context.type, WithdrawalData.Validated] {
+    override def convertEvent(e: ChecksEvent): WithdrawalEvent = WithdrawalEvent.ChecksRun(e)
+
+    override def unconvertEvent(e: WithdrawalEvent): Option[ChecksEvent] = e match {
+      case WithdrawalEvent.ChecksRun(inner) => Some(inner)
+      case _ => None
+    }
+
+    override type OutputState[T <: ChecksState] <: WithdrawalData = T match {
+      case ChecksState.InProgress => WithdrawalData.Checking
+      case ChecksState.Decided => WithdrawalData.Checked
+    }
+
+    override def convertState[T <: ChecksState](s: T, input: WithdrawalData.Validated): OutputState[T] = s match {
+      case x: ChecksState.InProgress => input.checking(x)
+      case x: ChecksState.Decided => input.checked(x)
+    }
+  }
+
 }
 
 class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine) {
@@ -95,11 +115,11 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
 
   private def runChecks: WIO[WithdrawalData.Validated, WithdrawalRejection.RejectedInChecks, WithdrawalData.Checked] = {
     val doRunChecks: WIO[WithdrawalData.Validated, Nothing, WithdrawalData.Checked] =
-      WIO.embed[WithdrawalData.Validated, Nothing, ChecksState.Decided, ChecksEngine.Context.type](
+      WIO.embed[WithdrawalData.Validated, Nothing, ChecksState.Decided, ChecksEngine.Context.type, checksEmbedding.OutputState](
         checksEngine.runChecks
           .transformInput((x: WithdrawalData.Validated) => ChecksInput(x, List())),
 //          .transformOutput((validated, checkState) => validated.checked(checkState)),
-      )(checksEmbedding)
+      )(checksEmbedding) // TODO
 
     val actOnDecision = WIO
       .pure[WithdrawalData.Checked]
@@ -168,19 +188,4 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
       .autoNamed()
   }
 
-  lazy val checksEmbedding = new WorkflowEmbedding[ChecksEngine.Context.type, WithdrawalWorkflow.Context.type, WithdrawalData.Validated] {
-    override def convertEvent(e: ChecksEvent): WithdrawalEvent                                                   = WithdrawalEvent.ChecksRun(e)
-    override def unconvertEvent(e: WithdrawalEvent): Option[ChecksEvent]                                         = e match {
-      case WithdrawalEvent.ChecksRun(inner) => Some(inner)
-      case _                                => None
-    }
-    override type OutputState[T <: ChecksState] <: WithdrawalData = T match {
-      case ChecksState.InProgress  => WithdrawalData.Checking
-      case ChecksState.Decided  => WithdrawalData.Checked
-    }
-    override def convertState[T <: ChecksState](s: T, input: WithdrawalData.Validated): OutputState[T] = s match {
-      case x: ChecksState.InProgress => input.checking(x)
-      case x: ChecksState.Decided    => input.checked(x)
-    }
-  }
 }
