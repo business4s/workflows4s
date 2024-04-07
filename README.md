@@ -25,7 +25,7 @@ The following items are planned in scope of this PoC
 - [x] Handling state transitions
 - [x] Handling errors
 - [x] Declarative API + graph rendering
-- [ ] Typesafe total queries? (currently state is filtered arbitraly by the query)
+- [x] Typesafe state queries
 - [ ] Handling interruptions (through signals or timeouts)
 - [ ] Handling postponed executions (await)
 - [ ] Splitting the workflow (parallel execution and/or parallel waiting)
