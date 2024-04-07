@@ -17,7 +17,7 @@ The checks diagram is not layouted correctly but can be fixed by running `node .
 
 The following items are planned in scope of this PoC
 
-- [x] Handling signal
+- [x] Handling signals
 - [x] Handling queries
 - [x] Recovery from events
 - [x] Handling step sequencing (flatMap)
