@@ -29,7 +29,6 @@ object WIOModelInterpreter {
       WIOModel.Sequence(Seq(recurse(wio.base, None), WIOModel.Dynamic(m.name, wio.errorCt)))
     }
     def onMap[In1, Out1 <: WCState[Ctx]](wio: WIO.Map[Ctx, In1, Err, Out1, In, Out]): Result                    = recurse(wio.base)
-    def onHandleQuery[Qr, QrState, Resp](wio: WIO.HandleQuery[Ctx, In, Err, Out, Qr, QrState, Resp]): Result = recurse(wio.inner)
     def onNoop(wio: WIO.Noop[Ctx]): Result                                                                   = WIOModel.Noop
     def onNamed(wio: WIO.Named[Ctx, In, Err, Out]): Result                                                   =
       new ModelVisitor(wio.base, Metadata(wio.name.some, wio.description)).run

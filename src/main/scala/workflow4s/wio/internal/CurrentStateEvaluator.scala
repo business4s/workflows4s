@@ -22,8 +22,6 @@ object CurrentStateEvaluator {
     def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result                                                                          = "Awaits IO execution"
     def onFlatMap[Out1 <: State, Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result                                        = recurse(wio.base)
     def onMap[In1, Out1 <: State](wio: WIO.Map[Ctx, In1, Err, Out1, In, Out]): Result                                                         = recurse(wio.base)
-    def onHandleQuery[Qr, QrState, Resp](wio: WIO.HandleQuery[Ctx, In, Err, Out, Qr, QrState, Resp]): Result                                  =
-      s"(Expects query ${wio.queryHandler.ct.runtimeClass.getSimpleName} or ${recurse(wio.inner)})"
     def onNoop(wio: WIO.Noop[Ctx]): Result                                                                                                    = "Noop"
     def onNamed(wio: WIO.Named[Ctx, In, Err, Out]): Result                                                                                    = recurse(wio.base)
     def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result                                                          = s"(Handle error or ${recurse(wio.base)})"

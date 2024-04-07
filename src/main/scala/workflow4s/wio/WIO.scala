@@ -46,11 +46,6 @@ object WIO {
     }
   }
 
-  case class HandleQuery[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx], -Qr, -QrState, +Resp](
-      queryHandler: QueryHandler[Qr, QrState, Resp],
-      inner: WIO[In, Err, Out, Ctx],
-  ) extends WIO[In, Err, Out, Ctx]
-
   // theoretically state is not needed, it could be State.extract.flatMap(RunIO)
   case class RunIO[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx], Evt](
       buildIO: In => IO[Evt],

@@ -25,9 +25,6 @@ object QueryEvaluator {
   ) extends Visitor[Ctx, In, Err, Out](wio) {
     override type Result = Option[Resp]
 
-    def onHandleQuery[Qr, QrState, Resp](wio: WIO.HandleQuery[Ctx, In, Err, Out, Qr, QrState, Resp]): Result =
-      wio.queryHandler.run(signalDef)(req, state)
-
     def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result                                            = None
     def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result                                                                          = None
     def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result                                    = recurse(wio.base, state)

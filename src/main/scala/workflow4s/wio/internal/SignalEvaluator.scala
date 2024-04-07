@@ -49,9 +49,6 @@ object SignalEvaluator {
     def onMap[In1, Out1 <: WCState[Ctx]](wio: WIO.Map[Ctx, In1, Err, Out1, In, Out]): Result                                                     = {
       recurse(wio.base, wio.contramapInput(state)).map(_.map({ case (wf, resp) => preserveMap(wio, wf, state) -> resp }))
     }
-    def onHandleQuery[Qr, QrState, Resp](wio: WIO.HandleQuery[Ctx, In, Err, Out, Qr, QrState, Resp]): Result                                  = {
-      recurse(wio.inner, state).map(_.map({ case (wf, resp) => preserveHandleQuery(wio, wf) -> resp }))
-    }
     def onNoop(wio: WIO.Noop[Ctx]): Result                                                                                                    = None
     def onNamed(wio: WIO.Named[Ctx, In, Err, Out]): Result                                                                                    = recurse(wio.base, state)
     def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result                                                          =

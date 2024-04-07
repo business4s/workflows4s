@@ -52,7 +52,6 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
   def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result
   def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result
   def onMap[In1, Out1 <: WCState[Ctx]](wio: WIO.Map[Ctx, In1, Err, Out1, In, Out]): Result
-  def onHandleQuery[Qr, QrState, Resp](wio: WIO.HandleQuery[Ctx, In, Err, Out, Qr, QrState, Resp]): Result
   def onNoop(wio: WIO.Noop[Ctx]): Result
   def onNamed(wio: WIO.Named[Ctx, In, Err, Out]): Result
   def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result
@@ -68,7 +67,6 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
   def run: Result = {
     wio match {
       case x: WIO.HandleSignal[?, ?, ?, ?, ?, ?, ?]                  => onSignal(x)
-      case x: WIO.HandleQuery[?, ?, ?, ?, ?, ?, ?]                   => onHandleQuery(x)
       case x: WIO.RunIO[?, ?, ?, ?, ?]                               => onRunIO(x)
       // https://github.com/scala/scala3/issues/20040
       case x: WIO.FlatMap[?, ? <: Err, Err, ? <: WCState[Ctx], Out, In] =>
@@ -153,19 +151,6 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
         NewBehaviour(newWIO, b.state)
       },
       v => NewValue(v.value.map(x => wio.mapValue(initState, x))),
-    )
-  }
-
-  protected def preserveHandleQuery[Qr, QrSt, Resp](
-      wio: WIO.HandleQuery[Ctx, In, Err, Out, Qr, QrSt, Resp],
-      wf: NextWfState[Ctx, Err, Out],
-  ): NextWfState[Ctx, Err, Out] = {
-    wf.fold(
-      b => {
-        val newWio = WIO.HandleQuery(wio.queryHandler, b.wio)
-        NewBehaviour(newWio, b.state)
-      },
-      v => v, // if its direct, we leave the query
     )
   }
 

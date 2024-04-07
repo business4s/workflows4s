@@ -48,22 +48,6 @@ trait WIOBuilderMethods[Ctx <: WorkflowContext] {
     }
   }
 
-  def handleQuery[StIn] = new HandleQueryPartiallyApplied1[StIn]
-
-  class HandleQueryPartiallyApplied1[StIn] {
-    def apply[Sig: ClassTag, Resp](@unused signalDef: SignalDef[Sig, Resp])(f: (StIn, Sig) => Resp)(implicit
-                                                                                                    ct: ClassTag[StIn],
-    ): HandleQueryPartiallyApplied2[StIn, Sig, Resp] = {
-      new HandleQueryPartiallyApplied2(f)
-    }
-  }
-
-  class HandleQueryPartiallyApplied2[QrSt: ClassTag, Sig: ClassTag, Resp](f: (QrSt, Sig) => Resp) {
-    def apply[Err, Out <: WCState[Ctx], In](wio: WIO[In, Err, Out, Ctx]): WIO.HandleQuery[Ctx, In, Err, Out, Sig, QrSt, Resp] = {
-      WIO.HandleQuery(QueryHandler(f), wio)
-    }
-  }
-
   def runIO[State] = new RunIOPartiallyApplied1[State]
 
   class RunIOPartiallyApplied1[StIn] {

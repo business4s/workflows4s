@@ -26,17 +26,17 @@ object WithdrawalWorkflow {
 
     override def unconvertEvent(e: WithdrawalEvent): Option[ChecksEvent] = e match {
       case WithdrawalEvent.ChecksRun(inner) => Some(inner)
-      case _ => None
+      case _                                => None
     }
 
     override type OutputState[T <: ChecksState] <: WithdrawalData = T match {
       case ChecksState.InProgress => WithdrawalData.Checking
-      case ChecksState.Decided => WithdrawalData.Checked
+      case ChecksState.Decided    => WithdrawalData.Checked
     }
 
     override def convertState[T <: ChecksState](s: T, input: WithdrawalData.Validated): OutputState[T] = s match {
       case x: ChecksState.InProgress => input.checking(x)
-      case x: ChecksState.Decided => input.checked(x)
+      case x: ChecksState.Decided    => input.checked(x)
     }
   }
 
@@ -46,32 +46,26 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
 
   import WithdrawalWorkflow.Context.WIO
 
-  val workflow: WIO[WithdrawalData.Empty, Nothing, WithdrawalData.Completed] = for {
-    _ <- handleDataQuery(
-           (for {
-             _ <- receiveWithdrawal
-             _ <- calculateFees
-             _ <- putMoneyOnHold
-             _ <- runChecks
-             _ <- execute
-             s <- releaseFunds
-           } yield s)
-             .handleErrorWith(cancelFundsIfNeeded),
-         )
-    w <- handleDataQuery(WIO.noop())
-  } yield w
+  val workflow: WIO[WithdrawalData.Empty, Nothing, WithdrawalData.Completed] =
+    (for {
+      _ <- receiveWithdrawal
+      _ <- calculateFees
+      _ <- putMoneyOnHold
+      _ <- runChecks
+      _ <- execute
+      s <- releaseFunds
+    } yield s)
+      .handleErrorWith(cancelFundsIfNeeded)
 
   val workflowDeclarative: WIO[WithdrawalData.Empty, Nothing, WithdrawalData.Completed] =
-    handleDataQuery(
-      (
-        receiveWithdrawal >>>
-          calculateFees >>>
-          putMoneyOnHold >>>
-          runChecks >>>
-          execute >>>
-          releaseFunds
-      ).handleErrorWith(cancelFundsIfNeeded) >>> WIO.noop(),
-    )
+    (
+      receiveWithdrawal >>>
+        calculateFees >>>
+        putMoneyOnHold >>>
+        runChecks >>>
+        execute >>>
+        releaseFunds
+    ).handleErrorWith(cancelFundsIfNeeded) >>> WIO.noop()
 
   private def receiveWithdrawal: WIO[WithdrawalData.Empty, WithdrawalRejection.InvalidInput, WithdrawalData.Initiated] =
     WIO
@@ -169,9 +163,6 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
       .runIO[WithdrawalData.Executed](st => service.releaseFunds(st.amount).as(WithdrawalEvent.MoneyReleased()))
       .handleEvent((st, _) => st.completed())
       .autoNamed()
-
-  private def handleDataQuery =
-    WIO.handleQuery[WithdrawalData](dataQuery) { (state, _) => state }
 
   private def cancelFundsIfNeeded: WIO[(WithdrawalData, WithdrawalRejection), Nothing, WithdrawalData.Completed.Failed] = {
     WIO

@@ -48,9 +48,6 @@ object ProceedEvaluator {
     def onMap[In1, Out1 <: WCState[Ctx]](wio: WIO.Map[Ctx, In1, Err, Out1, In, Out]): Result                    = {
       recurse(wio.base, wio.contramapInput(state)).map(_.map(preserveMap(wio, _, state)))
     }
-    def onHandleQuery[Qr, QrState, Resp](wio: WIO.HandleQuery[Ctx, In, Err, Out, Qr, QrState, Resp]): Result = {
-      recurse(wio.inner, state).map(_.map(preserveHandleQuery(wio, _)))
-    }
     def onNoop(wio: WIO.Noop[Ctx]): Result                                                                   = None
     def onNamed(wio: WIO.Named[Ctx, In, Err, Out]): Result                                                   = recurse(wio.base, state) // TODO, should name be preserved?
     def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result                         = {
