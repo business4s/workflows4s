@@ -63,26 +63,27 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
   def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_] <: WCState[Ctx]](
       wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
   ): Result
+  def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result
 
   def run: Result = {
     wio match {
-      case x: WIO.HandleSignal[?, ?, ?, ?, ?, ?, ?]                  => onSignal(x)
-      case x: WIO.RunIO[?, ?, ?, ?, ?]                               => onRunIO(x)
+      case x: WIO.HandleSignal[?, ?, ?, ?, ?, ?, ?]                     => onSignal(x)
+      case x: WIO.RunIO[?, ?, ?, ?, ?]                                  => onRunIO(x)
       // https://github.com/scala/scala3/issues/20040
       case x: WIO.FlatMap[?, ? <: Err, Err, ? <: WCState[Ctx], Out, In] =>
         x match {
           case x: WIO.FlatMap[?, err1, Err, out1, Out, In] => onFlatMap[out1, err1](x)
         }
-      case x: WIO.Map[?, ?, Err, ? <: State, In, Out]                => onMap(x)
-      case x: WIO.Noop[?]                                            => onNoop(x)
-      case x: WIO.HandleError[?, ?, ?, ?, ?, ? <: State]                         => onHandleError(x)
-      case x: WIO.Named[?, ?, ?, ?]                                  => onNamed(x)
-      case x: WIO.AndThen[?, ?, ?, ? <: State, ? <: State]           => onAndThen(x)
-      case x: WIO.Pure[?, ?, ?, ?]                                   => onPure(x)
-      case x: WIO.HandleErrorWith[?, ?, ?, ?, ?]                     => onHandleErrorWith(x)
-      case x: WIO.DoWhile[?, ?, ?, ? <: State, ? <: State]           => onDoWhile(x)
-      case x: WIO.Fork[?, ?, ?, ?]                                   => onFork(x)
-      case x: WIO.Embedded[Ctx, In, Err, ? <: WorkflowContext, ?, ?] =>
+      case x: WIO.Map[?, ?, Err, ? <: State, In, Out]                   => onMap(x)
+      case x: WIO.Noop[?]                                               => onNoop(x)
+      case x: WIO.HandleError[?, ?, ?, ?, ?, ? <: State]                => onHandleError(x)
+      case x: WIO.Named[?, ?, ?, ?]                                     => onNamed(x)
+      case x: WIO.AndThen[?, ?, ?, ? <: State, ? <: State]              => onAndThen(x)
+      case x: WIO.Pure[?, ?, ?, ?]                                      => onPure(x)
+      case x: WIO.HandleErrorWith[?, ?, ?, ?, ?]                        => onHandleErrorWith(x)
+      case x: WIO.DoWhile[?, ?, ?, ? <: State, ? <: State]              => onDoWhile(x)
+      case x: WIO.Fork[?, ?, ?, ?]                                      => onFork(x)
+      case x: WIO.Embedded[Ctx, In, Err, ? <: WorkflowContext, ?, ?]    =>
         x match {
           case x: WIO.Embedded[?, ?, ?, ic, ?, ?] =>
             x match {
@@ -92,6 +93,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
                 }
             }
         }
+      case x: WIO.HandleInterruption[Ctx, In, Err, Out]                 => onHandleInterruption(x)
     }
   }
 
@@ -173,7 +175,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
               val (newState, newWio) = wio.handleError(err)
               (newState, newWio.transformInput[Any](_ => newState))
             }
-            val newWIO: WIO[b.State, Err, Out, Ctx]                   = WIO.HandleError(b.wio, adjustedHandler, wio.handledErrorMeta, wio.newErrorMeta)
+            val newWIO: WIO[b.State, Err, Out, Ctx]                              = WIO.HandleError(b.wio, adjustedHandler, wio.handledErrorMeta, wio.newErrorMeta)
             NewBehaviour(newWIO, v.asRight)
         }
       },
@@ -201,9 +203,10 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
         b.state match {
           case Left(value) => newWf(value)
           case Right(v)    =>
-            val adjustedHandler                     = wio.handleError.transformInput[(Any, ErrIn)](x => (originalState, x._2))
+            val adjustedHandler                                     = wio.handleError.transformInput[(Any, ErrIn)](x => (originalState, x._2))
             val adjustedStateRecovery: (Any, ErrIn) => WCState[Ctx] = (_, err) => wio.recoverState(originalState, err)
-            val newWIO: WIO[b.State, Err, Out, Ctx] = WIO.HandleErrorWith(b.wio, adjustedHandler, adjustedStateRecovery, wio.handledErrorMeta, wio.newErrorCt)
+            val newWIO: WIO[b.State, Err, Out, Ctx]                 =
+              WIO.HandleErrorWith(b.wio, adjustedHandler, adjustedStateRecovery, wio.handledErrorMeta, wio.newErrorCt)
             NewBehaviour(newWIO, v.asRight)
         }
       },
@@ -243,23 +246,37 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
     wio.branches.collectFirstSome(b => b.condition(in).map(interm => b.wio.transformInput[In](s => (s, interm))))
   }
 
-  def convertResult[InnerCtx <: WorkflowContext, E, InnerOut <: WCState[InnerCtx], O1[_] <: WCState[Ctx], Input](
-      embedding: WorkflowEmbedding.Aux[InnerCtx, Ctx, O1, Input],
+  def convertResult[InnerCtx <: WorkflowContext, E, InnerOut <: WCState[InnerCtx], O1[_] <: WCState[Ctx]](
+      wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, O1],
       newWf: NextWfState[InnerCtx, E, InnerOut],
-      input: Input,
+      input: In,
   ): NextWfState[Ctx, E, Out] = {
     // we are interpretting WIO.Embedded and by definition its Out = MappingOutput[InnerOut]. Its just compiler forgetting it somehow
     def convert(x: NextWfState[Ctx, E, O1[InnerOut]]): NextWfState[Ctx, E, Out] = x.asInstanceOf
     newWf.fold(
       b => {
         val x: NewBehaviour[Ctx, E, O1[InnerOut]] =
-          NewBehaviour(WIO.Embedded /*[Ctx, In, Err, InnerCtx, InnerOut, O1, Input]*/ (b.wio, embedding), b.state.asInstanceOf)
+          NewBehaviour(WIO.Embedded(b.wio, wio.embedding, wio.initialState), b.state.asInstanceOf) // TODO something weird with b.state type here
         convert(x)
       }, // TODO
       v => {
-        val x: NewValue[Ctx, E, O1[InnerOut]] = NewValue(v.value.map(embedding.convertState(_, input)))
+        val x: NewValue[Ctx, E, O1[InnerOut]] = NewValue(v.value.map(wio.embedding.convertState(_, input)))
         convert(x)
       },
+    )
+  }
+
+  def preserverHandleInterruption(
+      wio: WIO.HandleInterruption[Ctx, In, Err, Out],
+      result: NextWfState[Ctx, Err, Out],
+      input: In,
+  ): NextWfState[Ctx, Err, Out] = {
+    result.fold(
+      b => {
+        val newBehaviour = WIO.HandleInterruption(b.wio, wio.interruption)
+        NewBehaviour(newBehaviour, b.state)
+      },
+      v => v,
     )
   }
 

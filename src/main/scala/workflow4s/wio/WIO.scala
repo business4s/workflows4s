@@ -2,7 +2,7 @@ package workflow4s.wio
 
 import cats.effect.IO
 import workflow4s.wio.internal.WorkflowConversionEvaluator.WorkflowEmbedding
-import workflow4s.wio.internal.{EventHandler, QueryHandler, SignalHandler}
+import workflow4s.wio.internal.{EventHandler, QueryHandler, SignalHandler, WIOUtils}
 
 import scala.annotation.unused
 import scala.language.implicitConversions
@@ -13,7 +13,10 @@ trait WorkflowContext { ctx: WorkflowContext =>
 
   type WIO[-In, +Err, +Out <: State] = workflow4s.wio.WIO[In, Err, Out, ctx.type]
   object WIO extends WIOBuilderMethods[ctx.type] {
-    type Branch[-In, +Err, +Out <: State] = workflow4s.wio.WIO.Branch[In, Err, Out, ctx.type]
+    type Branch[-In, +Err, +Out <: State]  = workflow4s.wio.WIO.Branch[In, Err, Out, ctx.type]
+    type Interruption[+Err, +Out <: State] = workflow4s.wio.WIO.Interruption[ctx.type, Err, Out, ?, ?]
+
+    def interruption = InterruptionBuilder.Step0[ctx.type]()
   }
 }
 
@@ -35,12 +38,15 @@ sealed trait WIO[-In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext] extend
 
 object WIO {
 
+  sealed trait InterruptionSource { self: WIO[?, ?, ?, ?] => }
+
   case class HandleSignal[Ctx <: WorkflowContext, -In, +Out <: WCState[Ctx], +Err, Sig, Resp, Evt](
       sigDef: SignalDef[Sig, Resp],
       sigHandler: SignalHandler[Sig, Evt, In],
       evtHandler: EventHandler[In, (Either[Err, Out], Resp), WCEvent[Ctx], Evt],
       errorCt: ErrorMeta[_],
-  ) extends WIO[In, Err, Out, Ctx] {
+  ) extends WIO[In, Err, Out, Ctx]
+      with InterruptionSource {
     def expects[Req1, Resp1](@unused signalDef: SignalDef[Req1, Resp1]): Option[HandleSignal[Ctx, In, Out, Err, Req1, Resp1, Evt]] = {
       Some(this.asInstanceOf[HandleSignal[Ctx, In, Out, Err, Req1, Resp1, Evt]]) // TODO
     }
@@ -109,10 +115,19 @@ object WIO {
 
   case class Fork[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]](branches: Vector[Branch[In, Err, Out, Ctx]]) extends WIO[In, Err, Out, Ctx]
 
-  case class Embedded[Ctx <: WorkflowContext, -In, +Err, InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_ <: WCState[InnerCtx]] <: WCState[Ctx]](
+  case class Embedded[Ctx <: WorkflowContext, -In, +Err, InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_ <: WCState[
+    InnerCtx,
+  ]] <: WCState[Ctx]](
       inner: WIO[In, Err, InnerOut, InnerCtx],
       embedding: WorkflowEmbedding.Aux[InnerCtx, Ctx, MappingOutput, In],
+      initialState: In => WCState[InnerCtx], // should we move this into embedding?
   ) extends WIO[In, Err, MappingOutput[InnerOut], Ctx]
+
+  // do we need imperative variant?
+  case class HandleInterruption[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](
+      base: WIO[In, Err, Out, Ctx],
+      interruption: Interruption[Ctx, Err, Out, ?, ?],
+  ) extends WIO[In, Err, Out, Ctx]
 
   // -----
 
@@ -124,6 +139,24 @@ object WIO {
     def condition: In => Option[I]
 
     def wio: WIO[(In, I), Err, Out, Ctx]
+  }
+
+  /*
+  Needs:
+  1. handle both dynamic and declarative
+  2. allow to render speficically
+  3. handle tranformInput
+  Options:
+  1. signaldef + signaldef => wio
+  2. handlesignal + handlesignal => wio
+  3. handlesignal + sequencing
+   */
+  case class Interruption[Ctx <: WorkflowContext, +Err, +Out <: WCState[Ctx], InitOut <: WCState[Ctx], InitErr](
+      trigger: WIO.HandleSignal[Ctx, WCState[Ctx], InitOut, InitErr, ?, ?, ?],
+      buildFinal: WIO[WCState[Ctx], InitErr, InitOut, Ctx] => WIO[WCState[Ctx], Err, Out, Ctx],
+  ) {
+    val finalWIO = buildFinal(trigger)
+    assert(WIOUtils.getFirstRaw(finalWIO) == trigger)
   }
 
   object Branch {

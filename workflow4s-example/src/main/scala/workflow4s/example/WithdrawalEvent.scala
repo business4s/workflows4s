@@ -25,4 +25,6 @@ object WithdrawalEvent {
 
   case class MoneyReleased() extends WithdrawalEvent
   case class RejectionHandled(error: String) extends WithdrawalEvent
+
+  case class WithdrawalCancelledByOperator(operatorId: String, comment: String) extends WithdrawalEvent
 }

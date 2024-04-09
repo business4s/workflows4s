@@ -52,7 +52,7 @@ object BPMNConverter {
           .signal(signalName)
           .name(signalName)
           .serviceTask()
-          .name(s"Handle ${signalName}")
+          .name(s"""Handle "${signalName}"""")
           .documentation(description.orNull)
           .pipe(renderError(error))
       case WIOModel.HandleError(base, handler, errName)                =>
@@ -73,7 +73,14 @@ object BPMNConverter {
           .moveToNode(subProcessStartEventId)
           .subProcessDone()
       case WIOModel.Noop                                               => builder
-      case WIOModel.Pure(_, _)                                         => builder // TODO remove name if we dont render
+      case WIOModel.Pure(_, _, errMeta)                                =>
+        errMeta match {
+          case ErrorMeta.NoError()  => builder // dont render anything if no error
+          case ErrorMeta.Present(_) =>
+            builder
+              .serviceTask()
+              .pipe(renderError(errMeta))
+        }
       case WIOModel.Loop(base, conditionName)                          =>
         val loopStartGwId      = Random.alphanumeric.filter(_.isLetter).take(10).mkString
         val newBuilder         = builder.exclusiveGateway(loopStartGwId)
@@ -97,12 +104,40 @@ object BPMNConverter {
                 (result.connectTo(value), endGw)
               case None        =>
                 val gwId = result.exclusiveGateway().getElement.getId
-                
+
                 (result, Some(gwId))
             }
           })
         }
         resultBuilder.moveToNode(endGwId)
+      case WIOModel.Interruptible(base, trigger, interruptionFlowOpt)  =>
+        val subProcessStartEventId = Random.alphanumeric.filter(_.isLetter).take(10).mkString
+        val subBuilder             = builder
+          .subProcess()
+          .embeddedSubProcess()
+          .startEvent(subProcessStartEventId)
+          .name("")
+        val interruptionPath       = handle(base, subBuilder)
+          .endEvent()
+          .subProcessDone()
+          .boundaryEvent()
+          .pipe(builder =>
+            trigger match {
+              case x: WIOModel.HandleSignal =>
+                builder
+                  .signal(x.signalName)
+                  .name(x.signalName)
+                  .serviceTask()
+                  .name(s"Handle ${x.signalName}")
+                  .pipe(renderError(x.error))
+            },
+          )
+        interruptionFlowOpt
+          .map(handle(_, interruptionPath))
+          .getOrElse(interruptionPath)
+          .endEvent()
+          .moveToNode(subProcessStartEventId)
+          .subProcessDone()
     }
   }
 

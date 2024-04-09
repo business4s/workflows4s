@@ -12,7 +12,7 @@ import scala.reflect.ClassTag
 
 trait WIOBuilderMethods[Ctx <: WorkflowContext] {
 
-  def handleSignal[StIn] = new HandleSignalPartiallyApplied1[StIn]
+  def handleSignal[In] = new HandleSignalPartiallyApplied1[In]
 
   class HandleSignalPartiallyApplied1[In] {
     def apply[Sig: ClassTag, Evt <: WCEvent[Ctx] : ClassTag, Resp](@unused signalDef: SignalDef[Sig, Resp])(
@@ -41,7 +41,7 @@ trait WIOBuilderMethods[Ctx <: WorkflowContext] {
                                                                                                                 signalHandler: SignalHandler[Sig, Evt, In],
                                                                                                                 handleEvent: (In, Evt) => Either[Err, Out],
                                                                                                               ) {
-    def produceResponse(f: (In, Evt) => Resp)(implicit errorMeta: ErrorMeta[Err]): WIO[In, Err, Out, Ctx] = {
+    def produceResponse(f: (In, Evt) => Resp)(implicit errorMeta: ErrorMeta[Err]): WIO[In, Err, Out, Ctx] with WIO.InterruptionSource = {
       val combined = (s: In, e: Evt) => (handleEvent(s, e), f(s, e))
       val eventHandler: EventHandler[In, (Either[Err, Out], Resp), WCEvent[Ctx], Evt] = EventHandler(summon[ClassTag[Evt]].unapply, identity, combined)
       WIO.HandleSignal(signalDef, signalHandler, eventHandler, errorMeta)
@@ -123,8 +123,11 @@ trait WIOBuilderMethods[Ctx <: WorkflowContext] {
       Branch(cond, wio)
   }
 
-  def embed[In, Err, Out <: WCState[Ctx2], Ctx2 <: WorkflowContext, OS[_ <: WCState[Ctx2]] <: WCState[Ctx] ](wio: WIO[In, Err, Out, Ctx2])(embedding: WorkflowEmbedding.Aux[Ctx2, Ctx, OS, In]): WIO[In, Err, OS[Out], Ctx] = {
-    WIO.Embedded(wio, embedding)
+  def embed[In, Err, Out <: WCState[InnerCtx], InnerCtx <: WorkflowContext, OS[_ <: WCState[InnerCtx]] <: WCState[Ctx] ](wio: WIO[In, Err, Out, InnerCtx])(
+    embedding: WorkflowEmbedding.Aux[InnerCtx, Ctx, OS, In],
+    initialState: In => WCState[InnerCtx]
+  ): WIO[In, Err, OS[Out], Ctx] = {
+    WIO.Embedded(wio, embedding, initialState)
   }
 
   def noop(): WIO[Any, Nothing, Nothing, Ctx] = WIO.Noop[Ctx]()

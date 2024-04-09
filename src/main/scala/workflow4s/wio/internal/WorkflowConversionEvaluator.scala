@@ -10,6 +10,8 @@ object WorkflowConversionEvaluator {
 
     type OutputState[In <: WCState[Inner]] <: WCState[Outer]
     def convertState[In <: WCState[Inner]](innerState: In, input: Input): OutputState[In]
+    // TODO can we help with assuring symetry on user side?
+    def unconvertState(outerState: WCState[Outer]): Option[WCState[Inner]]
   }
 
   object WorkflowEmbedding {

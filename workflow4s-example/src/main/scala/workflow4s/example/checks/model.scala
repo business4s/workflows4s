@@ -40,7 +40,12 @@ sealed trait ChecksState {
 
 object ChecksState {
 
+
   sealed trait InProgress extends ChecksState
+
+  case object Empty extends InProgress {
+    override def results: Map[CheckKey, CheckResult] = Map()
+  }
 
   case class Pending(input: ChecksInput, results: Map[CheckKey, CheckResult])          extends InProgress {
     private def finishedChecks: Map[CheckKey, CheckResult.Finished] = results.collect({ case (key, result: CheckResult.Finished) => key -> result })

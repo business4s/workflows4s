@@ -10,12 +10,13 @@ import workflow4s.bpmn.BPMNConverter
 import workflow4s.example.WithdrawalService.{ExecutionResponse, Fee, Iban}
 import workflow4s.example.WithdrawalSignal.CreateWithdrawal
 import workflow4s.example.checks.{ChecksEngine, ChecksInput, ChecksState, Decision}
-import workflow4s.example.testuitls.TestUtils.{SimpleQueryResponseOps, SimpleSignalResponseOps}
+import workflow4s.example.testuitls.TestUtils.SimpleSignalResponseOps
 import workflow4s.wio.model.{WIOModel, WIOModelInterpreter}
 import workflow4s.wio.simple.{InMemoryJournal, SimpleActor}
 import io.circe.syntax.*
 
 import java.io.File
+import java.nio.file.Files
 
 //noinspection ForwardReference
 class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
@@ -85,9 +86,9 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
     }
 
     "render model" in new Fixture {
-      val model     = getModel(new WithdrawalWorkflow(service, DummyChecksEngine).workflow)
+      val model     = getModel(new WithdrawalWorkflow(service, DummyChecksEngine).workflowDeclarative)
       val modelJson = model.asJson
-      print(modelJson.spaces2)
+      Files.writeString(java.nio.file.Path.of("src/test/resources/withdrawal-example-declarative-model.json"), modelJson.spaces2)
     }
 
     "render bpmn model" in new Fixture {
@@ -149,12 +150,13 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
     }
 
     class WithdrawalActor(journal: InMemoryJournal[WithdrawalEvent]) {
-      val delegate: SimpleActor[WithdrawalData] = SimpleActor.create[WithdrawalWorkflow.Context.type, WithdrawalData.Empty](workflow, WithdrawalData.Empty(txId), journal)
+      val delegate: SimpleActor[WithdrawalData]                            =
+        SimpleActor.create[WithdrawalWorkflow.Context.type, WithdrawalData.Empty](workflow, WithdrawalData.Empty(txId), journal)
       def init(req: CreateWithdrawal): Unit                                = {
-        delegate.handleSignal(WithdrawalWorkflow.createWithdrawalSignal)(req).extract
+        delegate.handleSignal(WithdrawalWorkflow.Signals.createWithdrawal)(req).extract
       }
       def confirmExecution(req: WithdrawalSignal.ExecutionCompleted): Unit = {
-        delegate.handleSignal(WithdrawalWorkflow.executionCompletedSignal)(req).extract
+        delegate.handleSignal(WithdrawalWorkflow.Signals.executionCompleted)(req).extract
       }
 
       def queryData(): WithdrawalData = delegate.state

@@ -4,11 +4,12 @@ import cats.effect.IO
 import cats.implicits.{catsSyntaxApplicativeId, catsSyntaxEitherId}
 import workflow4s.example.WithdrawalEvent.{MoneyLocked, WithdrawalAccepted, WithdrawalRejected}
 import workflow4s.example.WithdrawalService.ExecutionResponse
-import workflow4s.example.WithdrawalSignal.{CreateWithdrawal, ExecutionCompleted}
-import workflow4s.example.WithdrawalWorkflow.{checksEmbedding, createWithdrawalSignal, dataQuery, executionCompletedSignal}
-import workflow4s.example.checks.{ChecksEngine, ChecksEvent, ChecksInput, ChecksState, Decision}
+import workflow4s.example.WithdrawalSignal.{CancelWithdrawal, CreateWithdrawal, ExecutionCompleted}
+import workflow4s.example.WithdrawalWorkflow.{Context, Signals, checksEmbedding}
+import workflow4s.example.checks.*
+import workflow4s.wio
 import workflow4s.wio.internal.WorkflowConversionEvaluator.WorkflowEmbedding
-import workflow4s.wio.{SignalDef, WorkflowContext}
+import workflow4s.wio.{SignalDef, WCState, WorkflowContext}
 
 object WithdrawalWorkflow {
 
@@ -17,9 +18,11 @@ object WithdrawalWorkflow {
     override type State = WithdrawalData
   }
 
-  val createWithdrawalSignal   = SignalDef[CreateWithdrawal, Unit]()
-  val dataQuery                = SignalDef[Unit, WithdrawalData]()
-  val executionCompletedSignal = SignalDef[ExecutionCompleted, Unit]()
+  object Signals {
+    val createWithdrawal   = SignalDef[CreateWithdrawal, Unit]()
+    val executionCompleted = SignalDef[ExecutionCompleted, Unit]()
+    val cancel             = SignalDef[CancelWithdrawal, Unit]()
+  }
 
   val checksEmbedding = new WorkflowEmbedding[ChecksEngine.Context.type, WithdrawalWorkflow.Context.type, WithdrawalData.Validated] {
     override def convertEvent(e: ChecksEvent): WithdrawalEvent = WithdrawalEvent.ChecksRun(e)
@@ -37,6 +40,12 @@ object WithdrawalWorkflow {
     override def convertState[T <: ChecksState](s: T, input: WithdrawalData.Validated): OutputState[T] = s match {
       case x: ChecksState.InProgress => input.checking(x)
       case x: ChecksState.Decided    => input.checked(x)
+    }
+
+    override def unconvertState(outerState: WithdrawalData): Option[ChecksState] = outerState match {
+      case x: WithdrawalData.Checking => Some(x.checkResults)
+      case x: WithdrawalData.Checked  => Some(x.checkResults)
+      case _                          => None
     }
   }
 
@@ -59,17 +68,19 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
 
   val workflowDeclarative: WIO[WithdrawalData.Empty, Nothing, WithdrawalData.Completed] =
     (
-      receiveWithdrawal >>>
-        calculateFees >>>
-        putMoneyOnHold >>>
-        runChecks >>>
-        execute >>>
-        releaseFunds
+      (
+        receiveWithdrawal >>>
+          calculateFees >>>
+          putMoneyOnHold >>>
+          runChecks >>>
+          execute
+      ).interruptWith(handleCancellation)
+        >>> releaseFunds
     ).handleErrorWith(cancelFundsIfNeeded) >>> WIO.noop()
 
   private def receiveWithdrawal: WIO[WithdrawalData.Empty, WithdrawalRejection.InvalidInput, WithdrawalData.Initiated] =
     WIO
-      .handleSignal[WithdrawalData.Empty](createWithdrawalSignal) { (_, signal) =>
+      .handleSignal[WithdrawalData.Empty](Signals.createWithdrawal) { (_, signal) =>
         IO {
           if (signal.amount > 0) WithdrawalAccepted(signal.amount, signal.recipient)
           else WithdrawalRejected("Amount must be positive")
@@ -112,8 +123,8 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
       WIO.embed[WithdrawalData.Validated, Nothing, ChecksState.Decided, ChecksEngine.Context.type, checksEmbedding.OutputState](
         checksEngine.runChecks
           .transformInput((x: WithdrawalData.Validated) => ChecksInput(x, List())),
-//          .transformOutput((validated, checkState) => validated.checked(checkState)),
-      )(checksEmbedding) // TODO
+          //          .transformOutput((validated, checkState) => validated.checked(checkState)),
+      )(checksEmbedding, _ => ChecksState.Empty) // TODO
 
     val actOnDecision = WIO
       .pure[WithdrawalData.Checked]
@@ -148,7 +159,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
 
   private def awaitExecutionCompletion: WIO[WithdrawalData.Executed, WithdrawalRejection.RejectedByExecutionEngine, WithdrawalData.Executed] =
     WIO
-      .handleSignal[WithdrawalData.Executed](executionCompletedSignal)((_, sig) => IO(WithdrawalEvent.ExecutionCompleted(sig)))
+      .handleSignal[WithdrawalData.Executed](Signals.executionCompleted)((_, sig) => IO(WithdrawalEvent.ExecutionCompleted(sig)))
       .handleEventWithError((s, e: WithdrawalEvent.ExecutionCompleted) =>
         e.status match {
           case ExecutionCompleted.Succeeded => Right(s)
@@ -177,6 +188,16 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
       })
       .handleEvent((_: (WithdrawalData, WithdrawalRejection), evt) => WithdrawalData.Completed.Failed(evt.error))
       .autoNamed()
+  }
+
+  private def handleCancellation: WIO.Interruption[WithdrawalRejection.Cancelled, Nothing] = {
+    WIO.interruption
+      .throughSignal(Signals.cancel)
+      .handleSync((_, signal) => WithdrawalEvent.WithdrawalCancelledByOperator(signal.operatorId, signal.comment))
+      .handleEventWithError((_, evt) => WithdrawalRejection.Cancelled(evt.operatorId, evt.comment).asLeft)
+      .voidResponse
+      .noFollowupSteps
+      .done
   }
 
 }

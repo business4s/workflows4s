@@ -28,42 +28,47 @@ object EventEvaluator {
         .detect(event)
         .map(x => NextWfState.NewValue(handler.handle(state, x)))
 
-    def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result            = doHandle(
+    def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result                     = doHandle(
       wio.evtHandler.map(_._1),
     )
-    def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result                                          = doHandle(wio.evtHandler)
-    def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result =
+    def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result                                                   = doHandle(wio.evtHandler)
+    def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result          =
       recurse(wio.base, state, event).map(preserveFlatMap(wio, _))
-    def onMap[In1, Out1 <: WCState[Ctx]](wio: WIO.Map[Ctx, In1, Err, Out1, In, Out]): Result                  =
+    def onMap[In1, Out1 <: WCState[Ctx]](wio: WIO.Map[Ctx, In1, Err, Out1, In, Out]): Result                           =
       recurse(wio.base, wio.contramapInput(state), event).map(preserveMap(wio, _, state))
-    def onNoop(wio: WIO.Noop[Ctx]): Result                                                                    = None
-    def onNamed(wio: WIO.Named[Ctx, In, Err, Out]): Result                                                    = recurse(wio.base, state, event)
-    def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result                          =
+    def onNoop(wio: WIO.Noop[Ctx]): Result                                                                             = None
+    def onNamed(wio: WIO.Named[Ctx, In, Err, Out]): Result                                                             = recurse(wio.base, state, event)
+    def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result =
       recurse(wio.base, state, event).map((newWf: NextWfState[Ctx, ErrIn, Out]) => {
         val casted: NextWfState[Ctx, ErrIn, Out] { type Error = ErrIn } =
           newWf.asInstanceOf[NextWfState[Ctx, ErrIn, Out] { type Error = ErrIn }] // TODO casting
         applyHandleError(wio, casted, state)
       })
-    def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result                  =
+    def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result                           =
       recurse(wio.base, state, event).map((newWf: NextWfState[Ctx, ErrIn, Out]) => {
         val casted: NextWfState[Ctx, ErrIn, Out] { type Error = ErrIn } =
           newWf.asInstanceOf[NextWfState[Ctx, ErrIn, Out] { type Error = ErrIn }] // TODO casting
         applyHandleErrorWith(wio, casted, state)
       })
-    def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result                    =
+    def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result                             =
       recurse(wio.first, state, event).map(preserveAndThen(wio, _))
-    def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                                                      = None
-    def onDoWhile[Out1 <: WCState[Ctx]](wio: WIO.DoWhile[Ctx, In, Err, Out1, Out]): Result                    =
+    def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                                                               = None
+    def onDoWhile[Out1 <: WCState[Ctx]](wio: WIO.DoWhile[Ctx, In, Err, Out1, Out]): Result                             =
       recurse(wio.current, state, event).map(applyOnDoWhile(wio, _))
-    def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                                                      = ??? // TODO, proper error handling, should never happen
+    def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                                                               =
+      selectMatching(wio, state).flatMap(recurse(_, state, event))
     def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_] <: WCState[Ctx]](
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
     ): Result = {
       wio.embedding
         .unconvertEvent(event)
         .flatMap(convertedEvent => new EventVisitor(wio.inner, convertedEvent, state).run)
-        .map(convertResult(wio.embedding, _, state))
+        .map(convertResult(wio, _, state))
     }
+
+    // will be problematic if we use the same event on both paths
+    def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result =
+      recurse(wio.base, state, event).map(preserverHandleInterruption(wio, _, state)).orElse(recurse(wio.base, state, event))
 
     def recurse[C <: WorkflowContext, I1, E1, O1 <: WCState[C]](wio: WIO[I1, E1, O1, C], s: I1, e: WCEvent[C]): EventVisitor[C, I1, E1, O1]#Result =
       new EventVisitor(wio, e, s).run

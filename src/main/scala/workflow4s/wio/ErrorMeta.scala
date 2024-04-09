@@ -11,9 +11,9 @@ object ErrorMeta {
     override def nameOpt: Option[String] = None
   }
 
-  case class NoInfo[T]() extends ErrorMeta[T] {
-    override def nameOpt: Option[String] = Some("???")
-  }
+//  case class NoInfo[T]() extends ErrorMeta[T] {
+//    override def nameOpt: Option[String] = Some("???")
+//  }
 
   case class Present[T](name: String) extends ErrorMeta[T]{
     override def nameOpt: Option[String] = Some(name)

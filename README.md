@@ -104,6 +104,7 @@ List of related projects:
 | [aecor](https://github.com/notxcain/aecor)                                    | ✅              | ✅          | ❌           |
 | [endless](https://github.com/endless4s/endless)                               | ✅              | ✅          | ❌           |
 | [infintic](infinitic.io)                                                      | ~ [1]          | ✅          | ❌           |
+| [Baker](https://ing-bank.github.io/baker/)                                    | ✅              | ✅          | ✅           |
 
 * [1] - Infintic requires Apache Pulsar, which can be seen as a database and is not specific to Infintic
 * [2] - zio-flow could theoretically render the diagrams but its not implemented at the moment
