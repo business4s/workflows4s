@@ -5,21 +5,25 @@ import workflow4s.wio.{Interpreter, NextWfState, Visitor, WCEvent, WCState, WIO,
 
 object EventEvaluator {
 
-  def handleEvent[Ctx <: WorkflowContext, StIn](
+  def handleEvent[Ctx <: WorkflowContext, StIn <: WCState[Ctx]](
       event: WCEvent[Ctx],
       wio: WIO[StIn, Nothing, WCState[Ctx], Ctx],
       state: StIn,
       interpreter: Interpreter[Ctx],
   ): EventResponse[Ctx] = {
-    val visitor = new EventVisitor(wio, event, state)
+    val visitor = new EventVisitor(wio, event, state, state)
     visitor.run
       .map(wf => wf.toActiveWorkflow(interpreter))
       .map(EventResponse.Ok(_))
       .getOrElse(EventResponse.UnexpectedEvent())
   }
 
-  private class EventVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio: WIO[In, Err, Out, Ctx], event: WCEvent[Ctx], state: In)
-      extends Visitor[Ctx, In, Err, Out](wio) {
+  private class EventVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](
+      wio: WIO[In, Err, Out, Ctx],
+      event: WCEvent[Ctx],
+      state: In,
+      initialState: WCState[Ctx],
+  ) extends Visitor[Ctx, In, Err, Out](wio) {
     type NewWf           = NextWfState[Ctx, Err, Out]
     override type Result = Option[NewWf]
 
@@ -60,18 +64,22 @@ object EventEvaluator {
     def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_] <: WCState[Ctx]](
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
     ): Result = {
+      val newState: WCState[InnerCtx] =
+        wio.embedding
+          .unconvertState(initialState)
+          .getOrElse(wio.initialState(state)) // TODO, this is not safe, we will use initial state if the state mapping is incorrect (not symetrical). This will be very hard for the user to diagnose.
       wio.embedding
         .unconvertEvent(event)
-        .flatMap(convertedEvent => new EventVisitor(wio.inner, convertedEvent, state).run)
+        .flatMap(convertedEvent => new EventVisitor(wio.inner, convertedEvent, state, newState).run)
         .map(convertResult(wio, _, state))
     }
 
     // will be problematic if we use the same event on both paths
     def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result =
-      recurse(wio.base, state, event).map(preserverHandleInterruption(wio, _, state)).orElse(recurse(wio.base, state, event))
+      recurse(wio.base, state, event).map(preserverHandleInterruption(wio, _, state)).orElse(recurse(wio.interruption.finalWIO, initialState, event))
 
-    def recurse[C <: WorkflowContext, I1, E1, O1 <: WCState[C]](wio: WIO[I1, E1, O1, C], s: I1, e: WCEvent[C]): EventVisitor[C, I1, E1, O1]#Result =
-      new EventVisitor(wio, e, s).run
+    def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], s: I1, e: WCEvent[Ctx]): EventVisitor[Ctx, I1, E1, O1]#Result =
+      new EventVisitor(wio, e, s, initialState).run
 
   }
 }

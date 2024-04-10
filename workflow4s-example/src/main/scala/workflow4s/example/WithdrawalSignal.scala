@@ -12,5 +12,5 @@ object WithdrawalSignal {
     case object Failed    extends ExecutionCompleted
   }
 
-  case class CancelWithdrawal(operatorId: String, comment: String)
+  case class CancelWithdrawal(operatorId: String, comment: String, acceptStartedExecution: Boolean)
 }

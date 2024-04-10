@@ -42,47 +42,49 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
 
       checkRecovery()
     }
+    "reject" - {
 
-    "reject in validation" in new Fixture {
-      actor.init(CreateWithdrawal(-100, recipient))
-      assert(actor.queryData() == WithdrawalData.Completed.Failed("Amount must be positive"))
+      "in validation" in new Fixture {
+        actor.init(CreateWithdrawal(-100, recipient))
+        assert(actor.queryData() == WithdrawalData.Completed.Failed("Amount must be positive"))
 
-      checkRecovery()
-    }
+        checkRecovery()
+      }
 
-    "reject in funds lock" in new Fixture {
-      withFeeCalculation(fees)
-      withMoneyOnHold(success = false)
+      "in funds lock" in new Fixture {
+        withFeeCalculation(fees)
+        withMoneyOnHold(success = false)
 
-      actor.init(CreateWithdrawal(amount, recipient))
-      assert(actor.queryData() == WithdrawalData.Completed.Failed("Not enough funds on the user's account"))
+        actor.init(CreateWithdrawal(amount, recipient))
+        assert(actor.queryData() == WithdrawalData.Completed.Failed("Not enough funds on the user's account"))
 
-      checkRecovery()
-    }
+        checkRecovery()
+      }
 
-    "reject in execution initiation" in new Fixture {
-      withFeeCalculation(fees)
-      withMoneyOnHold(success = true)
-      withExecutionInitiated(success = false)
-      withFundsLockCancelled()
+      "in execution initiation" in new Fixture {
+        withFeeCalculation(fees)
+        withMoneyOnHold(success = true)
+        withExecutionInitiated(success = false)
+        withFundsLockCancelled()
 
-      actor.init(CreateWithdrawal(amount, recipient))
-      assert(actor.queryData() == WithdrawalData.Completed.Failed("Rejected by execution engine"))
+        actor.init(CreateWithdrawal(amount, recipient))
+        assert(actor.queryData() == WithdrawalData.Completed.Failed("Rejected by execution engine"))
 
-      checkRecovery()
-    }
+        checkRecovery()
+      }
 
-    "reject in execution confirmation" in new Fixture {
-      withFeeCalculation(fees)
-      withMoneyOnHold(success = true)
-      withExecutionInitiated(success = true)
-      withFundsLockCancelled()
+      "in execution confirmation" in new Fixture {
+        withFeeCalculation(fees)
+        withMoneyOnHold(success = true)
+        withExecutionInitiated(success = true)
+        withFundsLockCancelled()
 
-      actor.init(CreateWithdrawal(amount, recipient))
-      actor.confirmExecution(WithdrawalSignal.ExecutionCompleted.Failed)
-      assert(actor.queryData() == WithdrawalData.Completed.Failed("Execution failed"))
+        actor.init(CreateWithdrawal(amount, recipient))
+        actor.confirmExecution(WithdrawalSignal.ExecutionCompleted.Failed)
+        assert(actor.queryData() == WithdrawalData.Completed.Failed("Execution failed"))
 
-      checkRecovery()
+        checkRecovery()
+      }
     }
 
     "render model" in new Fixture {
@@ -99,6 +101,24 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
       val modelDecl     = getModel(wf.workflowDeclarative)
       val bpmnModelDecl = BPMNConverter.convert(modelDecl, "withdrawal-example")
       Bpmn.writeModelToFile(new File("src/test/resources/withdrawal-example-bpmn-declarative.bpmn"), bpmnModelDecl)
+    }
+
+    "cancel" - {
+
+      // other tests require concurrent testing
+      "when waiting for execution confirmation" in new Fixture {
+        withFeeCalculation(fees)
+        withMoneyOnHold(success = true)
+        withExecutionInitiated(success = true)
+        withFundsLockCancelled()
+
+        actor.init(CreateWithdrawal(amount, recipient))
+        actor.cancel(WithdrawalSignal.CancelWithdrawal("operator-1", "cancelled", acceptStartedExecution = true))
+        assert(actor.queryData() == WithdrawalData.Completed.Failed("Cancelled by operator-1. Comment: cancelled"))
+
+        checkRecovery()
+      }
+
     }
   }
 
@@ -157,6 +177,9 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
       }
       def confirmExecution(req: WithdrawalSignal.ExecutionCompleted): Unit = {
         delegate.handleSignal(WithdrawalWorkflow.Signals.executionCompleted)(req).extract
+      }
+      def cancel(req: WithdrawalSignal.CancelWithdrawal): Unit             = {
+        delegate.handleSignal(WithdrawalWorkflow.Signals.cancel)(req).extract
       }
 
       def queryData(): WithdrawalData = delegate.state

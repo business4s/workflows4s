@@ -184,6 +184,8 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
           case WithdrawalRejection.RejectedInChecks()               =>
             service.cancelFundsLock().as(WithdrawalEvent.RejectionHandled("Transaction rejected in checks"))
           case WithdrawalRejection.RejectedByExecutionEngine(error) => service.cancelFundsLock().as(WithdrawalEvent.RejectionHandled(error))
+          case WithdrawalRejection.Cancelled(operatorId, comment)   =>
+            service.cancelFundsLock().as(WithdrawalEvent.RejectionHandled(s"Cancelled by ${operatorId}. Comment: ${comment}"))
         }
       })
       .handleEvent((_: (WithdrawalData, WithdrawalRejection), evt) => WithdrawalData.Completed.Failed(evt.error))
@@ -193,7 +195,23 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
   private def handleCancellation: WIO.Interruption[WithdrawalRejection.Cancelled, Nothing] = {
     WIO.interruption
       .throughSignal(Signals.cancel)
-      .handleSync((_, signal) => WithdrawalEvent.WithdrawalCancelledByOperator(signal.operatorId, signal.comment))
+      .handleAsync((state, signal) => {
+        def ok = WithdrawalEvent.WithdrawalCancelledByOperator(signal.operatorId, signal.comment).pure[IO]
+        state match {
+          case _: WithdrawalData.Empty     => ok
+          case _: WithdrawalData.Initiated => ok
+          case _: WithdrawalData.Validated => ok
+          case _: WithdrawalData.Checking  => ok
+          case _: WithdrawalData.Checked   => ok
+          case _: WithdrawalData.Executed  =>
+            if (signal.acceptStartedExecution) ok
+            else
+              IO.raiseError(
+                new Exception("To cancel transaction that has been already executed, this fact has to be explicitly accepted in the request."),
+              )
+          case _: WithdrawalData.Completed => IO.raiseError(new Exception(s"Unexpected state for cancellation: $state"))
+        }
+      })
       .handleEventWithError((_, evt) => WithdrawalRejection.Cancelled(evt.operatorId, evt.comment).asLeft)
       .voidResponse
       .noFollowupSteps
