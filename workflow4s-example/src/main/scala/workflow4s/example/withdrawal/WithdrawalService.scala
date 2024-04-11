@@ -1,7 +1,7 @@
-package workflow4s.example
+package workflow4s.example.withdrawal
 
 import cats.effect.IO
-import workflow4s.example.WithdrawalService.{ExecutionResponse, Fee, Iban, NotEnoughFunds}
+import workflow4s.example.withdrawal.WithdrawalService.{ExecutionResponse, Fee, Iban, NotEnoughFunds}
 
 trait WithdrawalService {
   def calculateFees(amount: BigDecimal): IO[Fee]

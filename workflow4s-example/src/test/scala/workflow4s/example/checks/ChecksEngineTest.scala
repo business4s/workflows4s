@@ -8,6 +8,7 @@ import org.scalatest.freespec.AnyFreeSpec
 import workflow4s.bpmn.BPMNConverter
 import workflow4s.example.checks
 import workflow4s.example.testuitls.TestUtils.SimpleSignalResponseOps
+import workflow4s.example.withdrawal.checks.{Check, CheckKey, CheckResult, ChecksEngine, ChecksEvent, ChecksInput, ChecksState, Decision, ReviewDecision}
 import workflow4s.wio.model.{WIOModel, WIOModelInterpreter}
 import workflow4s.wio.simple.{InMemoryJournal, SimpleActor}
 

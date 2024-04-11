@@ -7,13 +7,14 @@ import org.camunda.bpm.model.bpmn.Bpmn
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.freespec.AnyFreeSpec
 import workflow4s.bpmn.BPMNConverter
-import workflow4s.example.WithdrawalService.{ExecutionResponse, Fee, Iban}
-import workflow4s.example.WithdrawalSignal.CreateWithdrawal
-import workflow4s.example.checks.{ChecksEngine, ChecksInput, ChecksState, Decision}
+import workflow4s.example.withdrawal.WithdrawalService.{ExecutionResponse, Fee, Iban}
+import workflow4s.example.withdrawal.WithdrawalSignal.CreateWithdrawal
 import workflow4s.example.testuitls.TestUtils.SimpleSignalResponseOps
 import workflow4s.wio.model.{WIOModel, WIOModelInterpreter}
 import workflow4s.wio.simple.{InMemoryJournal, SimpleActor}
 import io.circe.syntax.*
+import workflow4s.example.withdrawal.checks.{ChecksEngine, ChecksInput, ChecksState, Decision}
+import workflow4s.example.withdrawal.{WithdrawalData, WithdrawalEvent, WithdrawalService, WithdrawalSignal, WithdrawalWorkflow}
 
 import java.io.File
 import java.nio.file.Files

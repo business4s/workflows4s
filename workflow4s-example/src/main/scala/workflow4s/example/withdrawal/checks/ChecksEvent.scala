@@ -1,4 +1,4 @@
-package workflow4s.example.checks
+package workflow4s.example.withdrawal.checks
 
 sealed trait ChecksEvent
 object ChecksEvent {

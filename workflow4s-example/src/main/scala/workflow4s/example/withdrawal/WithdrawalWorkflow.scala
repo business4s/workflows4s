@@ -1,15 +1,14 @@
-package workflow4s.example
+package workflow4s.example.withdrawal
 
 import cats.effect.IO
 import cats.implicits.{catsSyntaxApplicativeId, catsSyntaxEitherId}
-import workflow4s.example.WithdrawalEvent.{MoneyLocked, WithdrawalAccepted, WithdrawalRejected}
-import workflow4s.example.WithdrawalService.ExecutionResponse
-import workflow4s.example.WithdrawalSignal.{CancelWithdrawal, CreateWithdrawal, ExecutionCompleted}
-import workflow4s.example.WithdrawalWorkflow.{Context, Signals, checksEmbedding}
-import workflow4s.example.checks.*
-import workflow4s.wio
+import workflow4s.example.withdrawal.WithdrawalEvent.{MoneyLocked, WithdrawalAccepted, WithdrawalRejected}
+import workflow4s.example.withdrawal.WithdrawalService.ExecutionResponse
+import workflow4s.example.withdrawal.WithdrawalSignal.{CancelWithdrawal, CreateWithdrawal, ExecutionCompleted}
+import workflow4s.example.withdrawal.WithdrawalWorkflow.{Signals, checksEmbedding}
+import workflow4s.example.withdrawal.checks.*
 import workflow4s.wio.internal.WorkflowConversionEvaluator.WorkflowEmbedding
-import workflow4s.wio.{SignalDef, WCState, WorkflowContext}
+import workflow4s.wio.{SignalDef, WorkflowContext}
 
 object WithdrawalWorkflow {
 

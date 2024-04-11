@@ -109,7 +109,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
             val errCasted = err.asInstanceOf[Err]
             NewValue(errCasted.asLeft)
           case Right(value) =>
-            val effectiveWIO: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, b.State] = WIO.FlatMap(b.wio, (x: Out1) => wio.getNext(x), wio.errorCt)
+            val effectiveWIO: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, b.State] = WIO.FlatMap(b.wio, (x: Out1) => wio.getNext(x), wio.errorMeta)
             NewBehaviour(effectiveWIO, b.state)
         }
       },

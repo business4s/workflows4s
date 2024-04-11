@@ -41,10 +41,10 @@ object WIO {
   sealed trait InterruptionSource { self: WIO[?, ?, ?, ?] => }
 
   case class HandleSignal[Ctx <: WorkflowContext, -In, +Out <: WCState[Ctx], +Err, Sig, Resp, Evt](
-      sigDef: SignalDef[Sig, Resp],
-      sigHandler: SignalHandler[Sig, Evt, In],
-      evtHandler: EventHandler[In, (Either[Err, Out], Resp), WCEvent[Ctx], Evt],
-      errorCt: ErrorMeta[_],
+                                                                                                    sigDef: SignalDef[Sig, Resp],
+                                                                                                    sigHandler: SignalHandler[Sig, Evt, In],
+                                                                                                    evtHandler: EventHandler[In, (Either[Err, Out], Resp), WCEvent[Ctx], Evt],
+                                                                                                    errorMeta: ErrorMeta[_],
   ) extends WIO[In, Err, Out, Ctx]
       with InterruptionSource {
     def expects[Req1, Resp1](@unused signalDef: SignalDef[Req1, Resp1]): Option[HandleSignal[Ctx, In, Out, Err, Req1, Resp1, Evt]] = {
@@ -54,15 +54,15 @@ object WIO {
 
   // theoretically state is not needed, it could be State.extract.flatMap(RunIO)
   case class RunIO[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx], Evt](
-      buildIO: In => IO[Evt],
-      evtHandler: EventHandler[In, Either[Err, Out], WCEvent[Ctx], Evt],
-      errorCt: ErrorMeta[_],
+                                                                                  buildIO: In => IO[Evt],
+                                                                                  evtHandler: EventHandler[In, Either[Err, Out], WCEvent[Ctx], Evt],
+                                                                                  errorMeta: ErrorMeta[_],
   ) extends WIO[In, Err, Out, Ctx]
 
   case class FlatMap[Ctx <: WorkflowContext, Err1 <: Err2, Err2, Out1 <: WCState[Ctx], +Out2 <: WCState[Ctx], -In](
-      base: WIO[In, Err1, Out1, Ctx],
-      getNext: Out1 => WIO[Out1, Err2, Out2, Ctx],
-      errorCt: ErrorMeta[_],
+                                                                                                                    base: WIO[In, Err1, Out1, Ctx],
+                                                                                                                    getNext: Out1 => WIO[Out1, Err2, Out2, Ctx],
+                                                                                                                    errorMeta: ErrorMeta[_],
   ) extends WIO[In, Err2, Out2, Ctx]
 
   case class Map[Ctx <: WorkflowContext, In, Err, Out1 <: WCState[Ctx], -In2, +Out2 <: WCState[Ctx]](

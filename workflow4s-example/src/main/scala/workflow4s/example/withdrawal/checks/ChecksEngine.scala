@@ -1,4 +1,4 @@
-package workflow4s.example.checks
+package workflow4s.example.withdrawal.checks
 
 import cats.effect.IO
 import cats.syntax.all.*

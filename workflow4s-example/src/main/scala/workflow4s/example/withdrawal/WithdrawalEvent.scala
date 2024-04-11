@@ -1,7 +1,7 @@
-package workflow4s.example
+package workflow4s.example.withdrawal
 
-import workflow4s.example.WithdrawalService.{ExecutionResponse, Fee, Iban}
-import workflow4s.example.checks.ChecksEvent
+import workflow4s.example.withdrawal.WithdrawalService.{ExecutionResponse, Fee, Iban}
+import workflow4s.example.withdrawal.checks.ChecksEvent
 
 sealed trait WithdrawalEvent
 object WithdrawalEvent {

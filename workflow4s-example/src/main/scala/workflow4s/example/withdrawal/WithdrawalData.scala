@@ -1,7 +1,7 @@
-package workflow4s.example
+package workflow4s.example.withdrawal
 
-import workflow4s.example.WithdrawalService.{Fee, Iban}
-import workflow4s.example.checks.ChecksState
+import workflow4s.example.withdrawal.WithdrawalService.{Fee, Iban}
+import workflow4s.example.withdrawal.checks.ChecksState
 
 sealed trait WithdrawalData {
   def txId: String

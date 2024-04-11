@@ -1,4 +1,4 @@
-package workflow4s.example
+package workflow4s.example.withdrawal
 
 sealed trait WithdrawalRejection extends Product with Serializable
 
