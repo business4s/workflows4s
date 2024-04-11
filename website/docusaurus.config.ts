@@ -3,8 +3,8 @@ import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
-    title: 'workflows4s',
-    tagline: 'Workflows for Scala',
+    title: 'Workflows4s',
+    tagline: 'Simple, Composable, Business-oriented Workflows for Scala',
     favicon: 'img/favicon.ico',
 
     // Set the production url of your site here
