@@ -13,7 +13,7 @@ const FeatureList: FeatureItem[] = [
     title: 'Simple',
     description: (
       <>
-        Workflows4s don't require running any dedicated server and doesn't rely on any magical features such as
+        Workflows4s doesn't require any dedicated servers and doesn't rely on any magical features such as
         macros or reflection.
       </>
     ),
@@ -22,7 +22,7 @@ const FeatureList: FeatureItem[] = [
     title: 'Composable',
     description: (
       <>
-        Workflows are build through composing smaller building blocks, similar to how we compose IOs, streams or parser combinators.
+        Workflows are built through composing smaller blocks, similarly to how we compose IOs, streams or parser combinators.
       </>
     ),
   },
@@ -30,7 +30,7 @@ const FeatureList: FeatureItem[] = [
     title: 'Business-oriented',
     description: (
       <>
-          Workflows4s comes with built-in support for workflows rendering and generally aims at solving business problems rather than technical ones.
+          Workflows4s comes with built-in support for diagrams rendering and generally aims at solving business problems rather than technical ones.
       </>
     ),
   },

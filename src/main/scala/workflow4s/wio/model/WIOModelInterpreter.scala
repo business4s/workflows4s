@@ -19,8 +19,7 @@ object WIOModelInterpreter {
     override type Result = WIOModel
 
     def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): WIOModel.HandleSignal      = {
-      val signalName = ModelUtils.getPrettyNameForClass(wio.sigDef.reqCt)
-      WIOModel.HandleSignal(signalName, wio.errorMeta.toModel, m.name) // TODO error
+      WIOModel.HandleSignal(wio.meta.signalName, wio.meta.error.toModel, wio.meta.operationName)
     }
     def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result                                                   = {
       WIOModel.RunIO(wio.errorMeta.toModel, m.name)
@@ -36,14 +35,14 @@ object WIOModelInterpreter {
       WIOModel.HandleError(
         recurse(wio.base, None),
         WIOModel.Dynamic(m.name, wio.newErrorMeta.toModel),
-        wio.handledErrorMeta.toModel.get // handling Nothing makes no sense
+        wio.handledErrorMeta.toModel.get, // handling Nothing makes no sense
       )
     }
     def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result                           = {
       WIOModel.HandleError(
         recurse(wio.base, None),
         recurse(wio.handleError, None),
-        wio.handledErrorMeta.toModel.get // handling Nothing makes no sense
+        wio.handledErrorMeta.toModel.get, // handling Nothing makes no sense
       )
     }
     def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result                             = {

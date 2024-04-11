@@ -79,11 +79,11 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
 
   private def receiveWithdrawal: WIO[WithdrawalData.Empty, WithdrawalRejection.InvalidInput, WithdrawalData.Initiated] =
     WIO
-      .handleSignal[WithdrawalData.Empty](Signals.createWithdrawal) { (_, signal) =>
-        IO {
-          if (signal.amount > 0) WithdrawalAccepted(signal.amount, signal.recipient)
-          else WithdrawalRejected("Amount must be positive")
-        }
+      .handleSignal(Signals.createWithdrawal)
+      .using[WithdrawalData.Empty]
+      .purely { (_, signal) =>
+        if (signal.amount > 0) WithdrawalAccepted(signal.amount, signal.recipient)
+        else WithdrawalRejected("Amount must be positive")
       }
       .handleEventWithError { (st, event) =>
         event match {
@@ -91,7 +91,8 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
           case WithdrawalRejected(error)             => WithdrawalRejection.InvalidInput(error).asLeft
         }
       }
-      .produceResponse((_, _) => ())
+      .voidResponse
+      .done
       .autoNamed()
 
   private def calculateFees: WIO[WithdrawalData.Initiated, Nothing, WithdrawalData.Validated] = WIO
@@ -158,14 +159,17 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
 
   private def awaitExecutionCompletion: WIO[WithdrawalData.Executed, WithdrawalRejection.RejectedByExecutionEngine, WithdrawalData.Executed] =
     WIO
-      .handleSignal[WithdrawalData.Executed](Signals.executionCompleted)((_, sig) => IO(WithdrawalEvent.ExecutionCompleted(sig)))
+      .handleSignal(Signals.executionCompleted)
+      .using[WithdrawalData.Executed]
+      .purely((_, sig) => WithdrawalEvent.ExecutionCompleted(sig))
       .handleEventWithError((s, e: WithdrawalEvent.ExecutionCompleted) =>
         e.status match {
           case ExecutionCompleted.Succeeded => Right(s)
           case ExecutionCompleted.Failed    => Left(WithdrawalRejection.RejectedByExecutionEngine("Execution failed"))
         },
       )
-      .produceResponse((_, _) => ())
+      .voidResponse
+      .done
       .autoNamed()
 
   private def releaseFunds: WIO[WithdrawalData.Executed, Nothing, WithdrawalData.Completed] =

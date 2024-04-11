@@ -32,7 +32,7 @@ object ChecksEngine extends ChecksEngine {
 
   private def refreshChecksUntilAllComplete: WIO[ChecksInput, Nothing, ChecksState.Executed] = {
 
-    def initialize: WIO[ChecksInput, Nothing , ChecksState.Pending] =
+    def initialize: WIO[ChecksInput, Nothing, ChecksState.Pending] =
       WIO.pure[ChecksInput].make(ci => ChecksState.Pending(ci, Map()))
 
     def isDone(checksState: ChecksState.Pending): Option[ChecksState.Executed] = checksState.asExecuted
@@ -75,7 +75,9 @@ object ChecksEngine extends ChecksEngine {
     WIO.branch[ChecksState.Executed].when(_.requiresReview)(handleReview)
 
   private def handleReview: WIO[ChecksState.Executed, Nothing, ChecksState.Decided] = WIO
-    .handleSignal[ChecksState.Executed](reviewSignalDef)({ case (_, sig) => IO(ChecksEvent.ReviewDecisionTaken(sig)) })
+    .handleSignal(reviewSignalDef)
+    .using[ChecksState.Executed]
+    .purely((_, sig) => ChecksEvent.ReviewDecisionTaken(sig))
     .handleEvent({ case (st, evt) =>
       val decision = evt.decision match {
         case ReviewDecision.Approve => Decision.ApprovedByOperator()
@@ -83,7 +85,8 @@ object ChecksEngine extends ChecksEngine {
       }
       st.asDecided(decision)
     })
-    .produceResponse((_, _) => ())
+    .voidResponse
+    .done
 
   //  def handleInterruption
 

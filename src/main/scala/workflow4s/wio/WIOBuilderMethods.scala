@@ -12,58 +12,26 @@ import scala.reflect.ClassTag
 
 trait WIOBuilderMethods[Ctx <: WorkflowContext] {
 
-  def handleSignal[In] = new HandleSignalPartiallyApplied1[In]
-
-  class HandleSignalPartiallyApplied1[In] {
-    def apply[Sig: ClassTag, Evt <: WCEvent[Ctx] : ClassTag, Resp](@unused signalDef: SignalDef[Sig, Resp])(
-      f: (In, Sig) => IO[Evt],
-    ): HandleSignalPartiallyApplied2[Sig, In, Evt, Resp] = new HandleSignalPartiallyApplied2[Sig, In, Evt, Resp](SignalHandler(f), signalDef)
-  }
-
-  class HandleSignalPartiallyApplied2[Sig: ClassTag, In, Evt <: WCEvent[Ctx] : ClassTag, Resp](
-                                                                                         signalHandler: SignalHandler[Sig, Evt, In],
-                                                                                         signalDef: SignalDef[Sig, Resp],
-                                                                                       ) {
-
-    def handleEvent[Out <: WCState[Ctx]](f: (In, Evt) => Out): HandleSignalPartiallyApplied3[Sig, In, Evt, Resp, Nothing, Out] = {
-      new HandleSignalPartiallyApplied3(signalDef, signalHandler, (s: In, e: Evt) => f(s, e).asRight)
-    }
-
-    def handleEventWithError[Err, Out <: WCState[Ctx]](
-                                                     f: (In, Evt) => Either[Err, Out],
-                                                   ): HandleSignalPartiallyApplied3[Sig, In, Evt, Resp, Err, Out] = {
-      new HandleSignalPartiallyApplied3(signalDef, signalHandler, f)
-    }
-  }
-
-  class HandleSignalPartiallyApplied3[Sig: ClassTag, In, Evt <: WCEvent[Ctx] : ClassTag, Resp, Err, Out <: WCState[Ctx]](
-                                                                                                                signalDef: SignalDef[Sig, Resp],
-                                                                                                                signalHandler: SignalHandler[Sig, Evt, In],
-                                                                                                                handleEvent: (In, Evt) => Either[Err, Out],
-                                                                                                              ) {
-    def produceResponse(f: (In, Evt) => Resp)(implicit errorMeta: ErrorMeta[Err]): WIO[In, Err, Out, Ctx] with WIO.InterruptionSource = {
-      val combined = (s: In, e: Evt) => (handleEvent(s, e), f(s, e))
-      val eventHandler: EventHandler[In, (Either[Err, Out], Resp), WCEvent[Ctx], Evt] = EventHandler(summon[ClassTag[Evt]].unapply, identity, combined)
-      WIO.HandleSignal(signalDef, signalHandler, eventHandler, errorMeta)
-    }
-  }
-
   def runIO[State] = new RunIOPartiallyApplied1[State]
 
   class RunIOPartiallyApplied1[StIn] {
-    def apply[Evt <: WCEvent[Ctx] : ClassTag](f: StIn => IO[Evt]): RunIOPartiallyApplied2[StIn, Evt] = {
+    def apply[Evt <: WCEvent[Ctx]: ClassTag](f: StIn => IO[Evt]): RunIOPartiallyApplied2[StIn, Evt] = {
       new RunIOPartiallyApplied2[StIn, Evt](f)
     }
   }
 
-  class RunIOPartiallyApplied2[In, Evt <: WCEvent[Ctx] : ClassTag](getIO: In => IO[Evt]) {
+  class RunIOPartiallyApplied2[In, Evt <: WCEvent[Ctx]: ClassTag](getIO: In => IO[Evt]) {
     def handleEvent[Out <: WCState[Ctx]](f: (In, Evt) => Out): WIO[In, Nothing, Out, Ctx] = {
-      WIO.RunIO[Ctx, In, Nothing, Out, Evt](getIO, EventHandler(summon[ClassTag[Evt]].unapply, identity, (s, e: Evt) => f(s, e).asRight), ErrorMeta.noError)
+      WIO.RunIO[Ctx, In, Nothing, Out, Evt](
+        getIO,
+        EventHandler(summon[ClassTag[Evt]].unapply, identity, (s, e: Evt) => f(s, e).asRight),
+        ErrorMeta.noError,
+      )
     }
 
     def handleEventWithError[Err, Out <: WCState[Ctx]](
-                                                     f: (In, Evt) => Either[Err, Out],
-                                                   )(implicit errorCt: ErrorMeta[Err]): WIO[In, Err, Out, Ctx] = {
+        f: (In, Evt) => Either[Err, Out],
+    )(implicit errorCt: ErrorMeta[Err]): WIO[In, Err, Out, Ctx] = {
       WIO.RunIO[Ctx, In, Err, Out, Evt](getIO, EventHandler(summon[ClassTag[Evt]].unapply, identity, f), errorCt)
     }
   }
@@ -103,12 +71,12 @@ trait WIOBuilderMethods[Ctx <: WorkflowContext] {
   // can be removed and replaced with direct instance of WIO.Fork?
   case class ForkBuilder[-In, +Err, +Out <: WCState[Ctx]](branches: Vector[Branch[In, Err, Out, Ctx]]) {
     def branch[T, Err1 >: Err, Out1 >: Out <: WCState[Ctx], In1 <: In](cond: In1 => Option[T])(
-      wio: WIO[(In1, T), Err1, Out1, Ctx],
+        wio: WIO[(In1, T), Err1, Out1, Ctx],
     ): ForkBuilder[In1, Err1, Out1] = addBranch(Branch(cond, wio))
 
     def addBranch[T, Err1 >: Err, Out1 >: Out <: WCState[Ctx], In1 <: In](
-                                                                        b: Branch[In1, Err1, Out1, Ctx],
-                                                                      ): ForkBuilder[In1, Err1, Out1] = ForkBuilder(branches.appended(b))
+        b: Branch[In1, Err1, Out1, Ctx],
+    ): ForkBuilder[In1, Err1, Out1] = ForkBuilder(branches.appended(b))
 
     def done: WIO[In, Err, Out, Ctx] = WIO.Fork(branches)
   }
@@ -123,9 +91,11 @@ trait WIOBuilderMethods[Ctx <: WorkflowContext] {
       Branch(cond, wio)
   }
 
-  def embed[In, Err, Out <: WCState[InnerCtx], InnerCtx <: WorkflowContext, OS[_ <: WCState[InnerCtx]] <: WCState[Ctx] ](wio: WIO[In, Err, Out, InnerCtx])(
-    embedding: WorkflowEmbedding.Aux[InnerCtx, Ctx, OS, In],
-    initialState: In => WCState[InnerCtx]
+  def embed[In, Err, Out <: WCState[InnerCtx], InnerCtx <: WorkflowContext, OS[_ <: WCState[InnerCtx]] <: WCState[Ctx]](
+      wio: WIO[In, Err, Out, InnerCtx],
+  )(
+      embedding: WorkflowEmbedding.Aux[InnerCtx, Ctx, OS, In],
+      initialState: In => WCState[InnerCtx],
   ): WIO[In, Err, OS[Out], Ctx] = {
     WIO.Embedded(wio, embedding, initialState)
   }

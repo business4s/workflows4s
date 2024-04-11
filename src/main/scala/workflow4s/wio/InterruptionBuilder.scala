@@ -2,6 +2,7 @@ package workflow4s.wio
 
 import cats.effect.IO
 import workflow4s.wio.internal.{EventHandler, SignalHandler}
+import workflow4s.wio.model.ModelUtils
 
 import scala.reflect.ClassTag
 
@@ -34,10 +35,16 @@ object InterruptionBuilder {
             errorMeta: ErrorMeta[Err],
         ) {
 
-          def produceResponse(f: (WCState[Ctx], Evt) => Resp): Step4 = Step4(f)
-          def voidResponse(using ev: Unit =:= Resp): Step4           = Step4((x, y) => ())
+          def produceResponse(f: (Input, Evt) => Resp): Step4 = Step4(f, None, None)
+          def voidResponse(using ev: Unit =:= Resp): Step4    = Step4((x, y) => (), None, None)
 
-          class Step4(responseBuilder: (Input, Evt) => Resp) {
+          class Step4(responseBuilder: (Input, Evt) => Resp, operationName: Option[String], signalName: Option[String]) {
+
+            def named(operationName: String = null, signalName: String = null): Step4 =
+              Step4(responseBuilder, Option(operationName).orElse(this.operationName), Option(signalName).orElse(this.signalName))
+
+            def autoNamed()(using n: sourcecode.Name): Step4 = named(operationName = ModelUtils.prettifyName(n.value))
+
             def andThen[FinalErr, FinalOut <: WCState[Ctx]](
                 f: WIO[Input, Err, Out, Ctx] => WIO[Input, FinalErr, FinalOut, Ctx],
             ): Step5[FinalErr, FinalOut] = Step5(f)
@@ -46,11 +53,11 @@ object InterruptionBuilder {
             class Step5[FinalErr, FinalOut <: WCState[Ctx]](buildFinalWIO: WIO[Input, Err, Out, Ctx] => WIO[Input, FinalErr, FinalOut, Ctx]) {
 
               def done: WIO.Interruption[Ctx, FinalErr, FinalOut, Out, Err] = {
-                val combined: (WCState[Ctx], Evt) => (Either[Err, Out], Resp)                   = (s: WCState[Ctx], e: Evt) =>
-                  (eventHandler(s, e), responseBuilder(s, e))
-                val eh: EventHandler[WCState[Ctx], (Either[Err, Out], Resp), WCEvent[Ctx], Evt] = EventHandler(evtCt.unapply, identity, combined)
-                val sh: SignalHandler[Req, Evt, Input]                                          = SignalHandler(signalHandler)(signalDef.reqCt)
-                val handleSignal: WIO.HandleSignal[Ctx, Input, Out, Err, Req, Resp, Evt]        = WIO.HandleSignal(signalDef, sh, eh, errorMeta)
+                val combined: (Input, Evt) => (Either[Err, Out], Resp)                   = (s: Input, e: Evt) => (eventHandler(s, e), responseBuilder(s, e))
+                val eh: EventHandler[Input, (Either[Err, Out], Resp), WCEvent[Ctx], Evt] = EventHandler(evtCt.unapply, identity, combined)
+                val sh: SignalHandler[Req, Evt, Input]                                   = SignalHandler(signalHandler)(signalDef.reqCt)
+                val meta                                                                 = WIO.HandleSignal.Meta(errorMeta, signalName.getOrElse(ModelUtils.getPrettyNameForClass(signalDef.reqCt)), operationName)
+                val handleSignal: WIO.HandleSignal[Ctx, Input, Out, Err, Req, Resp, Evt] = WIO.HandleSignal(signalDef, sh, eh, meta)
                 WIO.Interruption(
                   handleSignal,
                   buildFinalWIO,
