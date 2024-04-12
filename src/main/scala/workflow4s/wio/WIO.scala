@@ -16,7 +16,7 @@ trait WorkflowContext { ctx: WorkflowContext =>
     type Branch[-In, +Err, +Out <: State]  = workflow4s.wio.WIO.Branch[In, Err, Out, ctx.type]
     type Interruption[+Err, +Out <: State] = workflow4s.wio.WIO.Interruption[ctx.type, Err, Out, ?, ?]
 
-    def interruption = InterruptionBuilder.Step0[ctx.type]()
+    def interruption: InterruptionBuilder.Step0[ctx.type] = InterruptionBuilder.Step0[ctx.type]()
   }
 }
 

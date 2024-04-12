@@ -71,14 +71,13 @@ object BPMNConverter {
           .moveToNode(subProcessStartEventId)
           .subProcessDone()
       case WIOModel.Noop                                              => builder
-      case WIOModel.Pure(_, errorOpt)                                 =>
-        errorOpt match {
-          case None    => builder // dont render anything if no error
-          case Some(_) =>
-            builder
-              .serviceTask()
-              .pipe(renderError(errorOpt))
-        }
+      case WIOModel.Pure(name, errorOpt)                                 =>
+        if (errorOpt.isDefined || name.isDefined) {
+          builder
+            .serviceTask()
+            .name(name.orNull)
+            .pipe(renderError(errorOpt))
+        } else builder
       case WIOModel.Loop(base, conditionName)                         =>
         val loopStartGwId      = Random.alphanumeric.filter(_.isLetter).take(10).mkString
         val newBuilder         = builder.exclusiveGateway(loopStartGwId)

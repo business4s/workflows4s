@@ -26,9 +26,10 @@ The following items are planned in scope of this PoC
 - [x] Handling errors
 - [x] Declarative API + graph rendering
 - [x] Typesafe state queries
-- [ ] Handling interruptions (through signals or timeouts)
-- [ ] Handling postponed executions (await)
-- [ ] Splitting the workflow (parallel execution and/or parallel waiting)
+- [x] Handling interruptions
+- [ ] Handling timers (await, timout)
+- [ ] Checkpointing
+- [ ] Splitting the workflow? (parallel execution and/or parallel waiting)
 - [ ] Pekko/Shardcake/Postgres runtime PoC
 - [ ] Test harness
 - [ ] Explicit approach to handling workflow evolutions

@@ -21,7 +21,7 @@ object WIOModel {
   // TODO error name?
   case class HandleError(base: WIOModel, handler: WIOModel, errorName: Error)                      extends WIOModel
   case object Noop                                                                                 extends WIOModel
-  case class Pure(name: Option[String], errorMeta: Option[Error])                                  extends WIOModel
+  case class Pure(name: Option[String], error: Option[Error])                                      extends WIOModel
   case class Loop(base: WIOModel, conditionLabel: Option[String])                                  extends WIOModel
   case class Fork(branches: Vector[Branch])                                                        extends WIOModel
   case class Interruptible(base: WIOModel, trigger: HandleSignal, flow: Option[WIOModel])          extends WIOModel
