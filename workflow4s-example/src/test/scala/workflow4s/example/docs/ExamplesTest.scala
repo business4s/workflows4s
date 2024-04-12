@@ -11,6 +11,7 @@ class ExamplesTest  extends AnyFreeSpec {
     TestUtils.renderDocsExample(HandleSignalExample.doThings, "handle-signal")
     TestUtils.renderDocsExample(SequencingExample.sequence1, "and-then")
     TestUtils.renderDocsExample(SequencingExample.Dynamic.sequence1, "flat-map")
+    TestUtils.renderDocsExample(HandleErrorExample.errorHandled, "handle-error-with")
   }
 
 }
