@@ -38,7 +38,7 @@ object ChecksEngine extends ChecksEngine {
       WIO.pure[ChecksInput].make(ci => ChecksState.Pending(ci, Map()))
 
     val awaitRetry: wio.WIO[ChecksState.Pending, Nothing, ChecksState.Pending, Context.type] = WIO
-      .await[ChecksState.Pending](20.seconds)
+      .await[ChecksState.Pending](retryBackoff)
       .persistThrough(started => ChecksEvent.AwaitingRefresh(started.at))(_.started)
       .autoNamed
       .done
@@ -101,4 +101,5 @@ object ChecksEngine extends ChecksEngine {
 
   //  def handleInterruption
 
+  val retryBackoff = 20.seconds
 }

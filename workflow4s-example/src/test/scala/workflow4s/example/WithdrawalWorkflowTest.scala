@@ -20,6 +20,8 @@ import workflow4s.wio.KnockerUpper
 import java.io.File
 import java.nio.file.Files
 import java.time.{Clock, Instant, ZoneId, ZoneOffset}
+import scala.concurrent.duration.FiniteDuration
+import scala.jdk.DurationConverters.ScalaDurationOps
 
 //noinspection ForwardReference
 class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
@@ -207,4 +209,8 @@ class TestClock extends Clock {
   def instant: Instant                         = instant_
   def getZone: ZoneId                          = ZoneOffset.UTC
   override def withZone(zoneId: ZoneId): Clock = ???
+
+  def advanceBy(duration: FiniteDuration) = {
+    instant_ = this.instant_.plus(duration.toJava)
+  }
 }

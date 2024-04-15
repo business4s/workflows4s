@@ -76,7 +76,7 @@ object ProceedEvaluator {
     def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                                                               = Some(NewValue(wio.value(state)).pure[IO])
     def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result                             = {
       recurse(wio.current, state).map(_.map((newWf: NextWfState[Ctx, Err, Out1]) => {
-        applyOnDoWhile(wio, newWf)
+        applyLoop(wio, newWf)
       }))
     }
     def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                                                               =
@@ -113,7 +113,7 @@ object ProceedEvaluator {
     }
 
     def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result = {
-      if (now.isAfter(wio.resumeAt)) Some(IO.pure(NewValue(wio.onRelease)))
+      if (now.plusNanos(1).isAfter(wio.resumeAt)) Some(IO.pure(NewValue(wio.onRelease)))
       else {
         if (!wio.wakeupRegistered) {
           (for {

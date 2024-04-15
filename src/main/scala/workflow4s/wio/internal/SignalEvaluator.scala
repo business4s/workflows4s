@@ -68,7 +68,7 @@ object SignalEvaluator {
     }
     def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                                                               = None
     def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result                             =
-      recurse(wio.current, state).map(_.map({ case (wf, resp) => applyOnDoWhile(wio, wf) -> resp }))
+      recurse(wio.current, state).map(_.map({ case (wf, resp) => applyLoop(wio, wf) -> resp }))
     def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                                                               =
       selectMatching(wio, state).flatMap(nextWio => recurse(nextWio, state))
     def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_] <: WCState[Ctx]](

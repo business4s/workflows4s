@@ -54,7 +54,6 @@ abstract class SimpleActor[State](clock: Clock)(implicit IORuntime: IORuntime) e
         proceed(runIO)
       case ProceedResponse.Noop()              =>
         logger.debug(s"Can't proceed. Wf: ${wf.getDesc}")
-
         ()
     }
   }

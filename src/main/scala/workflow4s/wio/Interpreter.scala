@@ -224,7 +224,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
     )
   }
 
-  def applyOnDoWhile[LoopOut <: WCState[Ctx]](
+  def applyLoop[LoopOut <: WCState[Ctx]](
       wio: WIO.Loop[Ctx, In, Err, LoopOut, Out],
       wf: NextWfState[Ctx, Err, LoopOut],
   ): NextWfState[Ctx, Err, Out] = {
@@ -238,9 +238,16 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
           case Left(err)    => NewValue(Left(err))
           case Right(value) =>
             wio.stopCondition(value) match {
-              case Some(newState) => NewValue(Right(newState))
-              case None           =>
-                val newWIO = wio.copy(current = wio.loop)
+              case Some(newState) if !wio.isReturning => NewValue(Right(newState))
+              case _                                  =>
+                // if we the current exited we either finished main logic or return branch
+                // if its main logic and return branch exists, we enter this, if not
+                val newWIO =
+                  if (wio.isReturning) wio.copy(current = wio.loop, isReturning = false)
+                  else wio.onRestart match {
+                    case Some(onReturn) => wio.copy(current = onReturn, isReturning = true)
+                    case None => wio.copy(current = wio.loop, isReturning = false)
+                  }
                 NewBehaviour(newWIO, v.value)
             }
         },

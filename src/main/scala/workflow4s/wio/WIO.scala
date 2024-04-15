@@ -123,6 +123,7 @@ object WIO {
       current: WIO[In, Err, LoopOut, Ctx],
       onRestart: Option[WIO[LoopOut, Err, LoopOut, Ctx]],
       meta: Loop.Meta,
+      isReturning: Boolean, // true if current is comign from onReturn
   ) extends WIO[In, Err, Out, Ctx]
 
   object Loop {
@@ -153,7 +154,7 @@ object WIO {
       duration: Timer.DurationSource[In],
       eventHandler: EventHandler[In, Unit, WCEvent[Ctx], Timer.Started],
       onRelease: In => Either[Err, Out],
-      name: Option[String]
+      name: Option[String],
   ) extends WIO[In, Err, Out, Ctx] {
     def getReleaseTime(started: Timer.Started, in: In): Instant = {
       val awaitDuration = duration match {

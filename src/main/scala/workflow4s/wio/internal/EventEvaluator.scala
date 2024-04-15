@@ -60,7 +60,7 @@ object EventEvaluator {
       recurse(wio.first, state, event).map(preserveAndThen(wio, _))
     def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                                                               = None
     def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result                             =
-      recurse(wio.current, state, event).map(applyOnDoWhile(wio, _))
+      recurse(wio.current, state, event).map(applyLoop(wio, _))
     def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                                                               =
       selectMatching(wio, state).flatMap(recurse(_, state, event))
     def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_] <: WCState[Ctx]](
