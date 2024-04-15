@@ -1,8 +1,9 @@
-package workflow4s.wio
+package workflow4s.wio.builders
 
 import cats.effect.IO
 import workflow4s.wio.internal.{EventHandler, SignalHandler}
 import workflow4s.wio.model.ModelUtils
+import workflow4s.wio.*
 
 import scala.reflect.ClassTag
 

@@ -67,7 +67,7 @@ object SignalEvaluator {
       recurse(wio.first, state).map(_.map({ case (wf, resp) => preserveAndThen(wio, wf) -> resp }))
     }
     def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                                                               = None
-    def onDoWhile[Out1 <: WCState[Ctx]](wio: WIO.DoWhile[Ctx, In, Err, Out1, Out]): Result                             =
+    def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result                             =
       recurse(wio.current, state).map(_.map({ case (wf, resp) => applyOnDoWhile(wio, wf) -> resp }))
     def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                                                               =
       selectMatching(wio, state).flatMap(nextWio => recurse(nextWio, state))

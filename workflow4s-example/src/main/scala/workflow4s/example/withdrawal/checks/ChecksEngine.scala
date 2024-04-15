@@ -1,8 +1,10 @@
 package workflow4s.example.withdrawal.checks
 
-import cats.effect.IO
 import cats.syntax.all.*
+import workflow4s.wio
 import workflow4s.wio.{SignalDef, WorkflowContext}
+
+import scala.concurrent.duration.DurationInt
 
 trait ChecksEngine {
   def runChecks: ChecksEngine.Context.WIO[ChecksInput, Nothing, ChecksState.Decided]
@@ -19,10 +21,10 @@ object ChecksEngine extends ChecksEngine {
   import Context.WIO
 
   def runChecks: WIO[ChecksInput, Nothing, ChecksState.Decided] =
-    refreshChecksUntilAllComplete >>> getDecision()
+    refreshChecksUntilAllComplete >>> getDecision
   //      .checkpointed((s, decision) => ChecksEvent.CheckCompleted(s.results, decision))((s, e) => (s, e.decision))
 
-  private def getDecision(): WIO[ChecksState.Executed, Nothing, ChecksState.Decided] = {
+  private def getDecision: WIO[ChecksState.Executed, Nothing, ChecksState.Decided] = {
     WIO
       .fork[ChecksState.Executed]
       .addBranch(requiresReviewBranch)
@@ -32,14 +34,23 @@ object ChecksEngine extends ChecksEngine {
 
   private def refreshChecksUntilAllComplete: WIO[ChecksInput, Nothing, ChecksState.Executed] = {
 
-    def initialize: WIO[ChecksInput, Nothing, ChecksState.Pending] =
+    val initialize: WIO[ChecksInput, Nothing, ChecksState.Pending] =
       WIO.pure[ChecksInput].make(ci => ChecksState.Pending(ci, Map()))
+
+    val awaitRetry: wio.WIO[ChecksState.Pending, Nothing, ChecksState.Pending, Context.type] = WIO
+      .await[ChecksState.Pending](20.seconds)
+      .persistThrough(started => ChecksEvent.AwaitingRefresh(started.at))(_.started)
+      .autoNamed
+      .done
 
     def isDone(checksState: ChecksState.Pending): Option[ChecksState.Executed] = checksState.asExecuted
 
     initialize >>> WIO
       .repeat(runPendingChecks)
       .untilSome(isDone)
+      .onRestart(awaitRetry)
+      .named(conditionName = "All checks completed?", releaseBranchName = "Yes", restartBranchName = "No")
+      .done
   }
 
   private def runPendingChecks: WIO[ChecksState.Pending, Nothing, ChecksState.Pending] =

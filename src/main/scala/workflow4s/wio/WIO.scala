@@ -2,6 +2,7 @@ package workflow4s.wio
 
 import cats.effect.IO
 import workflow4s.wio.WIO.Timer.DurationSource
+import workflow4s.wio.builders.{AwaitBuilder, HandleSignalBuilder, InterruptionBuilder, LoopBuilder, WIOBuilderMethods}
 import workflow4s.wio.internal.WorkflowEmbedding.EventEmbedding
 import workflow4s.wio.internal.{EventHandler, SignalHandler, WIOUtils, WorkflowEmbedding}
 
@@ -14,7 +15,11 @@ trait WorkflowContext { ctx: WorkflowContext =>
   type State
 
   type WIO[-In, +Err, +Out <: State] = workflow4s.wio.WIO[In, Err, Out, ctx.type]
-  object WIO extends WIOBuilderMethods[ctx.type] with HandleSignalBuilder.Step0[ctx.type] {
+  object WIO
+      extends WIOBuilderMethods[ctx.type]
+      with HandleSignalBuilder.Step0[ctx.type]
+      with LoopBuilder.Step0[ctx.type]
+      with AwaitBuilder.Step0[ctx.type] {
     type Branch[-In, +Err, +Out <: State]  = workflow4s.wio.WIO.Branch[In, Err, Out, ctx.type]
     type Interruption[+Err, +Out <: State] = workflow4s.wio.WIO.Interruption[ctx.type, Err, Out, ?, ?]
 
@@ -112,12 +117,21 @@ object WIO {
       second: WIO[Out1, Err, Out2, Ctx],
   ) extends WIO[In, Err, Out2, Ctx]
 
-  // TODO name for condition
-  case class DoWhile[Ctx <: WorkflowContext, -In, +Err, LoopOut <: WCState[Ctx], +Out <: WCState[Ctx]](
+  case class Loop[Ctx <: WorkflowContext, -In, +Err, LoopOut <: WCState[Ctx], +Out <: WCState[Ctx]](
       loop: WIO[LoopOut, Err, LoopOut, Ctx],
       stopCondition: LoopOut => Option[Out],
       current: WIO[In, Err, LoopOut, Ctx],
+      onRestart: Option[WIO[LoopOut, Err, LoopOut, Ctx]],
+      meta: Loop.Meta,
   ) extends WIO[In, Err, Out, Ctx]
+
+  object Loop {
+    case class Meta(
+        releaseBranchName: Option[String],
+        restartBranchName: Option[String],
+        conditionName: Option[String],
+    )
+  }
 
   case class Fork[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]](branches: Vector[Branch[In, Err, Out, Ctx]]) extends WIO[In, Err, Out, Ctx]
 
@@ -139,18 +153,23 @@ object WIO {
       duration: Timer.DurationSource[In],
       eventHandler: EventHandler[In, Unit, WCEvent[Ctx], Timer.Started],
       onRelease: In => Either[Err, Out],
+      name: Option[String]
   ) extends WIO[In, Err, Out, Ctx] {
     def getReleaseTime(started: Timer.Started, in: In): Instant = {
       val awaitDuration = duration match {
-        case DurationSource.Static(duration) => duration
+        case DurationSource.Static(duration)     => duration
         case DurationSource.Dynamic(getDuration) => getDuration(in)
       }
-      val releaseTime = started.at.plus(awaitDuration)
+      val releaseTime   = started.at.plus(awaitDuration)
       releaseTime
     }
   }
 
-  case class AwaitingTime[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](resumeAt: Instant, onRelease: Either[Err, Out], wakeupRegistered: Boolean) extends WIO[In, Nothing, Out, Ctx]
+  case class AwaitingTime[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](
+      resumeAt: Instant,
+      onRelease: Either[Err, Out],
+      wakeupRegistered: Boolean,
+  ) extends WIO[In, Nothing, Out, Ctx]
 
   object Timer {
 

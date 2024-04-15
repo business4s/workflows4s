@@ -59,7 +59,7 @@ object EventEvaluator {
     def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result                             =
       recurse(wio.first, state, event).map(preserveAndThen(wio, _))
     def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                                                               = None
-    def onDoWhile[Out1 <: WCState[Ctx]](wio: WIO.DoWhile[Ctx, In, Err, Out1, Out]): Result                             =
+    def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result                             =
       recurse(wio.current, state, event).map(applyOnDoWhile(wio, _))
     def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                                                               =
       selectMatching(wio, state).flatMap(recurse(_, state, event))

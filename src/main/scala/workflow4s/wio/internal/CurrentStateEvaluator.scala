@@ -30,7 +30,7 @@ object CurrentStateEvaluator {
       s"(${recurse(wio.base)}, on error: ${recurse(wio.handleError)}"
     def onAndThen[Out1 <: State](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result                                    = recurse(wio.first)
     def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                                                               = "pure"
-    def onDoWhile[Out1 <: State](wio: WIO.DoWhile[Ctx, In, Err, Out1, Out]): Result                                    = s"do-while; current = ${recurse(wio.current)}"
+    def onLoop[Out1 <: State](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result                                    = s"do-while; current = ${recurse(wio.current)}"
     def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                                                               = "fork"
     def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_] <: WCState[Ctx]](
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],

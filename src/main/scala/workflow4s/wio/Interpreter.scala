@@ -59,7 +59,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
   def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result
   def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result
   def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result
-  def onDoWhile[Out1 <: WCState[Ctx]](wio: WIO.DoWhile[Ctx, In, Err, Out1, Out]): Result
+  def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result
   def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result
   def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_] <: WCState[Ctx]](
       wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
@@ -84,7 +84,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
       case x: WIO.AndThen[?, ?, ?, ? <: State, ? <: State]              => onAndThen(x)
       case x: WIO.Pure[?, ?, ?, ?]                                      => onPure(x)
       case x: WIO.HandleErrorWith[?, ?, ?, ?, ?]                        => onHandleErrorWith(x)
-      case x: WIO.DoWhile[?, ?, ?, ? <: State, ? <: State]              => onDoWhile(x)
+      case x: WIO.Loop[?, ?, ?, ? <: State, ? <: State]                 => onLoop(x)
       case x: WIO.Fork[?, ?, ?, ?]                                      => onFork(x)
       case x: WIO.Embedded[Ctx, In, Err, ? <: WorkflowContext, ?, ?]    =>
         x match {
@@ -225,12 +225,12 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
   }
 
   def applyOnDoWhile[LoopOut <: WCState[Ctx]](
-      wio: WIO.DoWhile[Ctx, In, Err, LoopOut, Out],
+      wio: WIO.Loop[Ctx, In, Err, LoopOut, Out],
       wf: NextWfState[Ctx, Err, LoopOut],
   ): NextWfState[Ctx, Err, Out] = {
     wf.fold[NextWfState[Ctx, Err, Out]](
       b => {
-        val newWIO: WIO[b.State, Err, Out, Ctx] = WIO.DoWhile(wio.loop, wio.stopCondition, b.wio)
+        val newWIO: WIO[b.State, Err, Out, Ctx] = wio.copy(current = b.wio)
         NewBehaviour(newWIO, b.state): NextWfState[Ctx, Err, Out]
       },
       v =>
@@ -240,7 +240,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
             wio.stopCondition(value) match {
               case Some(newState) => NewValue(Right(newState))
               case None           =>
-                val newWIO = WIO.DoWhile(wio.loop, wio.stopCondition, wio.loop)
+                val newWIO = wio.copy(current = wio.loop)
                 NewBehaviour(newWIO, v.value)
             }
         },

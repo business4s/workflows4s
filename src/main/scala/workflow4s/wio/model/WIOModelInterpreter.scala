@@ -55,17 +55,17 @@ object WIOModelInterpreter {
       }
     }
 
-    def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                                   = WIOModel.Pure(m.name, wio.errorMeta.toModel)
-    def onDoWhile[Out1 <: WCState[Ctx]](wio: WIO.DoWhile[Ctx, In, Err, Out1, Out]): Result =
-      WIOModel.Loop(recurse(wio.loop), None)
-    def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                                   =
+    def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                             = WIOModel.Pure(m.name, wio.errorMeta.toModel)
+    def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result =
+      WIOModel.Loop(recurse(wio.loop), wio.meta.conditionName, wio.meta.releaseBranchName, wio.meta.restartBranchName, wio.onRestart.map(recurse(_)))
+    def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                             =
       WIOModel.Fork(wio.branches.map(x => WIOModel.Branch(recurse(x.wio), None)))
     def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_] <: WCState[Ctx]](
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
     ): Result = {
       recurse(wio.inner)
     }
-    def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result       = {
+    def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result = {
       val trigger = {
         // we are abusing the interpreter pattern a bit to get more concrete result
         new ModelVisitor(wio.interruption.trigger, Metadata.empty).onSignal(wio.interruption.trigger)
@@ -82,7 +82,7 @@ object WIOModelInterpreter {
         case DurationSource.Static(duration)     => duration.some
         case DurationSource.Dynamic(getDuration) => none
       },
-      m.name,
+      wio.name,
     )
 
     def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result =
@@ -120,7 +120,7 @@ object WIOModelInterpreter {
         case WIOModel.HandleError(base, handler, errorName)     => stripFirst(base, toBeStrpped).map(WIOModel.HandleError(_, handler, errorName))
         case x @ WIOModel.Noop                                  => handleRaw(x) // does it make any sense?, can noop be element in sequence?
         case x @ WIOModel.Pure(name, errorMeta)                 => handleRaw(x)
-        case WIOModel.Loop(base, conditionLabel)                => stripFirst(base, toBeStrpped).map(WIOModel.Loop(_, conditionLabel))
+        case x: WIOModel.Loop                                   => stripFirst(x.base, toBeStrpped).map(y => x.copy(base = y))
         case x @ WIOModel.Fork(branches)                        => handleRaw(x)
         case WIOModel.Interruptible(base, trigger, flow)        => stripFirst(base, toBeStrpped).map(WIOModel.Interruptible(_, trigger, flow))
       }

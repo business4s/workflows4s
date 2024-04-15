@@ -40,6 +40,8 @@ Items below are outside of the scope of PoC but showcase the possibilities.
 
 - [ ] UI & API to visualize workflow progress
 - [ ] Observability support
+- [ ] Non-interrupting events (e.g. signal or cycle timer)
+  - non interrupting cycle timer example: every 24h send a notif
 
 ## Design
 

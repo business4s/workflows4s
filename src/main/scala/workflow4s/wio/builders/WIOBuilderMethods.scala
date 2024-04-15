@@ -1,12 +1,11 @@
-package workflow4s.wio
+package workflow4s.wio.builders
 
 import cats.effect.IO
 import cats.implicits.catsSyntaxEitherId
 import workflow4s.wio.WIO.Branch
-import workflow4s.wio.internal.WorkflowEmbedding
-import workflow4s.wio.internal.EventHandler
+import workflow4s.wio.internal.{EventHandler, WorkflowEmbedding}
+import workflow4s.wio.*
 
-import scala.annotation.unused
 import scala.concurrent.duration.Duration
 import scala.reflect.ClassTag
 
@@ -38,8 +37,6 @@ trait WIOBuilderMethods[Ctx <: WorkflowContext] {
 
   def getState[St <: WCState[Ctx]]: WIO[St, Nothing, St, Ctx] = WIO.Pure(s => s.asRight, ErrorMeta.noError)
 
-  def await[In <: WCState[Ctx]](duration: Duration): WIO[In, Nothing, In, Ctx] = ???
-
   def pure[St]: PurePartiallyApplied[St] = new PurePartiallyApplied
 
   class PurePartiallyApplied[In] {
@@ -58,12 +55,6 @@ trait WIOBuilderMethods[Ctx <: WorkflowContext] {
 
   class RaisePartiallyApplied[In] {
     def apply[Err](value: Err)(implicit ct: ErrorMeta[Err]): WIO[In, Err, Nothing, Ctx] = WIO.Pure(s => Left(value), ct)
-  }
-
-  def repeat[Err, Out <: WCState[Ctx]](action: WIO[Out, Err, Out, Ctx]) = RepeatBuilder(action)
-
-  case class RepeatBuilder[Err, Out <: WCState[Ctx]](action: WIO[Out, Err, Out, Ctx]) {
-    def untilSome[Out1 <: WCState[Ctx]](f: Out => Option[Out1]): WIO[Out, Err, Out1, Ctx] = WIO.DoWhile(action, f, action)
   }
 
   def fork[In]: ForkBuilder[In, Nothing, Nothing] = ForkBuilder(Vector())

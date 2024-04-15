@@ -74,7 +74,7 @@ object ProceedEvaluator {
       recurse(wio.first, state).map(_.map(preserveAndThen(wio, _)))
     }
     def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                                                               = Some(NewValue(wio.value(state)).pure[IO])
-    def onDoWhile[Out1 <: WCState[Ctx]](wio: WIO.DoWhile[Ctx, In, Err, Out1, Out]): Result                             = {
+    def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result                             = {
       recurse(wio.current, state).map(_.map((newWf: NextWfState[Ctx, Err, Out1]) => {
         applyOnDoWhile(wio, newWf)
       }))

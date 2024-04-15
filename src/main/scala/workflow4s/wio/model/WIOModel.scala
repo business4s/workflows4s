@@ -24,10 +24,16 @@ object WIOModel {
   case class HandleError(base: WIOModel, handler: WIOModel, error: Error)                          extends WIOModel
   case object Noop                                                                                 extends WIOModel
   case class Pure(name: Option[String], error: Option[Error])                                      extends WIOModel
-  case class Loop(base: WIOModel, conditionLabel: Option[String])                                  extends WIOModel
+  case class Loop(
+      base: WIOModel,
+      conditionName: Option[String],
+      exitBranchName: Option[String],
+      restartBranchName: Option[String],
+      onRestart: Option[WIOModel],
+  ) extends WIOModel
   case class Fork(branches: Vector[Branch])                                                        extends WIOModel
   case class Interruptible(base: WIOModel, trigger: HandleSignal, flow: Option[WIOModel])          extends WIOModel
-  case class Timer(duration: Option[Duration], name: Option[String])          extends WIOModel
+  case class Timer(duration: Option[Duration], name: Option[String])                               extends WIOModel
 
   // as of now we always capture error name. It can change in the future
   case class Error(name: String) derives ConfiguredCodec

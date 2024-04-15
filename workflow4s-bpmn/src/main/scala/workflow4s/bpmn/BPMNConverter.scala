@@ -7,6 +7,7 @@ import workflow4s.wio.ErrorMeta
 import workflow4s.wio.model.WIOModel
 
 import java.nio.file.Path
+import java.time.Duration
 import java.util.UUID
 import scala.util.Random
 import scala.util.chaining.scalaUtilChainingOps
@@ -71,22 +72,31 @@ object BPMNConverter {
           .moveToNode(subProcessStartEventId)
           .subProcessDone()
       case WIOModel.Noop                                              => builder
-      case WIOModel.Pure(name, errorOpt)                                 =>
+      case WIOModel.Pure(name, errorOpt)                              =>
         if (errorOpt.isDefined || name.isDefined) {
           builder
             .serviceTask()
             .name(name.orNull)
             .pipe(renderError(errorOpt))
         } else builder
-      case WIOModel.Loop(base, conditionName)                         =>
+      case loop: WIOModel.Loop                                        =>
         val loopStartGwId      = Random.alphanumeric.filter(_.isLetter).take(10).mkString
-        val newBuilder         = builder.exclusiveGateway(loopStartGwId)
         val loopEndGwId        = Random.alphanumeric.filter(_.isLetter).take(10).mkString
         val nextTaskTempNodeId = Random.alphanumeric.filter(_.isLetter).take(10).mkString
-        handle(base, newBuilder)
+        val newBuilder         = builder.exclusiveGateway(loopStartGwId).name("")
+        handle(loop.base, newBuilder)
           .exclusiveGateway(loopEndGwId)
+          .name(loop.conditionName.getOrElse(""))
+          .condition(loop.exitBranchName.orNull, "")
           .serviceTask(nextTaskTempNodeId)
           .moveToLastGateway()
+          .condition(loop.restartBranchName.orNull, "")
+          .pipe(builder =>
+            loop.onRestart match {
+              case Some(value) => handle(value, builder)
+              case None        => builder
+            },
+          )
           .connectTo(loopStartGwId)
           .moveToNode(nextTaskTempNodeId)
       case WIOModel.Fork(branches)                                    =>
@@ -135,6 +145,17 @@ object BPMNConverter {
           .endEvent()
           .moveToNode(subProcessStartEventId)
           .subProcessDone()
+      case WIOModel.Timer(duration, name)                             =>
+        val label = (duration, name) match {
+          case (Some(duration), Some(name)) => s"$name (${humanReadableDuration(duration)})"
+          case (None, Some(name))           => name
+          case (Some(duration), None)       => humanReadableDuration(duration)
+          case (None, None)                 => ""
+        }
+        builder
+          .intermediateCatchEvent()
+          .timerWithDuration(label)
+          .name(label)
     }
   }
 
@@ -149,5 +170,7 @@ object BPMNConverter {
       }
     }
   }
+
+  def humanReadableDuration(duration: Duration): String = duration.toString.substring(2).replaceAll("(\\d[HMS])(?!$)", "$1 ").toLowerCase
 
 }
