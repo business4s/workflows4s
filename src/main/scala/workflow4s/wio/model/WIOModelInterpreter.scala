@@ -1,6 +1,7 @@
 package workflow4s.wio.model
 
 import cats.syntax.all.*
+import workflow4s.wio.WIO.Timer.DurationSource
 import workflow4s.wio.{ErrorMeta, Visitor, WCState, WIO, WorkflowContext}
 object WIOModelInterpreter {
 
@@ -75,6 +76,17 @@ object WIOModelInterpreter {
         stripFirst(recurse(wio.interruption.finalWIO), trigger),
       )
     }
+
+    def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result = WIOModel.Timer(
+      wio.duration match {
+        case DurationSource.Static(duration)     => duration.some
+        case DurationSource.Dynamic(getDuration) => none
+      },
+      m.name,
+    )
+
+    def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result =
+      ??? // TODO, shouldnt happen unitl we start capturing model of inflight workflows
 
     def recurse[C <: WorkflowContext, I1, E1, O1 <: WCState[C]](wio: WIO[I1, E1, O1, C], meta: Option[Metadata] = Some(m)): WIOModel = {
       new ModelVisitor(wio, meta.getOrElse(Metadata.empty)).run

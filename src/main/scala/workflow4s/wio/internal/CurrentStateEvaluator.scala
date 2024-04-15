@@ -39,6 +39,9 @@ object CurrentStateEvaluator {
     def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result                                   =
       s"${recurse(wio.base)}, interruptible with: ${recurse(wio.interruption.trigger)} )"
 
+    def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result               = "timer"
+    def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result = s"awaiting ${wio.resumeAt}"
+
     private def recurse[C <: WorkflowContext, I1, E1, O1 <: WCState[C]](wio: WIO[I1, E1, O1, C]): String = new DescriptionVisitor(wio).run
 
   }

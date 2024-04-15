@@ -6,13 +6,15 @@ import com.typesafe.scalalogging.StrictLogging
 import org.camunda.bpm.model.bpmn.Bpmn
 import org.scalatest.freespec.AnyFreeSpec
 import workflow4s.bpmn.BPMNConverter
-import workflow4s.example.checks
+import workflow4s.example.{TestClock, checks}
 import workflow4s.example.testuitls.TestUtils.SimpleSignalResponseOps
 import workflow4s.example.withdrawal.checks.{Check, CheckKey, CheckResult, ChecksEngine, ChecksEvent, ChecksInput, ChecksState, Decision, ReviewDecision}
+import workflow4s.wio.KnockerUpper
 import workflow4s.wio.model.{WIOModel, WIOModelInterpreter}
 import workflow4s.wio.simple.{InMemoryJournal, SimpleActor}
 
 import java.io.File
+import java.time.Clock
 import scala.reflect.Selectable.reflectiveSelectable
 import scala.util.Random
 
@@ -93,11 +95,13 @@ class ChecksEngineTest extends AnyFreeSpec {
 
   trait Fixture extends StrictLogging {
     val journal = new InMemoryJournal[ChecksEvent]
+    val clock = new TestClock
+    val knockerUpper = KnockerUpper.noop
 
-    def createWorkflow(checks: List[Check[Unit]]) = new ChecksActor(journal, ChecksInput((), checks))
+    def createWorkflow(checks: List[Check[Unit]]) = new ChecksActor(journal, ChecksInput((), checks), clock, knockerUpper)
   }
-  class ChecksActor(journal: InMemoryJournal[ChecksEvent], input: ChecksInput) {
-    val delegate        = SimpleActor.createWithState[ChecksEngine.Context.type, ChecksInput](ChecksEngine.runChecks, input, null: ChecksState, journal)
+  class ChecksActor(journal: InMemoryJournal[ChecksEvent], input: ChecksInput, clock: Clock, knockerUpper: KnockerUpper) {
+    val delegate        = SimpleActor.createWithState[ChecksEngine.Context.type, ChecksInput](ChecksEngine.runChecks, input, null: ChecksState, journal, clock, knockerUpper)
     def run(): Unit     = delegate.proceed(runIO = true)
     def recover(): Unit = delegate.recover()
 

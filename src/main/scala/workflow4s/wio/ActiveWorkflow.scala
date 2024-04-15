@@ -3,6 +3,8 @@ package workflow4s.wio
 import workflow4s.wio.Interpreter.{EventResponse, ProceedResponse, QueryResponse, SignalResponse}
 import workflow4s.wio.internal.*
 
+import java.time.Instant
+
 abstract class ActiveWorkflow {
   type Context <: WorkflowContext
   type CurrentState <: WCState[Context]
@@ -15,18 +17,16 @@ abstract class ActiveWorkflow {
     SignalEvaluator.handleSignal(signalDef, req, wio, state, interpreter)
   def handleEvent(event: WCEvent[Context]): EventResponse[Context]                                         =
     EventEvaluator.handleEvent(event, wio, state, interpreter)
-  def proceed(runIO: Boolean): ProceedResponse[Context]                                                 =
-    ProceedEvaluator.proceed(wio, state, runIO, interpreter)
+  def proceed(runIO: Boolean, now: Instant): ProceedResponse[Context]                                                 =
+    ProceedEvaluator.proceed(wio, state, runIO, interpreter, now)
 
-  def getDesc = CurrentStateEvaluator.getCurrentStateDescription(wio)
-  def getState: WCState[Context] = state
+  def getDesc: String = CurrentStateEvaluator.getCurrentStateDescription(wio)
 }
 
 object ActiveWorkflow {
 
   type ForCtx[Ctx] = ActiveWorkflow { type Context = Ctx }
 
-  // TODO Out will become Ctx#State
   def apply[Ctx <: WorkflowContext, In <: WCState[Ctx]](wio0: WIO[In, Nothing, WCState[Ctx], Ctx], value0: In)(
       interpreter0: Interpreter[Ctx],
   ): ActiveWorkflow.ForCtx[Ctx] =

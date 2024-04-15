@@ -1,9 +1,11 @@
 package workflow4s.wio.internal
 
 import cats.effect.IO
-import cats.syntax.all._
+import cats.syntax.all.*
 import workflow4s.wio.Interpreter.ProceedResponse
-import workflow4s.wio._
+import workflow4s.wio.*
+
+import java.time.Instant
 
 object ProceedEvaluator {
   import NextWfState.{NewBehaviour, NewValue}
@@ -14,8 +16,9 @@ object ProceedEvaluator {
       state: StIn,
       runIO: Boolean,
       interpreter: Interpreter[Ctx],
+      now: Instant,
   ): ProceedResponse[Ctx] = {
-    val visitor = new ProceedVisitor(wio, state, runIO, interpreter.journal, state)
+    val visitor = new ProceedVisitor(wio, state, runIO, interpreter.journal, state, now, interpreter.knockerUpper)
     visitor.run match {
       case Some(value) => ProceedResponse.Executed(value.map(wf => wf.toActiveWorkflow(interpreter)))
       case None        => ProceedResponse.Noop()
@@ -29,6 +32,8 @@ object ProceedEvaluator {
       runIO: Boolean,
       journal: JournalPersistance.Write[WCEvent[Ctx]],
       initialState: WCState[Ctx],
+      now: Instant,
+      knockerUpper: KnockerUpper,
   ) extends Visitor[Ctx, In, Err, Out](wio) {
     type NewWf           = NextWfState[Ctx, Err, Out]
     override type Result = Option[IO[NewWf]]
@@ -80,12 +85,14 @@ object ProceedEvaluator {
     def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_] <: WCState[Ctx]](
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
     ): Result = {
-      val newJournal = journal.contraMap(wio.embedding.convertEvent)
+      val newJournal                  = journal.contraMap(wio.embedding.convertEvent)
       val newState: WCState[InnerCtx] =
         wio.embedding
           .unconvertState(initialState)
-          .getOrElse(wio.initialState(state)) // TODO, this is not safe, we will use initial state if the state mapping is incorrect (not symetrical). This will be very hard for the user to diagnose.
-      new ProceedVisitor(wio.inner, state, runIO, newJournal, newState).run
+          .getOrElse(
+            wio.initialState(state),
+          ) // TODO, this is not safe, we will use initial state if the state mapping is incorrect (not symetrical). This will be very hard for the user to diagnose.
+      new ProceedVisitor(wio.inner, state, runIO, newJournal, newState, now, knockerUpper).run
         .map(_.map(convertResult(wio, _, state)))
     }
 
@@ -93,8 +100,31 @@ object ProceedEvaluator {
     def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result =
       recurse(wio.base, state).map(_.map(preserverHandleInterruption(wio, _, state))).orElse(recurse(wio.interruption.finalWIO, initialState))
 
+    def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result = {
+      if (runIO) {
+        val started      = WIO.Timer.Started(now)
+        val releaseTime  = wio.getReleaseTime(started, state)
+        val newBehaviour =
+          NextWfState.NewBehaviour(WIO.AwaitingTime(releaseTime, wio.onRelease(state), wakeupRegistered = false), initialState.asRight)
+        (for {
+          _ <- journal.save(wio.eventHandler.convert(WIO.Timer.Started(now)))
+        } yield newBehaviour).some
+      } else None
+    }
+
+    def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result = {
+      if (now.isAfter(wio.resumeAt)) Some(IO.pure(NewValue(wio.onRelease)))
+      else {
+        if (!wio.wakeupRegistered) {
+          (for {
+            _ <- knockerUpper.registerWakeup(wio.resumeAt)
+          } yield NewBehaviour(wio.copy(wakeupRegistered = true), initialState.asRight)).some
+        } else None
+      }
+    }
+
     private def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], s: I1): Option[IO[NextWfState[Ctx, E1, O1]]] =
-      new ProceedVisitor(wio, s, runIO, journal, initialState).run
+      new ProceedVisitor(wio, s, runIO, journal, initialState, now, knockerUpper).run
   }
 
 }

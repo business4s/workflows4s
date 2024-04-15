@@ -3,8 +3,8 @@ package workflow4s.wio
 import cats.effect.IO
 import cats.implicits.catsSyntaxEitherId
 import workflow4s.wio.WIO.Branch
-import workflow4s.wio.internal.WorkflowConversionEvaluator.WorkflowEmbedding
-import workflow4s.wio.internal.{EventHandler, QueryHandler, SignalHandler, WorkflowConversionEvaluator}
+import workflow4s.wio.internal.WorkflowEmbedding
+import workflow4s.wio.internal.EventHandler
 
 import scala.annotation.unused
 import scala.concurrent.duration.Duration

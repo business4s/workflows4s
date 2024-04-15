@@ -1,6 +1,8 @@
 package workflow4s.wio.internal
 
+import cats.implicits.catsSyntaxEitherId
 import workflow4s.wio.Interpreter.EventResponse
+import workflow4s.wio.WIO.Timer.DurationSource
 import workflow4s.wio.{Interpreter, NextWfState, Visitor, WCEvent, WCState, WIO, WorkflowContext}
 
 object EventEvaluator {
@@ -67,7 +69,9 @@ object EventEvaluator {
       val newState: WCState[InnerCtx] =
         wio.embedding
           .unconvertState(initialState)
-          .getOrElse(wio.initialState(state)) // TODO, this is not safe, we will use initial state if the state mapping is incorrect (not symetrical). This will be very hard for the user to diagnose.
+          .getOrElse(
+            wio.initialState(state),
+          ) // TODO, this is not safe, we will use initial state if the state mapping is incorrect (not symetrical). This will be very hard for the user to diagnose.
       wio.embedding
         .unconvertEvent(event)
         .flatMap(convertedEvent => new EventVisitor(wio.inner, convertedEvent, state, newState).run)
@@ -77,6 +81,15 @@ object EventEvaluator {
     // will be problematic if we use the same event on both paths
     def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result =
       recurse(wio.base, state, event).map(preserverHandleInterruption(wio, _, state)).orElse(recurse(wio.interruption.finalWIO, initialState, event))
+    def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result                           = {
+      wio.eventHandler
+        .detect(event)
+        .map(started => {
+          val releaseTime = wio.getReleaseTime(started, state)
+          NextWfState.NewBehaviour(WIO.AwaitingTime(releaseTime, wio.onRelease(state), wakeupRegistered = false), initialState.asRight)
+        })
+    }
+    def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result             = None
 
     def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], s: I1, e: WCEvent[Ctx]): EventVisitor[Ctx, I1, E1, O1]#Result =
       new EventVisitor(wio, e, s, initialState).run

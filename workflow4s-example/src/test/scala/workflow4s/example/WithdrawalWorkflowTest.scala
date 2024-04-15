@@ -15,9 +15,11 @@ import workflow4s.wio.simple.{InMemoryJournal, SimpleActor}
 import io.circe.syntax.*
 import workflow4s.example.withdrawal.checks.{ChecksEngine, ChecksInput, ChecksState, Decision}
 import workflow4s.example.withdrawal.{WithdrawalData, WithdrawalEvent, WithdrawalService, WithdrawalSignal, WithdrawalWorkflow}
+import workflow4s.wio.KnockerUpper
 
 import java.io.File
 import java.nio.file.Files
+import java.time.{Clock, Instant, ZoneId, ZoneOffset}
 
 //noinspection ForwardReference
 class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
@@ -124,8 +126,10 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
   }
 
   trait Fixture extends StrictLogging {
-    val journal    = new InMemoryJournal[WithdrawalEvent]
-    lazy val actor = createActor(journal)
+    val journal      = new InMemoryJournal[WithdrawalEvent]
+    lazy val actor   = createActor(journal)
+    val clock        = new TestClock
+    val knockerUpper = KnockerUpper.noop
 
     def checkRecovery() = {
       logger.debug("Checking recovery")
@@ -134,7 +138,7 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
     }
 
     def createActor(journal: InMemoryJournal[WithdrawalEvent]) = {
-      val actor = new WithdrawalActor(journal)
+      val actor = new WithdrawalActor(journal, clock, knockerUpper)
       actor.recover()
       actor
     }
@@ -144,7 +148,7 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
     val recipient                                                                                         = Iban("A")
     val fees                                                                                              = Fee(11)
     val externalId                                                                                        = "external-id-1"
-    val service                                                                                           = mock[WithdrawalService]
+    val service: WithdrawalService                                                                        = mock[WithdrawalService]
     val workflow: WithdrawalWorkflow.Context.WIO[WithdrawalData.Empty, Nothing, WithdrawalData.Completed] =
       new WithdrawalWorkflow(service, DummyChecksEngine).workflowDeclarative
 
@@ -170,9 +174,9 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
         ChecksEngine.Context.WIO.pure(ChecksState.Decided(Map(), Decision.ApprovedBySystem()))
     }
 
-    class WithdrawalActor(journal: InMemoryJournal[WithdrawalEvent]) {
+    class WithdrawalActor(journal: InMemoryJournal[WithdrawalEvent], clock: Clock, knockerUpper: KnockerUpper) {
       val delegate: SimpleActor[WithdrawalData]                            =
-        SimpleActor.create[WithdrawalWorkflow.Context.type, WithdrawalData.Empty](workflow, WithdrawalData.Empty(txId), journal)
+        SimpleActor.create[WithdrawalWorkflow.Context.type, WithdrawalData.Empty](workflow, WithdrawalData.Empty(txId), journal, clock, knockerUpper)
       def init(req: CreateWithdrawal): Unit                                = {
         delegate.handleSignal(WithdrawalWorkflow.Signals.createWithdrawal)(req).extract
       }
@@ -195,4 +199,12 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
 
   }
 
+}
+
+class TestClock extends Clock {
+  var instant_ : Instant                       = Instant.now
+  def setInstant(instant: Instant): Unit       = this.instant_ = instant
+  def instant: Instant                         = instant_
+  def getZone: ZoneId                          = ZoneOffset.UTC
+  override def withZone(zoneId: ZoneId): Clock = ???
 }

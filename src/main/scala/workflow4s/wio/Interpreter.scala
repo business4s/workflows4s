@@ -2,10 +2,11 @@ package workflow4s.wio
 
 import cats.effect.IO
 import cats.syntax.all.*
-import workflow4s.wio.Interpreter.ProceedResponse
-import workflow4s.wio.internal.WorkflowConversionEvaluator.WorkflowEmbedding
 
-class Interpreter[C <: WorkflowContext](val journal: JournalPersistance[WCEvent[C]])
+class Interpreter[C <: WorkflowContext](
+    val journal: JournalPersistance[WCEvent[C]],
+    val knockerUpper: KnockerUpper,
+)
 
 object Interpreter {
 
@@ -64,6 +65,8 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
       wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
   ): Result
   def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result
+  def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result
+  def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result
 
   def run: Result = {
     wio match {
@@ -94,6 +97,8 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
             }
         }
       case x: WIO.HandleInterruption[Ctx, In, Err, Out]                 => onHandleInterruption(x)
+      case x: WIO.Timer[Ctx, In, Err, Out]                              => onTimer(x)
+      case x: WIO.AwaitingTime[Ctx, In, Err, Out]                       => onAwaitingTime(x)
     }
   }
 

@@ -6,7 +6,9 @@ import workflow4s.wio.Interpreter.{ProceedResponse, QueryResponse, SignalRespons
 import workflow4s.wio.*
 import workflow4s.wio.ActiveWorkflow.ForCtx
 
-abstract class SimpleActor[State]()(implicit IORuntime: IORuntime) extends StrictLogging {
+import java.time.Clock
+
+abstract class SimpleActor[State](clock: Clock)(implicit IORuntime: IORuntime) extends StrictLogging {
 
   type Ctx <: WorkflowContext
   // Its initialized to null because compile doesnt allow overriding vars, and it has to be like that to parametrize by type member (Context)
@@ -45,7 +47,7 @@ abstract class SimpleActor[State]()(implicit IORuntime: IORuntime) extends Stric
 
   def proceed(runIO: Boolean): Unit = {
     logger.debug(s"Proceeding to the next step. Run io: ${runIO}")
-    wf.proceed(runIO) match {
+    wf.proceed(runIO, clock.instant()) match {
       case ProceedResponse.Executed(newFlowIO) =>
         wf = newFlowIO.unsafeRunSync()
         logger.debug(s"Proceeded. New wf: ${wf.getDesc}")
@@ -78,11 +80,13 @@ object SimpleActor {
       behaviour: WIO[In, Nothing, WCState[Ctx0], Ctx0],
       state0: In,
       journalPersistance: JournalPersistance[WCEvent[Ctx0]],
+      clock: Clock,
+      knockerUpper: KnockerUpper
   )(implicit
       ior: IORuntime,
   ): SimpleActor[WCState[Ctx0]] = {
-    val activeWf: ActiveWorkflow.ForCtx[Ctx0] = ActiveWorkflow(behaviour, state0)(new Interpreter(journalPersistance))
-    new SimpleActor {
+    val activeWf: ActiveWorkflow.ForCtx[Ctx0] = ActiveWorkflow(behaviour, state0)(new Interpreter(journalPersistance, knockerUpper))
+    new SimpleActor[WCState[Ctx0]](clock) {
       override type Ctx = Ctx0
       wf = activeWf
       override protected def extractState(wf: ForCtx[Ctx0]): WCState[Ctx0] = wf.state
@@ -96,11 +100,13 @@ object SimpleActor {
       input: In,
       state: WCState[Ctx0],
       journalPersistance: JournalPersistance[WCEvent[Ctx0]],
+      clock: Clock,
+      knockerUpper: KnockerUpper
   )(implicit
       ior: IORuntime,
   ): SimpleActor[WCState[Ctx0]] = {
-    val activeWf: ActiveWorkflow.ForCtx[Ctx0] = ActiveWorkflow(behaviour.transformInput[Any](_ => input), state)(new Interpreter(journalPersistance))
-    new SimpleActor {
+    val activeWf: ActiveWorkflow.ForCtx[Ctx0] = ActiveWorkflow(behaviour.transformInput[Any](_ => input), state)(new Interpreter(journalPersistance, knockerUpper))
+    new SimpleActor[WCState[Ctx0]](clock) {
       override type Ctx = Ctx0
       wf = activeWf
       override protected def extractState(wf: ForCtx[Ctx0]): WCState[Ctx0] = wf.state

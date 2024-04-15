@@ -87,6 +87,10 @@ object SignalEvaluator {
         .orElse(recurse(wio.interruption.finalWIO, initialState))
     }
 
+    def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result = None
+    // we could have signal that triggers the release?
+    def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result = None
+
     def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], s: I1): SignalVisitor[Ctx, Resp, E1, O1, I1, Req]#Result =
       new SignalVisitor(wio, signalDef, req, s, journal, initialState).run
 

@@ -1,9 +1,11 @@
 package workflow4s.wio
 
 import cats.effect.IO
-import workflow4s.wio.internal.WorkflowConversionEvaluator.WorkflowEmbedding
-import workflow4s.wio.internal.{EventHandler, QueryHandler, SignalHandler, WIOUtils}
+import workflow4s.wio.WIO.Timer.DurationSource
+import workflow4s.wio.internal.WorkflowEmbedding.EventEmbedding
+import workflow4s.wio.internal.{EventHandler, SignalHandler, WIOUtils, WorkflowEmbedding}
 
+import java.time.{Duration, Instant}
 import scala.annotation.unused
 import scala.language.implicitConversions
 
@@ -44,7 +46,7 @@ object WIO {
       sigDef: SignalDef[Sig, Resp],
       sigHandler: SignalHandler[Sig, Evt, In],
       evtHandler: EventHandler[In, (Either[Err, Out], Resp), WCEvent[Ctx], Evt],
-      meta: HandleSignal.Meta
+      meta: HandleSignal.Meta,
   ) extends WIO[In, Err, Out, Ctx]
       with InterruptionSource {
     def expects[Req1, Resp1](@unused signalDef: SignalDef[Req1, Resp1]): Option[HandleSignal[Ctx, In, Out, Err, Req1, Resp1, Evt]] = {
@@ -132,6 +134,35 @@ object WIO {
       base: WIO[In, Err, Out, Ctx],
       interruption: Interruption[Ctx, Err, Out, ?, ?],
   ) extends WIO[In, Err, Out, Ctx]
+
+  case class Timer[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](
+      duration: Timer.DurationSource[In],
+      eventHandler: EventHandler[In, Unit, WCEvent[Ctx], Timer.Started],
+      onRelease: In => Either[Err, Out],
+  ) extends WIO[In, Err, Out, Ctx] {
+    def getReleaseTime(started: Timer.Started, in: In): Instant = {
+      val awaitDuration = duration match {
+        case DurationSource.Static(duration) => duration
+        case DurationSource.Dynamic(getDuration) => getDuration(in)
+      }
+      val releaseTime = started.at.plus(awaitDuration)
+      releaseTime
+    }
+  }
+
+  case class AwaitingTime[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](resumeAt: Instant, onRelease: Either[Err, Out], wakeupRegistered: Boolean) extends WIO[In, Nothing, Out, Ctx]
+
+  object Timer {
+
+    case class Started(at: Instant)
+
+    sealed trait DurationSource[-In]
+    object DurationSource {
+      case class Static(duration: Duration)                extends DurationSource[Any]
+      // we could support IO[Duration] but then either the logic has to be more complicated or the even has to capture release time
+      case class Dynamic[-In](getDuration: In => Duration) extends DurationSource[In]
+    }
+  }
 
   // -----
 
