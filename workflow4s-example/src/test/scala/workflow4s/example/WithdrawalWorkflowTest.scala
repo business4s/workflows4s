@@ -191,6 +191,7 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
       (service.getChecks _)
         .expects()
         .returning(list)
+        .anyNumberOfTimes()
     def withNoChecks()                                          = withChecks(List())
 
     object DummyChecksEngine extends ChecksEngine {
