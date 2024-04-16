@@ -30,9 +30,10 @@ object ChecksEngine extends ChecksEngine {
   private def getDecision: WIO[ChecksState.Executed, Nothing, ChecksState.Decided] = {
     WIO
       .fork[ChecksState.Executed]
-      .addBranch(requiresReviewBranch)
-      .addBranch(decidedBySystemBranch) // TODO if/else api
-      .done
+      .matchCondition(_.requiresReview, "Requires review?")(
+        onTrue = handleReview,
+        onFalse = systemDecision,
+      )
   }
 
   private def refreshChecksUntilAllComplete: WIO[ChecksInput, Nothing, ChecksState.Executed] = {
@@ -73,20 +74,13 @@ object ChecksEngine extends ChecksEngine {
       .handleEvent((state, evt) => state.addResults(evt.results))
       .autoNamed()
 
-  private val decidedBySystemBranch: WIO.Branch[ChecksState.Executed, Nothing, ChecksState.Decided] =
-    WIO
-      .branch[ChecksState.Executed]
-      .when(!_.requiresReview)(
-        WIO.pure.make(st => {
-          val decision =
-            if (st.isRejected) Decision.RejectedBySystem()
-            else Decision.ApprovedBySystem()
-          st.asDecided(decision)
-        }),
-      )
-
-  private val requiresReviewBranch: WIO.Branch[ChecksState.Executed, Nothing, ChecksState.Decided] =
-    WIO.branch[ChecksState.Executed].when(_.requiresReview)(handleReview)
+  private val systemDecision: WIO[ChecksState.Executed, Nothing, ChecksState.Decided] =
+    WIO.pure.make(st => {
+      val decision =
+        if (st.isRejected) Decision.RejectedBySystem()
+        else Decision.ApprovedBySystem()
+      st.asDecided(decision)
+    })
 
   private def handleReview: WIO[ChecksState.Executed, Nothing, ChecksState.Decided] = WIO
     .handleSignal(Signals.review)
@@ -101,6 +95,5 @@ object ChecksEngine extends ChecksEngine {
     })
     .voidResponse
     .done
-
 
 }

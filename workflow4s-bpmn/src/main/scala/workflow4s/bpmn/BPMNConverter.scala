@@ -99,8 +99,8 @@ object BPMNConverter {
           )
           .connectTo(loopStartGwId)
           .moveToNode(nextTaskTempNodeId)
-      case WIOModel.Fork(branches)                                    =>
-        val base                           = builder.exclusiveGateway()
+      case WIOModel.Fork(branches, name)                              =>
+        val base                           = builder.exclusiveGateway().name(name.orNull)
         val gwId                           = base.getElement.getId
         val (resultBuilder, Some(endGwId)) = {
           branches.zipWithIndex.foldLeft[(Builder, Option[String])](base -> None)({ case ((builder1, endGw), (branch, idx)) =>

@@ -2,7 +2,7 @@ package workflow4s.wio
 
 import cats.effect.IO
 import workflow4s.wio.WIO.Timer.DurationSource
-import workflow4s.wio.builders.{AwaitBuilder, HandleSignalBuilder, InterruptionBuilder, LoopBuilder, WIOBuilderMethods}
+import workflow4s.wio.builders.{AwaitBuilder, BranchBuilder, ForkBuilder, HandleSignalBuilder, InterruptionBuilder, LoopBuilder, WIOBuilderMethods}
 import workflow4s.wio.internal.WorkflowEmbedding.EventEmbedding
 import workflow4s.wio.internal.{EventHandler, SignalHandler, WIOUtils, WorkflowEmbedding}
 
@@ -19,7 +19,9 @@ trait WorkflowContext { ctx: WorkflowContext =>
       extends WIOBuilderMethods[ctx.type]
       with HandleSignalBuilder.Step0[ctx.type]
       with LoopBuilder.Step0[ctx.type]
-      with AwaitBuilder.Step0[ctx.type] {
+      with AwaitBuilder.Step0[ctx.type]
+      with ForkBuilder.Step0[ctx.type]
+      with BranchBuilder.Step0[ctx.type] {
     type Branch[-In, +Err, +Out <: State]  = workflow4s.wio.WIO.Branch[In, Err, Out, ctx.type]
     type Interruption[+Err, +Out <: State] = workflow4s.wio.WIO.Interruption[ctx.type, Err, Out, ?, ?]
 
@@ -134,7 +136,8 @@ object WIO {
     )
   }
 
-  case class Fork[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]](branches: Vector[Branch[In, Err, Out, Ctx]]) extends WIO[In, Err, Out, Ctx]
+  case class Fork[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]](branches: Vector[Branch[In, Err, Out, Ctx]], name: Option[String])
+      extends WIO[In, Err, Out, Ctx]
 
   case class Embedded[Ctx <: WorkflowContext, -In, +Err, InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_ <: WCState[
     InnerCtx,
@@ -186,7 +189,8 @@ object WIO {
 
   // -----
 
-  def build[Ctx <: WorkflowContext]: WIOBuilderMethods[Ctx] = new WIOBuilderMethods[Ctx] {}
+  def build[Ctx <: WorkflowContext]: WIOBuilderMethods[Ctx] with BranchBuilder.Step0[Ctx] = new WIOBuilderMethods[Ctx]
+    with BranchBuilder.Step0[Ctx] {}
 
   trait Branch[-In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext] {
     type I // Intermediate
@@ -194,6 +198,8 @@ object WIO {
     def condition: In => Option[I]
 
     def wio: WIO[(In, I), Err, Out, Ctx]
+
+    def name: Option[String]
   }
 
   /*
@@ -218,11 +224,13 @@ object WIO {
     def apply[Ctx <: WorkflowContext, In, T, Err, Out <: WCState[Ctx]](
         cond: In => Option[T],
         wio0: WIO[(In, T), Err, Out, Ctx],
+        name0: Option[String],
     ): Branch[In, Err, Out, Ctx] = {
       new Branch[In, Err, Out, Ctx] {
         override type I = T
         override def condition: In => Option[I]       = cond
         override def wio: WIO[(In, I), Err, Out, Ctx] = wio0
+        override def name: Option[String] = name0
       }
     }
   }

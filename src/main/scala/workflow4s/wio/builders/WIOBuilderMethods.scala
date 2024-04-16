@@ -57,30 +57,7 @@ trait WIOBuilderMethods[Ctx <: WorkflowContext] {
     def apply[Err](value: Err)(implicit ct: ErrorMeta[Err]): WIO[In, Err, Nothing, Ctx] = WIO.Pure(s => Left(value), ct)
   }
 
-  def fork[In]: ForkBuilder[In, Nothing, Nothing] = ForkBuilder(Vector())
 
-  // can be removed and replaced with direct instance of WIO.Fork?
-  case class ForkBuilder[-In, +Err, +Out <: WCState[Ctx]](branches: Vector[Branch[In, Err, Out, Ctx]]) {
-    def branch[T, Err1 >: Err, Out1 >: Out <: WCState[Ctx], In1 <: In](cond: In1 => Option[T])(
-        wio: WIO[(In1, T), Err1, Out1, Ctx],
-    ): ForkBuilder[In1, Err1, Out1] = addBranch(Branch(cond, wio))
-
-    def addBranch[T, Err1 >: Err, Out1 >: Out <: WCState[Ctx], In1 <: In](
-        b: Branch[In1, Err1, Out1, Ctx],
-    ): ForkBuilder[In1, Err1, Out1] = ForkBuilder(branches.appended(b))
-
-    def done: WIO[In, Err, Out, Ctx] = WIO.Fork(branches)
-  }
-
-  def branch[In]: BranchBuilder[In] = BranchBuilder()
-
-  case class BranchBuilder[In]() {
-    def when[Err, Out <: WCState[Ctx]](cond: In => Boolean)(wio: WIO[In, Err, Out, Ctx]): Branch[In, Err, Out, Ctx] =
-      Branch(cond.andThen(Option.when(_)(())), wio.transformInput((x: (In, Any)) => x._1))
-
-    def create[T, Err, Out <: WCState[Ctx]](cond: In => Option[T])(wio: WIO[(In, T), Err, Out, Ctx]): Branch[In, Err, Out, Ctx] =
-      Branch(cond, wio)
-  }
 
   def embed[In, Err, Out <: WCState[InnerCtx], InnerCtx <: WorkflowContext, OS[_ <: WCState[InnerCtx]] <: WCState[Ctx]](
       wio: WIO[In, Err, Out, InnerCtx],

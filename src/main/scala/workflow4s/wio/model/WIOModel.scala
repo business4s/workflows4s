@@ -31,7 +31,7 @@ object WIOModel {
       restartBranchName: Option[String],
       onRestart: Option[WIOModel],
   ) extends WIOModel
-  case class Fork(branches: Vector[Branch])                                                        extends WIOModel
+  case class Fork(branches: Vector[Branch], name: Option[String])                                                        extends WIOModel
   case class Interruptible(base: WIOModel, trigger: HandleSignal, flow: Option[WIOModel])          extends WIOModel
   case class Timer(duration: Option[Duration], name: Option[String])                               extends WIOModel
 

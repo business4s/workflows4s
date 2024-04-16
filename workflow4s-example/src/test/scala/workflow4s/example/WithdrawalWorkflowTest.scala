@@ -131,6 +131,7 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
       "when waiting for execution confirmation" in new Fixture {
         withFeeCalculation(fees)
         withMoneyOnHold(success = true)
+        withNoChecks()
         withExecutionInitiated(success = true)
         withFundsLockCancelled()
 
