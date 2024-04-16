@@ -122,7 +122,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
     val doRunChecks: WIO[WithdrawalData.Validated, Nothing, WithdrawalData.Checked] =
       WIO.embed[WithdrawalData.Validated, Nothing, ChecksState.Decided, ChecksEngine.Context.type, checksEmbedding.OutputState](
         checksEngine.runChecks
-          .transformInput((x: WithdrawalData.Validated) => ChecksInput(x, List())),
+          .transformInput((x: WithdrawalData.Validated) => ChecksInput(x, service.getChecks())),
           //          .transformOutput((validated, checkState) => validated.checked(checkState)),
       )(checksEmbedding, _ => ChecksState.Empty) // TODO
 

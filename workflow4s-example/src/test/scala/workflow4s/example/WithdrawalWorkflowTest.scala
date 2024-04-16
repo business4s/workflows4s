@@ -13,7 +13,8 @@ import workflow4s.example.testuitls.TestUtils.SimpleSignalResponseOps
 import workflow4s.wio.model.{WIOModel, WIOModelInterpreter}
 import workflow4s.wio.simple.{InMemoryJournal, SimpleActor}
 import io.circe.syntax.*
-import workflow4s.example.withdrawal.checks.{ChecksEngine, ChecksInput, ChecksState, Decision}
+import workflow4s.example.checks.StaticCheck
+import workflow4s.example.withdrawal.checks.{Check, CheckResult, ChecksEngine, ChecksInput, ChecksState, Decision}
 import workflow4s.example.withdrawal.{WithdrawalData, WithdrawalEvent, WithdrawalService, WithdrawalSignal, WithdrawalWorkflow}
 import workflow4s.wio.KnockerUpper
 
@@ -33,6 +34,7 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
 
       withFeeCalculation(fees)
       withMoneyOnHold(success = true)
+      withNoChecks()
       withExecutionInitiated(success = true)
       withFundsReleased()
 
@@ -66,9 +68,22 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
         checkRecovery()
       }
 
+      "in checks" in new Fixture {
+        withFeeCalculation(fees)
+        withMoneyOnHold(success = true)
+        withChecks(List(StaticCheck(CheckResult.Rejected())))
+        withFundsLockCancelled()
+
+        actor.init(CreateWithdrawal(amount, recipient))
+        assert(actor.queryData() == WithdrawalData.Completed.Failed("Transaction rejected in checks"))
+
+        checkRecovery()
+      }
+
       "in execution initiation" in new Fixture {
         withFeeCalculation(fees)
         withMoneyOnHold(success = true)
+        withNoChecks()
         withExecutionInitiated(success = false)
         withFundsLockCancelled()
 
@@ -81,6 +96,7 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
       "in execution confirmation" in new Fixture {
         withFeeCalculation(fees)
         withMoneyOnHold(success = true)
+        withNoChecks()
         withExecutionInitiated(success = true)
         withFundsLockCancelled()
 
@@ -151,25 +167,31 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
     val fees                                                                                              = Fee(11)
     val externalId                                                                                        = "external-id-1"
     val service: WithdrawalService                                                                        = mock[WithdrawalService]
-    val workflow: WithdrawalWorkflow.Context.WIO[WithdrawalData.Empty, Nothing, WithdrawalData.Completed] =
-      new WithdrawalWorkflow(service, DummyChecksEngine).workflowDeclarative
+    def checksEngine: ChecksEngine                                                                        = ChecksEngine
+    def workflow: WithdrawalWorkflow.Context.WIO[WithdrawalData.Empty, Nothing, WithdrawalData.Completed] =
+      new WithdrawalWorkflow(service, checksEngine).workflowDeclarative
 
-    def withFeeCalculation(fee: Fee)             =
+    def withFeeCalculation(fee: Fee)                            =
       (service.calculateFees _).expects(*).returning(IO(fee))
-    def withMoneyOnHold(success: Boolean)        =
+    def withMoneyOnHold(success: Boolean)                       =
       (service.putMoneyOnHold _).expects(*).returning(IO(Either.cond(success, (), WithdrawalService.NotEnoughFunds())))
-    def withExecutionInitiated(success: Boolean) =
+    def withExecutionInitiated(success: Boolean)                =
       (service.initiateExecution _)
         .expects(*, *)
         .returning(IO(if (success) ExecutionResponse.Accepted(externalId) else ExecutionResponse.Rejected("Rejected by execution engine")))
-    def withFundsReleased()                      =
+    def withFundsReleased()                                     =
       (service.releaseFunds _)
         .expects(*)
         .returning(IO.unit)
-    def withFundsLockCancelled()                 =
+    def withFundsLockCancelled()                                =
       (service.cancelFundsLock _)
         .expects()
         .returning(IO.unit)
+    def withChecks(list: List[Check[WithdrawalData.Validated]]) =
+      (service.getChecks _)
+        .expects()
+        .returning(list)
+    def withNoChecks()                                          = withChecks(List())
 
     object DummyChecksEngine extends ChecksEngine {
       override def runChecks: ChecksEngine.Context.WIO[ChecksInput, Nothing, ChecksState.Decided] =

@@ -2,6 +2,7 @@ package workflow4s.wio
 
 import cats.effect.IO
 import cats.syntax.all.*
+import workflow4s.wio.internal.WorkflowEmbedding
 
 class Interpreter[C <: WorkflowContext](
     val journal: JournalPersistance[WCEvent[C]],
@@ -244,10 +245,11 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
                 // if its main logic and return branch exists, we enter this, if not
                 val newWIO =
                   if (wio.isReturning) wio.copy(current = wio.loop, isReturning = false)
-                  else wio.onRestart match {
-                    case Some(onReturn) => wio.copy(current = onReturn, isReturning = true)
-                    case None => wio.copy(current = wio.loop, isReturning = false)
-                  }
+                  else
+                    wio.onRestart match {
+                      case Some(onReturn) => wio.copy(current = onReturn, isReturning = true)
+                      case None           => wio.copy(current = wio.loop, isReturning = false)
+                    }
                 NewBehaviour(newWIO, v.value)
             }
         },
@@ -258,21 +260,29 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
     wio.branches.collectFirstSome(b => b.condition(in).map(interm => b.wio.transformInput[In](s => (s, interm))))
   }
 
-  def convertResult[InnerCtx <: WorkflowContext, E, InnerOut <: WCState[InnerCtx], O1[_] <: WCState[Ctx]](
+  def convertResult[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], O1[_] <: WCState[Ctx]](
       wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, O1],
-      newWf: NextWfState[InnerCtx, E, InnerOut],
+      newWf: NextWfState[InnerCtx, Err, InnerOut],
       input: In,
-  ): NextWfState[Ctx, E, Out] = {
+  ): NextWfState[Ctx, Err, Out] = {
     // we are interpretting WIO.Embedded and by definition its Out = MappingOutput[InnerOut]. Its just compiler forgetting it somehow
-    def convert(x: NextWfState[Ctx, E, O1[InnerOut]]): NextWfState[Ctx, E, Out] = x.asInstanceOf
+    def convert(x: NextWfState[Ctx, Err, O1[InnerOut]]): NextWfState[Ctx, Err, Out] = x.asInstanceOf
     newWf.fold(
       b => {
-        val x: NewBehaviour[Ctx, E, O1[InnerOut]] =
-          NewBehaviour(WIO.Embedded(b.wio, wio.embedding, wio.initialState), b.state.asInstanceOf) // TODO something weird with b.state type here
-        convert(x)
-      }, // TODO
+        val newEmbedding: WorkflowEmbedding.Aux[InnerCtx, Ctx, O1, Any]  = new WorkflowEmbedding[InnerCtx, Ctx, Any] {
+          override def convertEvent(e: WCEvent[InnerCtx]): WCEvent[Ctx] = wio.embedding.convertEvent(e)
+          override def unconvertEvent(e: WCEvent[Ctx]): Option[WCEvent[InnerCtx]] = wio.embedding.unconvertEvent(e)
+          override type OutputState[In <: WCState[InnerCtx]] = O1[In]
+          override def convertState[In <: WCState[InnerCtx]](innerState: In, x: Any): OutputState[In] = wio.embedding.convertState(innerState, input)
+          override def unconvertState(outerState: WCState[Ctx]): Option[WCState[InnerCtx]] = wio.embedding.unconvertState(outerState)
+        }
+        val newEmbedded: WIO.Embedded[Ctx, Any, Err, InnerCtx, InnerOut, O1] =
+          WIO.Embedded(b.wio.transformInput[Any](_ => b.state.toOption.get), newEmbedding, wio.initialState.compose(_ => input))
+        val newBehaviour: NewBehaviour[Ctx, Err, O1[InnerOut]]               = NewBehaviour(newEmbedded, b.state.map(wio.embedding.convertState(_, input)))
+        convert(newBehaviour)
+      },
       v => {
-        val x: NewValue[Ctx, E, O1[InnerOut]] = NewValue(v.value.map(wio.embedding.convertState(_, input)))
+        val x: NewValue[Ctx, Err, O1[InnerOut]] = NewValue(v.value.map(wio.embedding.convertState(_, input)))
         convert(x)
       },
     )

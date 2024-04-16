@@ -13,6 +13,7 @@ import workflow4s.example.withdrawal.checks.*
 import workflow4s.wio.KnockerUpper
 import workflow4s.wio.model.{WIOModel, WIOModelInterpreter}
 import workflow4s.wio.simple.{InMemoryJournal, SimpleActor}
+import scala.reflect.Selectable.reflectiveSelectable
 
 import java.io.File
 import java.time.Clock
@@ -119,12 +120,7 @@ class ChecksEngineTest extends AnyFreeSpec {
 
     def state: ChecksState = delegate.state
 
-    def review(decision: ReviewDecision) = delegate.handleSignal(ChecksEngine.reviewSignalDef)(decision).extract
-  }
-
-  case class StaticCheck[T <: CheckResult](result: T) extends Check[Unit] {
-    override val key: CheckKey                    = CheckKey(Random.alphanumeric.take(10).mkString)
-    override def run(data: Unit): IO[CheckResult] = IO(result)
+    def review(decision: ReviewDecision) = delegate.handleSignal(ChecksEngine.Signals.review)(decision).extract
   }
 
   def getModel(wio: ChecksEngine.Context.WIO[?, ?, ?]): WIOModel = {

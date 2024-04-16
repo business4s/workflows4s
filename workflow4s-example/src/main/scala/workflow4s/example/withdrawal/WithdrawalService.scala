@@ -2,6 +2,7 @@ package workflow4s.example.withdrawal
 
 import cats.effect.IO
 import workflow4s.example.withdrawal.WithdrawalService.{ExecutionResponse, Fee, Iban, NotEnoughFunds}
+import workflow4s.example.withdrawal.checks.Check
 
 trait WithdrawalService {
   def calculateFees(amount: BigDecimal): IO[Fee]
@@ -13,6 +14,8 @@ trait WithdrawalService {
   def releaseFunds(amount: BigDecimal): IO[Unit]
 
   def cancelFundsLock(): IO[Unit]
+
+  def getChecks(): List[Check[WithdrawalData.Validated]]
 }
 
 object WithdrawalService {

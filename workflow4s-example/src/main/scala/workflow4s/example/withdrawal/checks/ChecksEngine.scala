@@ -11,13 +11,16 @@ trait ChecksEngine {
 }
 
 object ChecksEngine extends ChecksEngine {
+  val retryBackoff = 20.seconds
 
   object Context extends WorkflowContext {
     override type Event = ChecksEvent
     override type State = ChecksState
   }
+  object Signals {
+    val review: SignalDef[ReviewDecision, Unit] = SignalDef()
+  }
 
-  val reviewSignalDef: SignalDef[ReviewDecision, Unit] = SignalDef()
   import Context.WIO
 
   def runChecks: WIO[ChecksInput, Nothing, ChecksState.Decided] =
@@ -86,7 +89,7 @@ object ChecksEngine extends ChecksEngine {
     WIO.branch[ChecksState.Executed].when(_.requiresReview)(handleReview)
 
   private def handleReview: WIO[ChecksState.Executed, Nothing, ChecksState.Decided] = WIO
-    .handleSignal(reviewSignalDef)
+    .handleSignal(Signals.review)
     .using[ChecksState.Executed]
     .purely((_, sig) => ChecksEvent.ReviewDecisionTaken(sig))
     .handleEvent({ case (st, evt) =>
@@ -99,7 +102,5 @@ object ChecksEngine extends ChecksEngine {
     .voidResponse
     .done
 
-  //  def handleInterruption
 
-  val retryBackoff = 20.seconds
 }
