@@ -13,6 +13,7 @@ import workflow4s.example.testuitls.TestUtils.SimpleSignalResponseOps
 import workflow4s.wio.model.{WIOModel, WIOModelInterpreter}
 import workflow4s.wio.simple.{InMemoryJournal, SimpleActor}
 import io.circe.syntax.*
+import org.scalatest.Inside.inside
 import workflow4s.example.checks.StaticCheck
 import workflow4s.example.withdrawal.checks.{Check, CheckResult, ChecksEngine, ChecksInput, ChecksState, Decision}
 import workflow4s.example.withdrawal.{WithdrawalData, WithdrawalEvent, WithdrawalService, WithdrawalSignal, WithdrawalWorkflow}
@@ -134,6 +135,23 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
         withFundsLockCancelled()
 
         actor.init(CreateWithdrawal(amount, recipient))
+        actor.cancel(WithdrawalSignal.CancelWithdrawal("operator-1", "cancelled", acceptStartedExecution = true))
+        assert(actor.queryData() == WithdrawalData.Completed.Failed("Cancelled by operator-1. Comment: cancelled"))
+
+        checkRecovery()
+      }
+
+      "when running checks" in new Fixture {
+        val check = StaticCheck(CheckResult.Pending())
+        withFeeCalculation(fees)
+        withMoneyOnHold(success = true)
+        withChecks(List(check))
+        withFundsLockCancelled()
+
+        actor.init(CreateWithdrawal(amount, recipient))
+        inside(actor.queryData()) { case data: WithdrawalData.Checking =>
+          assert(data.checkResults.results == Map(check.key -> CheckResult.Pending()))
+        }
         actor.cancel(WithdrawalSignal.CancelWithdrawal("operator-1", "cancelled", acceptStartedExecution = true))
         assert(actor.queryData() == WithdrawalData.Completed.Failed("Cancelled by operator-1. Comment: cancelled"))
 
