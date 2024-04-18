@@ -245,7 +245,7 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
 
 }
 
-class TestClock extends Clock {
+class TestClock extends Clock with StrictLogging {
   var instant_ : Instant                       = Instant.now
   def setInstant(instant: Instant): Unit       = this.instant_ = instant
   def instant: Instant                         = instant_
@@ -254,5 +254,6 @@ class TestClock extends Clock {
 
   def advanceBy(duration: FiniteDuration) = {
     instant_ = this.instant_.plus(duration.toJava)
+    logger.debug(s"Advancing time by ${duration} to ${instant_}")
   }
 }

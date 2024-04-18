@@ -1,5 +1,6 @@
 package workflow4s.wio.internal
 
+import cats.data.Ior
 import cats.effect.IO
 import cats.syntax.all.*
 import workflow4s.wio.Interpreter.ProceedResponse
@@ -74,7 +75,7 @@ object ProceedEvaluator {
       recurse(wio.first, state).map(_.map(preserveAndThen(wio, _)))
     }
     def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                                                               = Some(NewValue(wio.value(state)).pure[IO])
-    def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result                             = {
+    def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result                                   = {
       recurse(wio.current, state).map(_.map((newWf: NextWfState[Ctx, Err, Out1]) => {
         applyLoop(wio, newWf)
       }))
@@ -97,29 +98,77 @@ object ProceedEvaluator {
     }
 
     // proceed on interruption will be needed for timeouts
-    def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result =
-      recurse(wio.base, state).map(_.map(preserverHandleInterruption(wio, _, state))).orElse(recurse(wio.interruption.finalWIO, initialState))
+    def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result = {
+      def runBase: Result          = recurse(wio.base, state)
+        .map(_.map(preserveHandleInterruption(wio.interruption, _)))
+      val dedicatedProceed: Result = wio.interruption.trigger match {
+        case x @ WIO.HandleSignal(_, _, _, _)       => None /// no proceeding when waiting for signal
+        // type params are not correct
+        case x: WIO.Timer[Ctx, In, Err, Out]        =>
+          runTimer(x).map(awaitTimeIO =>
+            for {
+              awaitTime      <- awaitTimeIO
+              mainFlowOut    <- recurse(wio.base, state) match {
+                                  case Some(value) => value
+                                  case None        => NewBehaviour(wio.base.transformInput[Any](_ => state), initialState.asRight).pure[IO]
+                                }
+              newInterruption = WIO.Interruption(awaitTime, wio.interruption.buildFinal)
+            } yield preserveHandleInterruption(newInterruption, mainFlowOut),
+          )
+        // type params are not correct
+        case x: WIO.AwaitingTime[Ctx, In, Err, Out] =>
+          runAwaitingTime(x) match {
+            case Left(newAwaitingIOOpt) =>
+              newAwaitingIOOpt.map(awaitTimeIO =>
+                for {
+                  awaitTime      <- awaitTimeIO
+                  mainFlowOut    <- recurse(wio.base, state) match {
+                                      case Some(value) => value
+                                      case None        =>
+                                        NewBehaviour(wio.base.transformInput[Any](_ => state), initialState.asRight).pure[IO]
+                                    }
+                  newInterruption = WIO.Interruption(awaitTime, wio.interruption.buildFinal)
+                } yield preserveHandleInterruption(newInterruption, mainFlowOut),
+              )
+            case Right(newWf)           =>
+              // we ignore result of interpreting just interruption, we instead go with the whole interruption path
+              // and replace the whole result with it.
+              recurse(wio.interruption.finalWIO, initialState)
+          }
+      }
+      dedicatedProceed.orElse(runBase)
+    }
 
-    def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result = {
-      if (runIO) {
-        val started      = WIO.Timer.Started(now)
-        val releaseTime  = wio.getReleaseTime(started, state)
-        val newBehaviour =
-          NextWfState.NewBehaviour(WIO.AwaitingTime(releaseTime, wio.onRelease(state), wakeupRegistered = false), initialState.asRight)
+    private def runTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Option[IO[WIO.AwaitingTime[Ctx, In, Err, Out]]] = {
+      Option.when(runIO) {
+        val started                                           = WIO.Timer.Started(now)
+        val releaseTime                                       = wio.getReleaseTime(started, state)
+        val newBehaviour: WIO.AwaitingTime[Ctx, In, Err, Out] = WIO.AwaitingTime(releaseTime, wio.onRelease, wakeupRegistered = false)
         (for {
           _ <- journal.save(wio.eventHandler.convert(WIO.Timer.Started(now)))
-        } yield newBehaviour).some
-      } else None
+        } yield newBehaviour)
+      }
+    }
+
+    def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result = {
+      runTimer(wio).map(_.map(NextWfState.NewBehaviour(_, initialState.asRight)))
     }
 
     def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result = {
-      if (now.plusNanos(1).isAfter(wio.resumeAt)) Some(IO.pure(NewValue(wio.onRelease)))
+      runAwaitingTime(wio) match {
+        case Left(newAwaitingIOOpt) => newAwaitingIOOpt.map(_.map(x => NewBehaviour(x, initialState.asRight)))
+        case Right(newWf)           => newWf.pure[IO].some
+      }
+    }
+
+    def runAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Either[Option[IO[WIO.AwaitingTime[Ctx, In, Err, Out]]], NewWf] = {
+      if (now.plusNanos(1).isAfter(wio.resumeAt)) NewValue(wio.onRelease(state)).asRight
       else {
         if (!wio.wakeupRegistered) {
           (for {
             _ <- knockerUpper.registerWakeup(wio.resumeAt)
-          } yield NewBehaviour(wio.copy(wakeupRegistered = true), initialState.asRight)).some
-        } else None
+          } yield wio.copy(wakeupRegistered = true)).some.asLeft
+        } else None.asLeft
       }
     }
 

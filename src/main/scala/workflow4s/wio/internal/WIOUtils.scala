@@ -17,7 +17,7 @@ object WIOUtils {
     case WIO.Named(base, _, _, _)              => getFirstRaw(base)
     case WIO.AndThen(first, _)                 => getFirstRaw(first)
     case WIO.Loop(_, _, current, _, _, _)      => getFirstRaw(current)
-    case x @ WIO.Fork(_)                       => x
+    case x @ WIO.Fork(_, _)                       => x
     case WIO.Embedded(inner, _, _)             => getFirstRaw(inner)
     case WIO.HandleInterruption(base, _)       => getFirstRaw(base)
     case x @ WIO.Timer(_, _, _, _)             => x

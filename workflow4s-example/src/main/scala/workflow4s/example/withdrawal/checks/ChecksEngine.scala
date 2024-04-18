@@ -2,7 +2,8 @@ package workflow4s.example.withdrawal.checks
 
 import cats.syntax.all.*
 import workflow4s.wio
-import workflow4s.wio.{SignalDef, WorkflowContext}
+import workflow4s.wio.builders.InterruptionBuilder
+import workflow4s.wio.{SignalDef, WIO, WorkflowContext}
 
 import scala.concurrent.duration.DurationInt
 
@@ -11,7 +12,8 @@ trait ChecksEngine {
 }
 
 object ChecksEngine extends ChecksEngine {
-  val retryBackoff = 20.seconds
+  val retryBackoff     = 20.seconds
+  val timeoutThreshold = 2.minutes
 
   object Context extends WorkflowContext {
     override type Event = ChecksEvent
@@ -49,12 +51,14 @@ object ChecksEngine extends ChecksEngine {
 
     def isDone(checksState: ChecksState.Pending): Option[ChecksState.Executed] = checksState.asExecuted
 
-    initialize >>> WIO
+    val iterateUntilDone: WIO[ChecksState.Pending, Nothing, ChecksState.Executed] = WIO
       .repeat(runPendingChecks)
       .untilSome(isDone)
       .onRestart(awaitRetry)
       .named(conditionName = "All checks completed?", releaseBranchName = "Yes", restartBranchName = "No")
       .done
+
+    initialize >>> iterateUntilDone.interruptWith(executionTimeout)
   }
 
   private def runPendingChecks: WIO[ChecksState.Pending, Nothing, ChecksState.Pending] =
@@ -95,5 +99,25 @@ object ChecksEngine extends ChecksEngine {
     })
     .voidResponse
     .done
+
+  private def executionTimeout: WIO.Interruption[Nothing, ChecksState.Executed] =
+    WIO.interruption
+      .throughTimeout(timeoutThreshold)
+      .persistThrough(started => ChecksEvent.AwaitingTimeout(started.at))(_.started)
+      .autoNamed
+      .andThen(_ >>> putInReview)
+
+  private def putInReview: WIO[ChecksState, Nothing, ChecksState.Executed] =
+    WIO
+      .pure[ChecksState]
+      .make({
+        case progress: ChecksState.InProgress =>
+          ChecksState.Executed(progress.results.map({
+            case (key, result: CheckResult.Finished) => (key, result)
+            case (key, result)                       => (key, CheckResult.TimedOut())
+          }))
+        case _: ChecksState.Decided           => ??? // not supported
+      })
+      .autoNamed()
 
 }

@@ -66,9 +66,14 @@ object WIOModelInterpreter {
       recurse(wio.inner)
     }
     def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result = {
-      val trigger = {
+      val trigger: WIOModel with WIOModel.Interruption = {
         // we are abusing the interpreter pattern a bit to get more concrete result
-        new ModelVisitor(wio.interruption.trigger, Metadata.empty).onSignal(wio.interruption.trigger)
+        wio.interruption.trigger match {
+          case x @ WIO.HandleSignal(_, _, _, _) =>
+            new ModelVisitor(x, Metadata.empty).onSignal(x)
+          case x @ WIO.Timer(_, _, _, _)        =>
+            new ModelVisitor(x, Metadata.empty).onTimer(x)
+        }
       }
       WIOModel.Interruptible(
         recurse(wio.base),
@@ -77,7 +82,7 @@ object WIOModelInterpreter {
       )
     }
 
-    def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result = WIOModel.Timer(
+    def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): WIOModel.Timer = WIOModel.Timer(
       wio.duration match {
         case DurationSource.Static(duration)     => duration.some
         case DurationSource.Dynamic(getDuration) => none

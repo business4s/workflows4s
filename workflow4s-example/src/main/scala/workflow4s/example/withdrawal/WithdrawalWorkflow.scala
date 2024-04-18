@@ -218,7 +218,6 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
       .handleEventWithError((_, evt) => WithdrawalRejection.Cancelled(evt.operatorId, evt.comment).asLeft)
       .voidResponse
       .noFollowupSteps
-      .done
   }
 
 }

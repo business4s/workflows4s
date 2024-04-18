@@ -47,6 +47,26 @@ class ChecksEngineTest extends AnyFreeSpec {
     assert(wf.state == ChecksState.Decided(Map(check.key -> CheckResult.Approved()), Decision.ApprovedBySystem()))
   }
 
+  "timeout checks" in new Fixture {
+    val check: Check[Unit] = StaticCheck(CheckResult.Pending())
+    val wf                 = createWorkflow(List(check))
+    wf.run()
+    inside(wf.state) { case x: ChecksState.Pending =>
+      assert(x.results == Map(check.key -> CheckResult.Pending()))
+    }
+    clock.advanceBy(ChecksEngine.timeoutThreshold)
+    wf.run()
+    assert(wf.state == ChecksState.Executed(Map(check.key -> CheckResult.TimedOut())))
+    wf.review(ReviewDecision.Approve)
+    assert(
+      wf.state == ChecksState.Decided(
+        Map(check.key -> CheckResult.TimedOut()),
+        Decision.ApprovedByOperator(),
+      ),
+    )
+
+  }
+
   "reject if any rejects" in new Fixture {
     val check1 = StaticCheck(CheckResult.Approved())
     val check2 = StaticCheck(CheckResult.Rejected())

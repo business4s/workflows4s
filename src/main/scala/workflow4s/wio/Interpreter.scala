@@ -1,5 +1,6 @@
 package workflow4s.wio
 
+import cats.data.Ior
 import cats.effect.IO
 import cats.syntax.all.*
 import workflow4s.wio.internal.WorkflowEmbedding
@@ -269,12 +270,12 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
     def convert(x: NextWfState[Ctx, Err, O1[InnerOut]]): NextWfState[Ctx, Err, Out] = x.asInstanceOf
     newWf.fold(
       b => {
-        val newEmbedding: WorkflowEmbedding.Aux[InnerCtx, Ctx, O1, Any]  = new WorkflowEmbedding[InnerCtx, Ctx, Any] {
-          override def convertEvent(e: WCEvent[InnerCtx]): WCEvent[Ctx] = wio.embedding.convertEvent(e)
+        val newEmbedding: WorkflowEmbedding.Aux[InnerCtx, Ctx, O1, Any]      = new WorkflowEmbedding[InnerCtx, Ctx, Any] {
+          override def convertEvent(e: WCEvent[InnerCtx]): WCEvent[Ctx]           = wio.embedding.convertEvent(e)
           override def unconvertEvent(e: WCEvent[Ctx]): Option[WCEvent[InnerCtx]] = wio.embedding.unconvertEvent(e)
           override type OutputState[In <: WCState[InnerCtx]] = O1[In]
           override def convertState[In <: WCState[InnerCtx]](innerState: In, x: Any): OutputState[In] = wio.embedding.convertState(innerState, input)
-          override def unconvertState(outerState: WCState[Ctx]): Option[WCState[InnerCtx]] = wio.embedding.unconvertState(outerState)
+          override def unconvertState(outerState: WCState[Ctx]): Option[WCState[InnerCtx]]            = wio.embedding.unconvertState(outerState)
         }
         val newEmbedded: WIO.Embedded[Ctx, Any, Err, InnerCtx, InnerOut, O1] =
           WIO.Embedded(b.wio.transformInput[Any](_ => b.state.toOption.get), newEmbedding, wio.initialState.compose(_ => input))
@@ -288,14 +289,13 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
     )
   }
 
-  def preserverHandleInterruption(
-      wio: WIO.HandleInterruption[Ctx, In, Err, Out],
-      result: NextWfState[Ctx, Err, Out],
-      input: In,
+  def preserveHandleInterruption(
+      interruption: WIO.Interruption[Ctx, Err, Out, ?, ?],
+      newWf: NextWfState[Ctx, Err, Out],
   ): NextWfState[Ctx, Err, Out] = {
-    result.fold(
+    newWf.fold(
       b => {
-        val newBehaviour = WIO.HandleInterruption(b.wio, wio.interruption)
+        val newBehaviour = WIO.HandleInterruption(b.wio, interruption)
         NewBehaviour(newBehaviour, b.state)
       },
       v => v,

@@ -68,7 +68,7 @@ abstract class SimpleActor[State](clock: Clock)(implicit IORuntime: IORuntime) e
       .foreach(e =>
         this.handleEvent(e) match {
           case SimpleActor.EventResponse.Ok                    => ()
-          case SimpleActor.EventResponse.UnexpectedEvent(desc) => throw new IllegalArgumentException(s"Unexpected event :${desc}")
+          case SimpleActor.EventResponse.UnexpectedEvent(desc) => throw new IllegalArgumentException(s"Unexpected event ${e} at: ${desc}")
         },
       )
     this.proceed(runIO = true)

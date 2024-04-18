@@ -137,6 +137,10 @@ object BPMNConverter {
                   .serviceTask()
                   .name(s"Handle ${x.signalName}")
                   .pipe(renderError(x.error))
+              case x: WIOModel.Timer        =>
+                builder
+                  .timerWithDuration("")
+                  .name(x.name.orNull)
             },
           )
         interruptionFlowOpt

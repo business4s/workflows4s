@@ -1,7 +1,9 @@
 package workflow4s.wio.internal
 
-import cats.implicits.catsSyntaxEitherId
+import cats.data.Ior
+import cats.implicits.{catsSyntaxEitherId, catsSyntaxOptionId}
 import workflow4s.wio.Interpreter.EventResponse
+import workflow4s.wio.NextWfState.NewBehaviour
 import workflow4s.wio.WIO.Timer.DurationSource
 import workflow4s.wio.{Interpreter, NextWfState, Visitor, WCEvent, WCState, WIO, WorkflowContext}
 
@@ -59,7 +61,7 @@ object EventEvaluator {
     def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result                             =
       recurse(wio.first, state, event).map(preserveAndThen(wio, _))
     def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                                                               = None
-    def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result                             =
+    def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result                                   =
       recurse(wio.current, state, event).map(applyLoop(wio, _))
     def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                                                               =
       selectMatching(wio, state).flatMap(recurse(_, state, event))
@@ -79,17 +81,45 @@ object EventEvaluator {
     }
 
     // will be problematic if we use the same event on both paths
-    def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result =
-      recurse(wio.base, state, event).map(preserverHandleInterruption(wio, _, state)).orElse(recurse(wio.interruption.finalWIO, initialState, event))
-    def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result                           = {
+    def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result = {
+      def runBase: Result = recurse(wio.base, state, event)
+        .map(preserveHandleInterruption(wio.interruption, _))
+
+      wio.interruption.trigger match {
+        case x @ WIO.HandleSignal(_, _, _, _) =>
+          // if awaitTime proceeds, we switch the flow into there
+          recurse(wio.interruption.finalWIO, initialState, event)
+            .orElse(runBase)
+        case x: WIO.Timer[Ctx, In, Err, Out]  =>
+          runTimer(x) match {
+            case Some(awaitTime) =>
+              val mainFlowOut     = recurse(wio.base, state, event) match {
+                case Some(value) => value
+                case None        => NewBehaviour(wio.base.transformInput[Any](_ => state), initialState.asRight)
+              }
+              val newInterruption = WIO.Interruption(awaitTime, wio.interruption.buildFinal)
+              preserveHandleInterruption(newInterruption, mainFlowOut).some
+            case None            => runBase
+          }
+        case x @ WIO.AwaitingTime(_, _, _)    => runBase
+      }
+    }
+
+    def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result = {
+      runTimer(wio).map(result => {
+        NextWfState.NewBehaviour(result, initialState.asRight)
+      })
+    }
+
+    private def runTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Option[WIO.AwaitingTime[Ctx, In, Err, Out]] = {
       wio.eventHandler
         .detect(event)
         .map(started => {
           val releaseTime = wio.getReleaseTime(started, state)
-          NextWfState.NewBehaviour(WIO.AwaitingTime(releaseTime, wio.onRelease(state), wakeupRegistered = false), initialState.asRight)
+          WIO.AwaitingTime(releaseTime, wio.onRelease, wakeupRegistered = false)
         })
     }
-    def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result             = None
+    def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result                                 = None
 
     def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], s: I1, e: WCEvent[Ctx]): EventVisitor[Ctx, I1, E1, O1]#Result =
       new EventVisitor(wio, e, s, initialState).run

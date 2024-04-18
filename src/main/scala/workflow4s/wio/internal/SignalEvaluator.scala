@@ -4,6 +4,7 @@ import cats.effect.IO
 import workflow4s.wio.Interpreter.SignalResponse
 import workflow4s.wio.*
 import NextWfState.NewValue
+import cats.data.Ior
 
 object SignalEvaluator {
 
@@ -67,7 +68,7 @@ object SignalEvaluator {
       recurse(wio.first, state).map(_.map({ case (wf, resp) => preserveAndThen(wio, wf) -> resp }))
     }
     def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                                                               = None
-    def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result                             =
+    def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result                                   =
       recurse(wio.current, state).map(_.map({ case (wf, resp) => applyLoop(wio, wf) -> resp }))
     def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                                                               =
       selectMatching(wio, state).flatMap(nextWio => recurse(nextWio, state))
@@ -77,18 +78,22 @@ object SignalEvaluator {
       val newState =
         wio.embedding
           .unconvertState(initialState)
-          .getOrElse(wio.initialState(state)) // TODO, this is not safe, we will use initial state if the state mapping is incorrect (not symetrical). This will be very hard for the user to diagnose.
+          .getOrElse(
+            wio.initialState(state),
+          ) // TODO, this is not safe, we will use initial state if the state mapping is incorrect (not symetrical). This will be very hard for the user to diagnose.
       new SignalVisitor(wio.inner, signalDef, req, state, journal.contraMap(wio.embedding.convertEvent), newState).run
         .map(_.map((newWf, resp) => convertResult(wio, newWf, state) -> resp))
     }
     def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result                                   = {
       recurse(wio.base, state)
-        .map(_.map(x => preserverHandleInterruption(wio, x._1, state) -> x._2))
+        .map(_.map(x => preserveHandleInterruption(wio.interruption, x._1) -> x._2))
         .orElse(recurse(wio.interruption.finalWIO, initialState))
     }
 
-    def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result = None
+    def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result           = None
     // we could have signal that triggers the release?
+    // problem is identifying the timer, but we could parametrize the signal request with time, so its
+    // "release timers as signal time was now"
     def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result = None
 
     def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], s: I1): SignalVisitor[Ctx, Resp, E1, O1, I1, Req]#Result =

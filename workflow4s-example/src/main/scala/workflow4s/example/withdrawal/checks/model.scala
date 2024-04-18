@@ -25,6 +25,7 @@ object CheckResult {
   case class Approved()       extends Final
   case class Rejected()       extends Final
   case class RequiresReview() extends Finished
+  case class TimedOut()       extends Finished
 }
 
 case class CheckKey(value: String)
@@ -39,7 +40,6 @@ sealed trait ChecksState {
 }
 
 object ChecksState {
-
 
   sealed trait InProgress extends ChecksState
 
@@ -59,11 +59,9 @@ object ChecksState {
     }
   }
   case class Executed(results: Map[CheckKey, CheckResult.Finished])                    extends InProgress {
-    def isRejected     = results.exists(_._2 == CheckResult.Rejected())
-    def requiresReview = !isRejected && results.exists(_._2 == CheckResult.RequiresReview())
-    def isApproved     = !isRejected && !requiresReview
-
-    def asDecided(decision: Decision) = ChecksState.Decided(results, decision)
+    def isRejected: Boolean     = results.exists(_._2 == CheckResult.Rejected())
+    def requiresReview: Boolean = !isRejected && results.exists(x => x._2 == CheckResult.RequiresReview() || x._2 == CheckResult.TimedOut())
+    def asDecided(decision: Decision): Decided = ChecksState.Decided(results, decision)
   }
   case class Decided(results: Map[CheckKey, CheckResult.Finished], decision: Decision) extends ChecksState
 
