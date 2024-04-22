@@ -1,0 +1,16 @@
+{
+  "base" : {
+    "name" : "Step1",
+    "error" : null,
+    "_type" : "Pure"
+  },
+  "conditionName" : "Is everything done?",
+  "exitBranchName" : "Yes!",
+  "restartBranchName" : "No",
+  "onRestart" : {
+    "name" : "Step2",
+    "error" : null,
+    "_type" : "Pure"
+  },
+  "_type" : "Loop"
+}

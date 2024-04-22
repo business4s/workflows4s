@@ -1,0 +1,15 @@
+{
+  "steps" : [
+    {
+      "name" : "Step1",
+      "error" : null,
+      "_type" : "Pure"
+    },
+    {
+      "name" : null,
+      "error" : null,
+      "_type" : "Dynamic"
+    }
+  ],
+  "_type" : "Sequence"
+}

@@ -1,0 +1,18 @@
+{
+  "base" : {
+    "name" : "Do Things",
+    "error" : {
+      "name" : "MyError"
+    },
+    "_type" : "Pure"
+  },
+  "handler" : {
+    "name" : "Handle That Nasty Error",
+    "error" : null,
+    "_type" : "Pure"
+  },
+  "error" : {
+    "name" : "MyError"
+  },
+  "_type" : "HandleError"
+}

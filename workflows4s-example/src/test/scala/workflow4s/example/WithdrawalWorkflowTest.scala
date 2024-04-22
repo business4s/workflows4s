@@ -110,19 +110,14 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
     }
 
     "render model" in new Fixture {
-      val model     = getModel(new WithdrawalWorkflow(service, DummyChecksEngine).workflowDeclarative)
-      val modelJson = model.asJson
-      Files.writeString(java.nio.file.Path.of("src/test/resources/withdrawal-example-declarative-model.json"), modelJson.spaces2)
+      val wf = new WithdrawalWorkflow(service, DummyChecksEngine)
+      TestUtils.renderModelToFile(wf.workflowDeclarative, "withdrawal-example-declarative-model.json" )
     }
 
     "render bpmn model" in new Fixture {
       val wf            = new WithdrawalWorkflow(service, DummyChecksEngine)
-      val model         = getModel(wf.workflow)
-      val bpmnModel     = BPMNConverter.convert(model, "withdrawal-example")
-      Bpmn.writeModelToFile(new File("src/test/resources/withdrawal-example-bpmn.bpmn"), bpmnModel)
-      val modelDecl     = getModel(wf.workflowDeclarative)
-      val bpmnModelDecl = BPMNConverter.convert(modelDecl, "withdrawal-example")
-      Bpmn.writeModelToFile(new File("src/test/resources/withdrawal-example-bpmn-declarative.bpmn"), bpmnModelDecl)
+      TestUtils.renderBpmnToFile(wf.workflow, "withdrawal-example-bpmn.bpmn")
+      TestUtils.renderBpmnToFile(wf.workflowDeclarative, "withdrawal-example-bpmn-declarative.bpmn")
     }
 
     "cancel" - {

@@ -7,14 +7,14 @@ import org.camunda.bpm.model.bpmn.Bpmn
 import org.scalatest.Inside.inside
 import org.scalatest.freespec.AnyFreeSpec
 import workflow4s.bpmn.BPMNConverter
-import workflow4s.example.TestClock
+import workflow4s.example.{TestClock, TestUtils}
 import workflow4s.example.testuitls.TestUtils.SimpleSignalResponseOps
 import workflow4s.example.withdrawal.checks.*
 import workflow4s.wio.KnockerUpper
 import workflow4s.wio.model.{WIOModel, WIOModelInterpreter}
 import workflow4s.wio.simple.{InMemoryJournal, SimpleActor}
-import scala.reflect.Selectable.reflectiveSelectable
 
+import scala.reflect.Selectable.reflectiveSelectable
 import java.io.File
 import java.time.Clock
 import scala.util.Random
@@ -119,10 +119,8 @@ class ChecksEngineTest extends AnyFreeSpec {
   }
 
   "render bpmn model" in {
-    val wf        = ChecksEngine.runChecks
-    val model     = getModel(wf)
-    val bpmnModel = BPMNConverter.convert(model, "checks-engine")
-    Bpmn.writeModelToFile(new File("src/test/resources/checks-engine.bpmn"), bpmnModel)
+    val wf = ChecksEngine.runChecks
+    TestUtils.renderBpmnToFile(wf, "checks-engine.bpmn")
   }
 
   trait Fixture extends StrictLogging {

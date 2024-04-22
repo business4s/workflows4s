@@ -1,0 +1,6 @@
+{
+  "signalName" : "My Request",
+  "error" : null,
+  "operationName" : "Do Things",
+  "_type" : "HandleSignal"
+}

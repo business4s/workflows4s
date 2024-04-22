@@ -1,0 +1,7 @@
+{
+  "error" : {
+    "name" : "MyError"
+  },
+  "name" : "Do Things With Error",
+  "_type" : "RunIO"
+}

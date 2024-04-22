@@ -1,0 +1,93 @@
+{
+  "steps" : [
+    {
+      "base" : {
+        "steps" : [
+          {
+            "base" : {
+              "steps" : [
+                {
+                  "signalName" : "Create Withdrawal",
+                  "error" : {
+                    "name" : "InvalidInput"
+                  },
+                  "operationName" : null,
+                  "_type" : "HandleSignal"
+                },
+                {
+                  "error" : null,
+                  "name" : "Calculate Fees",
+                  "_type" : "RunIO"
+                },
+                {
+                  "error" : {
+                    "name" : "NotEnoughFunds"
+                  },
+                  "name" : "Put Money On Hold",
+                  "_type" : "RunIO"
+                },
+                {
+                  "name" : null,
+                  "error" : null,
+                  "_type" : "Pure"
+                },
+                {
+                  "name" : null,
+                  "error" : {
+                    "name" : "RejectedInChecks"
+                  },
+                  "_type" : "Pure"
+                },
+                {
+                  "error" : {
+                    "name" : "RejectedByExecutionEngine"
+                  },
+                  "name" : "Initiate Execution",
+                  "_type" : "RunIO"
+                },
+                {
+                  "signalName" : "Execution Completed",
+                  "error" : {
+                    "name" : "RejectedByExecutionEngine"
+                  },
+                  "operationName" : null,
+                  "_type" : "HandleSignal"
+                }
+              ],
+              "_type" : "Sequence"
+            },
+            "trigger" : {
+              "signalName" : "Cancel Withdrawal",
+              "error" : {
+                "name" : "Cancelled"
+              },
+              "operationName" : null,
+              "_type" : "HandleSignal"
+            },
+            "flow" : null,
+            "_type" : "Interruptible"
+          },
+          {
+            "error" : null,
+            "name" : "Release Funds",
+            "_type" : "RunIO"
+          }
+        ],
+        "_type" : "Sequence"
+      },
+      "handler" : {
+        "error" : null,
+        "name" : "Cancel Funds If Needed",
+        "_type" : "RunIO"
+      },
+      "error" : {
+        "name" : "WithdrawalRejection"
+      },
+      "_type" : "HandleError"
+    },
+    {
+      "_type" : "Noop"
+    }
+  ],
+  "_type" : "Sequence"
+}

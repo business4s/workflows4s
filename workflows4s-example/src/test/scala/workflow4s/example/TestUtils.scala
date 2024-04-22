@@ -15,12 +15,12 @@ object TestUtils {
   def renderModelToFile(wio: WIO[?,?, ?, ?], path: String) = {
     val model = WIOModelInterpreter.run(wio)
     val modelJson: Json = model.asJson
-    Files.writeString(java.nio.file.Path.of(s"src/test/resources/${path}"), jsonPrinter.print(modelJson))
+    Files.writeString(java.nio.file.Path.of(s"workflows4s-example/src/test/resources/${path}"), jsonPrinter.print(modelJson))
   }
   def renderBpmnToFile(wio: WIO[?,?, ?, ?], path: String) = {
     val model = WIOModelInterpreter.run(wio)
     val bpmnModel = BPMNConverter.convert(model, "process")
-    Bpmn.writeModelToFile(new File(s"src/test/resources/${path}"), bpmnModel)
+    Bpmn.writeModelToFile(new File(s"workflows4s-example/src/test/resources/${path}"), bpmnModel)
   }
 
   def renderDocsExample(wio: WIO[?,?, ?, ?], name:String) = {
