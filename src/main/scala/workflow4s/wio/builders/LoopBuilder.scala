@@ -14,8 +14,9 @@ object LoopBuilder {
 
     def repeat[Err, Out <: WCState[Ctx]](action: WIO[Out, Err, Out, Ctx]): LoopBuilderStep1[Err, Out] = LoopBuilderStep1(action)
 
-    case class LoopBuilderStep1[Err, LoopOut <: WCState[Ctx]](repeatAction: WIO[LoopOut, Err, LoopOut, Ctx]) {
+    case class LoopBuilderStep1[Err, LoopOut <: WCState[Ctx]](private val repeatAction: WIO[LoopOut, Err, LoopOut, Ctx]) {
       def untilSome[Out1 <: WCState[Ctx]](f: LoopOut => Option[Out1]): Step2[Out1] = Step2(f)
+      def until[Out1 <: WCState[Ctx]](f: LoopOut => Boolean): Step2[LoopOut] = Step2(x => Option.when(f(x))(x))
 
       // TODO the builder could be more typesafe, disallow setting allready setup values
       case class Step2[Out <: WCState[Ctx]](
@@ -28,7 +29,7 @@ object LoopBuilder {
 
         def onRestart(action: WIO[LoopOut, Err, LoopOut, Ctx]): Step2[Out] = this.copy(onRestart = Some(action))
 
-        def named(releaseBranchName: String = null, restartBranchName: String = null, conditionName: String = null) = this.copy(
+        def named(conditionName: String = null, releaseBranchName: String = null, restartBranchName: String = null): Step2[Out] = this.copy(
           releaseBranchName = Option(releaseBranchName).orElse(this.releaseBranchName),
           restartBranchName = Option(restartBranchName).orElse(this.restartBranchName),
           conditionName = Option(conditionName).orElse(this.conditionName),

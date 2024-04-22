@@ -21,8 +21,12 @@ async function layoutBpmnFile(inputPath, outputPath) {
 }
 
 // Specify the input and output paths
-const inputPath = '/Users/krever/Projects/priv/workflow4s/workflow4s-example/src/test/resources/checks-engine.bpmn'; // Path X
-const outputPath = '/Users/krever/Projects/priv/workflow4s/workflow4s-example/src/test/resources/checks-engine-layouted.bpmn'; // Path Y
+const inputPath = '../workflow4s-example/src/test/resources/checks-engine.bpmn'; // Path X
+const outputPath = `../workflow4s-example/src/test/resources/checks-engine-layouted.bpmn`; // Path Y
 
 // Call the function with the specified paths
 layoutBpmnFile(inputPath, outputPath);
+
+const loopExample = '../workflow4s-example/src/test/resources/docs/loop.bpmn'
+
+layoutBpmnFile(loopExample, loopExample)

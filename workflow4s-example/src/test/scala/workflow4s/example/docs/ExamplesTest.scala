@@ -12,6 +12,8 @@ class ExamplesTest  extends AnyFreeSpec {
     TestUtils.renderDocsExample(SequencingExample.sequence1, "and-then")
     TestUtils.renderDocsExample(SequencingExample.Dynamic.sequence1, "flat-map")
     TestUtils.renderDocsExample(HandleErrorExample.errorHandled, "handle-error-with")
+    TestUtils.renderDocsExample(LoopExample.Simple.loop, "simple-loop")
+    TestUtils.renderDocsExample(LoopExample.loop, "loop")
   }
 
 }

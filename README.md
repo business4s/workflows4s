@@ -27,21 +27,22 @@ The following items are planned in scope of this PoC
 - [x] Declarative API + graph rendering
 - [x] Typesafe state queries
 - [x] Handling interruptions
-- [ ] Handling timers (await, timout)
+- [x] Handling timers (await, timout)
 - [ ] Checkpointing
-- [ ] Splitting the workflow? (parallel execution and/or parallel waiting)
 - [ ] Pekko/Shardcake/Postgres runtime PoC
 - [ ] Test harness
 - [ ] Explicit approach to handling workflow evolutions
 
 ### Followup work
 
-Items below are outside of the scope of PoC but showcase the possibilities.
+Items below are outside the scope of PoC but showcase the possibilities.
 
 - [ ] UI & API to visualize workflow progress
 - [ ] Observability support
 - [ ] Non-interrupting events (e.g. signal or cycle timer)
   - non interrupting cycle timer example: every 24h send a notif
+- [ ] Splitting the workflow (parallel execution and/or parallel waiting)
+
 
 ## Design
 
