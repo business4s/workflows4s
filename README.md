@@ -1,4 +1,4 @@
-# workflow4s
+# workflows4s
 
 This repository contains an experiment to provide a bew way for achieveing durable execution in Scala.
 

@@ -93,10 +93,7 @@ object EventEvaluator {
         case x: WIO.Timer[Ctx, In, Err, Out]  =>
           runTimer(x) match {
             case Some(awaitTime) =>
-              val mainFlowOut     = recurse(wio.base, state, event) match {
-                case Some(value) => value
-                case None        => NewBehaviour(wio.base.transformInput[Any](_ => state), initialState.asRight)
-              }
+              val mainFlowOut     = NewBehaviour(wio.base.transformInput[Any](_ => state), initialState.asRight)
               val newInterruption = WIO.Interruption(awaitTime, wio.interruption.buildFinal)
               preserveHandleInterruption(newInterruption, mainFlowOut).some
             case None            => runBase

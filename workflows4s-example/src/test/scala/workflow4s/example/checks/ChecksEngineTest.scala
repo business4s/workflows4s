@@ -10,9 +10,9 @@ import workflow4s.bpmn.BPMNConverter
 import workflow4s.example.{TestClock, TestUtils}
 import workflow4s.example.testuitls.TestUtils.SimpleSignalResponseOps
 import workflow4s.example.withdrawal.checks.*
-import workflow4s.wio.KnockerUpper
+import workflow4s.wio.{KnockerUpper, WCState}
 import workflow4s.wio.model.{WIOModel, WIOModelInterpreter}
-import workflow4s.wio.simple.{InMemoryJournal, SimpleActor}
+import workflow4s.wio.simple.SimpleActor
 
 import scala.reflect.Selectable.reflectiveSelectable
 import java.io.File
@@ -45,8 +45,13 @@ class ChecksEngineTest extends AnyFreeSpec {
     clock.advanceBy(ChecksEngine.retryBackoff)
     wf.run()
     assert(wf.state == ChecksState.Decided(Map(check.key -> CheckResult.Approved()), Decision.ApprovedBySystem()))
+
+    checkRecovery(wf)
   }
 
+  // timeouts are currently broken because the evaluation (on ActiveWorkflow) return only events and not a new state in case the state transition is pure
+  // It was introduced because of pekko limitation, where state can only be introduced from event handlers
+  // the fix is not lightweight, as it requires timer execution to be persisted through an event
   "timeout checks" in new Fixture {
     val check: Check[Unit] = StaticCheck(CheckResult.Pending())
     val wf                 = createWorkflow(List(check))
@@ -65,6 +70,7 @@ class ChecksEngineTest extends AnyFreeSpec {
       ),
     )
 
+    checkRecovery(wf)
   }
 
   "reject if any rejects" in new Fixture {
@@ -83,6 +89,8 @@ class ChecksEngineTest extends AnyFreeSpec {
         Decision.RejectedBySystem(),
       ),
     )
+
+    checkRecovery(wf)
   }
 
   "approve through review" in new Fixture {
@@ -100,6 +108,8 @@ class ChecksEngineTest extends AnyFreeSpec {
         Decision.ApprovedByOperator(),
       ),
     )
+
+    checkRecovery(wf)
   }
 
   "approve if all checks approve" in new Fixture {
@@ -116,6 +126,8 @@ class ChecksEngineTest extends AnyFreeSpec {
         Decision.ApprovedBySystem(),
       ),
     )
+
+    checkRecovery(wf)
   }
 
   "render bpmn model" in {
@@ -124,17 +136,26 @@ class ChecksEngineTest extends AnyFreeSpec {
   }
 
   trait Fixture extends StrictLogging {
-    val journal      = new InMemoryJournal[ChecksEvent]
     val clock        = new TestClock
     val knockerUpper = KnockerUpper.noop
 
-    def createWorkflow(checks: List[Check[Unit]]) = new ChecksActor(journal, ChecksInput((), checks), clock, knockerUpper)
+    def createWorkflow(checks: List[Check[Unit]]) = new ChecksActor(ChecksInput((), checks), clock, knockerUpper)
+
+    def checkRecovery(firstActor: ChecksActor) = {
+      logger.debug("Checking recovery")
+      val secondActor = new ChecksActor(firstActor.input, clock, knockerUpper)
+      secondActor.recover(firstActor.events)
+      assert(secondActor.state == firstActor.state)
+    }
+
   }
-  class ChecksActor(journal: InMemoryJournal[ChecksEvent], input: ChecksInput, clock: Clock, knockerUpper: KnockerUpper) {
-    val delegate        = SimpleActor
-      .createWithState[ChecksEngine.Context.type, ChecksInput](ChecksEngine.runChecks, input, null: ChecksState, journal, clock, knockerUpper)
-    def run(): Unit     = delegate.proceed(runIO = true)
-    def recover(): Unit = delegate.recover()
+  class ChecksActor(val input: ChecksInput, clock: Clock, knockerUpper: KnockerUpper) {
+    val delegate: SimpleActor[WCState[ChecksEngine.Context.type]] { type Ctx = ChecksEngine.Context.type } = SimpleActor
+      .createWithState[ChecksEngine.Context.type, ChecksInput](ChecksEngine.runChecks, input, null: ChecksState, clock, knockerUpper)
+    def run(): Unit                                                                                        = delegate.runIO()
+
+    def events: List[ChecksEvent]                = delegate.events.toList
+    def recover(events: List[ChecksEvent]): Unit = delegate.recover(events)
 
     def state: ChecksState = delegate.state
 

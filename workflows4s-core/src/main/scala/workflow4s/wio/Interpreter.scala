@@ -3,37 +3,61 @@ package workflow4s.wio
 import cats.data.Ior
 import cats.effect.IO
 import cats.syntax.all.*
+import workflow4s.wio.ActiveWorkflow.ForCtx
 import workflow4s.wio.internal.WorkflowEmbedding
 
 class Interpreter[C <: WorkflowContext](
-    val journal: JournalPersistance[WCEvent[C]],
     val knockerUpper: KnockerUpper,
 )
 
 object Interpreter {
 
-  sealed trait EventResponse[Ctx <: WorkflowContext]
+  sealed trait EventResponse[Ctx <: WorkflowContext] {
+    def newWorkflow: Option[ForCtx[Ctx]] = this match {
+      case EventResponse.Ok(newFlow)       => newFlow.some
+      case EventResponse.UnexpectedEvent() => None
+    }
+  }
 
   object EventResponse {
     case class Ok[Ctx <: WorkflowContext](newFlow: ActiveWorkflow.ForCtx[Ctx]) extends EventResponse[Ctx]
+    case class UnexpectedEvent[Ctx <: WorkflowContext]()                       extends EventResponse[Ctx]
 
-    case class UnexpectedEvent[Ctx <: WorkflowContext]() extends EventResponse[Ctx]
+    def fromOption[Ctx <: WorkflowContext](o: Option[ActiveWorkflow.ForCtx[Ctx]]): EventResponse[Ctx] = o match {
+      case Some(value) => Ok(value)
+      case None        => UnexpectedEvent()
+    }
   }
 
-  sealed trait ProceedResponse[Ctx <: WorkflowContext]
+  sealed trait ProceedResponse[Ctx <: WorkflowContext] {
+    def newWorkflow: Option[ActiveWorkflow.ForCtx[Ctx]] = this match {
+      case ProceedResponse.Executed(newFlow) => newFlow.some
+      case ProceedResponse.Noop()            => none
+    }
+  }
 
   object ProceedResponse {
-    case class Executed[Ctx <: WorkflowContext](newFlow: IO[ActiveWorkflow.ForCtx[Ctx]]) extends ProceedResponse[Ctx]
+    case class Executed[Ctx <: WorkflowContext](newFlow: ActiveWorkflow.ForCtx[Ctx]) extends ProceedResponse[Ctx]
+    case class Noop[Ctx <: WorkflowContext]()                                        extends ProceedResponse[Ctx]
+  }
 
-    case class Noop[Ctx <: WorkflowContext]() extends ProceedResponse[Ctx]
+  sealed trait RunIOResponse[Ctx <: WorkflowContext] {
+    def event: Option[IO[WCEvent[Ctx]]] = this match {
+      case RunIOResponse.Executed(newFlow) => newFlow.some
+      case RunIOResponse.Noop()            => None
+    }
+  }
+
+  object RunIOResponse {
+    case class Executed[Ctx <: WorkflowContext](newFlow: IO[WCEvent[Ctx]]) extends RunIOResponse[Ctx]
+    case class Noop[Ctx <: WorkflowContext]()                              extends RunIOResponse[Ctx]
   }
 
   sealed trait SignalResponse[Ctx <: WorkflowContext, Resp]
 
   object SignalResponse {
-    case class Ok[Ctx <: WorkflowContext, Resp](value: IO[(ActiveWorkflow.ForCtx[Ctx], Resp)]) extends SignalResponse[Ctx, Resp]
-
-    case class UnexpectedSignal[Ctx <: WorkflowContext, Resp]() extends SignalResponse[Ctx, Resp]
+    case class Ok[Ctx <: WorkflowContext, Resp](value: IO[(WCEvent[Ctx], Resp)]) extends SignalResponse[Ctx, Resp]
+    case class UnexpectedSignal[Ctx <: WorkflowContext, Resp]()                  extends SignalResponse[Ctx, Resp]
   }
 
   sealed trait QueryResponse[Resp]

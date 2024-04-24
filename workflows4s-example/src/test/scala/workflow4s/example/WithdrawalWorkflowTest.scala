@@ -3,24 +3,19 @@ package workflow4s.example
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.typesafe.scalalogging.StrictLogging
-import org.camunda.bpm.model.bpmn.Bpmn
 import org.scalamock.scalatest.MockFactory
+import org.scalatest.Inside.inside
 import org.scalatest.freespec.AnyFreeSpec
-import workflow4s.bpmn.BPMNConverter
+import workflow4s.example.checks.StaticCheck
+import workflow4s.example.testuitls.TestUtils.SimpleSignalResponseOps
 import workflow4s.example.withdrawal.WithdrawalService.{ExecutionResponse, Fee, Iban}
 import workflow4s.example.withdrawal.WithdrawalSignal.CreateWithdrawal
-import workflow4s.example.testuitls.TestUtils.SimpleSignalResponseOps
-import workflow4s.wio.model.{WIOModel, WIOModelInterpreter}
-import workflow4s.wio.simple.{InMemoryJournal, SimpleActor}
-import io.circe.syntax.*
-import org.scalatest.Inside.inside
-import workflow4s.example.checks.StaticCheck
-import workflow4s.example.withdrawal.checks.{Check, CheckResult, ChecksEngine, ChecksInput, ChecksState, Decision}
-import workflow4s.example.withdrawal.{WithdrawalData, WithdrawalEvent, WithdrawalService, WithdrawalSignal, WithdrawalWorkflow}
+import workflow4s.example.withdrawal.checks.*
+import workflow4s.example.withdrawal.*
 import workflow4s.wio.KnockerUpper
+import workflow4s.wio.model.{WIOModel, WIOModelInterpreter}
+import workflow4s.wio.simple.SimpleActor
 
-import java.io.File
-import java.nio.file.Files
 import java.time.{Clock, Instant, ZoneId, ZoneOffset}
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
@@ -111,11 +106,11 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
 
     "render model" in new Fixture {
       val wf = new WithdrawalWorkflow(service, DummyChecksEngine)
-      TestUtils.renderModelToFile(wf.workflowDeclarative, "withdrawal-example-declarative-model.json" )
+      TestUtils.renderModelToFile(wf.workflowDeclarative, "withdrawal-example-declarative-model.json")
     }
 
     "render bpmn model" in new Fixture {
-      val wf            = new WithdrawalWorkflow(service, DummyChecksEngine)
+      val wf = new WithdrawalWorkflow(service, DummyChecksEngine)
       TestUtils.renderBpmnToFile(wf.workflow, "withdrawal-example-bpmn.bpmn")
       TestUtils.renderBpmnToFile(wf.workflowDeclarative, "withdrawal-example-bpmn-declarative.bpmn")
     }
@@ -158,20 +153,19 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
   }
 
   trait Fixture extends StrictLogging {
-    val journal      = new InMemoryJournal[WithdrawalEvent]
-    lazy val actor   = createActor(journal)
+    lazy val actor   = createActor(List())
     val clock        = new TestClock
     val knockerUpper = KnockerUpper.noop
 
     def checkRecovery() = {
       logger.debug("Checking recovery")
-      val secondActor = createActor(journal)
+      val secondActor = createActor(actor.events)
       assert(actor.queryData() == secondActor.queryData())
     }
 
-    def createActor(journal: InMemoryJournal[WithdrawalEvent]) = {
-      val actor = new WithdrawalActor(journal, clock, knockerUpper)
-      actor.recover()
+    def createActor(events: List[WithdrawalEvent]) = {
+      val actor = new WithdrawalActor(clock, knockerUpper)
+      actor.recover(events)
       actor
     }
 
@@ -213,22 +207,23 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
         ChecksEngine.Context.WIO.pure(ChecksState.Decided(Map(), Decision.ApprovedBySystem()))
     }
 
-    class WithdrawalActor(journal: InMemoryJournal[WithdrawalEvent], clock: Clock, knockerUpper: KnockerUpper) {
-      val delegate: SimpleActor[WithdrawalData]                            =
-        SimpleActor.create[WithdrawalWorkflow.Context.type, WithdrawalData.Empty](workflow, WithdrawalData.Empty(txId), journal, clock, knockerUpper)
-      def init(req: CreateWithdrawal): Unit                                = {
+    class WithdrawalActor(clock: Clock, knockerUpper: KnockerUpper) {
+      val delegate: SimpleActor[WithdrawalData] { type Ctx = WithdrawalWorkflow.Context.type } =
+        SimpleActor.create[WithdrawalWorkflow.Context.type, WithdrawalData.Empty](workflow, WithdrawalData.Empty(txId), clock, knockerUpper)
+      def init(req: CreateWithdrawal): Unit                                                    = {
         delegate.handleSignal(WithdrawalWorkflow.Signals.createWithdrawal)(req).extract
       }
-      def confirmExecution(req: WithdrawalSignal.ExecutionCompleted): Unit = {
+      def confirmExecution(req: WithdrawalSignal.ExecutionCompleted): Unit                     = {
         delegate.handleSignal(WithdrawalWorkflow.Signals.executionCompleted)(req).extract
       }
-      def cancel(req: WithdrawalSignal.CancelWithdrawal): Unit             = {
+      def cancel(req: WithdrawalSignal.CancelWithdrawal): Unit                                 = {
         delegate.handleSignal(WithdrawalWorkflow.Signals.cancel)(req).extract
       }
 
       def queryData(): WithdrawalData = delegate.state
 
-      def recover(): Unit = delegate.recover()
+      def events: List[WithdrawalEvent]                = delegate.events.toList
+      def recover(events: List[WithdrawalEvent]): Unit = delegate.recover(events)
 
     }
 

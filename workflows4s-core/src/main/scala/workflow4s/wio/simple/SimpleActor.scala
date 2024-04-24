@@ -2,11 +2,13 @@ package workflow4s.wio.simple
 
 import cats.effect.unsafe.IORuntime
 import com.typesafe.scalalogging.StrictLogging
-import workflow4s.wio.Interpreter.{ProceedResponse, QueryResponse, SignalResponse}
+import workflow4s.wio.Interpreter.{ProceedResponse, QueryResponse, RunIOResponse, SignalResponse}
 import workflow4s.wio.*
 import workflow4s.wio.ActiveWorkflow.ForCtx
 
 import java.time.Clock
+import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 
 abstract class SimpleActor[State](clock: Clock)(implicit IORuntime: IORuntime) extends StrictLogging {
 
@@ -17,43 +19,63 @@ abstract class SimpleActor[State](clock: Clock)(implicit IORuntime: IORuntime) e
   def state: State                             = extractState(wf)
   protected def extractState(wf: ActiveWorkflow.ForCtx[Ctx]): State
 
+  val events: mutable.Buffer[WCEvent[Ctx]] = ListBuffer[WCEvent[Ctx]]()
+
   def handleSignal[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req): SimpleActor.SignalResponse[Resp] = {
     logger.debug(s"Handling signal ${req}")
-    wf.handleSignal(signalDef)(req) match {
-      case SignalResponse.Ok(value)          =>
-        val (newWf, resp) = value.unsafeRunSync()
-        updateState(newWf)
-        proceed(runIO = true)
+    wf.handleSignal(signalDef)(req, clock.instant()) match {
+      case Some(value) =>
+        val (event, resp) = value.unsafeRunSync()
+        saveEvent(event)
+        handleEvent(event)
         SimpleActor.SignalResponse.Ok(resp)
-      case SignalResponse.UnexpectedSignal() =>
+      case None        =>
         logger.debug(s"Unexpected signal ${req}. Wf: ${wf.getDesc}")
         SimpleActor.SignalResponse.UnexpectedSignal(wf.getDesc)
     }
   }
 
-  protected def handleEvent(event: WCEvent[Ctx]): SimpleActor.EventResponse = {
+  protected def handleEvent(event: WCEvent[Ctx], inRecovery: Boolean = false): Unit = {
     logger.debug(s"Handling event: ${event}")
-    val resp = wf.handleEvent(event) match {
-      case Interpreter.EventResponse.Ok(newFlow)       =>
+    val resp = wf.handleEvent(event, clock.instant())
+    resp match {
+      case Some(newFlow) =>
         updateState(newFlow)
-        proceed(false)
-        SimpleActor.EventResponse.Ok
-      case Interpreter.EventResponse.UnexpectedEvent() => SimpleActor.EventResponse.UnexpectedEvent(wf.getDesc)
+        if(!inRecovery) runIO()
+      case None          =>
+        throw new IllegalArgumentException(s"Unexpected event ${event} at: ${wf.getDesc}")
     }
-    logger.debug(s"Event response: ${resp}. New wf: ${wf.getDesc}")
-    resp
   }
 
-  def proceed(runIO: Boolean): Unit                                = {
-    logger.debug(s"Proceeding to the next step. Run io: ${runIO}")
-    wf.proceed(runIO, clock.instant()) match {
-      case ProceedResponse.Executed(newFlowIO) =>
-        updateState(newFlowIO.unsafeRunSync())
-        proceed(runIO)
-      case ProceedResponse.Noop()              =>
-        logger.debug(s"Can't proceed. Wf: ${wf.getDesc}")
+  def runIO(): Unit = {
+    logger.debug(s"Running IO}")
+    wf.runIO(clock.instant()) match {
+      case Some(eventIO) =>
+        val event = eventIO.unsafeRunSync()
+        saveEvent(event)
+        handleEvent(event)
+      case None =>
+        logger.debug(s"No IO to run. Wf: ${wf.getDesc}")
     }
   }
+
+//  def proceed(): Unit = {
+//    logger.debug(s"Proceeding to the next step")
+//    wf.runIO(clock.instant()) match {
+//      case Some(eventIO) =>
+//        val event = eventIO.unsafeRunSync()
+//        saveEvent(event)
+//        handleEvent(event)
+//      case None =>
+//        logger.debug(s"Can't proceed. Wf: ${wf.getDesc}")
+//    }
+//  }
+
+  def saveEvent(e: WCEvent[Ctx]): Unit = {
+    logger.debug(s"Saving event ${e}")
+    events += e
+  }
+
   private def updateState(newWf: ActiveWorkflow.ForCtx[Ctx]): Unit = {
     logger.debug(s"""Updating workflow
                     | New behaviour: ${newWf.getDesc}
@@ -61,17 +83,9 @@ abstract class SimpleActor[State](clock: Clock)(implicit IORuntime: IORuntime) e
     wf = newWf
   }
 
-  def recover(): Unit = {
-    wf.interpreter.journal
-      .readEvents()
-      .unsafeRunSync()
-      .foreach(e =>
-        this.handleEvent(e) match {
-          case SimpleActor.EventResponse.Ok                    => ()
-          case SimpleActor.EventResponse.UnexpectedEvent(desc) => throw new IllegalArgumentException(s"Unexpected event ${e} at: ${desc}")
-        },
-      )
-    this.proceed(runIO = true)
+  def recover(events: List[WCEvent[Ctx]]): Unit = {
+    events.foreach(e => this.handleEvent(e, inRecovery = true))
+    this.runIO()
   }
 
 }
@@ -81,13 +95,12 @@ object SimpleActor {
   def create[Ctx0 <: WorkflowContext, In <: WCState[Ctx0]](
       behaviour: WIO[In, Nothing, WCState[Ctx0], Ctx0],
       state0: In,
-      journalPersistance: JournalPersistance[WCEvent[Ctx0]],
       clock: Clock,
       knockerUpper: KnockerUpper,
   )(implicit
       ior: IORuntime,
-  ): SimpleActor[WCState[Ctx0]] = {
-    val activeWf: ActiveWorkflow.ForCtx[Ctx0] = ActiveWorkflow(behaviour, state0)(new Interpreter(journalPersistance, knockerUpper))
+  ): SimpleActor[WCState[Ctx0]] {type Ctx = Ctx0} = {
+    val activeWf: ActiveWorkflow.ForCtx[Ctx0] = ActiveWorkflow(behaviour, state0)(new Interpreter(knockerUpper))
     new SimpleActor[WCState[Ctx0]](clock) {
       override type Ctx = Ctx0
       wf = activeWf
@@ -101,14 +114,13 @@ object SimpleActor {
       behaviour: WIO[In, Nothing, WCState[Ctx0], Ctx0],
       input: In,
       state: WCState[Ctx0],
-      journalPersistance: JournalPersistance[WCEvent[Ctx0]],
       clock: Clock,
       knockerUpper: KnockerUpper,
   )(implicit
       ior: IORuntime,
-  ): SimpleActor[WCState[Ctx0]] = {
+  ): SimpleActor[WCState[Ctx0]] {type Ctx = Ctx0} = {
     val activeWf: ActiveWorkflow.ForCtx[Ctx0] =
-      ActiveWorkflow(behaviour.transformInput[Any](_ => input), state)(new Interpreter(journalPersistance, knockerUpper))
+      ActiveWorkflow(behaviour.transformInput[Any](_ => input), state)(new Interpreter(knockerUpper))
     new SimpleActor[WCState[Ctx0]](clock) {
       override type Ctx = Ctx0
       wf = activeWf
