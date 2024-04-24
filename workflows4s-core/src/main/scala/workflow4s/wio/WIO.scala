@@ -49,8 +49,8 @@ object WIO {
 
   sealed trait InterruptionSource[-In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext] extends WIO[In, Err, Out, Ctx] {
     def asTimer: Option[WIO.Timer[Ctx, In, Err, Out]] = this match {
-      case HandleSignal(sigDef, sigHandler, evtHandler, meta) => None
-      case x: Timer[Ctx, In, Err, Out] => Some(x)
+      case HandleSignal(sigDef, sigHandler, evtHandler, meta)  => None
+      case x: Timer[Ctx, In, Err, Out]                         => Some(x)
       case AwaitingTime(resumeAt, onRelease, wakeupRegistered) => None
     }
   }
@@ -160,9 +160,10 @@ object WIO {
 
   case class Timer[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]](
       duration: Timer.DurationSource[In],
-      eventHandler: EventHandler[In, Unit, WCEvent[Ctx], Timer.Started],
-      onRelease: In => Either[Err, Out],
+      startedEventHandler: EventHandler[In, Unit, WCEvent[Ctx], Timer.Started],
+      onRelease: In => IO[Unit],
       name: Option[String],
+      releasedEventHandler: EventHandler[In, Either[Err, Out], WCEvent[Ctx], Timer.Released],
   ) extends InterruptionSource[In, Err, Out, Ctx] {
     def getReleaseTime(started: Timer.Started, in: In): Instant = {
       val awaitDuration = duration match {
@@ -176,13 +177,14 @@ object WIO {
 
   case class AwaitingTime[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]](
       resumeAt: Instant,
-      onRelease: In => Either[Err, Out],
-      wakeupRegistered: Boolean,
+      onRelease: In => IO[Unit],
+      releasedEventHandler: EventHandler[In, Either[Err, Out], WCEvent[Ctx], Timer.Released],
   ) extends InterruptionSource[Any, Err, Out, Ctx]
 
   object Timer {
 
     case class Started(at: Instant)
+    case class Released(at: Instant)
 
     sealed trait DurationSource[-In]
     object DurationSource {

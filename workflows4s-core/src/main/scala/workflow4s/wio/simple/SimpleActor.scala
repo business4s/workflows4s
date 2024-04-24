@@ -2,7 +2,6 @@ package workflow4s.wio.simple
 
 import cats.effect.unsafe.IORuntime
 import com.typesafe.scalalogging.StrictLogging
-import workflow4s.wio.Interpreter.{ProceedResponse, QueryResponse, RunIOResponse, SignalResponse}
 import workflow4s.wio.*
 import workflow4s.wio.ActiveWorkflow.ForCtx
 
@@ -41,15 +40,16 @@ abstract class SimpleActor[State](clock: Clock)(implicit IORuntime: IORuntime) e
     resp match {
       case Some(newFlow) =>
         updateState(newFlow)
-        if(!inRecovery) runIO()
+        if (!inRecovery) runIO()
       case None          =>
-        throw new IllegalArgumentException(s"Unexpected event ${event} at: ${wf.getDesc}")
+        if(!inRecovery) throw new IllegalArgumentException(s"Unexpected event ${event} at: ${wf.getDesc}")
+        else logger.warn(s"Unexpected event ignored in recovery. Event ${event} at: ${wf.getDesc}")
     }
   }
 
   def runIO(): Unit = {
     logger.debug(s"Running IO}")
-    wf.runIO(clock.instant()) match {
+    wf.proceed(clock.instant()) match {
       case Some(eventIO) =>
         val event = eventIO.unsafeRunSync()
         saveEvent(event)
@@ -58,18 +58,6 @@ abstract class SimpleActor[State](clock: Clock)(implicit IORuntime: IORuntime) e
         logger.debug(s"No IO to run. Wf: ${wf.getDesc}")
     }
   }
-
-//  def proceed(): Unit = {
-//    logger.debug(s"Proceeding to the next step")
-//    wf.runIO(clock.instant()) match {
-//      case Some(eventIO) =>
-//        val event = eventIO.unsafeRunSync()
-//        saveEvent(event)
-//        handleEvent(event)
-//      case None =>
-//        logger.debug(s"Can't proceed. Wf: ${wf.getDesc}")
-//    }
-//  }
 
   def saveEvent(e: WCEvent[Ctx]): Unit = {
     logger.debug(s"Saving event ${e}")
@@ -99,7 +87,7 @@ object SimpleActor {
       knockerUpper: KnockerUpper,
   )(implicit
       ior: IORuntime,
-  ): SimpleActor[WCState[Ctx0]] {type Ctx = Ctx0} = {
+  ): SimpleActor[WCState[Ctx0]] { type Ctx = Ctx0 } = {
     val activeWf: ActiveWorkflow.ForCtx[Ctx0] = ActiveWorkflow(behaviour, state0)(new Interpreter(knockerUpper))
     new SimpleActor[WCState[Ctx0]](clock) {
       override type Ctx = Ctx0
@@ -118,7 +106,7 @@ object SimpleActor {
       knockerUpper: KnockerUpper,
   )(implicit
       ior: IORuntime,
-  ): SimpleActor[WCState[Ctx0]] {type Ctx = Ctx0} = {
+  ): SimpleActor[WCState[Ctx0]] { type Ctx = Ctx0 } = {
     val activeWf: ActiveWorkflow.ForCtx[Ctx0] =
       ActiveWorkflow(behaviour.transformInput[Any](_ => input), state)(new Interpreter(knockerUpper))
     new SimpleActor[WCState[Ctx0]](clock) {

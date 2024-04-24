@@ -45,7 +45,8 @@ object ChecksEngine extends ChecksEngine {
 
     val awaitRetry: wio.WIO[ChecksState.Pending, Nothing, ChecksState.Pending, Context.type] = WIO
       .await[ChecksState.Pending](retryBackoff)
-      .persistThrough(started => ChecksEvent.AwaitingRefresh(started.at))(_.started)
+      .persistStartThrough(started => ChecksEvent.AwaitingRefresh(started.at))(_.started)
+      .persistReleaseThrough(released => ChecksEvent.RefreshReleased(released.at))(_.released)
       .autoNamed
       .done
 
@@ -103,7 +104,8 @@ object ChecksEngine extends ChecksEngine {
   private def executionTimeout: WIO.Interruption[Nothing, ChecksState.Executed] =
     WIO.interruption
       .throughTimeout(timeoutThreshold)
-      .persistThrough(started => ChecksEvent.AwaitingTimeout(started.at))(_.started)
+      .persistStartThrough(started => ChecksEvent.AwaitingTimeout(started.at))(_.started)
+      .persistReleaseThrough(released => ChecksEvent.ExecutionTimedOut(released.at))(_.releasedAt)
       .autoNamed
       .andThen(_ >>> putInReview)
 

@@ -47,7 +47,7 @@ object CurrentStateEvaluator {
     def withName(str: String) = s"[${name.getOrElse("")}] ${str}"
 
     private def name: Option[String] = wio match {
-      case WIO.Timer(_, _, _, name)           => name
+      case WIO.Timer(_, _, _, name, _)           => name
       case WIO.AwaitingTime(_, _, _)          => none
       case WIO.HandleSignal(_, _, _, m)       => m.operationName
       case WIO.RunIO(_, _, _)                 => none

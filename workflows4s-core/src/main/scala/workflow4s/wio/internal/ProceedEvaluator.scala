@@ -96,12 +96,8 @@ object ProceedEvaluator {
       dedicatedProceed.orElse(runBase)
     }
 
-    def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result = None
-
-    def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result = {
-      if (now.plusNanos(1).isAfter(wio.resumeAt)) NewValue(wio.onRelease(state)).some
-      else None
-    }
+    def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result               = None
+    def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result = None
 
     private def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], s: I1): Option[NextWfState[Ctx, E1, O1]] =
       new ProceedVisitor(wio, s, initialState, now).run

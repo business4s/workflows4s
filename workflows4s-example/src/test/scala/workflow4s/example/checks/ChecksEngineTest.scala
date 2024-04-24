@@ -49,9 +49,6 @@ class ChecksEngineTest extends AnyFreeSpec {
     checkRecovery(wf)
   }
 
-  // timeouts are currently broken because the evaluation (on ActiveWorkflow) return only events and not a new state in case the state transition is pure
-  // It was introduced because of pekko limitation, where state can only be introduced from event handlers
-  // the fix is not lightweight, as it requires timer execution to be persisted through an event
   "timeout checks" in new Fixture {
     val check: Check[Unit] = StaticCheck(CheckResult.Pending())
     val wf                 = createWorkflow(List(check))
@@ -70,7 +67,7 @@ class ChecksEngineTest extends AnyFreeSpec {
       ),
     )
 
-    checkRecovery(wf)
+     checkRecovery(wf)
   }
 
   "reject if any rejects" in new Fixture {

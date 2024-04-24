@@ -1,7 +1,7 @@
 package workflow4s.wio
 
 import cats.effect.IO
-import workflow4s.wio.Interpreter.{EventResponse, SignalResponse}
+import workflow4s.wio.Interpreter.SignalResponse
 import workflow4s.wio.internal.*
 
 import java.time.Instant
@@ -39,7 +39,7 @@ abstract class ActiveWorkflow {
       .newFlow
       .map(x => x.statelessProceed(now).getOrElse(x))
 
-  def runIO(now: Instant): Option[IO[WCEvent[Context]]] = {
+  def proceed(now: Instant): Option[IO[WCEvent[Context]]] = {
     val wf = statelessProceed(now).getOrElse(this)
     RunIOEvaluator.proceed(wf.wio, wf.state, interpreter, now).event
   }
@@ -65,7 +65,7 @@ object ActiveWorkflow {
   sealed trait ProceedResponse[Ctx <: WorkflowContext]
   object ProceedResponse {
     case class NewFlow[Ctx <: WorkflowContext](wf: ActiveWorkflow.ForCtx[Ctx]) extends ProceedResponse[Ctx]
-    case class Event[Ctx <: WorkflowContext](wf: IO[WCEvent[Ctx]])             extends ProceedResponse[Ctx]
+    case class Event[Ctx <: WorkflowContext](eventIO: IO[WCEvent[Ctx]])             extends ProceedResponse[Ctx]
     case class Noop[Ctx <: WorkflowContext]()                                  extends ProceedResponse[Ctx]
   }
 }

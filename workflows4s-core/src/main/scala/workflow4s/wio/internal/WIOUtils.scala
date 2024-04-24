@@ -20,7 +20,7 @@ object WIOUtils {
     case x @ WIO.Fork(_, _)                       => x
     case WIO.Embedded(inner, _, _)             => getFirstRaw(inner)
     case WIO.HandleInterruption(base, _)       => getFirstRaw(base)
-    case x @ WIO.Timer(_, _, _, _)             => x
+    case x @ WIO.Timer(_, _, _, _, _)             => x
     case x @ WIO.AwaitingTime(_, _, _)         => x
   }
 

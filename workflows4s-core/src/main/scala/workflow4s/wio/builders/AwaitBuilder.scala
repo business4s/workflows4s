@@ -1,5 +1,6 @@
 package workflow4s.wio.builders
 
+import cats.effect.IO
 import workflow4s.wio.*
 import workflow4s.wio.WIO.Timer
 import workflow4s.wio.WIO.Timer.DurationSource
@@ -31,7 +32,7 @@ object AwaitBuilder {
 //        Step2(evtHanlder)
 //      }
 
-      def persistThrough[Evt <: WCEvent[Ctx]](
+      def persistStartThrough[Evt <: WCEvent[Ctx]](
           incorporate: WIO.Timer.Started => Evt,
       )(extractStartTime: Evt => Instant)(using ct: ClassTag[Evt]): Step2 = {
         val evtHanlder: EventHandler[InOut, Unit, WCEvent[Ctx], Timer.Started] = EventHandler(
@@ -42,10 +43,30 @@ object AwaitBuilder {
         Step2(evtHanlder)
       }
 
-      case class Step2(private val eventHandler: EventHandler[InOut, Unit, WCEvent[Ctx], Timer.Started], private val name: Option[String] = None) {
-        def named(timerName: String): Step2               = this.copy(name = Some(timerName))
-        def autoNamed(using name: sourcecode.Name): Step2 = this.copy(name = Some(ModelUtils.prettifyName(name.value)))
-        def done: WIO[InOut, Nothing, InOut, Ctx]         = WIO.Timer(durationSource, eventHandler, x => Right(x), name)
+      case class Step2(private val startedEventHandler: EventHandler[InOut, Unit, WCEvent[Ctx], Timer.Started]) {
+
+        def persistReleaseThrough[Evt <: WCEvent[Ctx]](
+            incorporate: WIO.Timer.Released => Evt,
+        )(extractReleaseTime: Evt => Instant)(using ct: ClassTag[Evt]): Step3 = {
+          val evtHanlder: EventHandler[InOut, Either[Nothing, InOut], WCEvent[Ctx], Timer.Released] = EventHandler(
+            ct.unapply.andThen(_.map(x => Timer.Released(extractReleaseTime(x)))),
+            incorporate,
+            (in, _) => Right(in),
+          )
+          Step3(evtHanlder)
+        }
+
+        case class Step3(
+            private val releasedEventHandler: EventHandler[InOut, Either[Nothing, InOut], WCEvent[Ctx], Timer.Released],
+            private val name: Option[String] = None,
+        ) {
+
+          def named(timerName: String): Step3 = this.copy(name = Some(timerName))
+
+          def autoNamed(using name: sourcecode.Name): Step3 = this.copy(name = Some(ModelUtils.prettifyName(name.value)))
+
+          def done: WIO[InOut, Nothing, InOut, Ctx] = WIO.Timer(durationSource, startedEventHandler, x => IO.unit, name, releasedEventHandler)
+        }
       }
 
     }

@@ -1,10 +1,9 @@
 package workflow4s.wio.internal
 
-import cats.data.Ior
 import cats.effect.IO
 import cats.syntax.all.*
 import workflow4s.wio.*
-import workflow4s.wio.Interpreter.{ProceedResponse, RunIOResponse}
+import workflow4s.wio.WIO.Timer
 
 import java.time.Instant
 
@@ -68,14 +67,22 @@ object RunIOEvaluator {
 
     def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result = {
       val started     = WIO.Timer.Started(now)
-      val converted   = wio.eventHandler.convert(started)
+      val converted   = wio.startedEventHandler.convert(started)
       val releaseTime = wio.getReleaseTime(started, state)
       (for {
         _ <- knockerUpper.registerWakeup(releaseTime)
       } yield converted).some
     }
 
-    def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result = None
+    def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result = {
+      val timeCame = now.plusNanos(1).isAfter(wio.resumeAt)
+      Option.when(timeCame)(
+        wio
+          .onRelease(state)
+          .as(Timer.Released(now))
+          .map(wio.releasedEventHandler.convert(_)),
+      )
+    }
 
     private def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], s: I1): Option[IO[WCEvent[Ctx]]] =
       new RunIOVisitor(wio, s, initialState, now, knockerUpper).run

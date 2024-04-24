@@ -36,9 +36,7 @@ object EventEvaluator {
         .detect(event)
         .map(x => NextWfState.NewValue(handler.handle(state, x)))
 
-    def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result                     = doHandle(
-      wio.evtHandler.map(_._1),
-    )
+    def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result                     = doHandle(wio.evtHandler.map(_._1))
     def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result                                                   = doHandle(wio.evtHandler)
     def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result          =
       recurse(wio.base, state, event).map(preserveFlatMap(wio, _))
@@ -98,7 +96,9 @@ object EventEvaluator {
               preserveHandleInterruption(newInterruption, mainFlowOut).some
             case None            => runBase
           }
-        case x @ WIO.AwaitingTime(_, _, _)    => runBase
+        case x @ WIO.AwaitingTime(_, _, _)    =>
+          recurse(wio.interruption.finalWIO, initialState, event)
+            .orElse(runBase)
       }
     }
 
@@ -109,14 +109,14 @@ object EventEvaluator {
     }
 
     private def runTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Option[WIO.AwaitingTime[Ctx, In, Err, Out]] = {
-      wio.eventHandler
+      wio.startedEventHandler
         .detect(event)
         .map(started => {
           val releaseTime = wio.getReleaseTime(started, state)
-          WIO.AwaitingTime(releaseTime, wio.onRelease, wakeupRegistered = false)
+          WIO.AwaitingTime(releaseTime, wio.onRelease, wio.releasedEventHandler)
         })
     }
-    def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result                                 = None
+    def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result                                 = doHandle(wio.releasedEventHandler)
 
     def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], s: I1, e: WCEvent[Ctx]): EventVisitor[Ctx, I1, E1, O1]#Result =
       new EventVisitor(wio, e, s, initialState).run
