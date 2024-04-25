@@ -6,7 +6,7 @@ import cats.syntax.all.*
 import workflow4s.wio.ActiveWorkflow.ForCtx
 import workflow4s.wio.internal.WorkflowEmbedding
 
-class Interpreter[C <: WorkflowContext](
+class Interpreter(
     val knockerUpper: KnockerUpper,
 )
 
@@ -331,7 +331,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
 sealed trait NextWfState[C <: WorkflowContext, +E, +O <: WCState[C]] { self =>
   type Error
 
-  def toActiveWorkflow(interpreter: Interpreter[C])(using E <:< Nothing): ActiveWorkflow.ForCtx[C] = this match {
+  def toActiveWorkflow(interpreter: Interpreter)(using E <:< Nothing): ActiveWorkflow.ForCtx[C] = this match {
     case behaviour: NextWfState.NewBehaviour[C, E, O] =>
       def cast[I](wio: workflow4s.wio.WIO[I, E, O, C])(using E <:< Nothing): workflow4s.wio.WIO[I, Nothing, O, C] = wio.asInstanceOf // TODO, cast
       ActiveWorkflow[C, behaviour.State](cast(behaviour.wio), behaviour.state.toOption.get)(interpreter)

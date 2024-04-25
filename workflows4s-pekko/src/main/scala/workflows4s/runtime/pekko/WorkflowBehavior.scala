@@ -11,7 +11,7 @@ import workflow4s.wio.*
 import java.time.Instant
 import scala.util.chaining.scalaUtilChainingOps
 
-object WorkflowBehaviour {
+object WorkflowBehavior {
 
   sealed trait Command[Ctx <: WorkflowContext]
   object Command {
@@ -23,7 +23,7 @@ object WorkflowBehaviour {
     case class QueryState[Ctx <: WorkflowContext](replyTo: ActorRef[WCState[Ctx]]) extends Command[Ctx]
     case class Wakeup[Ctx <: WorkflowContext]()                                    extends Command[Ctx]
 
-    private[WorkflowBehaviour] case class PersistEvent[Ctx <: WorkflowContext](event: WCEvent[Ctx]) extends Command[Ctx]
+    private[WorkflowBehavior] case class PersistEvent[Ctx <: WorkflowContext](event: WCEvent[Ctx]) extends Command[Ctx]
   }
 
   final case class State[Ctx <: WorkflowContext](workflow: ActiveWorkflow.ForCtx[Ctx], awaitingCommandResult: Boolean)
@@ -41,12 +41,12 @@ object WorkflowBehaviour {
 //    case object Failed extends SignalResponse[Nothing]
   }
 
-  def apply[Ctx <: WorkflowContext](workflow: ActiveWorkflow.ForCtx[Ctx])(implicit ioRuntime: IORuntime): Behavior[Command[Ctx]] =
-    new WorkflowBehaviour(workflow).bahviour
+  def apply[Ctx <: WorkflowContext](id: PersistenceId, workflow: ActiveWorkflow.ForCtx[Ctx])(implicit ioRuntime: IORuntime): Behavior[Command[Ctx]] =
+    new WorkflowBehavior(workflow, id).bahviour
 }
 
-private class WorkflowBehaviour[Ctx <: WorkflowContext](initialState: ActiveWorkflow.ForCtx[Ctx])(implicit ioRuntime: IORuntime) {
-  import WorkflowBehaviour.*
+private class WorkflowBehavior[Ctx <: WorkflowContext](initialState: ActiveWorkflow.ForCtx[Ctx], id: PersistenceId)(implicit ioRuntime: IORuntime) {
+  import WorkflowBehavior.*
 
   type Event = EventEnvelope[WCEvent[Ctx]]
   type Cmd   = Command[Ctx]
@@ -54,7 +54,7 @@ private class WorkflowBehaviour[Ctx <: WorkflowContext](initialState: ActiveWork
 
   val bahviour: Behavior[Cmd] = Behaviors.setup { context =>
     EventSourcedBehavior[Cmd, Event, St](
-      persistenceId = PersistenceId.ofUniqueId("abc"),
+      persistenceId = id,
       emptyState = State(initialState, awaitingCommandResult = false),
       commandHandler = (state, cmd) =>
         cmd match {

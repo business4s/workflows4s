@@ -11,7 +11,7 @@ object RunIOEvaluator {
   def proceed[Ctx <: WorkflowContext, StIn <: WCState[Ctx]](
       wio: WIO[StIn, Nothing, WCState[Ctx], Ctx],
       state: StIn,
-      interpreter: Interpreter[Ctx],
+      interpreter: Interpreter,
       now: Instant,
   ): Response[Ctx] = {
     val visitor = new RunIOVisitor(wio, state, state, now, interpreter.knockerUpper)

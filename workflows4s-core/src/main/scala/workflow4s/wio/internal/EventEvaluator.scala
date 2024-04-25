@@ -13,7 +13,7 @@ object EventEvaluator {
       event: WCEvent[Ctx],
       wio: WIO[StIn, Nothing, WCState[Ctx], Ctx],
       state: StIn,
-      interpreter: Interpreter[Ctx],
+      interpreter: Interpreter,
   ): EventResponse[Ctx] = {
     val visitor = new EventVisitor(wio, event, state, state)
     visitor.run

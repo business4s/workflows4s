@@ -1,0 +1,2 @@
+### Get list of running withdrawals
+GET http://localhost:8989/withdrawals

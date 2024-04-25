@@ -13,7 +13,7 @@ abstract class ActiveWorkflow {
   type Error = Any
   val state: CurrentState
   def wio: WIO[CurrentState, Nothing, WCState[Context], Context]
-  def interpreter: Interpreter[Context]
+  def interpreter: Interpreter
 
   def handleSignal[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req, now: Instant): Option[IO[(WCEvent[Context], Resp)]] = {
     statelessProceed(now)
@@ -52,14 +52,14 @@ object ActiveWorkflow {
   type ForCtx[Ctx] = ActiveWorkflow { type Context = Ctx }
 
   def apply[Ctx <: WorkflowContext, In <: WCState[Ctx]](wio0: WIO[In, Nothing, WCState[Ctx], Ctx], value0: In)(
-      interpreter0: Interpreter[Ctx],
+      interpreter0: Interpreter,
   ): ActiveWorkflow.ForCtx[Ctx] =
     new ActiveWorkflow {
       override type Context      = Ctx
       override type CurrentState = In
       override val state: CurrentState                                    = value0
       override def wio: WIO[CurrentState, Nothing, WCState[Context], Ctx] = wio0
-      override def interpreter: Interpreter[Ctx]                          = interpreter0
+      override def interpreter: Interpreter                        = interpreter0
     }
 
   sealed trait ProceedResponse[Ctx <: WorkflowContext]

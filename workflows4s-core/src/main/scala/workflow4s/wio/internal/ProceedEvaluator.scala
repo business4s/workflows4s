@@ -17,7 +17,7 @@ object ProceedEvaluator {
   def proceed[Ctx <: WorkflowContext, StIn <: WCState[Ctx]](
       wio: WIO[StIn, Nothing, WCState[Ctx], Ctx],
       state: StIn,
-      interpreter: Interpreter[Ctx],
+      interpreter: Interpreter,
       now: Instant,
   ): Response[Ctx] = {
     val visitor = new ProceedVisitor(wio, state, state, now)
