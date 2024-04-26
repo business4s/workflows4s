@@ -41,6 +41,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "org.apache.pekko"     %% "pekko-http"                   % pekkoHttpVerion,                 // for interacting with the app
       "org.apache.pekko"     %% "pekko-cluster-sharding-typed" % pekkoVerion,                     // for realistic example and spawning actors
       "org.apache.pekko"     %% "pekko-persistence-jdbc"       % "1.1.0-M0+60-8e170c21-SNAPSHOT", // published locally until the release is there
+      "org.apache.pekko"     %% "pekko-serialization-jackson"   % "1.0.2",
       "com.h2database"        % "h2"                           % "2.2.224",
       "io.r2dbc"              % "r2dbc-h2"                     % "1.0.0.RELEASE",
       "com.github.pjfanning" %% "pekko-http-circe"             % "2.4.0",
@@ -52,7 +53,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
 
 lazy val commonSettings = Seq(
   scalaVersion := "3.3.3",
-  scalacOptions ++= Seq("-no-indent"),
+  scalacOptions ++= Seq("-no-indent", "-Xmax-inlines", "64"),
   libraryDependencies ++= Seq(
     "org.scalatest" %% "scalatest" % "3.2.17" % Test,
   ),

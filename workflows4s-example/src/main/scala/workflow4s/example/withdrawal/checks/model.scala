@@ -29,6 +29,7 @@ object CheckResult {
 }
 
 case class CheckKey(value: String)
+
 trait Check[-Data] {
   val key: CheckKey
   def run(data: Data): IO[CheckResult]

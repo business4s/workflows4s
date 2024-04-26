@@ -8,15 +8,22 @@ import org.apache.pekko.http.scaladsl.Http
 import org.apache.pekko.persistence.jdbc.query.scaladsl.JdbcReadJournal
 import org.apache.pekko.persistence.jdbc.testkit.scaladsl.SchemaUtils
 import org.apache.pekko.persistence.query.PersistenceQuery
+import workflow4s.example.withdrawal.WithdrawalWorkflow
+import workflow4s.example.withdrawal.checks.ChecksEngine
 
 object Main extends IOApp {
 
+  // TODO proper termination
   override def run(args: List[String]): IO[ExitCode] = {
-    implicit val system: ActorSystem[Any] = ActorSystem(Behaviors.empty, "ActorSystem")
+    implicit val system: ActorSystem[Any] = ActorSystem(Behaviors.empty, "MyCluster")
 
     for {
       journal                  <- setupJournal()
-      withdrawalWorkflowService = WithdrawalWorkflowService.Impl(journal)
+      shard                     = {
+        val workflow = WithdrawalWorkflow(DummyWithdrawalService, ChecksEngine)
+        WithdrawalShard.create(workflow)
+      }
+      withdrawalWorkflowService = WithdrawalWorkflowService.Impl(journal, shard)
       routes                    = HttpRoutes(system, withdrawalWorkflowService)
       _                        <- runHttpServer(routes)
       _                        <- IO.fromFuture(IO(system.whenTerminated))

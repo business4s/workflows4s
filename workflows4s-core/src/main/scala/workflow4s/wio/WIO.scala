@@ -47,6 +47,8 @@ sealed trait WIO[-In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext] extend
 
 object WIO {
 
+  type Initial[Ctx <: WorkflowContext, In <: WCState[Ctx]] = WIO[In, Nothing, WCState[Ctx], Ctx]
+
   sealed trait InterruptionSource[-In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext] extends WIO[In, Err, Out, Ctx] {
     def asTimer: Option[WIO.Timer[Ctx, In, Err, Out]] = this match {
       case HandleSignal(sigDef, sigHandler, evtHandler, meta)  => None

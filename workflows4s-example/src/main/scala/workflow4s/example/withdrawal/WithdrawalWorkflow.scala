@@ -55,9 +55,6 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
 
   import WithdrawalWorkflow.Context.WIO
 
-  def createInstance(id: String, interpreter: Interpreter): ForCtx[WithdrawalWorkflow.Context.type] =
-    ActiveWorkflow[WithdrawalWorkflow.Context.type, WithdrawalData.Empty](workflowDeclarative, WithdrawalData.Empty(id))(interpreter)
-
   val workflow: WIO[WithdrawalData.Empty, Nothing, WithdrawalData.Completed] =
     (for {
       _ <- receiveWithdrawal
