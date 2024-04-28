@@ -32,6 +32,8 @@ object WorkflowBehavior {
 
   final private case class State[Ctx <: WorkflowContext](workflow: ActiveWorkflow.ForCtx[Ctx], awaitingCommandResult: Boolean)
 
+
+  // alternatively we could ask client for embedding of CommandAccepted into `Event`
   sealed private trait EventEnvelope[+Event]
   private object EventEnvelope {
     case class WorkflowEvent[+Event](event: Event) extends EventEnvelope[Event]

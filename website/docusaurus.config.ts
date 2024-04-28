@@ -15,7 +15,7 @@ const config: Config = {
 
     // GitHub pages deployment config.
     organizationName: 'krever',
-    projectName: 'workflow4s', // Usually your repo name.
+    projectName: 'workflows4s', // Usually your repo name.
 
     onBrokenLinks: 'throw',
     onBrokenMarkdownLinks: 'warn',
@@ -41,7 +41,7 @@ const config: Config = {
                     remarkPlugins: [
                         [
                             require('remark-code-snippets'),
-                            {baseDir: "../workflow4s-example/src/"}
+                            {baseDir: "../workflows4s-example/src/"}
                         ]
                     ],
                 },
@@ -69,7 +69,7 @@ const config: Config = {
                     label: 'Docs',
                 },
                 {
-                    href: 'https://github.com/Krever/workflow4s',
+                    href: 'https://github.com/Krever/workflows4s',
                     label: 'GitHub',
                     position: 'right',
                 },

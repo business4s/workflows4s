@@ -1,6 +1,3 @@
----
-sidebar_position: 5
----
 # Loops
 
 ## Code
@@ -9,7 +6,7 @@ sidebar_position: 5
 
 ## BPMN
 
-![handle-error-with.svg](/../../workflow4s-example/src/test/resources/docs/loop.svg)
+![handle-error-with.svg](/../../workflows4s-example/src/test/resources/docs/loop.svg)
 
 ## Model
 ```json file=./test/resources/docs/loop.json

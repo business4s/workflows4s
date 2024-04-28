@@ -1,10 +1,5 @@
----
-sidebar_position: 3
----
-
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
-
 
 # Sequencing Operations
 
@@ -24,10 +19,10 @@ import TabItem from '@theme/TabItem';
 
 <Tabs groupId="flavour" queryString>
   <TabItem value="declarative" label="Declarative" default>
-    ![and-then.svg](/../../workflow4s-example/src/test/resources/docs/and-then.svg)
+    ![and-then.svg](/../../workflows4s-example/src/test/resources/docs/and-then.svg)
   </TabItem>
   <TabItem value="dynamic" label="Dynamic">
-    ![flat-map.svg](/../../workflow4s-example/src/test/resources/docs/flat-map.svg)
+    ![flat-map.svg](/../../workflows4s-example/src/test/resources/docs/flat-map.svg)
   </TabItem>
 </Tabs>
 

@@ -1,6 +1,3 @@
----
-sidebar_position: 2
----
 # Awaiting Signals
 
 ## Code
@@ -9,7 +6,7 @@ sidebar_position: 2
 
 ## BPMN
 
-![handle-signal.svg](/../../workflow4s-example/src/test/resources/docs/handle-signal.svg)
+![handle-signal.svg](/../../workflows4s-example/src/test/resources/docs/handle-signal.svg)
 
 ## Model
 ```json file=./test/resources/docs/handle-signal.json

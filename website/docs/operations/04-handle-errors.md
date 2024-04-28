@@ -1,6 +1,3 @@
----
-sidebar_position: 4
----
 # Handling Errors
 
 ## Code
@@ -9,7 +6,7 @@ sidebar_position: 4
 
 ## BPMN
 
-![handle-error-with.svg](/../../workflow4s-example/src/test/resources/docs/handle-error-with.svg)
+![handle-error-with.svg](/../../workflows4s-example/src/test/resources/docs/handle-error-with.svg)
 
 ## Model
 ```json file=./test/resources/docs/handle-error-with.json

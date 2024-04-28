@@ -1,6 +1,3 @@
----
-sidebar_position: 1
----
 # Running Side Effects
 
 ## Without Error
@@ -11,7 +8,7 @@ sidebar_position: 1
 
 ### BPMN
 
-![run-io.svg](/../../workflow4s-example/src/test/resources/docs/run-io.svg)
+![run-io.svg](../../../workflows4s-example/src/test/resources/docs/run-io.svg)
 
 ### Model
 ```json file=./test/resources/docs/run-io.json
@@ -25,7 +22,7 @@ sidebar_position: 1
 
 ### BPMN
 
-![run-io.svg](/../../workflow4s-example/src/test/resources/docs/run-io-error.svg)
+![run-io.svg](../../../workflows4s-example/src/test/resources/docs/run-io-error.svg)
 
 ### Model
 ```json file=./test/resources/docs/run-io-error.json
