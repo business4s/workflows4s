@@ -15,6 +15,7 @@ object ChecksEngine extends ChecksEngine {
   val retryBackoff     = 20.seconds
   val timeoutThreshold = 2.minutes
 
+  type Context = Context.type
   object Context extends WorkflowContext {
     override type Event = ChecksEvent
     override type State = ChecksState

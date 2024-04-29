@@ -1,23 +1,16 @@
 package workflow4s.example.checks
 
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import com.typesafe.scalalogging.StrictLogging
-import org.camunda.bpm.model.bpmn.Bpmn
 import org.scalatest.Inside.inside
 import org.scalatest.freespec.AnyFreeSpec
-import workflow4s.bpmn.BPMNConverter
-import workflow4s.example.{TestClock, TestUtils}
-import workflow4s.example.testuitls.TestUtils.SimpleSignalResponseOps
+import workflow4s.example.testuitls.TestUtils.SignalResponseOps
 import workflow4s.example.withdrawal.checks.*
-import workflow4s.wio.{KnockerUpper, WCState}
+import workflow4s.example.{TestClock, TestUtils}
+import workflow4s.runtime.{InMemorySyncRunningWorkflow, InMemorySyncRuntime}
 import workflow4s.wio.model.{WIOModel, WIOModelInterpreter}
-import workflow4s.wio.simple.SimpleActor
 
 import scala.reflect.Selectable.reflectiveSelectable
-import java.io.File
-import java.time.Clock
-import scala.util.Random
 
 class ChecksEngineTest extends AnyFreeSpec {
 
@@ -67,7 +60,7 @@ class ChecksEngineTest extends AnyFreeSpec {
       ),
     )
 
-     checkRecovery(wf)
+    checkRecovery(wf)
   }
 
   "reject if any rejects" in new Fixture {
@@ -133,30 +126,33 @@ class ChecksEngineTest extends AnyFreeSpec {
   }
 
   trait Fixture extends StrictLogging {
-    val clock        = new TestClock
-    val knockerUpper = KnockerUpper.noop
+    val clock = new TestClock
+    import cats.effect.unsafe.implicits.global
 
-    def createWorkflow(checks: List[Check[Unit]]) = new ChecksActor(ChecksInput((), checks), clock, knockerUpper)
+    def createWorkflow(checks: List[Check[Unit]], events: Seq[ChecksEvent] = List()) = {
+      val wf = InMemorySyncRuntime.createWithState[ChecksEngine.Context, ChecksInput](
+        ChecksEngine.runChecks,
+        ChecksInput((), checks),
+        null: ChecksState,
+        clock,
+        events,
+      )
+      new ChecksActor(wf, checks)
+    }
 
     def checkRecovery(firstActor: ChecksActor) = {
       logger.debug("Checking recovery")
-      val secondActor = new ChecksActor(firstActor.input, clock, knockerUpper)
-      secondActor.recover(firstActor.events)
+      val secondActor = createWorkflow(firstActor.checks, firstActor.events)
       assert(secondActor.state == firstActor.state)
     }
 
   }
-  class ChecksActor(val input: ChecksInput, clock: Clock, knockerUpper: KnockerUpper) {
-    val delegate: SimpleActor[WCState[ChecksEngine.Context.type]] { type Ctx = ChecksEngine.Context.type } = SimpleActor
-      .createWithState[ChecksEngine.Context.type, ChecksInput](ChecksEngine.runChecks, input, null: ChecksState, clock, knockerUpper)
-    def run(): Unit                                                                                        = delegate.runIO()
+  class ChecksActor(wf: InMemorySyncRunningWorkflow[ChecksEngine.Context], val checks: List[Check[Unit]]) {
+    def run(): Unit = wf.wakeup()
 
-    def events: List[ChecksEvent]                = delegate.events.toList
-    def recover(events: List[ChecksEvent]): Unit = delegate.recover(events)
-
-    def state: ChecksState = delegate.state
-
-    def review(decision: ReviewDecision) = delegate.handleSignal(ChecksEngine.Signals.review)(decision).extract
+    def events: Seq[ChecksEvent]         = wf.getEvents
+    def state: ChecksState               = wf.queryState()
+    def review(decision: ReviewDecision) = wf.deliverSignal(ChecksEngine.Signals.review, decision).extract
   }
 
   def getModel(wio: ChecksEngine.Context.WIO[?, ?, ?]): WIOModel = {

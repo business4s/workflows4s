@@ -7,15 +7,14 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.Inside.inside
 import org.scalatest.freespec.AnyFreeSpec
 import workflow4s.example.checks.StaticCheck
-import workflow4s.example.testuitls.TestUtils.{SignalResponseOps, SimpleSignalResponseOps}
+import workflow4s.example.testuitls.TestUtils.SignalResponseIOOps
+import workflow4s.example.withdrawal.*
 import workflow4s.example.withdrawal.WithdrawalService.{ExecutionResponse, Fee, Iban}
 import workflow4s.example.withdrawal.WithdrawalSignal.CreateWithdrawal
 import workflow4s.example.withdrawal.checks.*
-import workflow4s.example.withdrawal.*
-import workflow4s.runtime.{InMemoryRunningWorkflow, InMemoryRuntime, RunningWorkflow}
-import workflow4s.wio.{KnockerUpper, WIO}
+import workflow4s.runtime.{InMemoryRunningWorkflow, InMemoryRuntime}
+import workflow4s.wio.KnockerUpper
 import workflow4s.wio.model.{WIOModel, WIOModelInterpreter}
-import workflow4s.wio.simple.SimpleActor
 
 import java.time.{Clock, Instant, ZoneId, ZoneOffset}
 import scala.concurrent.duration.FiniteDuration
