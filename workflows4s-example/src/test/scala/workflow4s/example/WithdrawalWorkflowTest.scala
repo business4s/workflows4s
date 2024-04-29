@@ -7,12 +7,13 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.Inside.inside
 import org.scalatest.freespec.AnyFreeSpec
 import workflow4s.example.checks.StaticCheck
-import workflow4s.example.testuitls.TestUtils.SimpleSignalResponseOps
+import workflow4s.example.testuitls.TestUtils.{SignalResponseOps, SimpleSignalResponseOps}
 import workflow4s.example.withdrawal.WithdrawalService.{ExecutionResponse, Fee, Iban}
 import workflow4s.example.withdrawal.WithdrawalSignal.CreateWithdrawal
 import workflow4s.example.withdrawal.checks.*
 import workflow4s.example.withdrawal.*
-import workflow4s.wio.KnockerUpper
+import workflow4s.runtime.{InMemoryRunningWorkflow, InMemoryRuntime, RunningWorkflow}
+import workflow4s.wio.{KnockerUpper, WIO}
 import workflow4s.wio.model.{WIOModel, WIOModelInterpreter}
 import workflow4s.wio.simple.SimpleActor
 
@@ -163,9 +164,16 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
       assert(actor.queryData() == secondActor.queryData())
     }
 
-    def createActor(events: List[WithdrawalEvent]) = {
-      val actor = new WithdrawalActor(clock, knockerUpper)
-      actor.recover(events)
+    def createActor(events: Seq[WithdrawalEvent]) = {
+      val wf    = InMemoryRuntime
+        .runWorkflow[WithdrawalWorkflow.Context.type, WithdrawalData.Empty](
+          workflow,
+          WithdrawalData.Empty(txId),
+          events,
+          clock,
+        )
+        .unsafeRunSync()
+      val actor = new WithdrawalActor(wf)
       actor
     }
 
@@ -207,24 +215,20 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
         ChecksEngine.Context.WIO.pure(ChecksState.Decided(Map(), Decision.ApprovedBySystem()))
     }
 
-    class WithdrawalActor(clock: Clock, knockerUpper: KnockerUpper) {
-      val delegate: SimpleActor[WithdrawalData] { type Ctx = WithdrawalWorkflow.Context.type } =
-        SimpleActor.create[WithdrawalWorkflow.Context.type, WithdrawalData.Empty](workflow, WithdrawalData.Empty(txId), clock, knockerUpper)
-      def init(req: CreateWithdrawal): Unit                                                    = {
-        delegate.handleSignal(WithdrawalWorkflow.Signals.createWithdrawal)(req).extract
+    class WithdrawalActor(wf: InMemoryRunningWorkflow[WithdrawalWorkflow.Context.type]) {
+      def init(req: CreateWithdrawal): Unit                                = {
+        wf.deliverSignal(WithdrawalWorkflow.Signals.createWithdrawal, req).extract
       }
-      def confirmExecution(req: WithdrawalSignal.ExecutionCompleted): Unit                     = {
-        delegate.handleSignal(WithdrawalWorkflow.Signals.executionCompleted)(req).extract
+      def confirmExecution(req: WithdrawalSignal.ExecutionCompleted): Unit = {
+        wf.deliverSignal(WithdrawalWorkflow.Signals.executionCompleted, req).extract
       }
-      def cancel(req: WithdrawalSignal.CancelWithdrawal): Unit                                 = {
-        delegate.handleSignal(WithdrawalWorkflow.Signals.cancel)(req).extract
+      def cancel(req: WithdrawalSignal.CancelWithdrawal): Unit             = {
+        wf.deliverSignal(WithdrawalWorkflow.Signals.cancel, req).extract
       }
 
-      def queryData(): WithdrawalData = delegate.state
+      def queryData(): WithdrawalData = wf.queryState().unsafeRunSync()
 
-      def events: List[WithdrawalEvent]                = delegate.events.toList
-      def recover(events: List[WithdrawalEvent]): Unit = delegate.recover(events)
-
+      def events: Seq[WithdrawalEvent] = wf.getEvents.unsafeRunSync()
     }
 
     def getModel(wio: WithdrawalWorkflow.Context.WIO[?, ?, ?]): WIOModel = {

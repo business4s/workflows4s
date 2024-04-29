@@ -88,7 +88,7 @@ object EventEvaluator {
           // if awaitTime proceeds, we switch the flow into there
           recurse(wio.interruption.finalWIO, initialState, event)
             .orElse(runBase)
-        case x: WIO.Timer[Ctx, In, Err, Out]  =>
+        case x: WIO.Timer[Ctx, In, Err, Out]  => // TODO pattern match is wrong here, listen to the compiler
           runTimer(x) match {
             case Some(awaitTime) =>
               val mainFlowOut     = NewBehaviour(wio.base.transformInput[Any](_ => state), initialState.asRight)

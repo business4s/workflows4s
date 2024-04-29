@@ -35,26 +35,19 @@ object WithdrawalWorkflowService {
   class Impl(journal: Journal, wdShard: WithdrawalShard)(implicit val actorSystem: ActorSystem[Any]) extends WithdrawalWorkflowService {
 
     override def startWorkflow(id: String, input: CreateWithdrawal): IO[Unit] = {
-      val entityRef                 = wdShard.refFor(id)
-      implicit val timeout: Timeout = Timeout(10.seconds)
-      IO.fromFuture(
-        IO(
-          entityRef.ask[SignalResponse[Unit]](replyTo =>
-            WorkflowBehavior.Command.DeliverSignal(WithdrawalWorkflow.Signals.createWithdrawal, input, replyTo),
-          ),
-        ),
-      ).map({
-        case SignalResponse.Success(response) => response
-        case SignalResponse.Unexpected        => ???
-      })
+      val workflow                  = wdShard.workflowInstance(id)
+      IO.fromFuture(IO(workflow.deliverSignal(WithdrawalWorkflow.Signals.createWithdrawal, input)))
+        .map({
+          case Right(response) => response
+          case Left(_)         => ??? // TODO error handling
+        })
     }
 
     override def listWorkflows: IO[Seq[String]] = IO.fromFuture(IO(journal.currentPersistenceIds().runWith(Sink.seq)))
 
     override def getState(id: String): IO[WithdrawalData] = {
-      val entityRef                 = wdShard.refFor(id)
-      implicit val timeout: Timeout = Timeout(1.seconds)
-      IO.fromFuture(IO(entityRef.ask[WithdrawalData](reply => WorkflowBehavior.Command.QueryState(reply))))
+      val workflow                  = wdShard.workflowInstance(id)
+      IO.fromFuture(IO(workflow.queryState()))
     }
 
     override def cancelWithdrawal(id: String, request: WithdrawalSignal.CancelWithdrawal): Unit = ???

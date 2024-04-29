@@ -25,13 +25,12 @@ object WorkflowBehavior {
         replyTo: ActorRef[SignalResponse[Resp]],
     ) extends Command[Ctx]
     case class QueryState[Ctx <: WorkflowContext](replyTo: ActorRef[WCState[Ctx]]) extends Command[Ctx]
-    case class Wakeup[Ctx <: WorkflowContext]()                                    extends Command[Ctx]
+    case class Wakeup[Ctx <: WorkflowContext](replyTo: ActorRef[Unit])             extends Command[Ctx]
 
     private[WorkflowBehavior] case class PersistEvent[Ctx <: WorkflowContext](event: WCEvent[Ctx]) extends Command[Ctx]
   }
 
   final private case class State[Ctx <: WorkflowContext](workflow: ActiveWorkflow.ForCtx[Ctx], awaitingCommandResult: Boolean)
-
 
   // alternatively we could ask client for embedding of CommandAccepted into `Event`
   sealed private trait EventEnvelope[+Event]
@@ -59,7 +58,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext, In <: WCState[Ctx]](id: P
 
   val behavior: Behavior[Cmd] = Behaviors.setup { context =>
     Behaviors.withTimers { timers =>
-      val knockerUpper   = PekkoKnockerUpper(timers)
+      val knockerUpper                               = PekkoKnockerUpper(timers, context)
       val activeWorkflow: ActiveWorkflow.ForCtx[Ctx] = ActiveWorkflow(workflow, initialState)(Interpreter(knockerUpper))
       EventSourcedBehavior[Cmd, Event, St](
         persistenceId = id,
@@ -68,7 +67,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext, In <: WCState[Ctx]](id: P
           cmd match {
             case cmd: Command.DeliverSignal[?, resp, Ctx] => handleSignalDelivery(cmd, state, context)
             case Command.QueryState(replyTo)              => Effect.none.thenRun(state => replyTo ! state.workflow.state)
-            case Command.Wakeup()                         => handleWakeup(state, context)
+            case cmd: Command.Wakeup[Ctx]                 => handleWakeup(cmd, state, context)
             case Command.PersistEvent(event)              => Effect.persist(EventEnvelope.WorkflowEvent(event)).thenUnstashAll()
           },
         eventHandler = handleEvent,
@@ -91,6 +90,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext, In <: WCState[Ctx]](id: P
               resultIO
                 .map((event, resp) => {
                   cmd.replyTo ! SignalResponse.Success(resp)
+                  // TODO should the reply be sent here or after event is persisted?
                   context.self ! Command.PersistEvent(event)
                 })
                 .unsafeToFuture()
@@ -104,7 +104,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext, In <: WCState[Ctx]](id: P
     }
   }
 
-  private def handleWakeup(state: St, context: ActorContext[Cmd]): Effect[Event, St] = {
+  private def handleWakeup(cmd: Command.Wakeup[Ctx], state: St, context: ActorContext[Cmd]): Effect[Event, St] = {
     if (state.awaitingCommandResult) Effect.stash()
     else {
       state.workflow.proceed(Instant.now()) match {
@@ -113,7 +113,10 @@ private class WorkflowBehavior[Ctx <: WorkflowContext, In <: WCState[Ctx]](id: P
             .persist(EventEnvelope.CommandAccepted)
             .thenRun((_: St) => {
               eventIO
-                .map(event => context.self ! Command.PersistEvent(event))
+                .map(event => {
+                  context.self ! Command.PersistEvent(event)
+                  cmd.replyTo ! () // TODO should the reply be sent here or after event is persisted?
+                })
                 .unsafeToFuture()
               // TODO error handling
               ()

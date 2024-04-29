@@ -7,11 +7,15 @@ import org.apache.pekko.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity
 import org.apache.pekko.persistence.typed.PersistenceId
 import workflow4s.example.pekko.WithdrawalShard.{Command, TypeKey}
 import workflow4s.example.withdrawal.{WithdrawalData, WithdrawalWorkflow}
-import workflows4s.runtime.pekko.WorkflowBehavior
+import workflow4s.runtime.RunningWorkflow
+import workflows4s.runtime.pekko.{PekkoRunningWorkflow, WorkflowBehavior}
 
-class WithdrawalShard(system: ActorSystem[Any], region: ActorRef[ShardingEnvelope[Command]]) {
-  def refFor(withdrawalId: String)(implicit system: ActorSystem[Any]): EntityRef[Command] =
-    ClusterSharding(system).entityRefFor(TypeKey, withdrawalId)
+import scala.concurrent.Future
+
+class WithdrawalShard(region: ActorRef[ShardingEnvelope[Command]])(implicit system: ActorSystem[Any]) {
+  val sharding: ClusterSharding                                                       = ClusterSharding(system)
+  def workflowInstance(withdrawalId: String): RunningWorkflow[Future, WithdrawalData] =
+    PekkoRunningWorkflow(sharding.entityRefFor(TypeKey, withdrawalId))
 }
 
 object WithdrawalShard {
@@ -29,7 +33,7 @@ object WithdrawalShard {
         WorkflowBehavior(persistenceId, withdrawalWorkflow.workflowDeclarative, WithdrawalData.Empty(persistenceId.toString))
       }),
     )
-    WithdrawalShard(system, shardRegion)
+    WithdrawalShard(shardRegion)
   }
 
 }

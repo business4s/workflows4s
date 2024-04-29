@@ -128,9 +128,4 @@ object SimpleActor {
     case class UnexpectedEvent(msg: String) extends EventResponse
   }
 
-  sealed trait QueryResponse[+Resp]
-  object QueryResponse {
-    case class Ok[Resp](result: Resp)       extends QueryResponse[Resp]
-    case class UnexpectedQuery(msg: String) extends QueryResponse[Nothing]
-  }
 }
