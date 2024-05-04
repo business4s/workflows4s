@@ -2,7 +2,7 @@ package workflow4s.runtime
 
 import cats.effect.{Deferred, IO, Ref}
 import workflow4s.wio.WIO.Initial
-import workflow4s.wio.{ActiveWorkflow, Interpreter, KnockerUpper, WCEvent, WCState, WorkflowContext}
+import workflow4s.wio.{ActiveWorkflow, Interpreter, KnockerUpper, WCEvent, WCState, WIO, WorkflowContext}
 
 import java.time.Clock
 
@@ -17,10 +17,19 @@ object InMemoryRuntime {
       initialState: In,
       events: Seq[WCEvent[Ctx]] = Seq(),
       clock: Clock = Clock.systemUTC(),
+  ): IO[InMemoryRunningWorkflow[Ctx]] = runWorkflowWithState[Ctx, In](workflow, initialState, initialState, events, clock)
+
+  def runWorkflowWithState[Ctx <: WorkflowContext, In](
+      workflow: WIO[In, Nothing, WCState[Ctx], Ctx],
+      input: In,
+      initialState: WCState[Ctx],
+      events: Seq[WCEvent[Ctx]] = Seq(),
+      clock: Clock = Clock.systemUTC(),
   ): IO[InMemoryRunningWorkflow[Ctx]] = {
     for {
       runningWfRef <- Deferred[IO, InMemoryRunningWorkflow[Ctx]]
-      initialWf     = ActiveWorkflow(workflow, initialState)(new Interpreter(SleepingKnockerUpper(runningWfRef.get.flatMap(_.wakeup()))))
+      initialWf     =
+        ActiveWorkflow(workflow.provideInput(input), initialState)(new Interpreter(SleepingKnockerUpper(runningWfRef.get.flatMap(_.wakeup()))))
       stateRef     <- Ref[IO].of(initialWf)
       eventsRef    <- Ref[IO].of(Vector[WCEvent[Ctx]]())
       runningWf     = InMemoryRunningWorkflow[Ctx](stateRef, eventsRef, clock)

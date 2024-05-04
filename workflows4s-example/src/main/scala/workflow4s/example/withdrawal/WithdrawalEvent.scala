@@ -1,9 +1,12 @@
 package workflow4s.example.withdrawal
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo
 import workflow4s.example.withdrawal.WithdrawalService.{ExecutionResponse, Fee, Iban}
 import workflow4s.example.withdrawal.checks.ChecksEvent
 
+@JsonTypeInfo(use=JsonTypeInfo.Id.CLASS, include=JsonTypeInfo.As.PROPERTY, property="class")
 sealed trait WithdrawalEvent
+
 object WithdrawalEvent {
   sealed trait ValidationResult                                      extends WithdrawalEvent with Product with Serializable
   case class WithdrawalAccepted(amount: BigDecimal, recipient: Iban) extends ValidationResult

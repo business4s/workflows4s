@@ -59,15 +59,6 @@ object Interpreter {
     case class Ok[Ctx <: WorkflowContext, Resp](value: IO[(WCEvent[Ctx], Resp)]) extends SignalResponse[Ctx, Resp]
     case class UnexpectedSignal[Ctx <: WorkflowContext, Resp]()                  extends SignalResponse[Ctx, Resp]
   }
-
-  sealed trait QueryResponse[Resp]
-
-  object QueryResponse {
-    case class Ok[Resp](value: Resp) extends QueryResponse[Resp]
-
-    case class UnexpectedQuery[Resp]() extends QueryResponse[Resp]
-  }
-
 }
 
 import NextWfState.{NewBehaviour, NewValue}
