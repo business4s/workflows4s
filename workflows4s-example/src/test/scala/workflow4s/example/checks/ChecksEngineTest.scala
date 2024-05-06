@@ -19,21 +19,20 @@ import scala.reflect.Selectable.reflectiveSelectable
 
 class ChecksEngineTest extends AnyFreeSpec with BeforeAndAfterAll with BeforeAndAfter {
 
-  val testKit = ActorTestKit("MyCluster")
+  val testKit                   = ActorTestKit("MyCluster")
   override def afterAll(): Unit = testKit.shutdownTestKit()
 
   before {
     val f = SchemaUtils.createIfNotExists()(testKit.system)
-    Await.result(f, 3.seconds)
+    Await.result(f, 10.seconds)
   }
 
-
-//  "in-memory-sync" - {
-//    checkEngineTests(TestRuntimeAdapter.InMemorySync)
-//  }
-//  "in-memory" - {
-//    checkEngineTests(TestRuntimeAdapter.InMemory)
-//  }
+  "in-memory-sync" - {
+    checkEngineTests(TestRuntimeAdapter.InMemorySync)
+  }
+  "in-memory" - {
+    checkEngineTests(TestRuntimeAdapter.InMemory)
+  }
   "pekko" - {
     checkEngineTests(new TestRuntimeAdapter.Pekko("checks-engine")(testKit.system))
   }
@@ -43,14 +42,12 @@ class ChecksEngineTest extends AnyFreeSpec with BeforeAndAfterAll with BeforeAnd
     TestUtils.renderBpmnToFile(wf, "checks-engine.bpmn")
   }
 
-
-
   def checkEngineTests(runtime: TestRuntimeAdapter) = {
 
-    "re-run pending checks until complete" in new Fixture {
-      val check: Check[Unit] { val runNum: Int } = new Check[Unit] {
+    "re-arun pending checks until complete" in new Fixture {
+      val check: Check[Unit] { def runNum: Int } = new Check[Unit] {
         var runNum                 = 0
-        override val key: CheckKey = CheckKey("foo")
+        override def key: CheckKey = CheckKey("foo")
 
         override def run(data: Unit): IO[CheckResult] = runNum match {
           case 0 | 1 =>

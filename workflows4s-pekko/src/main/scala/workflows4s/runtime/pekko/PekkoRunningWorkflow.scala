@@ -13,9 +13,9 @@ import scala.concurrent.duration.DurationInt
 
 class PekkoRunningWorkflow[Ctx <: WorkflowContext](
     actorRef: RecipientRef[WorkflowBehavior.Command[Ctx]],
-    stateQueryTimeout: Timeout = Timeout(10.millis),
-    signalTimeout: Timeout = Timeout(1.second),
-)(implicit system: ActorSystem[Any])
+    stateQueryTimeout: Timeout = Timeout(100.millis),
+    signalTimeout: Timeout = Timeout(5.second),
+)(implicit system: ActorSystem[_])
     extends RunningWorkflow[Future, WCState[Ctx]] {
 
   override def queryState(): Future[WCState[Ctx]] = {

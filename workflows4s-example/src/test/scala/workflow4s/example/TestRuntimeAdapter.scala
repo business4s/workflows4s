@@ -15,7 +15,6 @@ import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import workflow4s.example.TestRuntimeAdapter.TestRuntime
 import workflow4s.runtime.{InMemoryRuntime, InMemorySyncRuntime, RunningWorkflow}
 import workflow4s.wio.*
-import workflows4s.runtime.pekko.WorkflowBehavior.EventEnvelope
 import workflows4s.runtime.pekko.{PekkoRunningWorkflow, WorkflowBehavior}
 
 import java.time.Clock
@@ -82,7 +81,7 @@ object TestRuntimeAdapter {
     }
   }
 
-  class Pekko(entityKey: String)(implicit actorSystem: ActorSystem[_]) extends TestRuntimeAdapter {
+  class Pekko(entityKeyPrefix: String)(implicit actorSystem: ActorSystem[_]) extends TestRuntimeAdapter {
     override def runWorkflow[Ctx <: WorkflowContext, In](
         workflow: WIO[In, Nothing, WCState[Ctx], Ctx],
         input: In,
@@ -91,13 +90,14 @@ object TestRuntimeAdapter {
         events: Seq[WCEvent[Ctx]],
     ): TestRuntime[Ctx] = {
       import cats.effect.unsafe.implicits.global
-      val behavior      = WorkflowBehavior.withInput(PersistenceId("checks", UUID.randomUUID().toString), workflow, state, input)
+      // we create unique type key per workflow, so we can ensure we get right actor/behavior/input
+      // with single shard region its tricky to inject input into behavior creation
+      val typeKey       = EntityTypeKey[WorkflowBehavior.Command[Ctx]](entityKeyPrefix + "-" + UUID.randomUUID().toString)
       val sharding      = ClusterSharding(actorSystem)
-      val typeKey       = EntityTypeKey[WorkflowBehavior.Command[Ctx]](entityKey)
       val shardRegion   = sharding.init(
         Entity(typeKey)(createBehavior = entityContext => {
           val persistenceId = PersistenceId(entityContext.entityTypeKey.name, entityContext.entityId)
-          behavior
+          WorkflowBehavior.withInput(persistenceId, workflow, state, input, clock)
         }),
       )
       val persistenceId = UUID.randomUUID().toString
@@ -116,18 +116,15 @@ object TestRuntimeAdapter {
           .await
           .flatMap(e =>
             e.event match {
-              case x: WorkflowBehavior.EventEnvelope[WCEvent[Ctx]] =>
-                x match {
-                  case WorkflowBehavior.EventEnvelope.WorkflowEvent(event) => event.some
-                  case WorkflowBehavior.EventEnvelope.CommandAccepted      => None
-                }
-              case _                                               => ???
+              case WorkflowBehavior.CommandAccepted => None
+              case x: WCEvent[Ctx]                  => Some(x) // TODO unchecked match, can be mitigated through classtag
+              case _                                => ???
             },
           )
 
         // TODO could at least use futureValue from scalatest
         implicit class AwaitOps[T](f: Future[T]) {
-          def await: T = Await.result(f, 3.seconds)
+          def await: T = Await.result(f, 5.seconds)
         }
       }
     }

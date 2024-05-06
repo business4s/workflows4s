@@ -2,25 +2,38 @@ package workflows4s.runtime.pekko
 
 import cats.effect.IO
 import cats.effect.unsafe.IORuntime
+import cats.implicits.catsSyntaxOptionId
+import com.typesafe.scalalogging.StrictLogging
 import org.apache.pekko.actor.typed.scaladsl.{ActorContext, Behaviors}
 import org.apache.pekko.actor.typed.{ActorRef, Behavior}
-import org.apache.pekko.persistence.typed.PersistenceId
+import org.apache.pekko.persistence.typed.{PersistenceId, RecoveryCompleted}
 import org.apache.pekko.persistence.typed.scaladsl.{Effect, EventSourcedBehavior}
 import workflow4s.wio.*
 
-import java.time.Instant
+import java.time.{Clock, Instant}
 
 object WorkflowBehavior {
 
-  def apply[Ctx <: WorkflowContext, In <: WCState[Ctx]](id: PersistenceId, workflow: WIO.Initial[Ctx, In], initialState: In)(implicit
+  def apply[Ctx <: WorkflowContext, In <: WCState[Ctx]](
+      id: PersistenceId,
+      workflow: WIO.Initial[Ctx, In],
+      initialState: In,
+      clock: Clock = Clock.systemUTC(),
+  )(implicit
       ioRuntime: IORuntime,
   ): Behavior[Command[Ctx]] =
-    new WorkflowBehavior(id, workflow, initialState, initialState).behavior
+    new WorkflowBehavior(id, workflow, initialState, initialState, clock).behavior
 
-  def withInput[Ctx <: WorkflowContext, In](id: PersistenceId, workflow: WIO[In, Nothing, WCState[Ctx], Ctx], initialState: WCState[Ctx], input: In)(
-      implicit ioRuntime: IORuntime,
+  def withInput[Ctx <: WorkflowContext, In](
+      id: PersistenceId,
+      workflow: WIO[In, Nothing, WCState[Ctx], Ctx],
+      initialState: WCState[Ctx],
+      input: In,
+      clock: Clock = Clock.systemUTC(),
+  )(implicit
+      ioRuntime: IORuntime,
   ): Behavior[Command[Ctx]] =
-    new WorkflowBehavior(id, workflow, initialState, input).behavior
+    new WorkflowBehavior(id, workflow, initialState, input, clock).behavior
 
   sealed trait Command[Ctx <: WorkflowContext]
   object Command {
@@ -32,8 +45,7 @@ object WorkflowBehavior {
     case class QueryState[Ctx <: WorkflowContext](replyTo: ActorRef[WCState[Ctx]]) extends Command[Ctx]
     case class Wakeup[Ctx <: WorkflowContext](replyTo: ActorRef[Unit])             extends Command[Ctx]
 
-    private[WorkflowBehavior] case class PersistEvent[Ctx <: WorkflowContext, T](event: WCEvent[Ctx], confirm: ActorRef[T], msg: T)
-        extends Command[Ctx]
+    private[WorkflowBehavior] case class PersistEvent[Ctx <: WorkflowContext, T](event: WCEvent[Ctx], confirm: Option[(ActorRef[T], T)]) extends Command[Ctx]
   }
 
   final private case class State[Ctx <: WorkflowContext](workflow: ActiveWorkflow.ForCtx[Ctx], awaitingCommandResult: Boolean)
@@ -42,11 +54,12 @@ object WorkflowBehavior {
   // TODO make private
   // maybe we can fix serialization by making it a new class inside behavior, so `Event` is statically captured in that new class?
   // or maybe union type could work?
-  sealed trait EventEnvelope[+Event]
-  object EventEnvelope {
-    case class WorkflowEvent[+Event](event: Event) extends EventEnvelope[Event]
-    case object CommandAccepted                    extends EventEnvelope[Nothing]
-  }
+//  sealed trait EventEnvelope[+Event]
+  case object CommandAccepted
+//  object EventEnvelope {
+//    case class WorkflowEvent[+Event](event: Event) extends EventEnvelope[Event]
+//    case object CommandAccepted                    extends EventEnvelope[Nothing]
+//  }
 
   sealed trait SignalResponse[+Resp]
   object SignalResponse {
@@ -61,12 +74,13 @@ private class WorkflowBehavior[Ctx <: WorkflowContext, In](
     workflow: WIO[In, Nothing, WCState[Ctx], Ctx],
     initialState: WCState[Ctx],
     input: In,
+    clock: Clock,
 )(implicit
     ioRuntime: IORuntime,
-) {
+) extends StrictLogging {
   import WorkflowBehavior.*
 
-  private type Event = EventEnvelope[WCEvent[Ctx]]
+  private type Event = WCEvent[Ctx] | CommandAccepted.type
   private type Cmd   = Command[Ctx]
   private type St    = State[Ctx]
 
@@ -79,14 +93,17 @@ private class WorkflowBehavior[Ctx <: WorkflowContext, In](
         emptyState = State(activeWorkflow, awaitingCommandResult = false),
         commandHandler = (state, cmd) =>
           cmd match {
-            case cmd: Command.DeliverSignal[?, resp, Ctx]        => handleSignalDelivery(cmd, state, context)
-            case Command.QueryState(replyTo)                     => Effect.none.thenRun(state => replyTo ! state.workflow.state)
-            case cmd: Command.Wakeup[Ctx]                        => handleWakeup(cmd, state, context)
-            case Command.PersistEvent(event, replyTo, replyWith) =>
-              Effect.persist(EventEnvelope.WorkflowEvent(event)).thenReply(replyTo)((_: St) => replyWith).thenUnstashAll()
+            case cmd: Command.DeliverSignal[?, resp, Ctx] => handleSignalDelivery(cmd, state, context)
+            case Command.QueryState(replyTo)              => Effect.none.thenRun(state => replyTo ! state.workflow.state)
+            case cmd: Command.Wakeup[Ctx]                 => handleWakeup(cmd, state, context)
+            case cmd: Command.PersistEvent[Ctx, ?]        => handlePersistEvent(cmd)
+
           },
         eventHandler = handleEvent,
-      )
+      ).receiveSignal { case (state, RecoveryCompleted) =>
+        logger.debug("Workflow recovered, waking up.")
+        context.self ! Command.Wakeup(context.spawnAnonymous(Behaviors.ignore))
+      }
     }
   }
 
@@ -97,14 +114,16 @@ private class WorkflowBehavior[Ctx <: WorkflowContext, In](
   ): Effect[Event, St] = {
     if (state.awaitingCommandResult) Effect.stash()
     else {
-      state.workflow.handleSignal(cmd.signalDef)(cmd.request, Instant.now()) match {
+      state.workflow.handleSignal(cmd.signalDef)(cmd.request, clock.instant()) match {
         case Some(resultIO: IO[(WCEvent[Ctx], resp)]) =>
           Effect
-            .persist(EventEnvelope.CommandAccepted)
+            .persist(CommandAccepted)
             .thenRun((_: St) => {
               resultIO
                 .map((event, resp) => {
-                  context.self ! Command.PersistEvent(event, cmd.replyTo, SignalResponse.Success(resp))
+                  context.self ! Command.PersistEvent(event, (cmd.replyTo, SignalResponse.Success(resp)).some)
+                  val ignore = context.spawnAnonymous(Behaviors.ignore)
+                  context.self ! Command.Wakeup(ignore)
                 })
                 .unsafeToFuture()
               // TODO error handling
@@ -118,37 +137,54 @@ private class WorkflowBehavior[Ctx <: WorkflowContext, In](
   }
 
   private def handleWakeup(cmd: Command.Wakeup[Ctx], state: St, context: ActorContext[Cmd]): Effect[Event, St] = {
-    if (state.awaitingCommandResult) Effect.stash()
-    else {
-      state.workflow.proceed(Instant.now()) match {
+    logger.debug(s"Waking up.")
+    if (state.awaitingCommandResult) {
+      logger.debug(s"Another command processing. Stashing")
+      Effect.stash()
+    } else {
+      state.workflow.proceed(clock.instant()) match {
         case Some(eventIO) =>
+          logger.debug("Got new state during wakeup. Evaluating")
           Effect
-            .persist(EventEnvelope.CommandAccepted)
+            .persist(CommandAccepted)
             .thenRun((_: St) => {
-              eventIO
-                .map(event => {
-                  context.self ! Command.PersistEvent(event)
-                  cmd.replyTo ! () // TODO should the reply be sent here or after event is persisted?
-                })
-                .unsafeToFuture()
-              // TODO error handling
-              ()
+              val event = eventIO.unsafeRunSync() // TODO shouldnt block actor thread
+              logger.debug(s"New event evaluated to ${event}. Persisting. ")
+              context.self ! Command.PersistEvent(event, None)
+              context.self ! Command.Wakeup(cmd.replyTo)
             })
-        case None          => Effect.none
+        case None          =>
+          logger.debug("No new state during wakeup.")
+          Effect.none.thenRun(_ => cmd.replyTo ! ())
       }
     }
   }
 
-  private def handleEvent(state: St, event: EventEnvelope[WCEvent[Ctx]]): State[Ctx] = {
+  private def handleEvent(state: St, event: Event): State[Ctx] = {
     event match {
-      case EventEnvelope.WorkflowEvent(wfEvent) =>
-        state.workflow.handleEvent(wfEvent, Instant.now()) match {
+      case CommandAccepted       => state.copy(awaitingCommandResult = true)
+      case wfEvent: WCEvent[Ctx] =>
+        state.workflow.handleEvent(wfEvent, clock.instant()) match {
           case Some(value) => State(value, awaitingCommandResult = false)
           // TODO think about good behaviour here. Ignore or fail?
           case None        => ???
         }
-      case EventEnvelope.CommandAccepted        => state.copy(awaitingCommandResult = true)
     }
+  }
+
+  private def handlePersistEvent[Response](cmd: Command.PersistEvent[Ctx, Response]) = {
+    logger.debug(s"Persisting event ${cmd.event}")
+    Effect
+      .persist(cmd.event)
+      .thenRun((_: St) => {
+        cmd.confirm match {
+          case Some((replyTo, response)) =>
+            logger.debug(s"Replying to ${replyTo} with ${response} after persisting ${cmd.event}")
+            replyTo ! response
+          case None => ()
+        }
+      })
+      .thenUnstashAll()
   }
 
 }
