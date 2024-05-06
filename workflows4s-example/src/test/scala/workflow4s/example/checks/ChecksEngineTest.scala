@@ -44,7 +44,7 @@ class ChecksEngineTest extends AnyFreeSpec with BeforeAndAfterAll with BeforeAnd
 
   def checkEngineTests(runtime: TestRuntimeAdapter) = {
 
-    "re-arun pending checks until complete" in new Fixture {
+    "re-run pending checks until complete" in new Fixture {
       val check: Check[Unit] { def runNum: Int } = new Check[Unit] {
         var runNum                 = 0
         override def key: CheckKey = CheckKey("foo")
