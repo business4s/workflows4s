@@ -1,8 +1,7 @@
 package workflow4s.example.withdrawal.checks
 
 import cats.effect.IO
-import com.fasterxml.jackson.annotation.JsonTypeInfo
-import workflow4s.wio.SignalDef
+import io.circe.{Codec, KeyDecoder, KeyEncoder}
 
 sealed trait ReviewDecision // TODO how to handle extensibility? E.g. some metadata required for particular checks?
 object ReviewDecision {
@@ -19,8 +18,7 @@ object Decision {
 }
 
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, include = JsonTypeInfo.As.PROPERTY, property = "class")
-sealed trait CheckResult
+sealed trait CheckResult derives Codec.AsObject
 object CheckResult {
   sealed trait Finished       extends CheckResult
   sealed trait Final          extends Finished
@@ -32,6 +30,11 @@ object CheckResult {
 }
 
 case class CheckKey(value: String)
+
+object CheckKey {
+  given KeyEncoder[CheckKey] = KeyEncoder.encodeKeyString.contramap(_.value)
+  given KeyDecoder[CheckKey] = KeyDecoder.decodeKeyString.map(CheckKey(_))
+}
 
 trait Check[-Data] {
   def key: CheckKey

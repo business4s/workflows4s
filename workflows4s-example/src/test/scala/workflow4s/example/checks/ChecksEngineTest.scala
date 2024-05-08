@@ -1,18 +1,19 @@
 package workflow4s.example.checks
 
+import cats.Id
 import cats.effect.IO
 import com.typesafe.scalalogging.StrictLogging
-import org.scalatest.Inside.inside
-import org.scalatest.freespec.AnyFreeSpec
-import workflow4s.example.TestRuntimeAdapter.TestRuntime
-import workflow4s.example.testuitls.TestUtils.SignalResponseOps
-import workflow4s.example.withdrawal.checks.*
-import workflow4s.example.{TestClock, TestRuntimeAdapter, TestUtils}
-import workflow4s.wio.model.{WIOModel, WIOModelInterpreter}
 import org.apache.pekko.actor.testkit.typed.scaladsl.ActorTestKit
 import org.apache.pekko.persistence.jdbc.testkit.scaladsl.SchemaUtils
+import org.scalatest.Inside.inside
+import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
+import workflow4s.example.withdrawal.checks.*
+import workflow4s.example.{TestClock, TestRuntimeAdapter, TestUtils}
+import workflow4s.runtime.RunningWorkflow
+import workflow4s.wio.WCState
+import workflow4s.wio.model.{WIOModel, WIOModelInterpreter}
 
 import scala.concurrent.Await
 import scala.reflect.Selectable.reflectiveSelectable
@@ -157,30 +158,32 @@ class ChecksEngineTest extends AnyFreeSpec with BeforeAndAfterAll with BeforeAnd
     trait Fixture extends StrictLogging {
       val clock = new TestClock
 
-      def createWorkflow(checks: List[Check[Unit]], events: Seq[ChecksEvent] = List()) = {
+      def createWorkflow(checks: List[Check[Unit]]) = {
         val wf = runtime.runWorkflow[ChecksEngine.Context, ChecksInput](
           ChecksEngine.runChecks,
           ChecksInput((), checks),
           null: ChecksState,
           clock,
-          events,
         )
         new ChecksActor(wf, checks)
       }
 
-      def checkRecovery(firstActor: ChecksActor) = {
+      def checkRecovery(firstActor: ChecksActor[runtime.Actor[ChecksEngine.Context]]) = {
         logger.debug("Checking recovery")
-        val secondActor = createWorkflow(firstActor.checks, firstActor.events)
-        assert(secondActor.state == firstActor.state)
+        val originalState = firstActor.state
+        val secondActor = runtime.recover(firstActor.wf)
+        assert(secondActor.queryState() == originalState)
       }
 
     }
   }
-  class ChecksActor(wf: TestRuntime[ChecksEngine.Context], val checks: List[Check[Unit]]) {
-    def run(): Unit                      = wf.wakeup()
-    def events: Seq[ChecksEvent]         = wf.getEvents
-    def state: ChecksState               = wf.queryState()
-    def review(decision: ReviewDecision) = wf.deliverSignal(ChecksEngine.Signals.review, decision).extract
+  class ChecksActor[Actor <: RunningWorkflow[Id, WCState[ChecksEngine.Context]]](val wf: Actor, val checks: List[Check[Unit]]) {
+    def run(): Unit                            = wf.wakeup()
+    def state: ChecksState                     = wf.queryState()
+    def review(decision: ReviewDecision): Unit = {
+      import workflow4s.example.testuitls.TestUtils._
+      wf.deliverSignal(ChecksEngine.Signals.review, decision).extract
+    }
   }
 
   def getModel(wio: ChecksEngine.Context.WIO[?, ?, ?]): WIOModel = {

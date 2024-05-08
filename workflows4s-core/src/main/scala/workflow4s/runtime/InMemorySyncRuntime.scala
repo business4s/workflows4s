@@ -11,7 +11,7 @@ object InMemorySyncRuntime {
       behaviour: WIO[In, Nothing, WCState[Ctx], Ctx],
       state: In,
       clock: Clock = Clock.systemUTC(),
-      events: List[WCEvent[Ctx]] = List(),
+      events: Seq[WCEvent[Ctx]] = Seq(),
   )(implicit ior: IORuntime): InMemorySyncRunningWorkflow[Ctx] = createWithState[Ctx, In](behaviour, state, state, clock, events)
 
   // this might need to evolve, we provide initial state in case the input can't be one.
