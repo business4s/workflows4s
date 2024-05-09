@@ -1,11 +1,11 @@
 package workflow4s.example.withdrawal
 
-import com.fasterxml.jackson.annotation.JsonTypeInfo
+import io.circe.Codec
+import workflow4s.example.pekko.PekkoCirceSerializer
 import workflow4s.example.withdrawal.WithdrawalService.{ExecutionResponse, Fee, Iban}
 import workflow4s.example.withdrawal.checks.ChecksEvent
 
-@JsonTypeInfo(use=JsonTypeInfo.Id.CLASS, include=JsonTypeInfo.As.PROPERTY, property="class")
-sealed trait WithdrawalEvent
+sealed trait WithdrawalEvent derives Codec.AsObject
 
 object WithdrawalEvent {
   sealed trait ValidationResult                                      extends WithdrawalEvent with Product with Serializable
@@ -30,4 +30,8 @@ object WithdrawalEvent {
   case class RejectionHandled(error: String) extends WithdrawalEvent
 
   case class WithdrawalCancelledByOperator(operatorId: String, comment: String) extends WithdrawalEvent
+
+  class PekkoSerializer extends PekkoCirceSerializer[WithdrawalEvent]{
+    override def identifier = 12345678
+  }
 }

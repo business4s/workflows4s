@@ -1,29 +1,59 @@
 package workflow4s.example
 
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import com.typesafe.scalalogging.StrictLogging
+import org.apache.pekko.actor.testkit.typed.scaladsl.ActorTestKit
+import org.apache.pekko.persistence.jdbc.testkit.scaladsl.SchemaUtils
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.Inside.inside
+import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.freespec.AnyFreeSpec
+import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import workflow4s.example.checks.StaticCheck
-import workflow4s.example.testuitls.TestUtils.SignalResponseIOOps
 import workflow4s.example.withdrawal.*
 import workflow4s.example.withdrawal.WithdrawalService.{ExecutionResponse, Fee, Iban}
 import workflow4s.example.withdrawal.WithdrawalSignal.CreateWithdrawal
 import workflow4s.example.withdrawal.checks.*
-import workflow4s.runtime.{InMemoryRunningWorkflow, InMemoryRuntime}
 import workflow4s.wio.KnockerUpper
 import workflow4s.wio.model.{WIOModel, WIOModelInterpreter}
 
 import java.time.{Clock, Instant, ZoneId, ZoneOffset}
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.Await
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.jdk.DurationConverters.ScalaDurationOps
 
 //noinspection ForwardReference
-class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
+class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory with BeforeAndAfterAll with BeforeAndAfter {
+  val testKit                   = ActorTestKit("MyCluster")
+  override def afterAll(): Unit = testKit.shutdownTestKit()
 
-  "Withdrawal Example" - {
+  before {
+    val f = SchemaUtils.createIfNotExists()(testKit.system)
+    Await.result(f, 10.seconds)
+  }
+
+  "in-memory-sync" - {
+    withdrawalTests(TestRuntimeAdapter.InMemorySync)
+  }
+  "in-memory" - {
+    withdrawalTests(TestRuntimeAdapter.InMemory)
+  }
+  "pekko" - {
+    withdrawalTests(new TestRuntimeAdapter.Pekko("withdrawal")(testKit.system))
+  }
+
+  "render model" in {
+    val wf = new WithdrawalWorkflow(null, DummyChecksEngine)
+    TestUtils.renderModelToFile(wf.workflowDeclarative, "withdrawal-example-declarative-model.json")
+  }
+
+  "render bpmn model" in {
+    val wf = new WithdrawalWorkflow(null, DummyChecksEngine)
+    TestUtils.renderBpmnToFile(wf.workflow, "withdrawal-example-bpmn.bpmn")
+    TestUtils.renderBpmnToFile(wf.workflowDeclarative, "withdrawal-example-bpmn-declarative.bpmn")
+  }
+
+  def withdrawalTests(runtime: TestRuntimeAdapter) = {
 
     "happy path" in new Fixture {
       assert(actor.queryData() == WithdrawalData.Empty(txId))
@@ -104,17 +134,6 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
       }
     }
 
-    "render model" in new Fixture {
-      val wf = new WithdrawalWorkflow(service, DummyChecksEngine)
-      TestUtils.renderModelToFile(wf.workflowDeclarative, "withdrawal-example-declarative-model.json")
-    }
-
-    "render bpmn model" in new Fixture {
-      val wf = new WithdrawalWorkflow(service, DummyChecksEngine)
-      TestUtils.renderBpmnToFile(wf.workflow, "withdrawal-example-bpmn.bpmn")
-      TestUtils.renderBpmnToFile(wf.workflowDeclarative, "withdrawal-example-bpmn-declarative.bpmn")
-    }
-
     "cancel" - {
 
       // other tests require concurrent testing
@@ -150,90 +169,93 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory {
       }
 
     }
+
+    trait Fixture extends StrictLogging {
+      val txId  = "abc"
+      val clock = new TestClock
+      val actor = createActor(List())
+
+      def checkRecovery() = {
+        logger.debug("Checking recovery")
+        val originalState = actor.wf.queryState()
+        val secondActor   = runtime.recover(actor.wf)
+        // seems sometimes querying state from fresh actor gets flaky
+        val recoveredState = eventually {
+          secondActor.queryState()
+        }
+        assert(recoveredState == originalState)
+      }
+
+      def createActor(events: Seq[WithdrawalEvent]) = {
+        val wf    = runtime
+          .runWorkflow[WithdrawalWorkflow.Context.type, WithdrawalData.Empty](
+            workflow,
+            WithdrawalData.Empty(txId),
+            WithdrawalData.Empty(txId),
+            clock,
+          )
+        val actor = new WithdrawalActor(wf)
+        actor
+      }
+
+      lazy val amount                                                                                       = 100
+      lazy val recipient                                                                                    = Iban("A")
+      lazy val fees                                                                                         = Fee(11)
+      lazy val externalId                                                                                   = "external-id-1"
+      lazy val service: WithdrawalService                                                                   = mock[WithdrawalService]
+      def checksEngine: ChecksEngine                                                                        = ChecksEngine
+      def workflow: WithdrawalWorkflow.Context.WIO[WithdrawalData.Empty, Nothing, WithdrawalData.Completed] =
+        new WithdrawalWorkflow(service, checksEngine).workflowDeclarative
+
+      def withFeeCalculation(fee: Fee)                            =
+        (service.calculateFees _).expects(*).returning(IO(fee))
+      def withMoneyOnHold(success: Boolean)                       =
+        (service.putMoneyOnHold _).expects(*).returning(IO(Either.cond(success, (), WithdrawalService.NotEnoughFunds())))
+      def withExecutionInitiated(success: Boolean)                =
+        (service.initiateExecution _)
+          .expects(*, *)
+          .returning(IO(if (success) ExecutionResponse.Accepted(externalId) else ExecutionResponse.Rejected("Rejected by execution engine")))
+      def withFundsReleased()                                     =
+        (service.releaseFunds _)
+          .expects(*)
+          .returning(IO.unit)
+      def withFundsLockCancelled()                                =
+        (service.cancelFundsLock _)
+          .expects()
+          .returning(IO.unit)
+      def withChecks(list: List[Check[WithdrawalData.Validated]]) =
+        (service.getChecks _)
+          .expects()
+          .returning(list)
+          .anyNumberOfTimes()
+      def withNoChecks()                                          = withChecks(List())
+
+      class WithdrawalActor(val wf: runtime.Actor[WithdrawalWorkflow.Context.type]) {
+        def init(req: CreateWithdrawal): Unit                                = {
+          wf.deliverSignal(WithdrawalWorkflow.Signals.createWithdrawal, req)
+          wf.wakeup()
+        }
+        def confirmExecution(req: WithdrawalSignal.ExecutionCompleted): Unit = {
+          wf.deliverSignal(WithdrawalWorkflow.Signals.executionCompleted, req)
+        }
+        def cancel(req: WithdrawalSignal.CancelWithdrawal): Unit             = {
+          wf.deliverSignal(WithdrawalWorkflow.Signals.cancel, req)
+        }
+
+        def queryData(): WithdrawalData = wf.queryState()
+      }
+
+      def getModel(wio: WithdrawalWorkflow.Context.WIO[?, ?, ?]): WIOModel = {
+        WIOModelInterpreter.run(wio)
+      }
+
+    }
+
   }
 
-  trait Fixture extends StrictLogging {
-    lazy val actor   = createActor(List())
-    val clock        = new TestClock
-    val knockerUpper = KnockerUpper.noop
-
-    def checkRecovery() = {
-      logger.debug("Checking recovery")
-      val secondActor = createActor(actor.events)
-      assert(actor.queryData() == secondActor.queryData())
-    }
-
-    def createActor(events: Seq[WithdrawalEvent]) = {
-      val wf    = InMemoryRuntime
-        .runWorkflow[WithdrawalWorkflow.Context.type, WithdrawalData.Empty](
-          workflow,
-          WithdrawalData.Empty(txId),
-          events,
-          clock,
-        )
-        .unsafeRunSync()
-      val actor = new WithdrawalActor(wf)
-      actor
-    }
-
-    val txId                                                                                              = "abc"
-    val amount                                                                                            = 100
-    val recipient                                                                                         = Iban("A")
-    val fees                                                                                              = Fee(11)
-    val externalId                                                                                        = "external-id-1"
-    val service: WithdrawalService                                                                        = mock[WithdrawalService]
-    def checksEngine: ChecksEngine                                                                        = ChecksEngine
-    def workflow: WithdrawalWorkflow.Context.WIO[WithdrawalData.Empty, Nothing, WithdrawalData.Completed] =
-      new WithdrawalWorkflow(service, checksEngine).workflowDeclarative
-
-    def withFeeCalculation(fee: Fee)                            =
-      (service.calculateFees _).expects(*).returning(IO(fee))
-    def withMoneyOnHold(success: Boolean)                       =
-      (service.putMoneyOnHold _).expects(*).returning(IO(Either.cond(success, (), WithdrawalService.NotEnoughFunds())))
-    def withExecutionInitiated(success: Boolean)                =
-      (service.initiateExecution _)
-        .expects(*, *)
-        .returning(IO(if (success) ExecutionResponse.Accepted(externalId) else ExecutionResponse.Rejected("Rejected by execution engine")))
-    def withFundsReleased()                                     =
-      (service.releaseFunds _)
-        .expects(*)
-        .returning(IO.unit)
-    def withFundsLockCancelled()                                =
-      (service.cancelFundsLock _)
-        .expects()
-        .returning(IO.unit)
-    def withChecks(list: List[Check[WithdrawalData.Validated]]) =
-      (service.getChecks _)
-        .expects()
-        .returning(list)
-        .anyNumberOfTimes()
-    def withNoChecks()                                          = withChecks(List())
-
-    object DummyChecksEngine extends ChecksEngine {
-      override def runChecks: ChecksEngine.Context.WIO[ChecksInput, Nothing, ChecksState.Decided] =
-        ChecksEngine.Context.WIO.pure(ChecksState.Decided(Map(), Decision.ApprovedBySystem()))
-    }
-
-    class WithdrawalActor(wf: InMemoryRunningWorkflow[WithdrawalWorkflow.Context.type]) {
-      def init(req: CreateWithdrawal): Unit                                = {
-        wf.deliverSignal(WithdrawalWorkflow.Signals.createWithdrawal, req).extract
-      }
-      def confirmExecution(req: WithdrawalSignal.ExecutionCompleted): Unit = {
-        wf.deliverSignal(WithdrawalWorkflow.Signals.executionCompleted, req).extract
-      }
-      def cancel(req: WithdrawalSignal.CancelWithdrawal): Unit             = {
-        wf.deliverSignal(WithdrawalWorkflow.Signals.cancel, req).extract
-      }
-
-      def queryData(): WithdrawalData = wf.queryState().unsafeRunSync()
-
-      def events: Seq[WithdrawalEvent] = wf.getEvents.unsafeRunSync()
-    }
-
-    def getModel(wio: WithdrawalWorkflow.Context.WIO[?, ?, ?]): WIOModel = {
-      WIOModelInterpreter.run(wio)
-    }
-
+  object DummyChecksEngine extends ChecksEngine {
+    override def runChecks: ChecksEngine.Context.WIO[ChecksInput, Nothing, ChecksState.Decided] =
+      ChecksEngine.Context.WIO.pure(ChecksState.Decided(Map(), Decision.ApprovedBySystem()))
   }
 
 }

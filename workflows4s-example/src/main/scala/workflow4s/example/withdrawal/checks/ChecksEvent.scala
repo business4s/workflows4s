@@ -1,8 +1,7 @@
 package workflow4s.example.withdrawal.checks
 
 import io.circe.Codec
-import io.circe.syntax.EncoderOps
-import org.apache.pekko.serialization.Serializer
+import workflow4s.example.pekko.PekkoCirceSerializer
 
 import java.time.Instant
 
@@ -15,18 +14,7 @@ object ChecksEvent {
   case class AwaitingTimeout(started: Instant)              extends ChecksEvent
   case class ExecutionTimedOut(releasedAt: Instant)         extends ChecksEvent
 
-  class PekkoSerializer extends Serializer {
-    override def includeManifest: Boolean = true
+  class PekkoSerializer extends PekkoCirceSerializer[ChecksEvent]{
     override def identifier = 12345677
-
-    override def toBinary(obj: AnyRef): Array[Byte] = {
-      obj match {
-        case e: ChecksEvent => e.asJson.noSpaces.getBytes
-        case other => ???
-      }
-    }
-    def fromBinary(bytes: Array[Byte], clazz: Option[Class[_]]): AnyRef = {
-      io.circe.parser.decode(String(bytes)).toTry.get
-    }
   }
 }

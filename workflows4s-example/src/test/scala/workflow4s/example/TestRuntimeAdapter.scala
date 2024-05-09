@@ -2,8 +2,9 @@ package workflow4s.example
 
 import cats.Id
 import com.typesafe.scalalogging.StrictLogging
+import org.apache.pekko.actor.typed.*
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
-import org.apache.pekko.actor.typed.{ActorRef, ActorSystem, Behavior, BehaviorInterceptor, TypedActorContext}
+import org.apache.pekko.cluster.sharding.typed.ShardingEnvelope
 import org.apache.pekko.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity, EntityRef, EntityTypeKey}
 import org.apache.pekko.persistence.typed.PersistenceId
 import org.apache.pekko.util.Timeout
@@ -143,7 +144,7 @@ object TestRuntimeAdapter {
                 }
             },
           )(base)
-        }),
+        })
       )
       val persistenceId = UUID.randomUUID().toString
       val entityRef     = sharding.entityRefFor(typeKey, persistenceId)
@@ -153,8 +154,12 @@ object TestRuntimeAdapter {
     case class Actor[Ctx <: WorkflowContext](entityRef: EntityRef[Cmd[Ctx]]) extends RunningWorkflow[Id, WCState[Ctx]] {
       val base          = PekkoRunningWorkflow(entityRef, stateQueryTimeout = Timeout(1.second))
       override def queryState(): Id[WCState[Ctx]]                                                                                          = base.queryState().await
-      override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): Id[Either[RunningWorkflow.UnexpectedSignal, Resp]] =
-        base.deliverSignal(signalDef, req).await
+      override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): Id[Either[RunningWorkflow.UnexpectedSignal, Resp]] = {
+        val resp = base.deliverSignal(signalDef, req).await
+        wakeup()
+        resp
+      }
+
       override def wakeup(): Id[Unit]                                                                                                      = base.wakeup().await
 
       // TODO could at least use futureValue from scalatest
@@ -167,6 +172,7 @@ object TestRuntimeAdapter {
       implicit val timeout: Timeout = Timeout(1.second)
       val isStopped = first.entityRef.ask(replyTo => Stop(replyTo))
       Await.result(isStopped, 1.second)
+      Thread.sleep(100) // this is terrible but sometimes akka gives us already terminated actor if we ask for it too fast.
       val entityRef = sharding.entityRefFor(first.entityRef.typeKey, first.entityRef.entityId)
       logger.debug(
         s"""Original Actor: ${first.entityRef}

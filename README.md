@@ -28,8 +28,9 @@ The following items are planned in scope of this PoC
 - [x] Typesafe state queries
 - [x] Handling interruptions
 - [x] Handling timers (await, timout)
+- [x] Pekko runtime PoC
+- [ ] Postgres runtime PoC
 - [ ] Checkpointing
-- [ ] Pekko/Shardcake/Postgres runtime PoC
 - [ ] Test harness
 - [ ] Explicit approach to handling workflow evolutions
 
