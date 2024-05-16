@@ -1,4 +1,5 @@
-# workflows4s
+# Workflows4s
+![Discord](https://img.shields.io/discord/1240565362601230367?style=flat-square&logo=discord&link=https%3A%2F%2Fbit.ly%2Fbusiness4s-discord)
 
 This repository contains an experiment to provide a bew way for achieveing durable execution in Scala.
 
