@@ -54,7 +54,7 @@ object BPMNConverter {
           .serviceTask()
           .name(operationName.getOrElse(s"""Handle "${signalName}""""))
           .pipe(renderError(error))
-      case WIOModel.HandleError(base, handler, errName)               =>
+      case WIOModel.HandleError(base, handler, error)               =>
         val subProcessStartEventId = Random.alphanumeric.filter(_.isLetter).take(10).mkString
         val subBuilder             = builder
           .subProcess()
@@ -66,7 +66,7 @@ object BPMNConverter {
           .subProcessDone()
           .boundaryEvent()
           .error()
-          .name(errName.name)
+          .name(error.map(_.name).getOrElse(""))
         handle(handler, errPath)
           .endEvent()
           .moveToNode(subProcessStartEventId)

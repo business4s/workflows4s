@@ -1,7 +1,7 @@
 package workflow4s.wio
 
 import workflow4s.wio.WIO.InterruptionSource
-import workflow4s.wio.model.ModelUtils
+import workflow4s.wio.model.{ModelUtils, WIOModel, WIOModelInterpreter}
 
 import scala.annotation.targetName
 
@@ -34,14 +34,10 @@ trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self
   //  )(implicit errCt: ClassTag[ErrIn], newErrCt: ClassTag[Err1]): WIO[Err1, Out1, StIn1, StOut1] =
   //    WIO.HandleError(this, f, errCt, newErrCt)
 
-  // we have to recover state as well, and hence we assume `In1` has to be a valid sate.
-  // we could have alternative method with explicit state recovery argument
-  // alternatively maybe we can explore the idea of "not always updating the state" (so interpretation brings new behaviour but no new state)
-  def handleErrorWith[Err1, Out1 >: Out <: WCState[Ctx], ErrIn >: Err, In0 <: In, In1 >: In0 <: WCState[Ctx]](
-      wio: WIO[(In1, ErrIn), Err1, Out1, Ctx],
-  )(implicit errMeta: ErrorMeta[ErrIn], newErrMeta: ErrorMeta[Err1]): WIO[In0, Err1, Out1, Ctx] = {
-    val recoverState: (In1, Err) => WCState[Ctx] = (i, _) => i
-    WIO.HandleErrorWith(this, wio, recoverState, errMeta, newErrMeta)
+  def handleErrorWith[Err1, Out1 >: Out <: WCState[Ctx], ErrIn >: Err](
+      wio: WIO[(WCState[Ctx], ErrIn), Err1, Out1, Ctx],
+  )(implicit errMeta: ErrorMeta[ErrIn], newErrMeta: ErrorMeta[Err1]): WIO[In, Err1, Out1, Ctx] = {
+    WIO.HandleErrorWith(this, wio, errMeta, newErrMeta)
   }
 
   def named(name: String, description: Option[String] = None): WIO[In, Err, Out, Ctx] = {
@@ -64,5 +60,8 @@ trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self
       interruption: WIO.Interruption[Ctx, Err1, Out1, ?, ?],
   ): WIO.HandleInterruption[Ctx, In1, Err1, Out1] =
     WIO.HandleInterruption(this, interruption)
+
+
+  def getModel: WIOModel = WIOModelInterpreter.run(this)
 
 }

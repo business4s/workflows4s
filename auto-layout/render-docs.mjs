@@ -30,4 +30,4 @@ async function convertBpmnToSvg(directoryPath) {
     }
 }
 
-convertBpmnToSvg('./../workflow4s-example/src/test/resources/docs');
+convertBpmnToSvg('./../workflows4s-example/src/test/resources/docs');

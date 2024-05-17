@@ -78,7 +78,7 @@ object ChecksEngine extends ChecksEngine {
           .map(results => ChecksEvent.ChecksRun(results.toMap))
       })
       .handleEvent((state, evt) => state.addResults(evt.results))
-      .autoNamed()
+      .autoNamed
 
   private val systemDecision: WIO[ChecksState.Executed, Nothing, ChecksState.Decided] =
     WIO.pure.make(st => {

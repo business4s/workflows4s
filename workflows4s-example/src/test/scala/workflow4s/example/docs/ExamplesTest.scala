@@ -2,6 +2,7 @@ package workflow4s.example.docs
 
 import org.scalatest.freespec.AnyFreeSpec
 import workflow4s.example.TestUtils
+import workflow4s.example.docs.pullrequest.PullRequestWorkflow
 
 class ExamplesTest  extends AnyFreeSpec {
 
@@ -14,6 +15,8 @@ class ExamplesTest  extends AnyFreeSpec {
     TestUtils.renderDocsExample(HandleErrorExample.errorHandled, "handle-error-with")
     TestUtils.renderDocsExample(LoopExample.Simple.loop, "simple-loop")
     TestUtils.renderDocsExample(LoopExample.loop, "loop")
+    TestUtils.renderDocsExample(PullRequestWorkflow.workflow, "pull-request" +
+      "")
   }
 
 }

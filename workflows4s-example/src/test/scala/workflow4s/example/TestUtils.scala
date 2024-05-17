@@ -8,19 +8,21 @@ import workflow4s.wio.WIO
 import workflow4s.wio.model.WIOModelInterpreter
 
 import java.io.File
-import java.nio.file.Files
+import java.nio.file.{Files, Path}
 
 object TestUtils {
+
+  val basePath = Path.of(scala.sys.env.getOrElse("RENDER_OUT_DIR", "."))
 
   def renderModelToFile(wio: WIO[?, ?, ?, ?], path: String) = {
     val model           = WIOModelInterpreter.run(wio)
     val modelJson: Json = model.asJson
-    Files.writeString(java.nio.file.Path.of(s"workflows4s-example/src/test/resources/${path}").toAbsolutePath, jsonPrinter.print(modelJson))
+    Files.writeString(basePath.resolve(s"workflows4s-example/src/test/resources/${path}").toAbsolutePath, jsonPrinter.print(modelJson))
   }
   def renderBpmnToFile(wio: WIO[?, ?, ?, ?], path: String)  = {
     val model     = WIOModelInterpreter.run(wio)
     val bpmnModel = BPMNConverter.convert(model, "process")
-    Bpmn.writeModelToFile(new File(s"workflows4s-example/src/test/resources/${path}").getAbsoluteFile, bpmnModel)
+    Bpmn.writeModelToFile(basePath.resolve(s"workflows4s-example/src/test/resources/${path}").toFile.getAbsoluteFile, bpmnModel)
   }
 
   def renderDocsExample(wio: WIO[?, ?, ?, ?], name: String) = {

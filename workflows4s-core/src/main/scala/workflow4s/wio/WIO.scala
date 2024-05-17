@@ -2,7 +2,16 @@ package workflow4s.wio
 
 import cats.effect.IO
 import workflow4s.wio.WIO.Timer.DurationSource
-import workflow4s.wio.builders.{AwaitBuilder, BranchBuilder, ForkBuilder, HandleSignalBuilder, InterruptionBuilder, LoopBuilder, WIOBuilderMethods}
+import workflow4s.wio.builders.{
+  AllBuilders,
+  AwaitBuilder,
+  BranchBuilder,
+  ForkBuilder,
+  HandleSignalBuilder,
+  InterruptionBuilder,
+  LoopBuilder,
+  WIOBuilderMethods,
+}
 import workflow4s.wio.internal.WorkflowEmbedding.EventEmbedding
 import workflow4s.wio.internal.{EventHandler, SignalHandler, WIOUtils, WorkflowEmbedding}
 
@@ -15,15 +24,10 @@ trait WorkflowContext { ctx: WorkflowContext =>
   type State
 
   type WIO[-In, +Err, +Out <: State] = workflow4s.wio.WIO[In, Err, Out, ctx.type]
-  object WIO
-      extends WIOBuilderMethods[ctx.type]
-      with HandleSignalBuilder.Step0[ctx.type]
-      with LoopBuilder.Step0[ctx.type]
-      with AwaitBuilder.Step0[ctx.type]
-      with ForkBuilder.Step0[ctx.type]
-      with BranchBuilder.Step0[ctx.type] {
+  object WIO extends AllBuilders[ctx.type] {
     type Branch[-In, +Err, +Out <: State]  = workflow4s.wio.WIO.Branch[In, Err, Out, ctx.type]
     type Interruption[+Err, +Out <: State] = workflow4s.wio.WIO.Interruption[ctx.type, Err, Out, ?, ?]
+    type Draft = WIO[Any, Nothing, Nothing]
 
     def interruption: InterruptionBuilder.Step0[ctx.type] = InterruptionBuilder.Step0[ctx.type]()
   }
@@ -48,6 +52,7 @@ sealed trait WIO[-In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext] extend
 object WIO {
 
   type Initial[Ctx <: WorkflowContext, In <: WCState[Ctx]] = WIO[In, Nothing, WCState[Ctx], Ctx]
+  type Draft[Ctx <: WorkflowContext] = WIO[Any, Nothing, Nothing, Ctx]
 
   sealed trait InterruptionSource[-In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext] extends WIO[In, Err, Out, Ctx] {
     def asTimer: Option[WIO.Timer[Ctx, In, Err, Out]] = this match {
@@ -76,8 +81,12 @@ object WIO {
   case class RunIO[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx], Evt](
       buildIO: In => IO[Evt],
       evtHandler: EventHandler[In, Either[Err, Out], WCEvent[Ctx], Evt],
-      errorMeta: ErrorMeta[_],
+      meta: RunIO.Meta,
   ) extends WIO[In, Err, Out, Ctx]
+
+  object RunIO {
+    case class Meta(error: ErrorMeta[_], name: Option[String])
+  }
 
   case class FlatMap[Ctx <: WorkflowContext, Err1 <: Err2, Err2, Out1 <: WCState[Ctx], +Out2 <: WCState[Ctx], -In](
       base: WIO[In, Err1, Out1, Ctx],
@@ -108,8 +117,7 @@ object WIO {
 
   case class HandleErrorWith[Ctx <: WorkflowContext, -In, Err, +Out <: WCState[Ctx], +ErrOut](
       base: WIO[In, Err, Out, Ctx],
-      handleError: WIO[(In, Err), ErrOut, Out, Ctx],
-      recoverState: (In, Err) => WCState[Ctx],
+      handleError: WIO[(WCState[Ctx], Err), ErrOut, Out, Ctx],
       handledErrorMeta: ErrorMeta[_],
       newErrorCt: ErrorMeta[_],
   ) extends WIO[In, ErrOut, Out, Ctx]

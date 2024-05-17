@@ -54,7 +54,7 @@ object EventEvaluator {
       recurse(wio.base, state, event).map((newWf: NextWfState[Ctx, ErrIn, Out]) => {
         val casted: NextWfState[Ctx, ErrIn, Out] { type Error = ErrIn } =
           newWf.asInstanceOf[NextWfState[Ctx, ErrIn, Out] { type Error = ErrIn }] // TODO casting
-        applyHandleErrorWith(wio, casted, state)
+        applyHandleErrorWith(wio, casted, initialState)
       })
     def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result                             =
       recurse(wio.first, state, event).map(preserveAndThen(wio, _))

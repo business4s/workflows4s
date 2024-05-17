@@ -213,11 +213,11 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
   protected def applyHandleErrorWith[ErrIn](
       wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err],
       wf: NextWfState[Ctx, ErrIn, Out] { type Error = ErrIn },
-      originalState: In,
+      currentState: WCState[Ctx]
   ): NextWfState[Ctx, Err, Out] = {
     def newWf(err: ErrIn): NewBehaviour[Ctx, Err, Out] = NewBehaviour(
-      wio.handleError.transformInput[Any](_ => (originalState, err)),
-      Right(wio.recoverState(originalState, err)),
+      wio.handleError.provideInput((currentState, err)),
+      Right(currentState),
     )
 
     wf.fold(
@@ -225,10 +225,9 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
         b.state match {
           case Left(value) => newWf(value)
           case Right(v)    =>
-            val adjustedHandler                                     = wio.handleError.transformInput[(Any, ErrIn)](x => (originalState, x._2))
-            val adjustedStateRecovery: (Any, ErrIn) => WCState[Ctx] = (_, err) => wio.recoverState(originalState, err)
+            val adjustedHandler                                     = wio.handleError.transformInput[(Any, ErrIn)](x => (currentState, x._2))
             val newWIO: WIO[b.State, Err, Out, Ctx]                 =
-              WIO.HandleErrorWith(b.wio, adjustedHandler, adjustedStateRecovery, wio.handledErrorMeta, wio.newErrorCt)
+              WIO.HandleErrorWith(b.wio, adjustedHandler, wio.handledErrorMeta, wio.newErrorCt)
             NewBehaviour(newWIO, v.asRight)
         }
       },

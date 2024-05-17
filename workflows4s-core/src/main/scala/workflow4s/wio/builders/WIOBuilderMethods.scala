@@ -1,39 +1,10 @@
 package workflow4s.wio.builders
 
-import cats.effect.IO
 import cats.implicits.catsSyntaxEitherId
-import workflow4s.wio.WIO.Branch
-import workflow4s.wio.internal.{EventHandler, WorkflowEmbedding}
 import workflow4s.wio.*
-
-import scala.concurrent.duration.Duration
-import scala.reflect.ClassTag
+import workflow4s.wio.internal.WorkflowEmbedding
 
 trait WIOBuilderMethods[Ctx <: WorkflowContext] {
-
-  def runIO[State] = new RunIOPartiallyApplied1[State]
-
-  class RunIOPartiallyApplied1[StIn] {
-    def apply[Evt <: WCEvent[Ctx]: ClassTag](f: StIn => IO[Evt]): RunIOPartiallyApplied2[StIn, Evt] = {
-      new RunIOPartiallyApplied2[StIn, Evt](f)
-    }
-  }
-
-  class RunIOPartiallyApplied2[In, Evt <: WCEvent[Ctx]: ClassTag](getIO: In => IO[Evt]) {
-    def handleEvent[Out <: WCState[Ctx]](f: (In, Evt) => Out): WIO[In, Nothing, Out, Ctx] = {
-      WIO.RunIO[Ctx, In, Nothing, Out, Evt](
-        getIO,
-        EventHandler(summon[ClassTag[Evt]].unapply, identity, (s, e: Evt) => f(s, e).asRight),
-        ErrorMeta.noError,
-      )
-    }
-
-    def handleEventWithError[Err, Out <: WCState[Ctx]](
-        f: (In, Evt) => Either[Err, Out],
-    )(implicit errorCt: ErrorMeta[Err]): WIO[In, Err, Out, Ctx] = {
-      WIO.RunIO[Ctx, In, Err, Out, Evt](getIO, EventHandler(summon[ClassTag[Evt]].unapply, identity, f), errorCt)
-    }
-  }
 
   def getState[St <: WCState[Ctx]]: WIO[St, Nothing, St, Ctx] = WIO.Pure(s => s.asRight, ErrorMeta.noError)
 

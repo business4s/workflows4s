@@ -23,7 +23,7 @@ object WIOModelInterpreter {
       WIOModel.HandleSignal(wio.meta.signalName, wio.meta.error.toModel, wio.meta.operationName)
     }
     def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result                                                   = {
-      WIOModel.RunIO(wio.errorMeta.toModel, m.name)
+      WIOModel.RunIO(wio.meta.error.toModel, wio.meta.name)
     }
     def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result          = {
       WIOModel.Sequence(Seq(recurse(wio.base, None), WIOModel.Dynamic(m.name, wio.errorMeta.toModel)))
@@ -36,14 +36,16 @@ object WIOModelInterpreter {
       WIOModel.HandleError(
         recurse(wio.base, None),
         WIOModel.Dynamic(m.name, wio.newErrorMeta.toModel),
-        wio.handledErrorMeta.toModel.get, // handling Nothing makes no sense
+        wio.handledErrorMeta.toModel,
       )
     }
     def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result                           = {
       WIOModel.HandleError(
         recurse(wio.base, None),
         recurse(wio.handleError, None),
-        wio.handledErrorMeta.toModel.get, // handling Nothing makes no sense
+        // handling Nothing makes no sense but for the purpose of drafts we have to allow for it
+        // unless we bank it on type-level
+        wio.handledErrorMeta.toModel,
       )
     }
     def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result                             = {

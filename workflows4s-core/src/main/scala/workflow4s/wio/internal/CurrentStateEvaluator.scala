@@ -56,7 +56,7 @@ object CurrentStateEvaluator {
       case WIO.Pure(_, _)                     => none
       case WIO.Noop()                         => none
       case WIO.HandleError(_, _, _, _)        => none
-      case WIO.HandleErrorWith(_, _, _, _, _) => none
+      case WIO.HandleErrorWith(_, _, _, _) => none
       case WIO.Named(_, name, _, _)           => name.some
       case WIO.AndThen(_, _)                  => none
       case WIO.Loop(_, _, _, _, _, _)         => none

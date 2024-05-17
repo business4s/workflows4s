@@ -1,0 +1,40 @@
+{
+  "base" : {
+    "steps" : [
+      {
+        "signalName" : "Create PR",
+        "error" : null,
+        "operationName" : null,
+        "_type" : "HandleSignal"
+      },
+      {
+        "error" : {
+          "name" : "Critical Issue"
+        },
+        "name" : "Run Pipeline",
+        "_type" : "RunIO"
+      },
+      {
+        "signalName" : "Await Review",
+        "error" : {
+          "name" : "Rejected"
+        },
+        "operationName" : null,
+        "_type" : "HandleSignal"
+      },
+      {
+        "error" : null,
+        "name" : "Merge PR",
+        "_type" : "RunIO"
+      }
+    ],
+    "_type" : "Sequence"
+  },
+  "handler" : {
+    "error" : null,
+    "name" : "Close PR",
+    "_type" : "RunIO"
+  },
+  "error" : null,
+  "_type" : "HandleError"
+}
