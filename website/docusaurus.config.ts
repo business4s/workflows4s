@@ -7,15 +7,12 @@ const config: Config = {
     tagline: 'Simple, Composable, Business-oriented Workflows for Scala',
     favicon: 'img/favicon.ico',
 
-    // Set the production url of your site here
-    url: 'https://your-docusaurus-site.example.com',
-    // Set the /<baseUrl>/ pathname under which your site is served
-    // For GitHub pages deployment, it is often '/<projectName>/'
-    baseUrl: '/',
-
     // GitHub pages deployment config.
-    organizationName: 'krever',
-    projectName: 'workflows4s', // Usually your repo name.
+    url: 'https://business4s.github.io/',
+    baseUrl: '/workflows4s/',
+    organizationName: 'business4s',
+    projectName: 'workflows4s',
+    trailingSlash: true,
 
     onBrokenLinks: 'throw',
     onBrokenMarkdownLinks: 'warn',
