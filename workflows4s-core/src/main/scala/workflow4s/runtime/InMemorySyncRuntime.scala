@@ -7,7 +7,7 @@ import java.time.Clock
 
 object InMemorySyncRuntime {
 
-  def create[Ctx <: WorkflowContext, In <: WCState[Ctx]](
+  def runWorkflow[Ctx <: WorkflowContext, In <: WCState[Ctx]](
       behaviour: WIO[In, Nothing, WCState[Ctx], Ctx],
       state: In,
       clock: Clock = Clock.systemUTC(),

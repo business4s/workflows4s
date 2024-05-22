@@ -1,5 +1,7 @@
 package workflow4s.wio
 
+import workflow4s.wio.model.ModelUtils
+
 import scala.reflect.ClassTag
 
 sealed trait ErrorMeta[T] {
@@ -21,6 +23,6 @@ object ErrorMeta {
 
   implicit def noError: ErrorMeta[Nothing] = NoError[Nothing]()
 
-  implicit def fromClassTag[T](implicit ct: ClassTag[T]): ErrorMeta[T] = Present(ct.runtimeClass.getSimpleName)
+  implicit def fromClassTag[T](implicit ct: ClassTag[T]): ErrorMeta[T] = Present(ModelUtils.getPrettyNameForClass(ct))
 
 }

@@ -1,6 +1,6 @@
 {
   "error" : {
-    "name" : "MyError"
+    "name" : "My Error"
   },
   "name" : "Do Things With Error",
   "_type" : "RunIO"

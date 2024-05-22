@@ -2,39 +2,43 @@
   "base" : {
     "steps" : [
       {
-        "signalName" : "Create PR",
-        "error" : null,
-        "operationName" : null,
+        "signalName" : "Create Request",
+        "error" : {
+          "name" : "Commit Not Found"
+        },
+        "operationName" : "Create PR",
         "_type" : "HandleSignal"
       },
       {
         "error" : {
-          "name" : "Critical Issue"
+          "name" : "Pipeline Failed"
         },
         "name" : "Run Pipeline",
         "_type" : "RunIO"
       },
       {
-        "signalName" : "Await Review",
+        "signalName" : "Review Request",
         "error" : {
-          "name" : "Rejected"
+          "name" : "Review Rejected"
         },
-        "operationName" : null,
+        "operationName" : "Await Review",
         "_type" : "HandleSignal"
       },
       {
-        "error" : null,
         "name" : "Merge PR",
-        "_type" : "RunIO"
+        "error" : null,
+        "_type" : "Pure"
       }
     ],
     "_type" : "Sequence"
   },
   "handler" : {
-    "error" : null,
     "name" : "Close PR",
-    "_type" : "RunIO"
+    "error" : null,
+    "_type" : "Pure"
   },
-  "error" : null,
+  "error" : {
+    "name" : "PRError"
+  },
   "_type" : "HandleError"
 }

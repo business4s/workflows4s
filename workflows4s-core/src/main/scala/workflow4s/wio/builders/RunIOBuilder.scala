@@ -12,11 +12,11 @@ object RunIOBuilder {
 
   trait Step0[Ctx <: WorkflowContext] {
 
-    def runIO[State] = new RunIOBuilderStep1[State]
+    def runIO[Input] = new RunIOBuilderStep1[Input]
 
-    class RunIOBuilderStep1[StIn] {
-      def apply[Evt <: WCEvent[Ctx]: ClassTag](f: StIn => IO[Evt]): Step2[StIn, Evt] = {
-        new Step2[StIn, Evt](f)
+    class RunIOBuilderStep1[Input] {
+      def apply[Evt <: WCEvent[Ctx]: ClassTag](f: Input => IO[Evt]): Step2[Input, Evt] = {
+        new Step2[Input, Evt](f)
       }
 
       class Step2[In, Evt <: WCEvent[Ctx]: ClassTag](getIO: In => IO[Evt]) {

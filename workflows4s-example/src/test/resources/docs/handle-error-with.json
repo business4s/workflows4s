@@ -2,7 +2,7 @@
   "base" : {
     "name" : "Do Things",
     "error" : {
-      "name" : "MyError"
+      "name" : "My Error"
     },
     "_type" : "Pure"
   },
@@ -12,7 +12,7 @@
     "_type" : "Pure"
   },
   "error" : {
-    "name" : "MyError"
+    "name" : "My Error"
   },
   "_type" : "HandleError"
 }

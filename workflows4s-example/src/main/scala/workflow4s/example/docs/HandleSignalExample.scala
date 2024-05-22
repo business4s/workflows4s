@@ -17,7 +17,6 @@ object HandleSignalExample {
       .handleEvent((state, event) => state)
       .produceResponse((state, event) => MyResponse())
       .autoNamed()
-      .done
   // end_withoutError
 
 }

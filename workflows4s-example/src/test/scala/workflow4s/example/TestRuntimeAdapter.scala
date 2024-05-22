@@ -60,7 +60,7 @@ object TestRuntimeAdapter {
         with EventIntrospection[WCEvent[Ctx]] {
       val base = {
         import cats.effect.unsafe.implicits.global
-        InMemorySyncRuntime.create(workflow, state, clock, events)
+        InMemorySyncRuntime.runWorkflow(workflow, state, clock, events)
       }
 
       override def queryState(): Id[WCState[Ctx]]                                                                                          = base.queryState()
