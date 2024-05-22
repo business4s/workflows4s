@@ -1,3 +1,3 @@
 # Interrupting
 
-Interrupting is supported but not documented yet.
+Interrupting the workflow (e.g. with a signal or timer) is supported but not documented yet.
