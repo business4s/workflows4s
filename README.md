@@ -1,22 +1,16 @@
 # Workflows4s
 ![Discord](https://img.shields.io/discord/1240565362601230367?style=flat-square&logo=discord&link=https%3A%2F%2Fbit.ly%2Fbusiness4s-discord)
 
-This repository contains an experiment to provide a bew way for achieveing durable execution in Scala.
+This repository contains an experimental approach to building workflows in Scala.
 
 It tries to merge Temporal's execution model with native event-sourcing while removing the most of the magic from the
 solution.
 
-See the [Example](workflow4s-example/src/main/scala/workflow4s/example) to see the end result.
-
-This example is rendered
-into bpmn ([withdrawal](workflow4s-example/src/test/resources/withdrawal-example-bpmn-declarative.bpmn),
-[checks](workflow4s-example/src/test/resources/checks-engine.bpmn)) that can be opened in camunda modeler or
-at [bpmn.io](http://bpmn.io).
-The checks diagram is not layouted correctly but can be fixed by running `node ./auto-layout/autolayout.mjs`
+See the [**Docs**](https://business4s.github.io/workflows4s) for details.
 
 ## TODO
 
-The following items are planned in scope of this PoC
+The following items are planned in scope of this experiment
 
 - [x] Handling signals
 - [x] Handling queries
@@ -75,19 +69,6 @@ Caveats:
 * all the IOs need to be idempotent, we can't gaurantee exactly-once execution, only at-least-once
 * workflow migrations (modify the workflow structure, e.g. order of operations) is a very complicated topic and will be
   described separately in due time
-
-Internals:
-
-* [WIO.scala](src%2Fmain%2Fscala%2Fworkflow4s%2Fwio%2FWIO.scala)[`WIO`](src/main/scala/workflow4s/wio/WIO.scala) - the
-  basic building block and algebra defining the supported operations
-* [ActiveWorkflow.scala](src%2Fmain%2Fscala%2Fworkflow4s%2Fwio%2FActiveWorkflow.scala) - the workflow state and
-  entrypoint for interactions with the workflow
-* [SimpleActor.scala](src%2Fmain%2Fscala%2Fworkflow4s%2Fwio%2Fsimple%2FSimpleActor.scala) - a very simple implementation
-  of a mutable actor, until we have a proper, pekko-based, example
-* [WithdrawalWorkflow.scala](src%2Fmain%2Fscala%2Fworkflow4s%2Fexample%2FWithdrawalWorkflow.scala) - an example of how
-  to define a workflow
-* [WithdrawalWorkflowTest.scala](src%2Ftest%2Fscala%2Fworkflow4s%2Fexample%2FWithdrawalWorkflowTest.scala) - a test
-  intended to showcase actor usage and the general behaviour
 
 # Alertnatives
 
