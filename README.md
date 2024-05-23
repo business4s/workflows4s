@@ -70,7 +70,7 @@ Caveats:
 * workflow migrations (modify the workflow structure, e.g. order of operations) is a very complicated topic and will be
   described separately in due time
 
-# Alertnatives
+# Alternatives
 
 Workflows4s is heavily inspired by Temporal, and other similar projects but it has two primary design differences:
 
