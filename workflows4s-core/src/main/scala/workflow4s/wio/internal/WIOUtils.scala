@@ -13,7 +13,7 @@ object WIOUtils {
     case x @ WIO.Pure(_, _)                    => x
     case x @ WIO.Noop()                        => x
     case WIO.HandleError(base, _, _, _)        => getFirstRaw(base)
-    case WIO.HandleErrorWith(base, _, _, _, _) => getFirstRaw(base)
+    case WIO.HandleErrorWith(base, _, _, _)    => getFirstRaw(base)
     case WIO.Named(base, _, _, _)              => getFirstRaw(base)
     case WIO.AndThen(first, _)                 => getFirstRaw(first)
     case WIO.Loop(_, _, current, _, _, _)      => getFirstRaw(current)
