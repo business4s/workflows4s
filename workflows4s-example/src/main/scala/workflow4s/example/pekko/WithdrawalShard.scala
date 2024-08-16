@@ -19,7 +19,7 @@ class WithdrawalShard(region: ActorRef[ShardingEnvelope[Command]])(implicit syst
 }
 
 object WithdrawalShard {
-  type Command = WorkflowBehavior.Command[WithdrawalWorkflow.Context.type]
+  type Command = WorkflowBehavior.Command[WithdrawalWorkflow.Context.Ctx]
   val TypeKey = EntityTypeKey[Command]("withdrawal")
 
   def create(withdrawalWorkflow: WithdrawalWorkflow)(implicit

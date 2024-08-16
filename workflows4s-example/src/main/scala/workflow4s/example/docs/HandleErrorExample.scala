@@ -1,10 +1,6 @@
 package workflow4s.example.docs
 
-import cats.effect.IO
-import cats.implicits.catsSyntaxEitherId
-import workflow4s.example.docs
 import workflow4s.example.docs.Context.WIO
-import workflow4s.wio
 
 object HandleErrorExample {
 

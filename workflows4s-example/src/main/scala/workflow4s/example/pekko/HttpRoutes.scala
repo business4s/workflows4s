@@ -13,7 +13,7 @@ import workflow4s.example.withdrawal.WithdrawalService.Iban
 import workflow4s.example.withdrawal.WithdrawalSignal.CreateWithdrawal
 import workflow4s.example.withdrawal.checks.{CheckKey, CheckResult, ChecksInput}
 
-class HttpRoutes(actorSystem: ActorSystem[_], service: WithdrawalWorkflowService)(implicit ioRuntime: IORuntime) extends FailFastCirceSupport {
+class HttpRoutes(actorSystem: ActorSystem[?], service: WithdrawalWorkflowService)(implicit ioRuntime: IORuntime) extends FailFastCirceSupport {
   implicit val checksInput: Encoder[ChecksInput]                   = Encoder.instance(_.checks.keys.map(_.value).asJson)
   implicit val checksResult: Encoder[CheckResult]                  = Encoder.instance(_ => Json.Null)
   implicit val checksResultFinished: Encoder[CheckResult.Finished] = Encoder.instance(_ => Json.Null)

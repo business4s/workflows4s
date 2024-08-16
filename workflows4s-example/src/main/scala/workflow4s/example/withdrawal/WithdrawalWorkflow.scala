@@ -24,7 +24,7 @@ object WithdrawalWorkflow {
     val cancel             = SignalDef[CancelWithdrawal, Unit]()
   }
 
-  val checksEmbedding = new WorkflowEmbedding[ChecksEngine.Context.type, WithdrawalWorkflow.Context.type, WithdrawalData.Validated] {
+  val checksEmbedding = new WorkflowEmbedding[ChecksEngine.Context.Ctx, WithdrawalWorkflow.Context.Ctx, WithdrawalData.Validated] {
     override def convertEvent(e: ChecksEvent): WithdrawalEvent = WithdrawalEvent.ChecksRun(e)
 
     override def unconvertEvent(e: WithdrawalEvent): Option[ChecksEvent] = e match {
@@ -121,7 +121,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
 
   private def runChecks: WIO[WithdrawalData.Validated, WithdrawalRejection.RejectedInChecks, WithdrawalData.Checked] = {
     val doRunChecks: WIO[WithdrawalData.Validated, Nothing, WithdrawalData.Checked] =
-      WIO.embed[WithdrawalData.Validated, Nothing, ChecksState.Decided, ChecksEngine.Context.type, checksEmbedding.OutputState](
+      WIO.embed[WithdrawalData.Validated, Nothing, ChecksState.Decided, ChecksEngine.Context.Ctx, checksEmbedding.OutputState](
         checksEngine.runChecks
           .transformInput((x: WithdrawalData.Validated) => ChecksInput(x, service.getChecks())),
           //          .transformOutput((validated, checkState) => validated.checked(checkState)),

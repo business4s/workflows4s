@@ -68,7 +68,7 @@ object WIOModelInterpreter {
       recurse(wio.inner)
     }
     def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result = {
-      val trigger: WIOModel with WIOModel.Interruption = {
+      val trigger: WIOModel & WIOModel.Interruption = {
         // we are abusing the interpreter pattern a bit to get more concrete result
         wio.interruption.trigger match {
           case x @ WIO.HandleSignal(_, _, _, _) =>
@@ -99,7 +99,7 @@ object WIOModelInterpreter {
       new ModelVisitor(wio, meta.getOrElse(Metadata.empty)).run
     }
 
-    implicit class ErrorMetaOps(m: ErrorMeta[_]) {
+    implicit class ErrorMetaOps(m: ErrorMeta[?]) {
       def toModel: Option[WIOModel.Error] = m match {
         case ErrorMeta.NoError()     => None
         case ErrorMeta.Present(name) => WIOModel.Error(name).some

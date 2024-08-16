@@ -15,7 +15,7 @@ abstract class PekkoCirceSerializer[T <: AnyRef](using ct: ClassTag[T], c: Codec
       case other => ???
     }
   }
-  def fromBinary(bytes: Array[Byte], clazz: Option[Class[_]]): AnyRef = {
+  def fromBinary(bytes: Array[Byte], clazz: Option[Class[?]]): AnyRef = {
     io.circe.parser.decode[T](String(bytes)).toTry.get
   }
 }

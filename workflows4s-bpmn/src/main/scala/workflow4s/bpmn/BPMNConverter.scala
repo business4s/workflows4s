@@ -34,7 +34,7 @@ object BPMNConverter {
   ): Builder = {
     model match {
       case WIOModel.Sequence(steps)                                   =>
-        steps.foldLeft[AbstractFlowNodeBuilder[_, _]](builder)((builder, step) => handle(step, builder))
+        steps.foldLeft[AbstractFlowNodeBuilder[?, ?]](builder)((builder, step) => handle(step, builder))
       case WIOModel.Dynamic(name, error)                              =>
         val taskName = name.map(_ + " (Dynamic)").getOrElse("<Dynamic>")
         builder
@@ -102,7 +102,7 @@ object BPMNConverter {
       case WIOModel.Fork(branches, name)                              =>
         val base                           = builder.exclusiveGateway().name(name.orNull)
         val gwId                           = base.getElement.getId
-        val (resultBuilder, Some(endGwId)) = {
+        val (resultBuilder, Some(endGwId)) = {{
           branches.zipWithIndex.foldLeft[(Builder, Option[String])](base -> None)({ case ((builder1, endGw), (branch, idx)) =>
             val b2              = builder1.moveToNode(gwId).condition(branch.label.getOrElse(s"Branch ${idx}"), "")
             val result: Builder = handle(branch.logic, b2)
@@ -115,7 +115,7 @@ object BPMNConverter {
                 (result, Some(gwId))
             }
           })
-        }
+        }}: @unchecked
         resultBuilder.moveToNode(endGwId)
       case WIOModel.Interruptible(base, trigger, interruptionFlowOpt) =>
         val subProcessStartEventId = Random.alphanumeric.filter(_.isLetter).take(10).mkString

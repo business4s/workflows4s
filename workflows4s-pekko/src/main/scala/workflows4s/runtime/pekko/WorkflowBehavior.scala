@@ -165,7 +165,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext, In](
       case CommandAccepted       => state.copy(awaitingCommandResult = true)
       case wfEvent: WCEvent[Ctx] =>
         state.workflow.handleEvent(wfEvent, clock.instant()) match {
-          case Some(value) => State(value, awaitingCommandResult = false)
+          case Some(newWf) => State(newWf, awaitingCommandResult = false)
           // TODO think about good behaviour here. Ignore or fail?
           case None        => ???
         }

@@ -15,6 +15,6 @@ trait RunningWorkflow[F[_], State] {
 
 object RunningWorkflow {
 
-  case class UnexpectedSignal(signalDef: SignalDef[_, _])
+  case class UnexpectedSignal(signalDef: SignalDef[?, ?])
 
 }

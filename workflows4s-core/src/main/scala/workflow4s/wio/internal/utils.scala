@@ -40,5 +40,5 @@ case class SignalHandler[-Sig, +Evt, -In](handle: (In, Sig) => IO[Evt])(implicit
 
   def map[E1](f: Evt => E1): SignalHandler[Sig, E1, In] = SignalHandler((in, sig) => handle(in, sig).map(f))
 
-  def ct: ClassTag[_] = sigCt
+  def ct: ClassTag[?] = sigCt
 }

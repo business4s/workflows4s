@@ -9,7 +9,7 @@
                 {
                   "signalName" : "Create Withdrawal",
                   "error" : {
-                    "name" : "InvalidInput"
+                    "name" : "Invalid Input"
                   },
                   "operationName" : null,
                   "_type" : "HandleSignal"
@@ -21,7 +21,7 @@
                 },
                 {
                   "error" : {
-                    "name" : "NotEnoughFunds"
+                    "name" : "Not Enough Funds"
                   },
                   "name" : "Put Money On Hold",
                   "_type" : "RunIO"
@@ -34,13 +34,13 @@
                 {
                   "name" : null,
                   "error" : {
-                    "name" : "RejectedInChecks"
+                    "name" : "Rejected In Checks"
                   },
                   "_type" : "Pure"
                 },
                 {
                   "error" : {
-                    "name" : "RejectedByExecutionEngine"
+                    "name" : "Rejected By Execution Engine"
                   },
                   "name" : "Initiate Execution",
                   "_type" : "RunIO"
@@ -48,7 +48,7 @@
                 {
                   "signalName" : "Execution Completed",
                   "error" : {
-                    "name" : "RejectedByExecutionEngine"
+                    "name" : "Rejected By Execution Engine"
                   },
                   "operationName" : null,
                   "_type" : "HandleSignal"
@@ -81,7 +81,7 @@
         "_type" : "RunIO"
       },
       "error" : {
-        "name" : "WithdrawalRejection"
+        "name" : "Withdrawal Rejection"
       },
       "_type" : "HandleError"
     },

@@ -117,7 +117,7 @@ object PullRequestWorkflow {
 
     // start_execution
     import cats.effect.unsafe.implicits.global
-    val wfInstance = InMemorySyncRuntime.runWorkflow[Context.type, PRState.Empty.type](
+    val wfInstance = InMemorySyncRuntime.runWorkflow[Context.Ctx, PRState.Empty.type](
       behaviour = workflow,
       state = PRState.Empty
     )
@@ -132,7 +132,7 @@ object PullRequestWorkflow {
     // end_execution
 
     // start_recovery
-    val recoveredInstance = InMemorySyncRuntime.runWorkflow[Context.type, PRState.Empty.type](
+    val recoveredInstance = InMemorySyncRuntime.runWorkflow[Context.Ctx, PRState.Empty.type](
       workflow,
       PRState.Empty,
       events = wfInstance.getEvents,

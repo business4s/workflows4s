@@ -15,7 +15,7 @@ object ChecksEngine extends ChecksEngine {
   val retryBackoff     = 20.seconds
   val timeoutThreshold = 2.minutes
 
-  type Context = Context.type
+  type Context = Context.Ctx
   object Context extends WorkflowContext {
     override type Event = ChecksEvent
     override type State = ChecksState
@@ -44,7 +44,7 @@ object ChecksEngine extends ChecksEngine {
     val initialize: WIO[ChecksInput, Nothing, ChecksState.Pending] =
       WIO.pure[ChecksInput].make(ci => ChecksState.Pending(ci, Map()))
 
-    val awaitRetry: wio.WIO[ChecksState.Pending, Nothing, ChecksState.Pending, Context.type] = WIO
+    val awaitRetry: WIO[ChecksState.Pending, Nothing, ChecksState.Pending] = WIO
       .await[ChecksState.Pending](retryBackoff)
       .persistStartThrough(started => ChecksEvent.AwaitingRefresh(started.at))(_.started)
       .persistReleaseThrough(released => ChecksEvent.RefreshReleased(released.at))(_.released)
@@ -117,7 +117,7 @@ object ChecksEngine extends ChecksEngine {
         case progress: ChecksState.InProgress =>
           ChecksState.Executed(progress.results.map({
             case (key, result: CheckResult.Finished) => (key, result)
-            case (key, result)                       => (key, CheckResult.TimedOut())
+            case (key, _)                            => (key, CheckResult.TimedOut())
           }))
         case _: ChecksState.Decided           => ??? // not supported
       })

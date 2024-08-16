@@ -22,14 +22,15 @@ import scala.language.implicitConversions
 trait WorkflowContext { ctx: WorkflowContext =>
   type Event
   type State
+  type Ctx = WorkflowContext.AUX[State, Event]
 
-  type WIO[-In, +Err, +Out <: State] = workflow4s.wio.WIO[In, Err, Out, ctx.type]
-  object WIO extends AllBuilders[ctx.type] {
-    type Branch[-In, +Err, +Out <: State]  = workflow4s.wio.WIO.Branch[In, Err, Out, ctx.type]
-    type Interruption[+Err, +Out <: State] = workflow4s.wio.WIO.Interruption[ctx.type, Err, Out, ?, ?]
+  type WIO[-In, +Err, +Out <: State] = workflow4s.wio.WIO[In, Err, Out, Ctx]
+  object WIO extends AllBuilders[Ctx] {
+    type Branch[-In, +Err, +Out <: State]  = workflow4s.wio.WIO.Branch[In, Err, Out, Ctx]
+    type Interruption[+Err, +Out <: State] = workflow4s.wio.WIO.Interruption[Ctx, Err, Out, ?, ?]
     type Draft = WIO[Any, Nothing, Nothing]
 
-    def interruption: InterruptionBuilder.Step0[ctx.type] = InterruptionBuilder.Step0[ctx.type]()
+    def interruption: InterruptionBuilder.Step0[Ctx] = InterruptionBuilder.Step0[Ctx]()
   }
 }
 
@@ -44,7 +45,6 @@ object WorkflowContext {
   }
 
   type AUX[St, Evt]                               = WorkflowContext { type State = St; type Event = Evt }
-  type WithDifferentState[Ctx <: WorkflowContext] = WorkflowContext { type Event = WCEvent[Ctx] }
 }
 
 sealed trait WIO[-In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext] extends WIOMethods[Ctx, In, Err, Out]
@@ -74,7 +74,7 @@ object WIO {
   }
   object HandleSignal {
     // TODO, should the signal name be on handler level or in SignalDef?
-    case class Meta(error: ErrorMeta[_], signalName: String, operationName: Option[String])
+    case class Meta(error: ErrorMeta[?], signalName: String, operationName: Option[String])
   }
 
   // theoretically state is not needed, it could be State.extract.flatMap(RunIO)
@@ -85,13 +85,13 @@ object WIO {
   ) extends WIO[In, Err, Out, Ctx]
 
   object RunIO {
-    case class Meta(error: ErrorMeta[_], name: Option[String])
+    case class Meta(error: ErrorMeta[?], name: Option[String])
   }
 
   case class FlatMap[Ctx <: WorkflowContext, Err1 <: Err2, Err2, Out1 <: WCState[Ctx], +Out2 <: WCState[Ctx], -In](
       base: WIO[In, Err1, Out1, Ctx],
       getNext: Out1 => WIO[Out1, Err2, Out2, Ctx],
-      errorMeta: ErrorMeta[_],
+      errorMeta: ErrorMeta[?],
   ) extends WIO[In, Err2, Out2, Ctx]
 
   case class Map[Ctx <: WorkflowContext, In, Err, Out1 <: WCState[Ctx], -In2, +Out2 <: WCState[Ctx]](
@@ -102,7 +102,7 @@ object WIO {
 
   case class Pure[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]](
       value: In => Either[Err, Out],
-      errorMeta: ErrorMeta[_],
+      errorMeta: ErrorMeta[?],
   ) extends WIO[In, Err, Out, Ctx]
 
   // TODO this should ne called `Never` or `Halt` or similar, as the workflow cant proceed from that point.
@@ -111,22 +111,22 @@ object WIO {
   case class HandleError[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx], ErrIn, TempOut <: WCState[Ctx]](
       base: WIO[In, ErrIn, Out, Ctx],
       handleError: ErrIn => (TempOut, WIO[TempOut, Err, Out, Ctx]),
-      handledErrorMeta: ErrorMeta[_],
-      newErrorMeta: ErrorMeta[_],
+      handledErrorMeta: ErrorMeta[?],
+      newErrorMeta: ErrorMeta[?],
   ) extends WIO[In, Err, Out, Ctx]
 
   case class HandleErrorWith[Ctx <: WorkflowContext, -In, Err, +Out <: WCState[Ctx], +ErrOut](
       base: WIO[In, Err, Out, Ctx],
       handleError: WIO[(WCState[Ctx], Err), ErrOut, Out, Ctx],
-      handledErrorMeta: ErrorMeta[_],
-      newErrorCt: ErrorMeta[_],
+      handledErrorMeta: ErrorMeta[?],
+      newErrorCt: ErrorMeta[?],
   ) extends WIO[In, ErrOut, Out, Ctx]
 
   case class Named[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]](
       base: WIO[In, Err, Out, Ctx],
       name: String,
       description: Option[String],
-      errorMeta: ErrorMeta[_],
+      errorMeta: ErrorMeta[?],
   ) extends WIO[In, Err, Out, Ctx]
 
   case class AndThen[Ctx <: WorkflowContext, -In, +Err, Out1 <: WCState[Ctx], +Out2 <: WCState[Ctx]](
@@ -206,7 +206,7 @@ object WIO {
 
   // -----
 
-  def build[Ctx <: WorkflowContext]: WIOBuilderMethods[Ctx] with BranchBuilder.Step0[Ctx] with AwaitBuilder.Step0[Ctx] = new WIOBuilderMethods[Ctx]
+  def build[Ctx <: WorkflowContext]: WIOBuilderMethods[Ctx] & BranchBuilder.Step0[Ctx] & AwaitBuilder.Step0[Ctx] = new WIOBuilderMethods[Ctx]
     with BranchBuilder.Step0[Ctx]
     with AwaitBuilder.Step0[Ctx] {}
 

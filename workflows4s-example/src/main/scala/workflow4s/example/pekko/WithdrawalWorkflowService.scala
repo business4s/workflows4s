@@ -30,7 +30,7 @@ trait WithdrawalWorkflowService {
 }
 
 object WithdrawalWorkflowService {
-  type Journal = ReadJournal with CurrentPersistenceIdsQuery
+  type Journal = ReadJournal & CurrentPersistenceIdsQuery
 
   class Impl(journal: Journal, wdShard: WithdrawalShard)(implicit val actorSystem: ActorSystem[Any]) extends WithdrawalWorkflowService {
 

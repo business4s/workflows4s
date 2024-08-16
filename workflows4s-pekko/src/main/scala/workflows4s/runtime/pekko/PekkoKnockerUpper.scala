@@ -8,7 +8,7 @@ import java.time.{Duration, Instant}
 import java.util.UUID
 import scala.jdk.DurationConverters.JavaDurationOps
 
-class PekkoKnockerUpper[Ctx <: WorkflowContext](timers: TimerScheduler[WorkflowBehavior.Command[Ctx]], context: ActorContext[_])
+class PekkoKnockerUpper[Ctx <: WorkflowContext](timers: TimerScheduler[WorkflowBehavior.Command[Ctx]], context: ActorContext[?])
     extends KnockerUpper {
 
   // TODO logging? At least for errors?

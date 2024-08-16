@@ -104,7 +104,7 @@ object TestRuntimeAdapter {
 
   }
 
-  class Pekko(entityKeyPrefix: String)(implicit actorSystem: ActorSystem[_]) extends TestRuntimeAdapter with StrictLogging {
+  class Pekko(entityKeyPrefix: String)(implicit actorSystem: ActorSystem[?]) extends TestRuntimeAdapter with StrictLogging {
 
     val sharding = ClusterSharding(actorSystem)
 

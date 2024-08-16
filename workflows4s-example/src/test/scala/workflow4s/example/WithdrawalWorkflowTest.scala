@@ -188,7 +188,7 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory with BeforeAnd
 
       def createActor(events: Seq[WithdrawalEvent]) = {
         val wf    = runtime
-          .runWorkflow[WithdrawalWorkflow.Context.type, WithdrawalData.Empty](
+          .runWorkflow[WithdrawalWorkflow.Context.Ctx, WithdrawalData.Empty](
             workflow,
             WithdrawalData.Empty(txId),
             WithdrawalData.Empty(txId),
@@ -208,29 +208,29 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory with BeforeAnd
         new WithdrawalWorkflow(service, checksEngine).workflowDeclarative
 
       def withFeeCalculation(fee: Fee)                            =
-        (service.calculateFees _).expects(*).returning(IO(fee))
+        (service.calculateFees).expects(*).returning(IO(fee))
       def withMoneyOnHold(success: Boolean)                       =
-        (service.putMoneyOnHold _).expects(*).returning(IO(Either.cond(success, (), WithdrawalService.NotEnoughFunds())))
+        (service.putMoneyOnHold).expects(*).returning(IO(Either.cond(success, (), WithdrawalService.NotEnoughFunds())))
       def withExecutionInitiated(success: Boolean)                =
-        (service.initiateExecution _)
+        (service.initiateExecution)
           .expects(*, *)
           .returning(IO(if (success) ExecutionResponse.Accepted(externalId) else ExecutionResponse.Rejected("Rejected by execution engine")))
       def withFundsReleased()                                     =
-        (service.releaseFunds _)
+        (service.releaseFunds)
           .expects(*)
           .returning(IO.unit)
       def withFundsLockCancelled()                                =
-        (service.cancelFundsLock _)
+        ((() => service.cancelFundsLock()))
           .expects()
           .returning(IO.unit)
       def withChecks(list: List[Check[WithdrawalData.Validated]]) =
-        (service.getChecks _)
+        ((() => service.getChecks()))
           .expects()
           .returning(list)
           .anyNumberOfTimes()
       def withNoChecks()                                          = withChecks(List())
 
-      class WithdrawalActor(val wf: runtime.Actor[WithdrawalWorkflow.Context.type]) {
+      class WithdrawalActor(val wf: runtime.Actor[WithdrawalWorkflow.Context.Ctx]) {
         def init(req: CreateWithdrawal): Unit                                = {
           wf.deliverSignal(WithdrawalWorkflow.Signals.createWithdrawal, req)
           wf.wakeup()
