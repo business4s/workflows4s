@@ -3,7 +3,7 @@ package workflow4s.example.withdrawal.checks
 import cats.effect.IO
 import io.circe.{Codec, KeyDecoder, KeyEncoder}
 
-sealed trait ReviewDecision // TODO how to handle extensibility? E.g. some metadata required for particular checks?
+sealed trait ReviewDecision derives Codec.AsObject // TODO how to handle extensibility? E.g. some metadata required for particular checks?
 object ReviewDecision {
   case object Approve extends ReviewDecision
   case object Reject  extends ReviewDecision

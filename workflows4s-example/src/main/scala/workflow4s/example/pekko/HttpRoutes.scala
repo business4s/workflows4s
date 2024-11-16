@@ -1,6 +1,7 @@
 package workflow4s.example.pekko
 
 import cats.effect.unsafe.IORuntime
+import cats.implicits.toContravariantOps
 import com.github.pjfanning.pekkohttpcirce.FailFastCirceSupport
 import io.circe.{Encoder, Json, KeyEncoder}
 import io.circe.generic.semiauto.deriveEncoder
@@ -9,15 +10,18 @@ import org.apache.pekko.actor.typed.ActorSystem
 import org.apache.pekko.http.scaladsl.server.Directives.*
 import org.apache.pekko.http.scaladsl.server.Route
 import workflow4s.example.withdrawal.WithdrawalData
-import workflow4s.example.withdrawal.WithdrawalService.Iban
+import workflow4s.example.withdrawal.WithdrawalService.{Fee, Iban}
 import workflow4s.example.withdrawal.WithdrawalSignal.CreateWithdrawal
-import workflow4s.example.withdrawal.checks.{CheckKey, CheckResult, ChecksInput}
+import workflow4s.example.withdrawal.checks.{CheckKey, CheckResult, ChecksInput, ChecksState, Decision}
 
 class HttpRoutes(actorSystem: ActorSystem[?], service: WithdrawalWorkflowService)(implicit ioRuntime: IORuntime) extends FailFastCirceSupport {
-  implicit val checksInput: Encoder[ChecksInput]                   = Encoder.instance(_.checks.keys.map(_.value).asJson)
-  implicit val checksResult: Encoder[CheckResult]                  = Encoder.instance(_ => Json.Null)
-  implicit val checksResultFinished: Encoder[CheckResult.Finished] = Encoder.instance(_ => Json.Null)
-  implicit val stateEncoder: Encoder.AsObject[WithdrawalData]      = deriveEncoder[WithdrawalData]
+  implicit val checksInput: Encoder[ChecksInput]                             = Encoder.instance(_.checks.keys.map(_.value).asJson)
+  implicit val checksResult: Encoder[CheckResult]                            = Encoder.instance(_ => Json.Null)
+  implicit val checksResultFinished: Encoder[CheckResult.Finished]           = Encoder.instance(_ => Json.Null)
+  implicit val ChecksStateEncoder: Encoder[ChecksState]                      = deriveEncoder[ChecksState]
+  implicit val ChecksStateInprogressEncoder: Encoder[ChecksState.InProgress] = ChecksStateEncoder.narrow
+  implicit val ChecksStateDecicedEncoder: Encoder[ChecksState.Decided]       = ChecksStateEncoder.narrow
+  implicit val stateEncoder: Encoder.AsObject[WithdrawalData]                = deriveEncoder[WithdrawalData]
 
   val routes: Route = {
     path("withdrawals") {

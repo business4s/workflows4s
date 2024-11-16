@@ -10,7 +10,7 @@ See the [**Docs**](https://business4s.github.io/workflows4s) for details.
 
 ## TODO
 
-The following items are planned in scope of this experiment
+The following items are planned in the scope of this experiment
 
 - [x] Handling signals
 - [x] Handling queries
@@ -42,10 +42,10 @@ Items below are outside the scope of PoC but showcase the possibilities.
 
 ## Design
 
-### What it does?
+### What does it do?
 
 * workflows are built using `WIO` monad
-* a workflow supports following operations:
+* a workflow supports the following operations:
     * running side-effectful/non-deterministic computations
     * receiving signals that can modify the workflow state
     * querying the workflow state

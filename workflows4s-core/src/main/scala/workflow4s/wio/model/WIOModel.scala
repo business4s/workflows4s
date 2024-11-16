@@ -12,6 +12,7 @@ object WIOModel {
   given Configuration            = Configuration.default.withDiscriminator("_type")
   given Codec.AsObject[WIOModel] = Codec.AsObject.derivedConfigured
 
+  given Codec.AsObject[Interruption] = Codec.AsObject.derivedConfigured
   sealed trait Interruption
 
   case class Sequence(steps: Seq[WIOModel])                                                        extends WIOModel {
@@ -21,7 +22,7 @@ object WIOModel {
   case class RunIO(error: Option[Error], name: Option[String])                                     extends WIOModel
   case class HandleSignal(signalName: String, error: Option[Error], operationName: Option[String]) extends WIOModel with Interruption
   // TODO error name?
-  case class HandleError(base: WIOModel, handler: WIOModel, error: Option[Error])                          extends WIOModel
+  case class HandleError(base: WIOModel, handler: WIOModel, error: Option[Error])                  extends WIOModel
   case object Noop                                                                                 extends WIOModel
   case class Pure(name: Option[String], error: Option[Error])                                      extends WIOModel
   case class Loop(

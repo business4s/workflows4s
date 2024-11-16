@@ -1,6 +1,7 @@
 package workflow4s.example.withdrawal
 
 import cats.effect.IO
+import io.circe.Codec
 import workflow4s.example.withdrawal.WithdrawalService.{ExecutionResponse, Fee, Iban, NotEnoughFunds}
 import workflow4s.example.withdrawal.checks.Check
 
@@ -22,11 +23,11 @@ object WithdrawalService {
 
   case class NotEnoughFunds()
 
-  case class Fee(value: BigDecimal)
+  case class Fee(value: BigDecimal) derives Codec.AsObject
 
-  case class Iban(value: String)
+  case class Iban(value: String) derives Codec.AsObject
 
-  sealed trait ExecutionResponse
+  sealed trait ExecutionResponse derives Codec.AsObject
   object ExecutionResponse {
     case class Accepted(externalId: String) extends ExecutionResponse
     case class Rejected(error: String)      extends ExecutionResponse
