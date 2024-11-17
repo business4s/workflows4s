@@ -6,6 +6,8 @@ import cats.syntax.all.*
 import workflow4s.wio.ActiveWorkflow.ForCtx
 import workflow4s.wio.internal.WorkflowEmbedding
 
+import scala.annotation.nowarn
+
 class Interpreter(
     val knockerUpper: KnockerUpper,
 )
@@ -87,35 +89,35 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
 
   def run: Result = {
     wio match {
-      case x: WIO.HandleSignal[?, ?, ?, ?, ?, ?, ?]                     => onSignal(x)
-      case x: WIO.RunIO[?, ?, ?, ?, ?]                                  => onRunIO(x)
+      case x: WIO.HandleSignal[?, ?, ?, ?, ?, ?, ?]                  => onSignal(x)
+      case x: WIO.RunIO[?, ?, ?, ?, ?]                               => onRunIO(x)
       // https://github.com/scala/scala3/issues/20040
-      case x: WIO.FlatMap[?, ? <: Err, Err, ? <: WCState[Ctx], Out, In] =>
+      case x: WIO.FlatMap[?, ? <: Err, Err, ? <: WCState[Ctx], ?, ?] =>
         x match {
-          case x: WIO.FlatMap[?, err1, Err, out1, Out, In] => onFlatMap[out1, err1](x)
+          case x: WIO.FlatMap[?, err1, Err, out1, ?, In] => onFlatMap[out1, err1](x)
         }
-      case x: WIO.Map[?, ?, Err, ? <: State, In, Out]                   => onMap(x)
-      case x: WIO.Noop[?]                                               => onNoop(x)
-      case x: WIO.HandleError[?, ?, ?, ?, ?, ? <: State]                => onHandleError(x)
-      case x: WIO.Named[?, ?, ?, ?]                                     => onNamed(x)
-      case x: WIO.AndThen[?, ?, ?, ? <: State, ? <: State]              => onAndThen(x)
-      case x: WIO.Pure[?, ?, ?, ?]                                      => onPure(x)
-      case x: WIO.HandleErrorWith[?, ?, ?, ?, ?]                        => onHandleErrorWith(x)
-      case x: WIO.Loop[?, ?, ?, ? <: State, ? <: State]                 => onLoop(x)
-      case x: WIO.Fork[?, ?, ?, ?]                                      => onFork(x)
-      case x: WIO.Embedded[Ctx, In, Err, ? <: WorkflowContext, ?, ?]    =>
+      case x: WIO.Map[?, ?, Err, ? <: State, ?, ?]                   => onMap(x)
+      case x: WIO.Noop[?]                                            => onNoop(x)
+      case x: WIO.HandleError[?, ?, ?, ?, ?, ? <: State]             => onHandleError(x)
+      case x: WIO.Named[?, ?, ?, ?]                                  => onNamed(x)
+      case x: WIO.AndThen[?, ?, ?, ? <: State, ? <: State]           => onAndThen(x)
+      case x: WIO.Pure[?, ?, ?, ?]                                   => onPure(x)
+      case x: WIO.HandleErrorWith[?, ?, ?, ?, ?]                     => onHandleErrorWith(x)
+      case x: WIO.Loop[?, ?, ?, ? <: State, ? <: State]              => onLoop(x)
+      case x: WIO.Fork[?, ?, ?, ?]                                   => onFork(x)
+      case x: WIO.Embedded[?, ?, ?, ?, ?, ?]                         =>
         x match {
           case x: WIO.Embedded[?, ?, ?, ic, ?, ?] =>
             x match {
               case x: WIO.Embedded[?, ?, ?, ?, ? <: WCState[ic], ?] =>
                 x match {
-                  case x: WIO.Embedded[Ctx, In, Err, ?, io, mp] => onEmbedded(x.asInstanceOf) // TODO
+                  case x: WIO.Embedded[?, ?, ?, ?, io, mp] => onEmbedded(x.asInstanceOf) // TODO
                 }
             }
         }
-      case x: WIO.HandleInterruption[Ctx, In, Err, Out]                 => onHandleInterruption(x)
-      case x: WIO.Timer[Ctx, In, Err, Out]                              => onTimer(x)
-      case x: WIO.AwaitingTime[Ctx, In, Err, Out]                       => onAwaitingTime(x)
+      case x: WIO.HandleInterruption[?, ?, ?, ?]                     => onHandleInterruption(x)
+      case x: WIO.Timer[Ctx, In, Err, Out]                           => onTimer(x)
+      case x: WIO.AwaitingTime[?, ?, ?, ?]                              => onAwaitingTime(x)
     }
   }
 
@@ -327,6 +329,8 @@ sealed trait NextWfState[C <: WorkflowContext, +E, +O <: WCState[C]] { self =>
     case value: NextWfState.NewValue[C, E, O]         => ActiveWorkflow(WIO.Noop(), value.value.toOption.get)(interpreter)
   }
 
+  // its safe, compiler cant get the connection between
+  @nowarn("msg=the type test for workflow4s.wio.NextWfState.NewBehaviour")
   def fold[T](mapBehaviour: NewBehaviour[C, E, O] { type Error = self.Error } => T, mapValue: NewValue[C, E, O] => T): T = this match {
     case behaviour: NewBehaviour[C, E, O] { type Error = self.Error } => mapBehaviour(behaviour)
     case value: NewValue[C, E, O]                                     => mapValue(value)

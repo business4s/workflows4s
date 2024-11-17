@@ -88,15 +88,15 @@ object ProceedEvaluator {
       def runBase: Result          = recurse(wio.base, state)
         .map(preserveHandleInterruption(wio.interruption, _))
       val dedicatedProceed: Result = wio.interruption.trigger match {
-        case x @ WIO.HandleSignal(_, _, _, _)       => None /// no proceeding when waiting for signal
+        case x @ WIO.HandleSignal(_, _, _, _)   => None /// no proceeding when waiting for signal
         // type params are not correct
-        case x: WIO.Timer[Ctx, In, Err, Out]        => None
-        case x: WIO.AwaitingTime[Ctx, In, Err, Out] => recurse(wio.interruption.finalWIO, initialState)
+        case x: WIO.Timer[?, ?, ?, ?]           => None
+        case x: WIO.AwaitingTime[?, ?, ?, ?] => recurse(wio.interruption.finalWIO, initialState)
       }
       dedicatedProceed.orElse(runBase)
     }
 
-    def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result               = None
+    def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result           = None
     def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result = None
 
     private def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], s: I1): Option[NextWfState[Ctx, E1, O1]] =

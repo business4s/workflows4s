@@ -1,9 +1,11 @@
 package workflow4s.wio.internal
 
 import cats.effect.IO
-import cats.syntax.all._
+import cats.syntax.all.*
 import workflow4s.wio.Interpreter.SignalResponse
-import workflow4s.wio._
+import workflow4s.wio.*
+
+import scala.annotation.nowarn
 
 object CurrentStateEvaluator {
   def getCurrentStateDescription(
@@ -46,23 +48,25 @@ object CurrentStateEvaluator {
 
     def withName(str: String) = s"[${name.getOrElse("")}] ${str}"
 
+    // its safe, compiler sees a runime check where there is none
+    @nowarn("msg=the type test for workflow4s.wio.WIO.Embedded")
     private def name: Option[String] = wio match {
-      case WIO.Timer(_, _, _, name, _)           => name
-      case WIO.AwaitingTime(_, _, _)          => none
-      case WIO.HandleSignal(_, _, _, m)       => m.operationName
-      case WIO.RunIO(_, _, _)                 => none
-      case WIO.FlatMap(_, _, _)               => none
-      case WIO.Map(_, _, _)                   => none
-      case WIO.Pure(_, _)                     => none
-      case WIO.Noop()                         => none
-      case WIO.HandleError(_, _, _, _)        => none
-      case WIO.HandleErrorWith(_, _, _, _) => none
-      case WIO.Named(_, name, _, _)           => name.some
-      case WIO.AndThen(_, _)                  => none
-      case WIO.Loop(_, _, _, _, _, _)         => none
-      case WIO.Fork(_, name)                  => name
-//      case WIO.Embedded(_, _, _)              => none
-      case WIO.HandleInterruption(_, _)       => none
+      case WIO.Timer(_, _, name, _)          => name
+      case WIO.AwaitingTime(_, _)            => none
+      case WIO.HandleSignal(_, _, _, m)      => m.operationName
+      case WIO.RunIO(_, _, _)                => none
+      case WIO.FlatMap(_, _, _)              => none
+      case WIO.Map(_, _, _)                  => none
+      case WIO.Pure(_, _)                    => none
+      case WIO.Noop()                        => none
+      case WIO.HandleError(_, _, _, _)       => none
+      case WIO.HandleErrorWith(_, _, _, _)   => none
+      case WIO.Named(_, name, _, _)          => name.some
+      case WIO.AndThen(_, _)                 => none
+      case WIO.Loop(_, _, _, _, _, _)        => none
+      case WIO.Fork(_, name)                 => name
+      case WIO.HandleInterruption(_, _)      => none
+      case _: WIO.Embedded[?, ?, ?, ?, ?, ?] => none
     }
 
   }

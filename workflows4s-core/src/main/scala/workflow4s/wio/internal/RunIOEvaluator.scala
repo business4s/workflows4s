@@ -77,10 +77,7 @@ object RunIOEvaluator {
     def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result = {
       val timeCame = now.plusNanos(1).isAfter(wio.resumeAt)
       Option.when(timeCame)(
-        wio
-          .onRelease(state)
-          .as(Timer.Released(now))
-          .map(wio.releasedEventHandler.convert(_)),
+        wio.releasedEventHandler.convert(Timer.Released(now)).pure[IO],
       )
     }
 

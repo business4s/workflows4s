@@ -88,7 +88,7 @@ object InterruptionBuilder {
         def persistReleaseThrough[Evt <: WCEvent[Ctx]](
             incorporate: WIO.Timer.Released => Evt,
         )(extractReleaseTime: Evt => Instant)(using ct: ClassTag[Evt]): Step3 = {
-          val evtHanlder: EventHandler[Input, Either[Nothing, Input], WCEvent[Ctx], Timer.Released] = EventHandler(
+          val evtHanlder: EventHandler[WCState[Ctx], Either[Nothing, WCState[Ctx]], WCEvent[Ctx], Timer.Released] = EventHandler(
             ct.unapply.andThen(_.map(x => Timer.Released(extractReleaseTime(x)))),
             incorporate,
             (in, _) => Right(in),
@@ -97,7 +97,7 @@ object InterruptionBuilder {
         }
 
         case class Step3(
-            private val releasedEventHandler: EventHandler[Input, Either[Nothing, Input], WCEvent[Ctx], Timer.Released],
+            private val releasedEventHandler: EventHandler[WCState[Ctx], Either[Nothing, WCState[Ctx]], WCEvent[Ctx], Timer.Released],
             private val name: Option[String] = None,
         ) extends ContinuationBuilder[Nothing, Input] {
 
@@ -105,8 +105,8 @@ object InterruptionBuilder {
 
           def autoNamed(using name: sourcecode.Name): Step3 = this.copy(name = Some(ModelUtils.prettifyName(name.value)))
 
-          lazy val source: WIO.InterruptionSource[Input, Nothing, Input, Ctx] =
-            WIO.Timer(durationSource, startedEventHandler, x => IO.unit, name, releasedEventHandler)
+          lazy val source: WIO.InterruptionSource[Input, Nothing, WCState[Ctx], Ctx] =
+            WIO.Timer(durationSource, startedEventHandler, name, releasedEventHandler)
         }
       }
 

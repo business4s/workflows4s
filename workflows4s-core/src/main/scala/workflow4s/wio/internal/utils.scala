@@ -19,6 +19,12 @@ trait EventHandler[-In, +Out, EventBase, Evt] { parent =>
       def convert: Evt => EventBase                 = parent.convert
       override def handle: (In, Evt) => O1          = (i, e) => parent.handle(i, e).pipe(f)
     }
+
+  def captureIn(in: In): EventHandler[Any, Out, EventBase, Evt] = new EventHandler[Any, Out, EventBase, Evt] {
+    override def detect: EventBase => Option[Evt] = parent.detect
+    def convert: Evt => EventBase                 = parent.convert
+    override def handle: (Any, Evt) => Out        = (_, e) => parent.handle(in, e)
+  }
 }
 
 object EventHandler {

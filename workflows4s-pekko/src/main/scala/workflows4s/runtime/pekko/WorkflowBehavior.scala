@@ -11,6 +11,7 @@ import org.apache.pekko.persistence.typed.scaladsl.{Effect, EventSourcedBehavior
 import workflow4s.wio.*
 
 import java.time.{Clock, Instant}
+import scala.annotation.nowarn
 
 object WorkflowBehavior {
 
@@ -160,9 +161,12 @@ private class WorkflowBehavior[Ctx <: WorkflowContext, In](
     }
   }
 
+  // it's safe, compiler cant get patmatch exhaustivity
+  @nowarn("msg=he type test for workflow4s.wio.WorkflowContext.Event")
   private def handleEvent(state: St, event: Event): State[Ctx] = {
     event match {
       case CommandAccepted       => state.copy(awaitingCommandResult = true)
+      // compiler cant see that patmatch is exhaustive
       case wfEvent: WCEvent[Ctx] =>
         state.workflow.handleEvent(wfEvent, clock.instant()) match {
           case Some(newWf) => State(newWf, awaitingCommandResult = false)

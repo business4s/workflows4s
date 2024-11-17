@@ -2,8 +2,6 @@ package workflow4s.wio.builders
 
 import cats.implicits.catsSyntaxOptionId
 import workflow4s.wio.*
-import workflow4s.wio.WIO.Timer
-import workflow4s.wio.WIO.Timer.DurationSource
 import workflow4s.wio.internal.EventHandler
 import workflow4s.wio.model.ModelUtils
 

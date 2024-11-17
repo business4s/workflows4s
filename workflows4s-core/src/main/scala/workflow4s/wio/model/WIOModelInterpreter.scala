@@ -73,8 +73,10 @@ object WIOModelInterpreter {
         wio.interruption.trigger match {
           case x @ WIO.HandleSignal(_, _, _, _) =>
             new ModelVisitor(x, Metadata.empty).onSignal(x)
-          case x @ WIO.Timer(_, _, _, _, _)        =>
+          case x @ WIO.Timer(_, _, _, _)     =>
             new ModelVisitor(x, Metadata.empty).onTimer(x)
+          case x @ WIO.AwaitingTime(_, _)    =>
+            new ModelVisitor(x, Metadata.empty).onAwaitingTime(x)
         }
       }
       WIOModel.Interruptible(
@@ -92,7 +94,7 @@ object WIOModelInterpreter {
       wio.name,
     )
 
-    def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result =
+    def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Nothing =
       ??? // TODO, shouldnt happen unitl we start capturing model of inflight workflows
 
     def recurse[C <: WorkflowContext, I1, E1, O1 <: WCState[C]](wio: WIO[I1, E1, O1, C], meta: Option[Metadata] = Some(m)): WIOModel = {
@@ -108,28 +110,31 @@ object WIOModelInterpreter {
 
   }
 
-  def stripFirst(flow: WIOModel, toBeStrpped: WIOModel): Option[WIOModel] = {
-    def notFirst(x: WIOModel)                    = throw new Exception(s"Requested element is not the first in sequence. Required: ${toBeStrpped}, found as first: ${x}")
-    def handleRaw(x: WIOModel): Option[WIOModel] = if (x == toBeStrpped) None else notFirst(x)
-    if (flow == toBeStrpped) None
+  def stripFirst(flow: WIOModel, toBeStripped: WIOModel): Option[WIOModel] = {
+    def notFirst(x: WIOModel)                    = throw new Exception(
+      s"Requested element is not the first in sequence. Required: ${toBeStripped}, found as first: ${x}",
+    )
+    def handleRaw(x: WIOModel): Option[WIOModel] = if (x == toBeStripped) None else notFirst(x)
+    if (flow == toBeStripped) None
     else {
       flow match {
         case WIOModel.Sequence(steps)                           =>
-          stripFirst(steps.head, toBeStrpped) match {
+          stripFirst(steps.head, toBeStripped) match {
             case Some(value) => WIOModel.Sequence(steps.toList.updated(0, value)).some
             case None        =>
               if (steps.size > 2) WIOModel.Sequence(steps.drop(1)).some
               else steps(1).some
           }
-        case x @ WIOModel.Dynamic(name, error)                  => handleRaw(x)
+        case x @ WIOModel.Dynamic(_, _)                         => handleRaw(x)
         case x @ WIOModel.RunIO(error, name)                    => handleRaw(x)
         case x @ WIOModel.HandleSignal(signalName, error, name) => handleRaw(x)
-        case WIOModel.HandleError(base, handler, errorName)     => stripFirst(base, toBeStrpped).map(WIOModel.HandleError(_, handler, errorName))
+        case WIOModel.HandleError(base, handler, errorName)     => stripFirst(base, toBeStripped).map(WIOModel.HandleError(_, handler, errorName))
         case x @ WIOModel.Noop                                  => handleRaw(x) // does it make any sense?, can noop be element in sequence?
         case x @ WIOModel.Pure(name, errorMeta)                 => handleRaw(x)
-        case x: WIOModel.Loop                                   => stripFirst(x.base, toBeStrpped).map(y => x.copy(base = y))
+        case x: WIOModel.Loop                                   => stripFirst(x.base, toBeStripped).map(y => x.copy(base = y))
         case x @ WIOModel.Fork(_, _)                            => handleRaw(x)
-        case WIOModel.Interruptible(base, trigger, flow)        => stripFirst(base, toBeStrpped).map(WIOModel.Interruptible(_, trigger, flow))
+        case x @ WIOModel.Timer(_, _)                           => handleRaw(x)
+        case WIOModel.Interruptible(base, trigger, flow)        => stripFirst(base, toBeStripped).map(WIOModel.Interruptible(_, trigger, flow))
       }
     }
   }

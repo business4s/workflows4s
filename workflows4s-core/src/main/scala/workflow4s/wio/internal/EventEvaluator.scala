@@ -84,39 +84,42 @@ object EventEvaluator {
         .map(preserveHandleInterruption(wio.interruption, _))
 
       wio.interruption.trigger match {
-        case x @ WIO.HandleSignal(_, _, _, _) =>
+        case _ @WIO.HandleSignal(_, _, _, _) =>
           // if awaitTime proceeds, we switch the flow into there
           recurse(wio.interruption.finalWIO, initialState, event)
             .orElse(runBase)
-        case x: WIO.Timer[Ctx, In, Err, Out]  => // TODO pattern match is wrong here, listen to the compiler
-          runTimer(x) match {
+        case x @ WIO.Timer(_, _, _, _)       =>
+          runTimer(x, initialState) match {
             case Some(awaitTime) =>
               val mainFlowOut     = NewBehaviour(wio.base.transformInput[Any](_ => state), initialState.asRight)
               val newInterruption = WIO.Interruption(awaitTime, wio.interruption.buildFinal)
               preserveHandleInterruption(newInterruption, mainFlowOut).some
             case None            => runBase
           }
-        case x @ WIO.AwaitingTime(_, _, _)    =>
+        case _ @WIO.AwaitingTime(_, _)       =>
           recurse(wio.interruption.finalWIO, initialState, event)
             .orElse(runBase)
       }
     }
 
-    def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result = {
-      runTimer(wio).map(result => {
-        NextWfState.NewBehaviour(result, initialState.asRight)
+    def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result                                 = {
+      runTimer(wio, state).map(result => {
+        NextWfState.NewBehaviour(result.provideInput(state), initialState.asRight)
       })
     }
 
-    private def runTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Option[WIO.AwaitingTime[Ctx, In, Err, Out]] = {
+    private def runTimer[In_, Err_, Out_ <: WCState[Ctx]](
+        wio: WIO.Timer[Ctx, In_, Err_, Out_],
+        in: In_,
+    ): Option[WIO.AwaitingTime[Ctx, In_, Err_, Out_]] = {
       wio.startedEventHandler
         .detect(event)
         .map(started => {
-          val releaseTime = wio.getReleaseTime(started, state)
-          WIO.AwaitingTime(releaseTime, wio.onRelease, wio.releasedEventHandler)
+          val releaseTime = wio.getReleaseTime(started, in)
+          WIO.AwaitingTime(releaseTime, wio.releasedEventHandler)
         })
     }
-    def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result                                 = doHandle(wio.releasedEventHandler)
+    def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result = doHandle(wio.releasedEventHandler)
 
     def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], s: I1, e: WCEvent[Ctx]): EventVisitor[Ctx, I1, E1, O1]#Result =
       new EventVisitor(wio, e, s, initialState).run

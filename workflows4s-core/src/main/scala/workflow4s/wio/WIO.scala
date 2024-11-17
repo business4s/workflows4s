@@ -28,7 +28,7 @@ trait WorkflowContext { ctx: WorkflowContext =>
   object WIO extends AllBuilders[Ctx] {
     type Branch[-In, +Err, +Out <: State]  = workflow4s.wio.WIO.Branch[In, Err, Out, Ctx]
     type Interruption[+Err, +Out <: State] = workflow4s.wio.WIO.Interruption[Ctx, Err, Out, ?, ?]
-    type Draft = WIO[Any, Nothing, Nothing]
+    type Draft                             = WIO[Any, Nothing, Nothing]
 
     def interruption: InterruptionBuilder.Step0[Ctx] = InterruptionBuilder.Step0[Ctx]()
   }
@@ -44,7 +44,7 @@ object WorkflowContext {
     case AuxE[s] => s
   }
 
-  type AUX[St, Evt]                               = WorkflowContext { type State = St; type Event = Evt }
+  type AUX[St, Evt] = WorkflowContext { type State = St; type Event = Evt }
 }
 
 sealed trait WIO[-In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext] extends WIOMethods[Ctx, In, Err, Out]
@@ -52,15 +52,9 @@ sealed trait WIO[-In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext] extend
 object WIO {
 
   type Initial[Ctx <: WorkflowContext, In <: WCState[Ctx]] = WIO[In, Nothing, WCState[Ctx], Ctx]
-  type Draft[Ctx <: WorkflowContext] = WIO[Any, Nothing, Nothing, Ctx]
+  type Draft[Ctx <: WorkflowContext]                       = WIO[Any, Nothing, Nothing, Ctx]
 
-  sealed trait InterruptionSource[-In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext] extends WIO[In, Err, Out, Ctx] {
-    def asTimer: Option[WIO.Timer[Ctx, In, Err, Out]] = this match {
-      case HandleSignal(sigDef, sigHandler, evtHandler, meta)  => None
-      case x: Timer[Ctx, In, Err, Out]                         => Some(x)
-      case AwaitingTime(resumeAt, onRelease, wakeupRegistered) => None
-    }
-  }
+  sealed trait InterruptionSource[-In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext] extends WIO[In, Err, Out, Ctx]
 
   case class HandleSignal[Ctx <: WorkflowContext, -In, +Out <: WCState[Ctx], +Err, Sig, Resp, Evt](
       sigDef: SignalDef[Sig, Resp],
@@ -105,7 +99,7 @@ object WIO {
       errorMeta: ErrorMeta[?],
   ) extends WIO[In, Err, Out, Ctx]
 
-  // TODO this should ne called `Never` or `Halt` or similar, as the workflow cant proceed from that point.
+  // TODO this should ne called `Never` or `Halt` or `End` or similar, as the workflow cant proceed from that point.
   case class Noop[Ctx <: WorkflowContext]() extends WIO[Any, Nothing, Nothing, Ctx]
 
   case class HandleError[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx], ErrIn, TempOut <: WCState[Ctx]](
@@ -163,7 +157,7 @@ object WIO {
   ) extends WIO[In, Err, MappingOutput[InnerOut], Ctx]
 
   // do we need imperative variant?
-  case class HandleInterruption[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](
+  case class HandleInterruption[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]](
       base: WIO[In, Err, Out, Ctx],
       interruption: Interruption[Ctx, Err, Out, ?, ?],
   ) extends WIO[In, Err, Out, Ctx]
@@ -171,7 +165,6 @@ object WIO {
   case class Timer[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]](
       duration: Timer.DurationSource[In],
       startedEventHandler: EventHandler[In, Unit, WCEvent[Ctx], Timer.Started],
-      onRelease: In => IO[Unit],
       name: Option[String],
       releasedEventHandler: EventHandler[In, Either[Err, Out], WCEvent[Ctx], Timer.Released],
   ) extends InterruptionSource[In, Err, Out, Ctx] {
@@ -187,9 +180,8 @@ object WIO {
 
   case class AwaitingTime[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]](
       resumeAt: Instant,
-      onRelease: In => IO[Unit],
       releasedEventHandler: EventHandler[In, Either[Err, Out], WCEvent[Ctx], Timer.Released],
-  ) extends InterruptionSource[Any, Err, Out, Ctx]
+  ) extends InterruptionSource[In, Err, Out, Ctx]
 
   object Timer {
 
@@ -199,7 +191,7 @@ object WIO {
     sealed trait DurationSource[-In]
     object DurationSource {
       case class Static(duration: Duration)                extends DurationSource[Any]
-      // we could support IO[Duration] but then either the logic has to be more complicated or the even has to capture release time
+      // we could support IO[Duration] but then either the logic has to be more complicated or the event has to capture release time
       case class Dynamic[-In](getDuration: In => Duration) extends DurationSource[In]
     }
   }
@@ -234,7 +226,7 @@ object WIO {
       trigger: WIO.InterruptionSource[WCState[Ctx], InitErr, InitOut, Ctx],
       buildFinal: WIO[WCState[Ctx], InitErr, InitOut, Ctx] => WIO[WCState[Ctx], Err, Out, Ctx],
   ) {
-    val finalWIO = buildFinal(trigger)
+    val finalWIO: WIO[WCState[Ctx], Err, Out, Ctx] = buildFinal(trigger)
     assert(WIOUtils.getFirstRaw(finalWIO) == trigger)
 
   }
