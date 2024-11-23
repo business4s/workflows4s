@@ -117,7 +117,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
         }
       case x: WIO.HandleInterruption[?, ?, ?, ?]                     => onHandleInterruption(x)
       case x: WIO.Timer[Ctx, In, Err, Out]                           => onTimer(x)
-      case x: WIO.AwaitingTime[?, ?, ?, ?]                              => onAwaitingTime(x)
+      case x: WIO.AwaitingTime[?, ?, ?, ?]                           => onAwaitingTime(x)
     }
   }
 

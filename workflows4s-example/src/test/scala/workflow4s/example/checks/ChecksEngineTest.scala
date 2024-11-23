@@ -171,7 +171,7 @@ class ChecksEngineTest extends AnyFreeSpec with BeforeAndAfterAll with BeforeAnd
       def checkRecovery(firstActor: ChecksActor[runtime.Actor[ChecksEngine.Context]]) = {
         logger.debug("Checking recovery")
         val originalState = firstActor.state
-        val secondActor = runtime.recover(firstActor.wf)
+        val secondActor   = runtime.recover(firstActor.wf)
         assert(secondActor.queryState() == originalState)
       }
 

@@ -17,7 +17,6 @@ object Decision {
   case class ApprovedByOperator() extends Decision
 }
 
-
 sealed trait CheckResult derives Codec.AsObject
 object CheckResult {
   sealed trait Finished       extends CheckResult
@@ -66,8 +65,8 @@ object ChecksState {
     }
   }
   case class Executed(results: Map[CheckKey, CheckResult.Finished])                    extends InProgress {
-    def isRejected: Boolean     = results.exists(_._2 == CheckResult.Rejected())
-    def requiresReview: Boolean = !isRejected && results.exists(x => x._2 == CheckResult.RequiresReview() || x._2 == CheckResult.TimedOut())
+    def isRejected: Boolean                    = results.exists(_._2 == CheckResult.Rejected())
+    def requiresReview: Boolean                = !isRejected && results.exists(x => x._2 == CheckResult.RequiresReview() || x._2 == CheckResult.TimedOut())
     def asDecided(decision: Decision): Decided = ChecksState.Decided(results, decision)
   }
   case class Decided(results: Map[CheckKey, CheckResult.Finished], decision: Decision) extends ChecksState

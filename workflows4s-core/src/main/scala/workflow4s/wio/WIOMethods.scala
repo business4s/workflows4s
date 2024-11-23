@@ -24,7 +24,7 @@ trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self
     WIO.Map(this, f, (in: NewIn, out: Out) => g(in, out))
 
   def transformInput[NewIn](f: NewIn => In): WIO[NewIn, Err, Out, Ctx] = transform(f, (_, x) => x)
-  def provideInput(value: In): WIO[Any, Err, Out, Ctx] = transformInput[Any](_ => value)
+  def provideInput(value: In): WIO[Any, Err, Out, Ctx]                 = transformInput[Any](_ => value)
 
   // TODO isnt that just map?
   def transformOutput[NewOut <: WCState[Ctx], In1 <: In](f: (In1, Out) => NewOut): WIO[In1, Err, NewOut, Ctx] = transform(identity, f)
@@ -60,7 +60,6 @@ trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self
       interruption: WIO.Interruption[Ctx, Err1, Out1, ?, ?],
   ): WIO.HandleInterruption[Ctx, In1, Err1, Out1] =
     WIO.HandleInterruption(this, interruption)
-
 
   def getModel: WIOModel = WIOModelInterpreter.run(this)
 

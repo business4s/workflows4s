@@ -15,7 +15,7 @@ object WithdrawalData {
     def validated(fee: Fee) = Validated(txId, amount, recipient, fee)
   }
   case class Validated(txId: String, amount: BigDecimal, recipient: Iban, fee: Fee)                                      extends WithdrawalData {
-    def checked(checksState: ChecksState.Decided): Checked = Checked(txId, amount, recipient, fee, checksState)
+    def checked(checksState: ChecksState.Decided): Checked      = Checked(txId, amount, recipient, fee, checksState)
     def checking(checksState: ChecksState.InProgress): Checking = Checking(txId, amount, recipient, fee, checksState)
   }
   case class Checking(txId: String, amount: BigDecimal, recipient: Iban, fee: Fee, checkResults: ChecksState.InProgress) extends WithdrawalData

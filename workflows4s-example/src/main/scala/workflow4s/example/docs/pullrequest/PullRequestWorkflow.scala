@@ -119,7 +119,7 @@ object PullRequestWorkflow {
     import cats.effect.unsafe.implicits.global
     val wfInstance = InMemorySyncRuntime.runWorkflow[Context.Ctx, PRState.Empty.type](
       behaviour = workflow,
-      state = PRState.Empty
+      state = PRState.Empty,
     )
 
     wfInstance.deliverSignal(Signals.createPR, Signals.CreateRequest("some-sha"))

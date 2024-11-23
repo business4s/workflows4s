@@ -14,7 +14,7 @@ object ChecksEvent {
   case class AwaitingTimeout(started: Instant)              extends ChecksEvent
   case class ExecutionTimedOut(releasedAt: Instant)         extends ChecksEvent
 
-  class PekkoSerializer extends PekkoCirceSerializer[ChecksEvent]{
+  class PekkoSerializer extends PekkoCirceSerializer[ChecksEvent] {
     override def identifier = 12345677
   }
 }

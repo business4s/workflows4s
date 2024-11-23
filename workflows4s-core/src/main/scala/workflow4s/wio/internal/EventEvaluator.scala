@@ -102,7 +102,7 @@ object EventEvaluator {
       }
     }
 
-    def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result                                 = {
+    def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result               = {
       runTimer(wio, state).map(result => {
         NextWfState.NewBehaviour(result.provideInput(state), initialState.asRight)
       })

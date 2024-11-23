@@ -26,12 +26,12 @@ object WithdrawalEvent {
 
   case class ExecutionCompleted(status: WithdrawalSignal.ExecutionCompleted) extends WithdrawalEvent
 
-  case class MoneyReleased() extends WithdrawalEvent
+  case class MoneyReleased()                 extends WithdrawalEvent
   case class RejectionHandled(error: String) extends WithdrawalEvent
 
   case class WithdrawalCancelledByOperator(operatorId: String, comment: String) extends WithdrawalEvent
 
-  class PekkoSerializer extends PekkoCirceSerializer[WithdrawalEvent]{
+  class PekkoSerializer extends PekkoCirceSerializer[WithdrawalEvent] {
     override def identifier = 12345678
   }
 }

@@ -54,7 +54,7 @@ object BPMNConverter {
           .serviceTask()
           .name(operationName.getOrElse(s"""Handle "${signalName}""""))
           .pipe(renderError(error))
-      case WIOModel.HandleError(base, handler, error)               =>
+      case WIOModel.HandleError(base, handler, error)                 =>
         val subProcessStartEventId = Random.alphanumeric.filter(_.isLetter).take(10).mkString
         val subBuilder             = builder
           .subProcess()
@@ -102,7 +102,7 @@ object BPMNConverter {
       case WIOModel.Fork(branches, name)                              =>
         val base                           = builder.exclusiveGateway().name(name.orNull)
         val gwId                           = base.getElement.getId
-        val (resultBuilder, Some(endGwId)) = {{
+        val (resultBuilder, Some(endGwId)) = {
           branches.zipWithIndex.foldLeft[(Builder, Option[String])](base -> None)({ case ((builder1, endGw), (branch, idx)) =>
             val b2              = builder1.moveToNode(gwId).condition(branch.label.getOrElse(s"Branch ${idx}"), "")
             val result: Builder = handle(branch.logic, b2)
@@ -115,7 +115,7 @@ object BPMNConverter {
                 (result, Some(gwId))
             }
           })
-        }}: @unchecked
+        }: @unchecked
         resultBuilder.moveToNode(endGwId)
       case WIOModel.Interruptible(base, trigger, interruptionFlowOpt) =>
         val subProcessStartEventId = Random.alphanumeric.filter(_.isLetter).take(10).mkString

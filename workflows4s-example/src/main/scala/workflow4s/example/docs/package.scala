@@ -15,6 +15,4 @@ package object docs {
     override type State = MyState
   }
 
-
-
 }

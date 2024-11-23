@@ -5,7 +5,7 @@ import workflow4s.example.docs.Context.WIO
 object HandleErrorExample {
 
   // start_declarative
-  val doThings: WIO[MyState, MyError, Nothing]               =
+  val doThings: WIO[MyState, MyError, Nothing]                        =
     WIO.raise[MyState](MyError()).autoNamed()
   val handleThatNastyError: WIO[(MyState, MyError), Nothing, MyState] =
     WIO.pure[(MyState, MyError)](MyState(1)).autoNamed()

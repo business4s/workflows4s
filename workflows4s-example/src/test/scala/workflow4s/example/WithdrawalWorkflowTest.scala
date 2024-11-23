@@ -177,8 +177,8 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory with BeforeAnd
 
       def checkRecovery() = {
         logger.debug("Checking recovery")
-        val originalState = actor.wf.queryState()
-        val secondActor   = runtime.recover(actor.wf)
+        val originalState  = actor.wf.queryState()
+        val secondActor    = runtime.recover(actor.wf)
         // seems sometimes querying state from fresh actor gets flaky
         val recoveredState = eventually {
           secondActor.queryState()
