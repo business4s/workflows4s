@@ -23,7 +23,7 @@ import scala.jdk.DurationConverters.ScalaDurationOps
 
 //noinspection ForwardReference
 class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory with BeforeAndAfterAll with BeforeAndAfter {
-  val testKit                   = ActorTestKit("MyCluster")
+  val testKit = ActorTestKit("MyCluster")
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -34,7 +34,6 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory with BeforeAnd
     testKit.shutdownTestKit()
     super.afterAll()
   }
-
 
   "in-memory-sync" - {
     withdrawalTests(TestRuntimeAdapter.InMemorySync)
