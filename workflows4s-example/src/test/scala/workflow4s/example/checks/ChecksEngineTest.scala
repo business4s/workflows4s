@@ -21,7 +21,10 @@ import scala.reflect.Selectable.reflectiveSelectable
 class ChecksEngineTest extends AnyFreeSpec with BeforeAndAfterAll with BeforeAndAfter {
 
   val testKit                   = ActorTestKit("MyCluster")
-  override def afterAll(): Unit = testKit.shutdownTestKit()
+  override def afterAll(): Unit = {
+    testKit.shutdownTestKit()
+    super.afterAll()
+  }
 
   before {
     val f = SchemaUtils.createIfNotExists()(testKit.system)
