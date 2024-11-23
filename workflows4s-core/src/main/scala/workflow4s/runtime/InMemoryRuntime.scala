@@ -6,7 +6,7 @@ import workflow4s.wio.{ActiveWorkflow, Interpreter, KnockerUpper, WCEvent, WCSta
 
 import java.time.Clock
 
-/** This runtime offers no persistance and stores all the events in memory It's designed to be used in test on in very specific scenarios.
+/** This runtime offers no persistance and stores all the events in memory It's designed to be used in test or in very specific scenarios.
   *
   * IT'S NOT A GENERAL-PURPOSE RUNTIME
   */

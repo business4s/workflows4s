@@ -15,7 +15,7 @@ object InMemorySyncRuntime {
   )(implicit ior: IORuntime): InMemorySyncRunningWorkflow[Ctx] = createWithState[Ctx, In](behaviour, state, state, clock, events)
 
   // this might need to evolve, we provide initial state in case the input can't be one.
-  // its needed because (theoretically) state can be queried before any succesfull execution.
+  // its necessary because (theoretically) state can be queried before any successful execution.
   def createWithState[Ctx <: WorkflowContext, In](
       behaviour: WIO[In, Nothing, WCState[Ctx], Ctx],
       input: In,

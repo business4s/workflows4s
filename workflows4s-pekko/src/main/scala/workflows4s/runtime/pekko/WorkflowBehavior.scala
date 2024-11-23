@@ -20,9 +20,7 @@ object WorkflowBehavior {
       workflow: WIO.Initial[Ctx, In],
       initialState: In,
       clock: Clock = Clock.systemUTC(),
-  )(implicit
-      ioRuntime: IORuntime,
-  ): Behavior[Command[Ctx]] =
+  )(implicit ioRuntime: IORuntime): Behavior[Command[Ctx]] =
     new WorkflowBehavior(id, workflow, initialState, initialState, clock).behavior
 
   def withInput[Ctx <: WorkflowContext, In](
@@ -46,7 +44,8 @@ object WorkflowBehavior {
     case class QueryState[Ctx <: WorkflowContext](replyTo: ActorRef[WCState[Ctx]]) extends Command[Ctx]
     case class Wakeup[Ctx <: WorkflowContext](replyTo: ActorRef[Unit])             extends Command[Ctx]
 
-    private[WorkflowBehavior] case class PersistEvent[Ctx <: WorkflowContext, T](event: WCEvent[Ctx], confirm: Option[(ActorRef[T], T)]) extends Command[Ctx]
+    private[WorkflowBehavior] case class PersistEvent[Ctx <: WorkflowContext, T](event: WCEvent[Ctx], confirm: Option[(ActorRef[T], T)])
+        extends Command[Ctx]
   }
 
   final private case class State[Ctx <: WorkflowContext](workflow: ActiveWorkflow.ForCtx[Ctx], awaitingCommandResult: Boolean)
@@ -185,7 +184,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext, In](
           case Some((replyTo, response)) =>
             logger.debug(s"Replying to ${replyTo} with ${response} after persisting ${cmd.event}")
             replyTo ! response
-          case None => ()
+          case None                      => ()
         }
       })
       .thenUnstashAll()
