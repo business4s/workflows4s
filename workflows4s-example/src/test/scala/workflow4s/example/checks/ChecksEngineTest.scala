@@ -21,7 +21,10 @@ import scala.reflect.Selectable.reflectiveSelectable
 class ChecksEngineTest extends AnyFreeSpec with BeforeAndAfterAll with BeforeAndAfter {
 
   val testKit                   = ActorTestKit("MyCluster")
-  override def afterAll(): Unit = testKit.shutdownTestKit()
+  override def afterAll(): Unit = {
+    testKit.shutdownTestKit()
+    super.afterAll()
+  }
 
   before {
     val f = SchemaUtils.createIfNotExists()(testKit.system)
@@ -171,7 +174,7 @@ class ChecksEngineTest extends AnyFreeSpec with BeforeAndAfterAll with BeforeAnd
       def checkRecovery(firstActor: ChecksActor[runtime.Actor[ChecksEngine.Context]]) = {
         logger.debug("Checking recovery")
         val originalState = firstActor.state
-        val secondActor = runtime.recover(firstActor.wf)
+        val secondActor   = runtime.recover(firstActor.wf)
         assert(secondActor.queryState() == originalState)
       }
 

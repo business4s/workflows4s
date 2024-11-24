@@ -14,7 +14,6 @@ import workflow4s.example.withdrawal.*
 import workflow4s.example.withdrawal.WithdrawalService.{ExecutionResponse, Fee, Iban}
 import workflow4s.example.withdrawal.WithdrawalSignal.CreateWithdrawal
 import workflow4s.example.withdrawal.checks.*
-import workflow4s.wio.KnockerUpper
 import workflow4s.wio.model.{WIOModel, WIOModelInterpreter}
 
 import java.time.{Clock, Instant, ZoneId, ZoneOffset}
@@ -24,12 +23,16 @@ import scala.jdk.DurationConverters.ScalaDurationOps
 
 //noinspection ForwardReference
 class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory with BeforeAndAfterAll with BeforeAndAfter {
-  val testKit                   = ActorTestKit("MyCluster")
-  override def afterAll(): Unit = testKit.shutdownTestKit()
+  val testKit = ActorTestKit("MyCluster")
 
-  before {
-    val f = SchemaUtils.createIfNotExists()(testKit.system)
-    Await.result(f, 10.seconds)
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    Await.result(SchemaUtils.createIfNotExists()(testKit.system), 10.seconds)
+  }
+
+  override def afterAll(): Unit = {
+    testKit.shutdownTestKit()
+    super.afterAll()
   }
 
   "in-memory-sync" - {
@@ -177,8 +180,8 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory with BeforeAnd
 
       def checkRecovery() = {
         logger.debug("Checking recovery")
-        val originalState = actor.wf.queryState()
-        val secondActor   = runtime.recover(actor.wf)
+        val originalState  = actor.wf.queryState()
+        val secondActor    = runtime.recover(actor.wf)
         // seems sometimes querying state from fresh actor gets flaky
         val recoveredState = eventually {
           secondActor.queryState()

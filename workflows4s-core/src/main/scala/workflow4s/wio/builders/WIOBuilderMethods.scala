@@ -28,8 +28,6 @@ trait WIOBuilderMethods[Ctx <: WorkflowContext] {
     def apply[Err](value: Err)(implicit ct: ErrorMeta[Err]): WIO[In, Err, Nothing, Ctx] = WIO.Pure(s => Left(value), ct)
   }
 
-
-
   def embed[In, Err, Out <: WCState[InnerCtx], InnerCtx <: WorkflowContext, OS[_ <: WCState[InnerCtx]] <: WCState[Ctx]](
       wio: WIO[In, Err, Out, InnerCtx],
   )(

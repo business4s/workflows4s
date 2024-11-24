@@ -59,13 +59,13 @@ object ActiveWorkflow {
       override type CurrentState = In
       override val state: CurrentState                                    = value0
       override def wio: WIO[CurrentState, Nothing, WCState[Context], Ctx] = wio0
-      override def interpreter: Interpreter                        = interpreter0
+      override def interpreter: Interpreter                               = interpreter0
     }
 
   sealed trait ProceedResponse[Ctx <: WorkflowContext]
   object ProceedResponse {
     case class NewFlow[Ctx <: WorkflowContext](wf: ActiveWorkflow.ForCtx[Ctx]) extends ProceedResponse[Ctx]
-    case class Event[Ctx <: WorkflowContext](eventIO: IO[WCEvent[Ctx]])             extends ProceedResponse[Ctx]
+    case class Event[Ctx <: WorkflowContext](eventIO: IO[WCEvent[Ctx]])        extends ProceedResponse[Ctx]
     case class Noop[Ctx <: WorkflowContext]()                                  extends ProceedResponse[Ctx]
   }
 }

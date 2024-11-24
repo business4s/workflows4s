@@ -35,7 +35,7 @@ object WithdrawalWorkflowService {
   class Impl(journal: Journal, wdShard: WithdrawalShard)(implicit val actorSystem: ActorSystem[Any]) extends WithdrawalWorkflowService {
 
     override def startWorkflow(id: String, input: CreateWithdrawal): IO[Unit] = {
-      val workflow                  = wdShard.workflowInstance(id)
+      val workflow = wdShard.workflowInstance(id)
       IO.fromFuture(IO(workflow.deliverSignal(WithdrawalWorkflow.Signals.createWithdrawal, input)))
         .map({
           case Right(response) => response
@@ -46,7 +46,7 @@ object WithdrawalWorkflowService {
     override def listWorkflows: IO[Seq[String]] = IO.fromFuture(IO(journal.currentPersistenceIds().runWith(Sink.seq)))
 
     override def getState(id: String): IO[WithdrawalData] = {
-      val workflow                  = wdShard.workflowInstance(id)
+      val workflow = wdShard.workflowInstance(id)
       IO.fromFuture(IO(workflow.queryState()))
     }
 

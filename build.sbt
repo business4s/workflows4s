@@ -49,6 +49,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "org.scalamock"        %% "scalamock"                    % "6.0.0" % Test,
       "org.apache.pekko"     %% "pekko-actor-testkit-typed"    % pekkoVerion % Test,
     ),
+    Test / parallelExecution := false // otherwise akka clusters clash
   )
   .dependsOn(`workflows4s-core`, `workflows4s-bpmn`, `workflows4s-pekko`)
 

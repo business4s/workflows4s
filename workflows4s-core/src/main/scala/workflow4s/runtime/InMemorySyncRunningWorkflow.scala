@@ -16,10 +16,9 @@ class InMemorySyncRunningWorkflow[Ctx <: WorkflowContext](initialState: ActiveWo
 ) extends RunningWorkflow[Id, WCState[Ctx]]
     with StrictLogging {
 
-  private var wf: ActiveWorkflow.ForCtx[Ctx] = initialState
-  private val events: mutable.Buffer[WCEvent[Ctx]]   = ListBuffer[WCEvent[Ctx]]()
-  def getEvents: Seq[WCEvent[Ctx]] = events.toList
-
+  private var wf: ActiveWorkflow.ForCtx[Ctx]       = initialState
+  private val events: mutable.Buffer[WCEvent[Ctx]] = ListBuffer[WCEvent[Ctx]]()
+  def getEvents: Seq[WCEvent[Ctx]]                 = events.toList
 
   override def queryState(): WCState[Ctx] = wf.state
 

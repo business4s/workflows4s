@@ -20,8 +20,8 @@ object DummyWithdrawalService extends WithdrawalService {
   override def initiateExecution(amount: BigDecimal, recepient: WithdrawalService.Iban): IO[WithdrawalService.ExecutionResponse] = {
     val hasUnwantedDecimals = amount.setScale(2) != amount
     IO(
-      if(hasUnwantedDecimals) WithdrawalService.ExecutionResponse.Rejected("Invalid precision! Only 2 decimal places expected.")
-      else WithdrawalService.ExecutionResponse.Accepted(UUID.randomUUID().toString)
+      if (hasUnwantedDecimals) WithdrawalService.ExecutionResponse.Rejected("Invalid precision! Only 2 decimal places expected.")
+      else WithdrawalService.ExecutionResponse.Accepted(UUID.randomUUID().toString),
     )
   }
 

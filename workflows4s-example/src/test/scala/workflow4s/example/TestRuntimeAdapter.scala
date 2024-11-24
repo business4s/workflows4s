@@ -121,7 +121,7 @@ object TestRuntimeAdapter {
       import cats.effect.unsafe.implicits.global
       // we create unique type key per workflow, so we can ensure we get right actor/behavior/input
       // with single shard region its tricky to inject input into behavior creation
-      val typeKey  = EntityTypeKey[Cmd[Ctx]](entityKeyPrefix + "-" + UUID.randomUUID().toString)
+      val typeKey = EntityTypeKey[Cmd[Ctx]](entityKeyPrefix + "-" + UUID.randomUUID().toString)
 
       val shardRegion   = sharding.init(
         Entity(typeKey)(createBehavior = entityContext => {
@@ -135,16 +135,17 @@ object TestRuntimeAdapter {
                   target: BehaviorInterceptor.ReceiveTarget[RawCmd[Ctx]],
               ): Behavior[RawCmd[Ctx]] =
                 msg match {
-                  case Stop(replyTo)               => Behaviors.stopped(() => replyTo ! ())
-                  case other =>
+                  case Stop(replyTo) => Behaviors.stopped(() => replyTo ! ())
+                  case other         =>
                     // classtag-based filtering doesnt work here due to union type
                     // we are mimicking the logic of Interceptor where unhandled messaged are passed through with casting
-                    target.asInstanceOf[BehaviorInterceptor.ReceiveTarget[Any]](ctx, other)
-                    .asInstanceOf[Behavior[RawCmd[Ctx]]]
+                    target
+                      .asInstanceOf[BehaviorInterceptor.ReceiveTarget[Any]](ctx, other)
+                      .asInstanceOf[Behavior[RawCmd[Ctx]]]
                 }
             },
           )(base)
-        })
+        }),
       )
       val persistenceId = UUID.randomUUID().toString
       val entityRef     = sharding.entityRefFor(typeKey, persistenceId)
@@ -152,7 +153,7 @@ object TestRuntimeAdapter {
     }
 
     case class Actor[Ctx <: WorkflowContext](entityRef: EntityRef[Cmd[Ctx]]) extends RunningWorkflow[Id, WCState[Ctx]] {
-      val base          = PekkoRunningWorkflow(entityRef, stateQueryTimeout = Timeout(1.second))
+      val base                                                                                                                             = PekkoRunningWorkflow(entityRef, stateQueryTimeout = Timeout(1.second))
       override def queryState(): Id[WCState[Ctx]]                                                                                          = base.queryState().await
       override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): Id[Either[RunningWorkflow.UnexpectedSignal, Resp]] = {
         val resp = base.deliverSignal(signalDef, req).await
@@ -160,7 +161,7 @@ object TestRuntimeAdapter {
         resp
       }
 
-      override def wakeup(): Id[Unit]                                                                                                      = base.wakeup().await
+      override def wakeup(): Id[Unit] = base.wakeup().await
 
       // TODO could at least use futureValue from scalatest
       implicit class AwaitOps[T](f: Future[T]) {
@@ -170,13 +171,12 @@ object TestRuntimeAdapter {
 
     override def recover[Ctx <: WorkflowContext](first: Actor[Ctx]): Actor[Ctx] = {
       implicit val timeout: Timeout = Timeout(1.second)
-      val isStopped = first.entityRef.ask(replyTo => Stop(replyTo))
+      val isStopped                 = first.entityRef.ask(replyTo => Stop(replyTo))
       Await.result(isStopped, 1.second)
       Thread.sleep(100) // this is terrible but sometimes akka gives us already terminated actor if we ask for it too fast.
       val entityRef = sharding.entityRefFor(first.entityRef.typeKey, first.entityRef.entityId)
-      logger.debug(
-        s"""Original Actor: ${first.entityRef}
-           |New Actor     : ${entityRef}""".stripMargin)
+      logger.debug(s"""Original Actor: ${first.entityRef}
+                      |New Actor     : ${entityRef}""".stripMargin)
       Actor(entityRef)
     }
   }

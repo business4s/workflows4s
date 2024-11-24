@@ -4,7 +4,7 @@ import org.scalatest.freespec.AnyFreeSpec
 import workflow4s.example.TestUtils
 import workflow4s.example.docs.pullrequest.{PullRequestWorkflow, PullRequestWorkflowDraft}
 
-class ExamplesTest  extends AnyFreeSpec {
+class ExamplesTest extends AnyFreeSpec {
 
   "render" in {
     TestUtils.renderDocsExample(RunIOExample.doThings, "run-io")

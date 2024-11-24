@@ -73,9 +73,9 @@ object WIOModelInterpreter {
         wio.interruption.trigger match {
           case x @ WIO.HandleSignal(_, _, _, _) =>
             new ModelVisitor(x, Metadata.empty).onSignal(x)
-          case x @ WIO.Timer(_, _, _, _)     =>
+          case x @ WIO.Timer(_, _, _, _)        =>
             new ModelVisitor(x, Metadata.empty).onTimer(x)
-          case x @ WIO.AwaitingTime(_, _)    =>
+          case x @ WIO.AwaitingTime(_, _)       =>
             new ModelVisitor(x, Metadata.empty).onAwaitingTime(x)
         }
       }

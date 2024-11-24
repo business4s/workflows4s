@@ -16,7 +16,7 @@ object LoopBuilder {
 
     case class LoopBuilderStep1[Err, LoopOut <: WCState[Ctx]](private val repeatAction: WIO[LoopOut, Err, LoopOut, Ctx]) {
       def untilSome[Out1 <: WCState[Ctx]](f: LoopOut => Option[Out1]): Step2[Out1] = Step2(f)
-      def until[Out1 <: WCState[Ctx]](f: LoopOut => Boolean): Step2[LoopOut] = Step2(x => Option.when(f(x))(x))
+      def until[Out1 <: WCState[Ctx]](f: LoopOut => Boolean): Step2[LoopOut]       = Step2(x => Option.when(f(x))(x))
 
       // TODO the builder could be more typesafe, disallow setting allready setup values
       case class Step2[Out <: WCState[Ctx]](

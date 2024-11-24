@@ -9,9 +9,9 @@ object TestUtils {
     import cats.effect.unsafe.implicits.global
     def extract: Resp = value.unsafeRunSync().extract
   }
-  implicit class SignalResponseOps[Resp](value: Either[UnexpectedSignal, Resp]) {
+  implicit class SignalResponseOps[Resp](value: Either[UnexpectedSignal, Resp])       {
     def extract: Resp = value match {
-      case Right(result)             => result
+      case Right(result)    => result
       case Left(unexpected) => throw new IllegalArgumentException(s"Unexpected signal: ${unexpected.signalDef}")
     }
   }
