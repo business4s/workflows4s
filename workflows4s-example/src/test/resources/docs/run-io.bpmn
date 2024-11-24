@@ -1,35 +1,35 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<definitions xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="definitions_0b31d4af-aece-4a08-b437-6e3ac1ff1c84" targetNamespace="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL">
-  <process id="process" isExecutable="true">
-    <startEvent id="startEvent_cb131f56-99cf-4b6f-a054-87576b6e99c7">
-      <outgoing>sequenceFlow_2d758777-6a24-4bac-84c0-9adfb5b11bf5</outgoing>
+<definitions xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="definitions_0" targetNamespace="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL">
+  <process id="process_0" isExecutable="true">
+    <startEvent id="startEvent_4">
+      <outgoing>sequenceFlow_2</outgoing>
     </startEvent>
-    <serviceTask id="serviceTask_2cede12d-b302-4918-8e8c-3d4b6edf74da" name="Do Things">
-      <incoming>sequenceFlow_2d758777-6a24-4bac-84c0-9adfb5b11bf5</incoming>
-      <outgoing>sequenceFlow_ffcda7be-4173-43b8-b53b-8bdc2dd6664a</outgoing>
+    <serviceTask id="serviceTask_1" name="Do Things">
+      <incoming>sequenceFlow_2</incoming>
+      <outgoing>sequenceFlow_3</outgoing>
     </serviceTask>
-    <sequenceFlow id="sequenceFlow_2d758777-6a24-4bac-84c0-9adfb5b11bf5" sourceRef="startEvent_cb131f56-99cf-4b6f-a054-87576b6e99c7" targetRef="serviceTask_2cede12d-b302-4918-8e8c-3d4b6edf74da"/>
-    <endEvent id="endEvent_f22f8089-19ad-4aa2-b0c8-c369be18a192">
-      <incoming>sequenceFlow_ffcda7be-4173-43b8-b53b-8bdc2dd6664a</incoming>
+    <sequenceFlow id="sequenceFlow_2" sourceRef="startEvent_4" targetRef="serviceTask_1"/>
+    <endEvent id="endEvent_5">
+      <incoming>sequenceFlow_3</incoming>
     </endEvent>
-    <sequenceFlow id="sequenceFlow_ffcda7be-4173-43b8-b53b-8bdc2dd6664a" sourceRef="serviceTask_2cede12d-b302-4918-8e8c-3d4b6edf74da" targetRef="endEvent_f22f8089-19ad-4aa2-b0c8-c369be18a192"/>
+    <sequenceFlow id="sequenceFlow_3" sourceRef="serviceTask_1" targetRef="endEvent_5"/>
   </process>
-  <bpmndi:BPMNDiagram id="BPMNDiagram_94559939-fc4a-4cf1-905e-d3d1a1ca7aad">
-    <bpmndi:BPMNPlane bpmnElement="process" id="BPMNPlane_f385cbf3-3b09-496b-bad6-79fd5a76692e">
-      <bpmndi:BPMNShape bpmnElement="startEvent_cb131f56-99cf-4b6f-a054-87576b6e99c7" id="BPMNShape_a8ccde84-ee56-4085-a561-387c5fd2cd57">
+  <bpmndi:BPMNDiagram id="BpmnDiagram_0">
+    <bpmndi:BPMNPlane bpmnElement="process_0" id="BpmnPlaneImpl_5">
+      <bpmndi:BPMNShape bpmnElement="startEvent_4" id="BpmnShapeImpl_2">
         <dc:Bounds height="36.0" width="36.0" x="100.0" y="100.0"/>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape bpmnElement="serviceTask_2cede12d-b302-4918-8e8c-3d4b6edf74da" id="BPMNShape_e73d3436-220a-4457-bd32-bdaebe03d938">
+      <bpmndi:BPMNShape bpmnElement="serviceTask_1" id="BpmnShapeImpl_3">
         <dc:Bounds height="80.0" width="100.0" x="186.0" y="78.0"/>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_2d758777-6a24-4bac-84c0-9adfb5b11bf5" id="BPMNEdge_f584f439-c640-47a2-9ade-b5545ed18aa3">
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_2" id="BpmnEdgeImpl_0">
         <di:waypoint x="136.0" y="118.0"/>
         <di:waypoint x="186.0" y="118.0"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNShape bpmnElement="endEvent_f22f8089-19ad-4aa2-b0c8-c369be18a192" id="BPMNShape_de3f7cd7-ec67-44c3-9da3-57c80dedc42f">
+      <bpmndi:BPMNShape bpmnElement="endEvent_5" id="BpmnShapeImpl_4">
         <dc:Bounds height="36.0" width="36.0" x="336.0" y="100.0"/>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_ffcda7be-4173-43b8-b53b-8bdc2dd6664a" id="BPMNEdge_1c3e7e5e-6f94-4af3-bbdf-4a8b4f822f17">
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_3" id="BpmnEdgeImpl_1">
         <di:waypoint x="286.0" y="118.0"/>
         <di:waypoint x="336.0" y="118.0"/>
       </bpmndi:BPMNEdge>

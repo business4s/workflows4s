@@ -1,14 +1,18 @@
 package workflow4s.bpmn
 
 import org.camunda.bpm.model.bpmn.builder.{AbstractActivityBuilder, AbstractFlowNodeBuilder, ProcessBuilder}
-import org.camunda.bpm.model.bpmn.instance.{Activity, FlowNode}
+import org.camunda.bpm.model.bpmn.instance.bpmndi.{BpmnDiagram, BpmnEdge, BpmnShape}
+import org.camunda.bpm.model.bpmn.instance.di.DiagramElement
+import org.camunda.bpm.model.bpmn.instance.{Activity, BaseElement, Definitions, FlowNode, SequenceFlow}
 import org.camunda.bpm.model.bpmn.{Bpmn, BpmnModelInstance}
+import org.camunda.bpm.model.xml.instance.ModelElementInstance
 import workflow4s.wio.ErrorMeta
 import workflow4s.wio.model.WIOModel
 
 import java.nio.file.Path
 import java.time.Duration
 import java.util.UUID
+import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.util.Random
 import scala.util.chaining.scalaUtilChainingOps
 
@@ -24,6 +28,7 @@ object BPMNConverter {
     handle(model, base)
       .endEvent()
       .done()
+      .pipe(assignStableIds)
   }
 
   private type Builder = AbstractFlowNodeBuilder[? <: AbstractFlowNodeBuilder[?, ? <: FlowNode], ? <: FlowNode]
@@ -177,4 +182,29 @@ object BPMNConverter {
 
   def humanReadableDuration(duration: Duration): String = duration.toString.substring(2).replaceAll("(\\d[HMS])(?!$)", "$1 ").toLowerCase
 
+  private def assignStableIds(model: BpmnModelInstance): BpmnModelInstance = {
+    val allElements = model.getModelElementsByType(classOf[BaseElement]).asScala
+    allElements.zipWithIndex.foreach({ case (el, idx) => el.setId(s"${el.getElementType.getTypeName}_${idx}") })
+    model
+      .getModelElementsByType(classOf[Definitions])
+      .asScala
+      .zipWithIndex
+      .foreach({ case (el, idx) => el.setId(s"${el.getElementType.getTypeName}_${idx}") })
+    model
+      .getModelElementsByType(classOf[DiagramElement])
+      .asScala
+      .zipWithIndex
+      .foreach({ case (el, idx) => el.setId(s"${el.getClass.getSimpleName}_${idx}") })
+    model
+      .getModelElementsByType(classOf[BpmnDiagram])
+      .asScala
+      .zipWithIndex
+      .foreach({ case (el, idx) => el.setId(s"BpmnDiagram_${idx}") })
+    model
+  }
+
+  case class Path(raw: Vector[Int]) {
+    def append(id: Int)      = Path(raw.appended(id))
+    def asId(prefix: String) = s"${prefix}_${raw.mkString("_")}"
+  }
 }
