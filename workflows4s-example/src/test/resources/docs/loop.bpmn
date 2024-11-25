@@ -24,7 +24,7 @@
     <sequenceFlow id="sequenceFlow_9" name="Yes!" sourceRef="exclusiveGateway_1" targetRef="serviceTask_4">
       <conditionExpression id="conditionExpression_13"/>
     </sequenceFlow>
-    <serviceTask id="serviceTask_4" name="pdIOUAObta">
+    <serviceTask id="serviceTask_4" name="">
       <incoming>sequenceFlow_9</incoming>
       <outgoing>sequenceFlow_12</outgoing>
     </serviceTask>

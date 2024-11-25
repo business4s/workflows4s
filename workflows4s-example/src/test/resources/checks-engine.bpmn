@@ -30,7 +30,7 @@
       <sequenceFlow id="sequenceFlow_18" name="Yes" sourceRef="exclusiveGateway_4" targetRef="serviceTask_11">
         <conditionExpression id="conditionExpression_31"/>
       </sequenceFlow>
-      <serviceTask id="serviceTask_11" name="QYtPFxrXSn">
+      <serviceTask id="serviceTask_11" name="">
         <incoming>sequenceFlow_18</incoming>
         <outgoing>sequenceFlow_21</outgoing>
       </serviceTask>

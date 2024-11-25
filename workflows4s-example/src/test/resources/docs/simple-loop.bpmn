@@ -24,7 +24,7 @@
     <sequenceFlow id="sequenceFlow_8" sourceRef="exclusiveGateway_1" targetRef="serviceTask_4">
       <conditionExpression id="conditionExpression_11"/>
     </sequenceFlow>
-    <serviceTask id="serviceTask_4" name="fqQhyUrGjd">
+    <serviceTask id="serviceTask_4" name="">
       <incoming>sequenceFlow_8</incoming>
       <outgoing>sequenceFlow_10</outgoing>
     </serviceTask>

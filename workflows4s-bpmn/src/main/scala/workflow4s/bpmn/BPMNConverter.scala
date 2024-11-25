@@ -94,6 +94,7 @@ object BPMNConverter {
           .name(loop.conditionName.getOrElse(""))
           .condition(loop.exitBranchName.orNull, "")
           .serviceTask(nextTaskTempNodeId)
+          .name("")
           .moveToLastGateway()
           .condition(loop.restartBranchName.orNull, "")
           .pipe(builder =>
