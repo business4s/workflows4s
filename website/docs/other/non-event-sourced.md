@@ -7,7 +7,7 @@ dedicated event, it's possible to run it in slightly different, possibly simpler
 
 If you want to persist your state directly, and you're fine with doing it through append-only storage, it should work
 just fine with
-existing workflows4s mechanisms.
+existing Workflows4s mechanisms.
 
 ```scala file=./main/scala/workflow4s/example/docs/AppendOnlyPersistance.scala start=start_example end=end_example
 ```

@@ -13,7 +13,7 @@ import java.time.Clock
 object InMemoryRuntime {
 
   def runWorkflow[Ctx <: WorkflowContext, In <: WCState[Ctx]](
-      workflow: Initial[Ctx, In],
+      workflow: WIO[In, Nothing, WCState[Ctx], Ctx],
       initialState: In,
       events: Seq[WCEvent[Ctx]] = Seq(),
       clock: Clock = Clock.systemUTC(),
