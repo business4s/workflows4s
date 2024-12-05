@@ -119,6 +119,9 @@ const config: Config = {
             darkTheme: prismThemes.dracula,
             additionalLanguages: ['java', 'scala', "json"]
         },
+        customFields: {
+            workflows4sVersion: "unreleased",
+        },
     } satisfies Preset.ThemeConfig,
 };
 

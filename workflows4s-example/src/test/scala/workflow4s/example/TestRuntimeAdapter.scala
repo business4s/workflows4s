@@ -3,8 +3,6 @@ package workflow4s.example
 import cats.Id
 import cats.effect.IO
 import com.typesafe.scalalogging.StrictLogging
-import doobie.ConnectionIO
-import doobie.util.transactor.Transactor
 import org.apache.pekko.actor.typed.*
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.cluster.sharding.typed.ShardingEnvelope
@@ -12,6 +10,8 @@ import org.apache.pekko.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity
 import org.apache.pekko.persistence.typed.PersistenceId
 import org.apache.pekko.util.Timeout
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
+import _root_.doobie.ConnectionIO
+import _root_.doobie.util.transactor.Transactor
 import workflow4s.runtime.{InMemoryRuntime, InMemorySyncRuntime, RunningWorkflow}
 import workflow4s.wio.*
 import workflows4s.doobie.EventCodec
@@ -188,7 +188,7 @@ object TestRuntimeAdapter {
   }
 
   class Postgres[Ctx <: WorkflowContext](xa: Transactor[IO], eventCodec: EventCodec[WCEvent[Ctx]]) extends TestRuntimeAdapter[Ctx] {
-    import doobie.implicits.*
+    import _root_.doobie.implicits.*
 
 
     override def runWorkflow[In](

@@ -1,9 +1,7 @@
 package workflows4s.doobie
 
-import cats.effect.kernel.{Resource, Sync}
-import cats.implicits.toFunctorOps
+import cats.effect.kernel.Resource
 import doobie.*
-import doobie.implicits.*
 
 trait WorkflowStorage[Id] {
 

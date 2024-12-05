@@ -7,4 +7,4 @@ Its usage should typically be limited to tests or very exceptional scenarios.
 
 ## Unsafe In Memory Runtime
 
-Alternative in-memory implementation that is not thread-safe and is build on vanilla scala.
+Alternative in-memory implementation that is not thread-safe but is built with vanilla scala.

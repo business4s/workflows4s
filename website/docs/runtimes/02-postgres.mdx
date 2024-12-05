@@ -1,0 +1,61 @@
+# Postgres
+
+`PostgresRuntime` is a simpler but also less powerful alternative to a full-fledged event-sourcing solution like Akka/Pekko.
+
+It stores events in the database table but doesn't hold any state in memory.
+Upon each interaction with the instance, the events are read from the journal.
+This means higher latency but lower memory footprint.
+
+## Usage
+
+import SbtDependency from '@site/src/components/SbtDependency';
+
+Here are the steps needed to use Postgres runtime. See the dedicated sections below for more details.
+
+1. Add the dependency
+<SbtDependency moduleName={"workflows4s-doobie"}/>
+2. Include the [database migration](https://github.com/business4s/workflows4s/tree/main/workflows4s-pekko/src/main/scala/workflows4s/runtime/pekko) in your application lifecycle.
+3. Implement the `EventCodec`
+4. Use the Runtime
+
+### Database Migrations
+Postgres runtime requires a very basic database table to store the events.
+Alternative schema can be used but might require a custom `WorkflowStorage`.
+See [Other Databases](#other-databases) for details.
+
+<!-- @formatter:off -->
+```sql file=../../workflows4s-doobie/src/main/resources/schema/postgres-schema.sql start=doc_start end=doc_end
+```
+<!-- @formatter:on -->
+
+This implementation takes a lot of assumptions and can be seen as naive,
+but for more demanding use-cases we recommend using a different runtime or implementing a custom storage.
+
+### Event Codec
+
+Events are stored in the database as binary data and `EventCodec` is the way to serialize and deserialize them.
+
+### Example
+
+```scala file=./main/scala/workflow4s/example/doobie/PostgresExample.scala start=doc_start end=doc_end
+```
+
+## Locking The Workflow
+
+Consider the following scenario:
+1. A workflow awaits two signals in parallel.
+2. They arrive at the same moment.
+3. Only one of the workflow's paths can be followed.
+
+To solve this problem, the workflow is locked, so that only a single signal is accepted for processing.
+
+### Workflow ID
+
+Locking mentioned above is implemented through [advisory locks](https://www.postgresql.org/docs/current/explicit-locking.html#ADVISORY-LOCKS)
+which in turn require a single `BIGINT` as a lock identifier.
+For the sake of simplicity we use `Long`s as `WorkflowId`s which are used directly as lock ids.
+
+## Other Databases & Custom Storages
+
+Support for other DBMS or other workflow storage approaches can easily be added by implementing `WorkflowStorage` interface.
+It specifies how to save and read events and lock the workflow.

@@ -1,3 +1,4 @@
+-- doc_start
 CREATE TABLE if not exists workflow_journal
 (
     event_id    SERIAL PRIMARY KEY,                          -- Auto-incrementing primary key
@@ -6,5 +7,5 @@ CREATE TABLE if not exists workflow_journal
     created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP -- Timestamp for event creation
 );
 
--- Index for quick lookup by workflow_id
 CREATE INDEX if not exists idx_workflow_id ON workflow_journal (workflow_id);
+-- doc_end

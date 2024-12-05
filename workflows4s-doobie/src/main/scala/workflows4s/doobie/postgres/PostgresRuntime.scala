@@ -12,7 +12,7 @@ class PostgresRuntime(knockerUpper: WorkflowId => KnockerUpper, clock: Clock = C
 
   def runWorkflow[Ctx <: WorkflowContext, In <: WCState[Ctx]](
       id: WorkflowId,
-      workflow: WIO[In, Nothing, WCState[Ctx], Ctx],
+      workflow: WIO.Initial[Ctx, Any],
       initialState: In,
       eventCodec: EventCodec[WCEvent[Ctx]],
   ): IO[RunningWorkflow[ConnectionIO, WCState[Ctx]]] = runWorkflowWithState[Ctx, In](id, workflow, initialState, initialState, eventCodec)
@@ -36,7 +36,7 @@ class PostgresRuntime(knockerUpper: WorkflowId => KnockerUpper, clock: Clock = C
             liftIo,
             eventCodec,
             knockerUpper(id),
-            clock
+            clock,
           ),
         ),
       )
