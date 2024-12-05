@@ -22,16 +22,20 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.jdk.DurationConverters.ScalaDurationOps
 
 //noinspection ForwardReference
-class PekkoWithdrawalWorkflowTest extends ScalaTestWithActorTestKit(ActorTestKit("MyCluster")) with AnyFreeSpecLike with MockFactory with BeforeAndAfterAll with WithdrawalWorkflowTest.Suite {
+class PekkoWithdrawalWorkflowTest
+    extends ScalaTestWithActorTestKit(ActorTestKit("MyCluster"))
+    with AnyFreeSpecLike
+    with MockFactory
+    with BeforeAndAfterAll
+    with WithdrawalWorkflowTest.Suite {
 
   override def beforeAll(): Unit = {
     super.beforeAll()
     Await.result(SchemaUtils.createIfNotExists()(testKit.system), 10.seconds)
   }
-  
+
   "pekko" - {
     withdrawalTests(new TestRuntimeAdapter.Pekko("withdrawal")(testKit.system))
   }
-  
-  
+
 }

@@ -28,13 +28,11 @@ trait PostgresSuite extends TestContainerForAll { self: Suite =>
     createSchema(xa).unsafeRunSync()
   }
 
-
-
   def createSchema(xa: Transactor[IO]): IO[Unit] = {
-    val schemaSql = scala.io.Source.fromResource("schema/postgres-schema.sql").mkString
+    val schemaSql  = scala.io.Source.fromResource("schema/postgres-schema.sql").mkString
     // Split the script into individual statements (if necessary) and execute them
     val statements = schemaSql.split(";").map(_.trim).filter(_.nonEmpty)
-    val actions = statements.toList.traverse(sql => Fragment.const(sql).update.run)
+    val actions    = statements.toList.traverse(sql => Fragment.const(sql).update.run)
     actions.transact(xa).map(_ => ())
   }
 

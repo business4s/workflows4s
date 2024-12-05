@@ -152,7 +152,7 @@ object ChecksEngineTest {
       }
 
       trait Fixture extends StrictLogging {
-        val clock = new TestClock
+        val clock   = new TestClock
         val runtime = getRuntime
 
         def createWorkflow(checks: List[Check[Unit]]) = {

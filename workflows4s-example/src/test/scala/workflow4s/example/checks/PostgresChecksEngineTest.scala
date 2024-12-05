@@ -21,7 +21,6 @@ class PostgresChecksEngineTest extends AnyFreeSpec with PostgresSuite with Check
     checkEngineTests(new TestRuntimeAdapter.Postgres[ChecksEngine.Context](xa, eventCodec))
   }
 
-
   lazy val eventCodec: EventCodec[ChecksEngine.Context.Event] = CirceEventCodec.get()
-  
+
 }

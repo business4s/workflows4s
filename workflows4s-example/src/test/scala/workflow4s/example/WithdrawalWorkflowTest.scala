@@ -162,9 +162,9 @@ object WithdrawalWorkflowTest {
 
       trait Fixture extends StrictLogging {
         val runtime = getRuntime
-        val txId  = "abc"
-        val clock = new TestClock
-        val actor = createActor(List())
+        val txId    = "abc"
+        val clock   = new TestClock
+        val actor   = createActor(List())
 
         def checkRecovery() = {
           logger.debug("Checking recovery")

@@ -110,7 +110,9 @@ object TestRuntimeAdapter {
 
   }
 
-  class Pekko[Ctx <: WorkflowContext](entityKeyPrefix: String)(implicit actorSystem: ActorSystem[?]) extends TestRuntimeAdapter[Ctx] with StrictLogging {
+  class Pekko[Ctx <: WorkflowContext](entityKeyPrefix: String)(implicit actorSystem: ActorSystem[?])
+      extends TestRuntimeAdapter[Ctx]
+      with StrictLogging {
 
     val sharding = ClusterSharding(actorSystem)
 
@@ -190,7 +192,6 @@ object TestRuntimeAdapter {
   class Postgres[Ctx <: WorkflowContext](xa: Transactor[IO], eventCodec: EventCodec[WCEvent[Ctx]]) extends TestRuntimeAdapter[Ctx] {
     import _root_.doobie.implicits.*
 
-
     override def runWorkflow[In](
         workflow: WIO[In, Nothing, WCState[Ctx], Ctx],
         input: In,
@@ -205,8 +206,7 @@ object TestRuntimeAdapter {
       first // in this runtime there is no in-memory state, hence no recovery.
     }
 
-    case class Actor(base: IO[RunningWorkflow[ConnectionIO, WCState[Ctx]]]
-    ) extends RunningWorkflow[Id, WCState[Ctx]] {
+    case class Actor(base: IO[RunningWorkflow[ConnectionIO, WCState[Ctx]]]) extends RunningWorkflow[Id, WCState[Ctx]] {
       import cats.effect.unsafe.implicits.global
 
       override def queryState(): WCState[Ctx] = base.flatMap(_.queryState().transact(xa)).unsafeRunSync()
