@@ -19,10 +19,10 @@ object WorkflowBehavior {
       id: PersistenceId,
       workflow: WIO.Initial[Ctx, Any],
       initialState: WCState[Ctx],
-      clock: Clock
+      clock: Clock,
   )(implicit ioRuntime: IORuntime): Behavior[Command[Ctx]] =
     new WorkflowBehavior(id, workflow, initialState, clock).behavior
-  
+
   sealed trait Command[Ctx <: WorkflowContext]
   object Command {
     case class DeliverSignal[Req, Resp, Ctx <: WorkflowContext](
@@ -74,6 +74,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
 
   val behavior: Behavior[Cmd] = Behaviors.setup { context =>
     Behaviors.withTimers { timers =>
+      // TODO this shouldn't be hardcoded
       val knockerUpper                               = PekkoKnockerUpper(timers, context)
       val activeWorkflow: ActiveWorkflow.ForCtx[Ctx] = ActiveWorkflow(workflow.provideInput(()), initialState)(Interpreter(knockerUpper))
       EventSourcedBehavior[Cmd, Event, St](

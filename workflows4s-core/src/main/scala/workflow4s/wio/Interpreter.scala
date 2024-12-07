@@ -3,6 +3,7 @@ package workflow4s.wio
 import cats.data.Ior
 import cats.effect.IO
 import cats.syntax.all.*
+import workflow4s.runtime.wakeup.KnockerUpper
 import workflow4s.wio.ActiveWorkflow.ForCtx
 import workflow4s.wio.internal.WorkflowEmbedding
 
@@ -63,7 +64,7 @@ object Interpreter {
   }
 }
 
-import NextWfState.{NewBehaviour, NewValue}
+import workflow4s.wio.NextWfState.{NewBehaviour, NewValue}
 abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio: WIO[In, Err, Out, Ctx]) {
   type Result
   type State = WCState[Ctx]

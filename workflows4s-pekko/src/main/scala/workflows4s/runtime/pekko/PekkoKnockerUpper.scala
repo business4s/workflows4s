@@ -2,7 +2,8 @@ package workflows4s.runtime.pekko
 
 import cats.effect.IO
 import org.apache.pekko.actor.typed.scaladsl.{ActorContext, Behaviors, TimerScheduler}
-import workflow4s.wio.{KnockerUpper, WorkflowContext}
+import workflow4s.runtime.wakeup.KnockerUpper
+import workflow4s.wio.WorkflowContext
 
 import java.time.{Duration, Instant}
 import java.util.UUID

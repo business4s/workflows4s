@@ -13,6 +13,7 @@ import scala.concurrent.Future
 
 trait PekkoRuntime[Ctx <: WorkflowContext] extends WorkflowRuntime[Future, Ctx, String, Unit] {
   def createInstance(id: String): WorkflowInstance[Future, WCState[Ctx]]
+  def initializeShard(): Unit
 }
 
 class PekkoRuntimeImpl[Ctx <: WorkflowContext, Input <: WCState[Ctx]](
@@ -21,7 +22,7 @@ class PekkoRuntimeImpl[Ctx <: WorkflowContext, Input <: WCState[Ctx]](
     entityName: String,
     clock: Clock,
 )(implicit
-    system: ActorSystem[Any],
+    system: ActorSystem[?],
     IORuntime: IORuntime,
 ) extends PekkoRuntime[Ctx] {
   private val sharding: ClusterSharding = ClusterSharding(system)
@@ -56,7 +57,7 @@ object PekkoRuntime {
       clock: Clock = Clock.systemUTC(),
   )(implicit
       ioRuntime: IORuntime,
-      system: ActorSystem[Any],
+      system: ActorSystem[?],
   ): PekkoRuntime[Ctx] = {
     new PekkoRuntimeImpl(workflow, initialState, entityName, clock)
   }

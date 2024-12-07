@@ -12,6 +12,7 @@ import org.apache.pekko.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity
 import org.apache.pekko.persistence.typed.PersistenceId
 import org.apache.pekko.util.Timeout
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
+import workflow4s.runtime.wakeup.KnockerUpper
 import workflow4s.runtime.{InMemoryRuntime, InMemorySyncRuntime, WorkflowInstance}
 import workflow4s.wio.*
 import workflows4s.doobie.EventCodec
@@ -67,7 +68,7 @@ object TestRuntimeAdapter {
       val base = {
         val runtime =
           new InMemorySyncRuntime[Ctx, Unit, Unit](workflow, _ => state, clock, KnockerUpper.noopFactory)(using IORuntime.global)
-        val inst    = runtime.createInstance((), state)
+        val inst    = runtime.createInstance((), ())
         inst.recover(events)
         inst
       }

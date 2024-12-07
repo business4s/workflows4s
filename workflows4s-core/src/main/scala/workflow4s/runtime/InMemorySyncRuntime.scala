@@ -2,8 +2,9 @@ package workflow4s.runtime
 
 import cats.Id
 import cats.effect.unsafe.IORuntime
+import workflow4s.runtime.wakeup.KnockerUpper
 import workflow4s.wio.WIO.Initial
-import workflow4s.wio.{ActiveWorkflow, Interpreter, KnockerUpper, WCEvent, WCState, WIO, WorkflowContext}
+import workflow4s.wio.*
 
 import java.time.Clock
 

@@ -1,7 +1,6 @@
-package workflow4s.runtime
+package workflow4s.runtime.wakeup
 
 import cats.effect.IO
-import workflow4s.wio.KnockerUpper
 
 import java.time.{Duration, Instant}
 import scala.jdk.DurationConverters.JavaDurationOps

@@ -1,8 +1,9 @@
 package workflow4s.runtime
 
 import cats.effect.{Deferred, IO, Ref}
+import workflow4s.runtime.wakeup.{KnockerUpper, SleepingKnockerUpper}
 import workflow4s.wio.WIO.Initial
-import workflow4s.wio.{ActiveWorkflow, Interpreter, KnockerUpper, WCEvent, WCState, WIO, WorkflowContext}
+import workflow4s.wio.*
 
 import java.time.Clock
 
