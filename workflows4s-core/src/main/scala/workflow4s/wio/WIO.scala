@@ -51,8 +51,8 @@ sealed trait WIO[-In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext] extend
 
 object WIO {
 
-  type Initial[Ctx <: WorkflowContext, In <: WCState[Ctx]] = WIO[In, Nothing, WCState[Ctx], Ctx]
-  type Draft[Ctx <: WorkflowContext]                       = WIO[Any, Nothing, Nothing, Ctx]
+  type Initial[Ctx <: WorkflowContext, In] = WIO[In, Nothing, WCState[Ctx], Ctx]
+  type Draft[Ctx <: WorkflowContext]       = WIO[Any, Nothing, Nothing, Ctx]
 
   sealed trait InterruptionSource[-In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext] extends WIO[In, Err, Out, Ctx]
 

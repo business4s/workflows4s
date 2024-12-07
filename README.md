@@ -28,6 +28,8 @@ The following items are planned in the scope of this experiment
 - [ ] Checkpointing
 - [ ] Test harness
 - [ ] Explicit approach to handling workflow evolutions
+- [ ] Persistent wake-ups
+  - [ ] Quartz/db-scheduler integration?
 
 ### Followup work
 

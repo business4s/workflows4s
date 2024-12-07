@@ -1,6 +1,7 @@
 package workflow4s.example
 
 import cats.Id
+import cats.effect.IO
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.pekko.actor.typed.*
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
@@ -9,27 +10,32 @@ import org.apache.pekko.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity
 import org.apache.pekko.persistence.typed.PersistenceId
 import org.apache.pekko.util.Timeout
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
+import _root_.doobie.ConnectionIO
+import _root_.doobie.util.transactor.Transactor
 import workflow4s.runtime.{InMemoryRuntime, InMemorySyncRuntime, RunningWorkflow}
 import workflow4s.wio.*
+import workflows4s.doobie.EventCodec
+import workflows4s.doobie.postgres.{PostgresRuntime, WorkflowId}
 import workflows4s.runtime.pekko.{PekkoRunningWorkflow, WorkflowBehavior}
 
 import java.time.Clock
 import java.util.UUID
 import scala.concurrent.{Await, Future}
+import scala.util.Random
 
-// Adapt various runtimes to a signle interface for the purpose of tests
-trait TestRuntimeAdapter {
+// Adapt various runtimes to a single interface for tests
+trait TestRuntimeAdapter[Ctx <: WorkflowContext] {
 
-  type Actor[Ctx <: WorkflowContext] <: RunningWorkflow[Id, WCState[Ctx]]
+  type Actor <: RunningWorkflow[Id, WCState[Ctx]]
 
-  def runWorkflow[Ctx <: WorkflowContext, In](
+  def runWorkflow[In](
       workflow: WIO[In, Nothing, WCState[Ctx], Ctx],
       input: In,
       state: WCState[Ctx],
       clock: Clock,
-  ): Actor[Ctx]
+  ): Actor
 
-  def recover[Ctx <: WorkflowContext](first: Actor[Ctx]): Actor[Ctx]
+  def recover(first: Actor): Actor
 
 }
 
@@ -39,19 +45,19 @@ object TestRuntimeAdapter {
     def getEvents: Seq[Event]
   }
 
-  object InMemorySync extends TestRuntimeAdapter {
-    override def runWorkflow[Ctx <: WorkflowContext, In](
+  case class InMemorySync[Ctx <: WorkflowContext]() extends TestRuntimeAdapter[Ctx] {
+    override def runWorkflow[In](
         workflow: WIO[In, Nothing, WCState[Ctx], Ctx],
         input: In,
         state: WCState[Ctx],
         clock: Clock,
-    ): Actor[Ctx] = Actor(workflow.provideInput(input), state, clock, List())
+    ): Actor = Actor(workflow.provideInput(input), state, clock, List())
 
-    override def recover[Ctx <: WorkflowContext](first: Actor[Ctx]): Actor[Ctx] = {
+    override def recover(first: Actor): Actor = {
       Actor(first.workflow, first.state, first.clock, first.getEvents)
     }
 
-    case class Actor[Ctx <: WorkflowContext](
+    case class Actor(
         workflow: WIO[Any, Nothing, WCState[Ctx], Ctx],
         state: WCState[Ctx],
         clock: Clock,
@@ -72,20 +78,20 @@ object TestRuntimeAdapter {
 
   }
 
-  object InMemory extends TestRuntimeAdapter {
-    override def runWorkflow[Ctx <: WorkflowContext, In](
+  case class InMemory[Ctx <: WorkflowContext]() extends TestRuntimeAdapter[Ctx] {
+    override def runWorkflow[In](
         workflow: WIO[In, Nothing, WCState[Ctx], Ctx],
         input: In,
         state: WCState[Ctx],
         clock: Clock,
-    ): Actor[Ctx] = {
+    ): Actor = {
       Actor(workflow.provideInput(input), state, clock, List())
     }
 
-    override def recover[Ctx <: WorkflowContext](first: Actor[Ctx]): Actor[Ctx] =
+    override def recover(first: Actor): Actor =
       Actor(first.workflow, first.state, first.clock, first.getEvents)
 
-    case class Actor[Ctx <: WorkflowContext](
+    case class Actor(
         workflow: WIO[Any, Nothing, WCState[Ctx], Ctx],
         state: WCState[Ctx],
         clock: Clock,
@@ -104,36 +110,38 @@ object TestRuntimeAdapter {
 
   }
 
-  class Pekko(entityKeyPrefix: String)(implicit actorSystem: ActorSystem[?]) extends TestRuntimeAdapter with StrictLogging {
+  class Pekko[Ctx <: WorkflowContext](entityKeyPrefix: String)(implicit actorSystem: ActorSystem[?])
+      extends TestRuntimeAdapter[Ctx]
+      with StrictLogging {
 
     val sharding = ClusterSharding(actorSystem)
 
     case class Stop(replyTo: ActorRef[Unit])
-    type RawCmd[Ctx <: WorkflowContext] = WorkflowBehavior.Command[Ctx]
-    type Cmd[Ctx <: WorkflowContext]    = WorkflowBehavior.Command[Ctx] | Stop
+    type RawCmd = WorkflowBehavior.Command[Ctx]
+    type Cmd    = WorkflowBehavior.Command[Ctx] | Stop
 
-    override def runWorkflow[Ctx <: WorkflowContext, In](
+    override def runWorkflow[In](
         workflow: WIO[In, Nothing, WCState[Ctx], Ctx],
         input: In,
         state: WCState[Ctx],
         clock: Clock,
-    ): Actor[Ctx] = {
+    ): Actor = {
       import cats.effect.unsafe.implicits.global
       // we create unique type key per workflow, so we can ensure we get right actor/behavior/input
       // with single shard region its tricky to inject input into behavior creation
-      val typeKey = EntityTypeKey[Cmd[Ctx]](entityKeyPrefix + "-" + UUID.randomUUID().toString)
+      val typeKey = EntityTypeKey[Cmd](entityKeyPrefix + "-" + UUID.randomUUID().toString)
 
       val shardRegion   = sharding.init(
         Entity(typeKey)(createBehavior = entityContext => {
           val persistenceId = PersistenceId(entityContext.entityTypeKey.name, entityContext.entityId)
           val base          = WorkflowBehavior.withInput(persistenceId, workflow, state, input, clock)
-          Behaviors.intercept[Cmd[Ctx], RawCmd[Ctx]](() =>
-            new BehaviorInterceptor[Cmd[Ctx], RawCmd[Ctx]]() {
+          Behaviors.intercept[Cmd, RawCmd](() =>
+            new BehaviorInterceptor[Cmd, RawCmd]() {
               override def aroundReceive(
-                  ctx: TypedActorContext[Cmd[Ctx]],
-                  msg: Cmd[Ctx],
-                  target: BehaviorInterceptor.ReceiveTarget[RawCmd[Ctx]],
-              ): Behavior[RawCmd[Ctx]] =
+                  ctx: TypedActorContext[Cmd],
+                  msg: Cmd,
+                  target: BehaviorInterceptor.ReceiveTarget[RawCmd],
+              ): Behavior[RawCmd] =
                 msg match {
                   case Stop(replyTo) => Behaviors.stopped(() => replyTo ! ())
                   case other         =>
@@ -141,7 +149,7 @@ object TestRuntimeAdapter {
                     // we are mimicking the logic of Interceptor where unhandled messaged are passed through with casting
                     target
                       .asInstanceOf[BehaviorInterceptor.ReceiveTarget[Any]](ctx, other)
-                      .asInstanceOf[Behavior[RawCmd[Ctx]]]
+                      .asInstanceOf[Behavior[RawCmd]]
                 }
             },
           )(base)
@@ -152,7 +160,7 @@ object TestRuntimeAdapter {
       Actor(entityRef)
     }
 
-    case class Actor[Ctx <: WorkflowContext](entityRef: EntityRef[Cmd[Ctx]]) extends RunningWorkflow[Id, WCState[Ctx]] {
+    case class Actor(entityRef: EntityRef[Cmd]) extends RunningWorkflow[Id, WCState[Ctx]] {
       val base                                                                                                                             = PekkoRunningWorkflow(entityRef, stateQueryTimeout = Timeout(1.second))
       override def queryState(): Id[WCState[Ctx]]                                                                                          = base.queryState().await
       override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): Id[Either[RunningWorkflow.UnexpectedSignal, Resp]] = {
@@ -169,7 +177,7 @@ object TestRuntimeAdapter {
       }
     }
 
-    override def recover[Ctx <: WorkflowContext](first: Actor[Ctx]): Actor[Ctx] = {
+    override def recover(first: Actor): Actor = {
       implicit val timeout: Timeout = Timeout(1.second)
       val isStopped                 = first.entityRef.ask(replyTo => Stop(replyTo))
       Await.result(isStopped, 1.second)
@@ -179,6 +187,36 @@ object TestRuntimeAdapter {
                       |New Actor     : ${entityRef}""".stripMargin)
       Actor(entityRef)
     }
+  }
+
+  class Postgres[Ctx <: WorkflowContext](xa: Transactor[IO], eventCodec: EventCodec[WCEvent[Ctx]]) extends TestRuntimeAdapter[Ctx] {
+    import _root_.doobie.implicits.*
+
+    override def runWorkflow[In](
+        workflow: WIO[In, Nothing, WCState[Ctx], Ctx],
+        input: In,
+        state: WCState[Ctx],
+        clock: Clock,
+    ): Actor = {
+      val runtime = PostgresRuntime(_ => KnockerUpper.noop, clock)
+      Actor(runtime.runWorkflow(WorkflowId(Random.nextLong()), workflow.provideInput(input), state, eventCodec))
+    }
+
+    override def recover(first: Actor): Actor = {
+      first // in this runtime there is no in-memory state, hence no recovery.
+    }
+
+    case class Actor(base: IO[RunningWorkflow[ConnectionIO, WCState[Ctx]]]) extends RunningWorkflow[Id, WCState[Ctx]] {
+      import cats.effect.unsafe.implicits.global
+
+      override def queryState(): WCState[Ctx] = base.flatMap(_.queryState().transact(xa)).unsafeRunSync()
+
+      override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): Either[RunningWorkflow.UnexpectedSignal, Resp] =
+        base.flatMap(_.deliverSignal(signalDef, req).transact(xa)).unsafeRunSync()
+
+      override def wakeup(): Id[Unit] = base.flatMap(_.wakeup().transact(xa)).unsafeRunSync()
+    }
+
   }
 
 }

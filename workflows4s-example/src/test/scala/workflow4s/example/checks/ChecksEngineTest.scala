@@ -6,7 +6,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.apache.pekko.actor.testkit.typed.scaladsl.ActorTestKit
 import org.apache.pekko.persistence.jdbc.testkit.scaladsl.SchemaUtils
 import org.scalatest.Inside.inside
-import org.scalatest.freespec.AnyFreeSpec
+import org.scalatest.freespec.{AnyFreeSpec, AnyFreeSpecLike}
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import workflow4s.example.withdrawal.checks.*
@@ -18,27 +18,14 @@ import workflow4s.wio.model.{WIOModel, WIOModelInterpreter}
 import scala.concurrent.Await
 import scala.reflect.Selectable.reflectiveSelectable
 
-class ChecksEngineTest extends AnyFreeSpec with BeforeAndAfterAll with BeforeAndAfter {
-
-  val testKit                   = ActorTestKit("MyCluster")
-  override def afterAll(): Unit = {
-    testKit.shutdownTestKit()
-    super.afterAll()
-  }
-
-  before {
-    val f = SchemaUtils.createIfNotExists()(testKit.system)
-    Await.result(f, 10.seconds)
-  }
+class ChecksEngineTest extends AnyFreeSpec with ChecksEngineTest.Suite {
 
   "in-memory-sync" - {
-    checkEngineTests(TestRuntimeAdapter.InMemorySync)
+    checkEngineTests(TestRuntimeAdapter.InMemorySync())
   }
+
   "in-memory" - {
-    checkEngineTests(TestRuntimeAdapter.InMemory)
-  }
-  "pekko" - {
-    checkEngineTests(new TestRuntimeAdapter.Pekko("checks-engine")(testKit.system))
+    checkEngineTests(TestRuntimeAdapter.InMemory())
   }
 
   "render bpmn model" in {
@@ -46,145 +33,155 @@ class ChecksEngineTest extends AnyFreeSpec with BeforeAndAfterAll with BeforeAnd
     TestUtils.renderBpmnToFile(wf, "checks-engine.bpmn")
   }
 
-  def checkEngineTests(runtime: TestRuntimeAdapter) = {
+}
+object ChecksEngineTest {
 
-    "re-run pending checks until complete" in new Fixture {
-      val check: Check[Unit] { def runNum: Int } = new Check[Unit] {
-        var runNum                 = 0
-        override def key: CheckKey = CheckKey("foo")
+  trait Suite extends AnyFreeSpecLike {
 
-        override def run(data: Unit): IO[CheckResult] = runNum match {
-          case 0 | 1 =>
-            IO {
-              runNum += 1
-            }.as(CheckResult.Pending())
-          case _     => IO(CheckResult.Approved())
+    def checkEngineTests(getRuntime: => TestRuntimeAdapter[ChecksEngine.Context]) = {
+
+      "re-run pending checks until complete" in new Fixture {
+        val check: Check[Unit] { def runNum: Int } = new Check[Unit] {
+          var runNum = 0
+
+          override def key: CheckKey = CheckKey("foo")
+
+          override def run(data: Unit): IO[CheckResult] = runNum match {
+            case 0 | 1 =>
+              IO {
+                runNum += 1
+              }.as(CheckResult.Pending())
+            case _     => IO(CheckResult.Approved())
+          }
         }
-      }
-      val wf                                     = createWorkflow(List(check))
-      wf.run()
-      assert(check.runNum == 1)
-      inside(wf.state) { case x: ChecksState.Pending =>
-        assert(x.results == Map(check.key -> CheckResult.Pending()))
-      }
-      clock.advanceBy(ChecksEngine.retryBackoff)
-      wf.run()
-      assert(check.runNum == 2)
-      inside(wf.state) { case x: ChecksState.Pending =>
-        assert(x.results == Map(check.key -> CheckResult.Pending()))
-      }
-      clock.advanceBy(ChecksEngine.retryBackoff)
-      wf.run()
-      assert(wf.state == ChecksState.Decided(Map(check.key -> CheckResult.Approved()), Decision.ApprovedBySystem()))
+        val wf                                     = createWorkflow(List(check))
+        wf.run()
+        assert(check.runNum == 1)
+        inside(wf.state) { case x: ChecksState.Pending =>
+          assert(x.results == Map(check.key -> CheckResult.Pending()))
+        }
+        clock.advanceBy(ChecksEngine.retryBackoff)
+        wf.run()
+        assert(check.runNum == 2)
+        inside(wf.state) { case x: ChecksState.Pending =>
+          assert(x.results == Map(check.key -> CheckResult.Pending()))
+        }
+        clock.advanceBy(ChecksEngine.retryBackoff)
+        wf.run()
+        assert(wf.state == ChecksState.Decided(Map(check.key -> CheckResult.Approved()), Decision.ApprovedBySystem()))
 
-      checkRecovery(wf)
-    }
-
-    "timeout checks" in new Fixture {
-      val check: Check[Unit] = StaticCheck(CheckResult.Pending())
-      val wf                 = createWorkflow(List(check))
-      wf.run()
-      inside(wf.state) { case x: ChecksState.Pending =>
-        assert(x.results == Map(check.key -> CheckResult.Pending()))
+        checkRecovery(wf)
       }
-      clock.advanceBy(ChecksEngine.timeoutThreshold)
-      wf.run()
-      assert(wf.state == ChecksState.Executed(Map(check.key -> CheckResult.TimedOut())))
-      wf.review(ReviewDecision.Approve)
-      assert(
-        wf.state == ChecksState.Decided(
-          Map(check.key -> CheckResult.TimedOut()),
-          Decision.ApprovedByOperator(),
-        ),
-      )
 
-      checkRecovery(wf)
-    }
-
-    "reject if any rejects" in new Fixture {
-      val check1 = StaticCheck(CheckResult.Approved())
-      val check2 = StaticCheck(CheckResult.Rejected())
-      val check3 = StaticCheck(CheckResult.RequiresReview())
-      val wf     = createWorkflow(List(check1, check2, check3))
-      wf.run()
-      assert(
-        wf.state == ChecksState.Decided(
-          Map(
-            check1.key -> check1.result,
-            check2.key -> check2.result,
-            check3.key -> check3.result,
+      "timeout checks" in new Fixture {
+        val check: Check[Unit] = StaticCheck(CheckResult.Pending())
+        val wf                 = createWorkflow(List(check))
+        wf.run()
+        inside(wf.state) { case x: ChecksState.Pending =>
+          assert(x.results == Map(check.key -> CheckResult.Pending()))
+        }
+        clock.advanceBy(ChecksEngine.timeoutThreshold)
+        wf.run()
+        assert(wf.state == ChecksState.Executed(Map(check.key -> CheckResult.TimedOut())))
+        wf.review(ReviewDecision.Approve)
+        assert(
+          wf.state == ChecksState.Decided(
+            Map(check.key -> CheckResult.TimedOut()),
+            Decision.ApprovedByOperator(),
           ),
-          Decision.RejectedBySystem(),
-        ),
-      )
-
-      checkRecovery(wf)
-    }
-
-    "approve through review" in new Fixture {
-      val check1 = StaticCheck(CheckResult.Approved())
-      val check2 = StaticCheck(CheckResult.RequiresReview())
-      val wf     = createWorkflow(List(check1, check2))
-      wf.run()
-      wf.review(ReviewDecision.Approve)
-      assert(
-        wf.state == ChecksState.Decided(
-          Map(
-            check1.key -> check1.result,
-            check2.key -> check2.result,
-          ),
-          Decision.ApprovedByOperator(),
-        ),
-      )
-
-      checkRecovery(wf)
-    }
-
-    "approve if all checks approve" in new Fixture {
-      val check1 = StaticCheck(CheckResult.Approved())
-      val check2 = StaticCheck(CheckResult.Approved())
-      val wf     = createWorkflow(List(check1, check2))
-      wf.run()
-      assert(
-        wf.state == ChecksState.Decided(
-          Map(
-            check1.key -> check1.result,
-            check2.key -> check2.result,
-          ),
-          Decision.ApprovedBySystem(),
-        ),
-      )
-
-      checkRecovery(wf)
-    }
-
-    trait Fixture extends StrictLogging {
-      val clock = new TestClock
-
-      def createWorkflow(checks: List[Check[Unit]]) = {
-        val wf = runtime.runWorkflow[ChecksEngine.Context, ChecksInput](
-          ChecksEngine.runChecks,
-          ChecksInput((), checks),
-          null: ChecksState,
-          clock,
         )
-        new ChecksActor(wf, checks)
+
+        checkRecovery(wf)
       }
 
-      def checkRecovery(firstActor: ChecksActor[runtime.Actor[ChecksEngine.Context]]) = {
-        logger.debug("Checking recovery")
-        val originalState = firstActor.state
-        val secondActor   = runtime.recover(firstActor.wf)
-        assert(secondActor.queryState() == originalState)
+      "reject if any rejects" in new Fixture {
+        val check1 = StaticCheck(CheckResult.Approved())
+        val check2 = StaticCheck(CheckResult.Rejected())
+        val check3 = StaticCheck(CheckResult.RequiresReview())
+        val wf     = createWorkflow(List(check1, check2, check3))
+        wf.run()
+        assert(
+          wf.state == ChecksState.Decided(
+            Map(
+              check1.key -> check1.result,
+              check2.key -> check2.result,
+              check3.key -> check3.result,
+            ),
+            Decision.RejectedBySystem(),
+          ),
+        )
+
+        checkRecovery(wf)
+      }
+
+      "approve through review" in new Fixture {
+        val check1 = StaticCheck(CheckResult.Approved())
+        val check2 = StaticCheck(CheckResult.RequiresReview())
+        val wf     = createWorkflow(List(check1, check2))
+        wf.run()
+        wf.review(ReviewDecision.Approve)
+        assert(
+          wf.state == ChecksState.Decided(
+            Map(
+              check1.key -> check1.result,
+              check2.key -> check2.result,
+            ),
+            Decision.ApprovedByOperator(),
+          ),
+        )
+
+        checkRecovery(wf)
+      }
+
+      "approve if all checks approve" in new Fixture {
+        val check1 = StaticCheck(CheckResult.Approved())
+        val check2 = StaticCheck(CheckResult.Approved())
+        val wf     = createWorkflow(List(check1, check2))
+        wf.run()
+        assert(
+          wf.state == ChecksState.Decided(
+            Map(
+              check1.key -> check1.result,
+              check2.key -> check2.result,
+            ),
+            Decision.ApprovedBySystem(),
+          ),
+        )
+
+        checkRecovery(wf)
+      }
+
+      trait Fixture extends StrictLogging {
+        val clock   = new TestClock
+        val runtime = getRuntime
+
+        def createWorkflow(checks: List[Check[Unit]]) = {
+          val wf = runtime.runWorkflow[ChecksInput](
+            ChecksEngine.runChecks,
+            ChecksInput((), checks),
+            null: ChecksState,
+            clock,
+          )
+          new ChecksActor(wf, checks)
+        }
+
+        def checkRecovery(firstActor: ChecksActor[runtime.Actor]) = {
+          logger.debug("Checking recovery")
+          val originalState = firstActor.state
+          val secondActor   = runtime.recover(firstActor.wf)
+          assert(secondActor.queryState() == originalState)
+        }
+
       }
 
     }
   }
+
   class ChecksActor[Actor <: RunningWorkflow[Id, WCState[ChecksEngine.Context]]](val wf: Actor, val checks: List[Check[Unit]]) {
     def run(): Unit                            = wf.wakeup()
     def state: ChecksState                     = wf.queryState()
     def review(decision: ReviewDecision): Unit = {
-      import workflow4s.example.testuitls.TestUtils._
+      import workflow4s.example.testuitls.TestUtils.*
       wf.deliverSignal(ChecksEngine.Signals.review, decision).extract
     }
   }

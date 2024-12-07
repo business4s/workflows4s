@@ -21,7 +21,7 @@ object WorkflowBehavior {
       initialState: In,
       clock: Clock = Clock.systemUTC(),
   )(implicit ioRuntime: IORuntime): Behavior[Command[Ctx]] =
-    new WorkflowBehavior(id, workflow, initialState, initialState, clock).behavior
+    new WorkflowBehavior(id, workflow.provideInput(initialState), initialState, clock).behavior
 
   def withInput[Ctx <: WorkflowContext, In](
       id: PersistenceId,
@@ -32,7 +32,7 @@ object WorkflowBehavior {
   )(implicit
       ioRuntime: IORuntime,
   ): Behavior[Command[Ctx]] =
-    new WorkflowBehavior(id, workflow, initialState, input, clock).behavior
+    new WorkflowBehavior(id, workflow.provideInput(input), initialState, clock).behavior
 
   sealed trait Command[Ctx <: WorkflowContext]
   object Command {
@@ -71,9 +71,8 @@ object WorkflowBehavior {
 
 private class WorkflowBehavior[Ctx <: WorkflowContext, In](
     id: PersistenceId,
-    workflow: WIO[In, Nothing, WCState[Ctx], Ctx],
+    workflow: WIO.Initial[Ctx, Unit],
     initialState: WCState[Ctx],
-    input: In,
     clock: Clock,
 )(implicit
     ioRuntime: IORuntime,
@@ -87,7 +86,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext, In](
   val behavior: Behavior[Cmd] = Behaviors.setup { context =>
     Behaviors.withTimers { timers =>
       val knockerUpper                               = PekkoKnockerUpper(timers, context)
-      val activeWorkflow: ActiveWorkflow.ForCtx[Ctx] = ActiveWorkflow(workflow.provideInput(input), initialState)(Interpreter(knockerUpper))
+      val activeWorkflow: ActiveWorkflow.ForCtx[Ctx] = ActiveWorkflow(workflow.provideInput(()), initialState)(Interpreter(knockerUpper))
       EventSourcedBehavior[Cmd, Event, St](
         persistenceId = id,
         emptyState = State(activeWorkflow, awaitingCommandResult = false),

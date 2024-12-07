@@ -16,7 +16,7 @@ abstract class ActiveWorkflow {
   def interpreter: Interpreter
 
   def handleSignal[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req, now: Instant): Option[IO[(WCEvent[Context], Resp)]] = {
-    statelessProceed(now)
+    effectlessProceed(now)
       .getOrElse(this)
       .pipe(x => SignalEvaluator.handleSignal(signalDef, req, x.wio, x.state)) match {
       case SignalResponse.Ok(value)          => Some(value)
@@ -25,22 +25,22 @@ abstract class ActiveWorkflow {
   }
 
   def handleEvent(event: WCEvent[Context], now: Instant): Option[ActiveWorkflow.ForCtx[Context]] = {
-    val wf = statelessProceed(now).getOrElse(this)
+    val wf = effectlessProceed(now).getOrElse(this)
     EventEvaluator
       .handleEvent(event, wf.wio, wf.state, interpreter)
       .newWorkflow
-      .map(x => x.statelessProceed(now).getOrElse(x))
+      .map(x => x.effectlessProceed(now).getOrElse(x))
   }
 
   // moves forward as far as possible
-  private def statelessProceed(now: Instant): Option[ActiveWorkflow.ForCtx[Context]] =
+  private def effectlessProceed(now: Instant): Option[ActiveWorkflow.ForCtx[Context]] =
     ProceedEvaluator
       .proceed(wio, state, interpreter, now)
       .newFlow
-      .map(x => x.statelessProceed(now).getOrElse(x))
+      .map(x => x.effectlessProceed(now).getOrElse(x))
 
   def proceed(now: Instant): Option[IO[WCEvent[Context]]] = {
-    val wf = statelessProceed(now).getOrElse(this)
+    val wf = effectlessProceed(now).getOrElse(this)
     RunIOEvaluator.proceed(wf.wio, wf.state, interpreter, now).event
   }
 

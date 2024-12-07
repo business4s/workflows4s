@@ -37,7 +37,7 @@ class InMemorySyncRunningWorkflow[Ctx <: WorkflowContext](initialState: ActiveWo
   }
 
   override def wakeup(): Unit = {
-    logger.debug(s"Running IO}")
+    logger.debug(s"Running IO")
     wf.proceed(clock.instant()) match {
       case Some(eventIO) =>
         val event = eventIO.unsafeRunSync()
