@@ -15,7 +15,7 @@ object Main extends IOApp {
 
   // TODO proper termination
   override def run(args: List[String]): IO[ExitCode] = {
-    implicit val system: ActorSystem[Any] = ActorSystem(Behaviors.empty, "MyCluster")
+    given system: ActorSystem[Any] = ActorSystem(Behaviors.empty, "MyCluster")
 
     for {
       journal                  <- setupJournal()
@@ -30,11 +30,11 @@ object Main extends IOApp {
     } yield ExitCode.Success
   }
 
-  private def runHttpServer(routes: HttpRoutes)(implicit system: ActorSystem[Any]): IO[Http.ServerBinding] =
+  private def runHttpServer(routes: HttpRoutes)(using system: ActorSystem[Any]): IO[Http.ServerBinding] =
     IO.fromFuture(IO(Http().newServerAt("localhost", 8989).bind(routes.routes)))
       .flatTap(binding => IO(println(s"Server online at ${binding.localAddress}")))
 
-  private def setupJournal()(implicit system: ActorSystem[Any]): IO[JdbcReadJournal] = {
+  private def setupJournal()(using system: ActorSystem[Any]): IO[JdbcReadJournal] = {
     val journal = PersistenceQuery(system).readJournalFor[JdbcReadJournal](JdbcReadJournal.Identifier)
     IO.fromFuture(IO(SchemaUtils.createIfNotExists())).as(journal)
   }

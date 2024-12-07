@@ -1,5 +1,7 @@
 package workflow4s.example.pekko
 
+import scala.concurrent.duration.DurationInt
+
 import cats.effect.IO
 import org.apache.pekko.actor.typed.{ActorRef, ActorSystem, Behavior}
 import org.apache.pekko.cluster.sharding.typed.scaladsl.EntityRef
@@ -10,8 +12,6 @@ import workflow4s.example.withdrawal.WithdrawalSignal.CreateWithdrawal
 import workflow4s.example.withdrawal.{WithdrawalData, WithdrawalSignal, WithdrawalWorkflow}
 import workflows4s.runtime.pekko.WorkflowBehavior
 import workflows4s.runtime.pekko.WorkflowBehavior.SignalResponse
-
-import scala.concurrent.duration.DurationInt
 
 trait WithdrawalWorkflowService {
 
@@ -32,7 +32,7 @@ trait WithdrawalWorkflowService {
 object WithdrawalWorkflowService {
   type Journal = ReadJournal & CurrentPersistenceIdsQuery
 
-  class Impl(journal: Journal, wdShard: WithdrawalShard)(implicit val actorSystem: ActorSystem[Any]) extends WithdrawalWorkflowService {
+  class Impl(journal: Journal, wdShard: WithdrawalShard)(using val actorSystem: ActorSystem[Any]) extends WithdrawalWorkflowService {
 
     override def startWorkflow(id: String, input: CreateWithdrawal): IO[Unit] = {
       val workflow = wdShard.workflowInstance(id)

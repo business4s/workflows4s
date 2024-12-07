@@ -101,7 +101,7 @@ object WIOModelInterpreter {
       new ModelVisitor(wio, meta.getOrElse(Metadata.empty)).run
     }
 
-    implicit class ErrorMetaOps(m: ErrorMeta[?]) {
+    extension (m: ErrorMeta[?]) {
       def toModel: Option[WIOModel.Error] = m match {
         case ErrorMeta.NoError()     => None
         case ErrorMeta.Present(name) => WIOModel.Error(name).some

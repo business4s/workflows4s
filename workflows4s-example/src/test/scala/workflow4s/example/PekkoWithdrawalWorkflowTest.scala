@@ -1,5 +1,11 @@
 package workflow4s.example
 
+import java.time.{Clock, Instant, ZoneId, ZoneOffset}
+
+import scala.concurrent.Await
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.jdk.DurationConverters.ScalaDurationOps
+
 import cats.effect.IO
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.pekko.actor.testkit.typed.scaladsl.{ActorTestKit, ScalaTestWithActorTestKit}
@@ -16,11 +22,6 @@ import workflow4s.example.withdrawal.WithdrawalSignal.CreateWithdrawal
 import workflow4s.example.withdrawal.checks.*
 import workflow4s.wio.model.{WIOModel, WIOModelInterpreter}
 
-import java.time.{Clock, Instant, ZoneId, ZoneOffset}
-import scala.concurrent.Await
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
-import scala.jdk.DurationConverters.ScalaDurationOps
-
 //noinspection ForwardReference
 class PekkoWithdrawalWorkflowTest
     extends ScalaTestWithActorTestKit(ActorTestKit("MyCluster"))
@@ -35,7 +36,7 @@ class PekkoWithdrawalWorkflowTest
   }
 
   "pekko" - {
-    withdrawalTests(new TestRuntimeAdapter.Pekko("withdrawal")(testKit.system))
+    withdrawalTests(new TestRuntimeAdapter.Pekko("withdrawal")(using testKit.system))
   }
 
 }

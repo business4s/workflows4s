@@ -1,17 +1,18 @@
 package workflows4s.runtime.pekko
 
+import java.time.{Clock, Instant}
+
+import scala.annotation.nowarn
+
 import cats.effect.IO
 import cats.effect.unsafe.IORuntime
 import cats.implicits.catsSyntaxOptionId
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.pekko.actor.typed.scaladsl.{ActorContext, Behaviors}
 import org.apache.pekko.actor.typed.{ActorRef, Behavior}
-import org.apache.pekko.persistence.typed.{PersistenceId, RecoveryCompleted}
 import org.apache.pekko.persistence.typed.scaladsl.{Effect, EventSourcedBehavior}
+import org.apache.pekko.persistence.typed.{PersistenceId, RecoveryCompleted}
 import workflow4s.wio.*
-
-import java.time.{Clock, Instant}
-import scala.annotation.nowarn
 
 object WorkflowBehavior {
 
@@ -20,7 +21,7 @@ object WorkflowBehavior {
       workflow: WIO.Initial[Ctx, In],
       initialState: In,
       clock: Clock = Clock.systemUTC(),
-  )(implicit ioRuntime: IORuntime): Behavior[Command[Ctx]] =
+  )(using ioRuntime: IORuntime): Behavior[Command[Ctx]] =
     new WorkflowBehavior(id, workflow.provideInput(initialState), initialState, clock).behavior
 
   def withInput[Ctx <: WorkflowContext, In](
@@ -29,7 +30,7 @@ object WorkflowBehavior {
       initialState: WCState[Ctx],
       input: In,
       clock: Clock = Clock.systemUTC(),
-  )(implicit
+  )(using
       ioRuntime: IORuntime,
   ): Behavior[Command[Ctx]] =
     new WorkflowBehavior(id, workflow.provideInput(input), initialState, clock).behavior
@@ -74,7 +75,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext, In](
     workflow: WIO.Initial[Ctx, Unit],
     initialState: WCState[Ctx],
     clock: Clock,
-)(implicit
+)(using
     ioRuntime: IORuntime,
 ) extends StrictLogging {
   import WorkflowBehavior.*

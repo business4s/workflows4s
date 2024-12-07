@@ -1,12 +1,11 @@
 package workflow4s.wio
 
-import workflow4s.wio.WIO.InterruptionSource
-import workflow4s.wio.model.{ModelUtils, WIOModel, WIOModelInterpreter}
-
 import scala.annotation.targetName
 
+import workflow4s.wio.model.{ModelUtils, WIOModel, WIOModelInterpreter}
+
 trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self: WIO[In, Err, Out, Ctx] =>
-  def flatMap[Err1 >: Err, Out1 <: WCState[Ctx]](f: Out => WIO[Out, Err1, Out1, Ctx])(implicit
+  def flatMap[Err1 >: Err, Out1 <: WCState[Ctx]](f: Out => WIO[Out, Err1, Out1, Ctx])(using
       errorCt: ErrorMeta[Err1],
   ): WIO[In, Err1, Out1, Ctx] = WIO.FlatMap(this, f, errorCt)
 
@@ -31,12 +30,12 @@ trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self
 
   //  def handleError[Err1, StIn1 <: StIn, Out1 >: Out, StOut1 >: StOut, ErrIn >: Err](
   //      f: ErrIn => WIO[Err1, Out1, StIn1, StOut1],
-  //  )(implicit errCt: ClassTag[ErrIn], newErrCt: ClassTag[Err1]): WIO[Err1, Out1, StIn1, StOut1] =
+  //  )(using errCt: ClassTag[ErrIn], newErrCt: ClassTag[Err1]): WIO[Err1, Out1, StIn1, StOut1] =
   //    WIO.HandleError(this, f, errCt, newErrCt)
 
   def handleErrorWith[Err1, Out1 >: Out <: WCState[Ctx], ErrIn >: Err](
       wio: WIO[(WCState[Ctx], ErrIn), Err1, Out1, Ctx],
-  )(implicit errMeta: ErrorMeta[ErrIn], newErrMeta: ErrorMeta[Err1]): WIO[In, Err1, Out1, Ctx] = {
+  )(using errMeta: ErrorMeta[ErrIn], newErrMeta: ErrorMeta[Err1]): WIO[In, Err1, Out1, Ctx] = {
     WIO.HandleErrorWith(this, wio, errMeta, newErrMeta)
   }
 
@@ -46,7 +45,7 @@ trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self
 
   def autoNamed[Err1 >: Err](
       description: Option[String] = None,
-  )(implicit name: sourcecode.Name, errorCt: ErrorMeta[Err1]): WIO[In, Err, Out, Ctx] = {
+  )(using name: sourcecode.Name, errorCt: ErrorMeta[Err1]): WIO[In, Err, Out, Ctx] = {
     val polishedName = ModelUtils.prettifyName(name.value)
     WIO.Named(this, polishedName, description, errorCt)
   }

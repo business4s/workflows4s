@@ -1,21 +1,21 @@
 package workflows4s.runtime.pekko
 
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.{ExecutionContext, Future}
+
 import cats.implicits.catsSyntaxEitherId
+import org.apache.pekko.actor.typed.scaladsl.AskPattern.*
 import org.apache.pekko.actor.typed.{ActorRef, ActorSystem, Behavior, RecipientRef}
+import org.apache.pekko.util.Timeout
 import workflow4s.runtime.RunningWorkflow
 import workflow4s.wio.{SignalDef, WCState, WorkflowContext}
-import org.apache.pekko.actor.typed.scaladsl.AskPattern.*
-import org.apache.pekko.util.Timeout
 import workflows4s.runtime.pekko.WorkflowBehavior.SignalResponse
-
-import scala.concurrent.{ExecutionContext, Future}
-import scala.concurrent.duration.DurationInt
 
 class PekkoRunningWorkflow[Ctx <: WorkflowContext](
     actorRef: RecipientRef[WorkflowBehavior.Command[Ctx]],
     stateQueryTimeout: Timeout = Timeout(100.millis),
     signalTimeout: Timeout = Timeout(5.second),
-)(implicit system: ActorSystem[?])
+)(using system: ActorSystem[?])
     extends RunningWorkflow[Future, WCState[Ctx]] {
 
   override def queryState(): Future[WCState[Ctx]] = {
