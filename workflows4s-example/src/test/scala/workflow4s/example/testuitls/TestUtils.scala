@@ -1,7 +1,7 @@
 package workflow4s.example.testuitls
 
 import cats.effect.IO
-import workflow4s.runtime.RunningWorkflow.UnexpectedSignal
+import workflow4s.runtime.WorkflowInstance.UnexpectedSignal
 
 object TestUtils {
 

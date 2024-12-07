@@ -1,9 +1,9 @@
 package workflow4s.runtime
 
-import workflow4s.runtime.RunningWorkflow.UnexpectedSignal
+import workflow4s.runtime.WorkflowInstance.UnexpectedSignal
 import workflow4s.wio.SignalDef
 
-trait RunningWorkflow[F[_], State] {
+trait WorkflowInstance[F[_], State] {
 
   def queryState(): F[State]
 
@@ -13,7 +13,7 @@ trait RunningWorkflow[F[_], State] {
 
 }
 
-object RunningWorkflow {
+object WorkflowInstance {
 
   case class UnexpectedSignal(signalDef: SignalDef[?, ?])
 

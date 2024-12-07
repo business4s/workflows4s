@@ -2,17 +2,17 @@ package workflow4s.runtime
 
 import cats.effect.{IO, Ref}
 import cats.implicits.{catsSyntaxApplicativeId, catsSyntaxEitherId, toTraverseOps}
-import workflow4s.runtime.RunningWorkflow.UnexpectedSignal
+import workflow4s.runtime.WorkflowInstance.UnexpectedSignal
 import workflow4s.wio.*
 
 import java.time.Clock
 
 // TODO current implementation is not safe in concurrent scenario. State should be locked for the duration of side effects
-class InMemoryRunningWorkflow[Ctx <: WorkflowContext](
+class InMemoryWorkflowInstance[Ctx <: WorkflowContext](
     stateRef: Ref[IO, ActiveWorkflow.ForCtx[Ctx]],
     eventsRef: Ref[IO, Vector[WCEvent[Ctx]]],
     clock: Clock,
-) extends RunningWorkflow[IO, WCState[Ctx]] {
+) extends WorkflowInstance[IO, WCState[Ctx]] {
 
   def getEvents: IO[Vector[WCEvent[Ctx]]] = eventsRef.get
 

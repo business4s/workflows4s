@@ -15,25 +15,14 @@ import scala.annotation.nowarn
 
 object WorkflowBehavior {
 
-  def apply[Ctx <: WorkflowContext, In <: WCState[Ctx]](
+  def apply[Ctx <: WorkflowContext](
       id: PersistenceId,
-      workflow: WIO.Initial[Ctx, In],
-      initialState: In,
-      clock: Clock = Clock.systemUTC(),
-  )(implicit ioRuntime: IORuntime): Behavior[Command[Ctx]] =
-    new WorkflowBehavior(id, workflow.provideInput(initialState), initialState, clock).behavior
-
-  def withInput[Ctx <: WorkflowContext, In](
-      id: PersistenceId,
-      workflow: WIO[In, Nothing, WCState[Ctx], Ctx],
+      workflow: WIO.Initial[Ctx, Any],
       initialState: WCState[Ctx],
-      input: In,
-      clock: Clock = Clock.systemUTC(),
-  )(implicit
-      ioRuntime: IORuntime,
-  ): Behavior[Command[Ctx]] =
-    new WorkflowBehavior(id, workflow.provideInput(input), initialState, clock).behavior
-
+      clock: Clock
+  )(implicit ioRuntime: IORuntime): Behavior[Command[Ctx]] =
+    new WorkflowBehavior(id, workflow, initialState, clock).behavior
+  
   sealed trait Command[Ctx <: WorkflowContext]
   object Command {
     case class DeliverSignal[Req, Resp, Ctx <: WorkflowContext](
@@ -69,9 +58,9 @@ object WorkflowBehavior {
   }
 }
 
-private class WorkflowBehavior[Ctx <: WorkflowContext, In](
+private class WorkflowBehavior[Ctx <: WorkflowContext](
     id: PersistenceId,
-    workflow: WIO.Initial[Ctx, Unit],
+    workflow: WIO.Initial[Ctx, Any],
     initialState: WCState[Ctx],
     clock: Clock,
 )(implicit

@@ -10,31 +10,32 @@ import java.time.Clock
   *
   * IT'S NOT A GENERAL-PURPOSE RUNTIME
   */
-object InMemoryRuntime {
+class InMemoryRuntime[Ctx <: WorkflowContext, WorkflowId, Input](
+    workflow: Initial[Ctx, Input],
+    initialState: Input => WCState[Ctx],
+    clock: Clock,
+    knockerUpper: KnockerUpper.Factory[(WorkflowId, IO[Unit])],
+) extends WorkflowRuntime[IO, Ctx, WorkflowId, Input] {
 
-  def runWorkflow[Ctx <: WorkflowContext, In <: WCState[Ctx]](
-      workflow: WIO[In, Nothing, WCState[Ctx], Ctx],
-      initialState: In,
-      events: Seq[WCEvent[Ctx]] = Seq(),
-      clock: Clock = Clock.systemUTC(),
-  ): IO[InMemoryRunningWorkflow[Ctx]] = runWorkflowWithState[Ctx, In](workflow, initialState, initialState, events, clock)
-
-  def runWorkflowWithState[Ctx <: WorkflowContext, In](
-      workflow: WIO[In, Nothing, WCState[Ctx], Ctx],
-      input: In,
-      initialState: WCState[Ctx],
-      events: Seq[WCEvent[Ctx]] = Seq(),
-      clock: Clock = Clock.systemUTC(),
-  ): IO[InMemoryRunningWorkflow[Ctx]] = {
+  override def createInstance(id: WorkflowId, in: Input): IO[InMemoryWorkflowInstance[Ctx]] = {
     for {
-      runningWfRef <- Deferred[IO, InMemoryRunningWorkflow[Ctx]]
-      initialWf     =
-        ActiveWorkflow(workflow.provideInput(input), initialState)(new Interpreter(SleepingKnockerUpper(runningWfRef.get.flatMap(_.wakeup()))))
+      runningWfRef <- Deferred[IO, InMemoryWorkflowInstance[Ctx]]
+      initialWf     = ActiveWorkflow(workflow.provideInput(in), initialState(in))(new Interpreter(knockerUpper(id, runningWfRef.get.flatMap(_.wakeup()))))
       stateRef     <- Ref[IO].of(initialWf)
       eventsRef    <- Ref[IO].of(Vector[WCEvent[Ctx]]())
-      runningWf     = InMemoryRunningWorkflow[Ctx](stateRef, eventsRef, clock)
+      runningWf     = InMemoryWorkflowInstance[Ctx](stateRef, eventsRef, clock)
       _            <- runningWfRef.complete(runningWf)
-      _            <- runningWf.recover(events)
     } yield runningWf
   }
+
+}
+
+object InMemoryRuntime {
+
+  def default[Ctx <: WorkflowContext, In](workflow: Initial[Ctx, In], initialState: In => WCState[Ctx]): InMemoryRuntime[Ctx, Unit, In] =
+    new InMemoryRuntime[Ctx, Unit, In](workflow, initialState, Clock.systemUTC(), SleepingKnockerUpper.factory.compose(_._2))
+
+  def default[Ctx <: WorkflowContext, In <: WCState[Ctx]](workflow: Initial[Ctx, In]): InMemoryRuntime[Ctx, Unit, In] =
+    default(workflow, identity)
+
 }

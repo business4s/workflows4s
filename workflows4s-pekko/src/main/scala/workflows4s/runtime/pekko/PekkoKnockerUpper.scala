@@ -15,7 +15,7 @@ class PekkoKnockerUpper[Ctx <: WorkflowContext](timers: TimerScheduler[WorkflowB
   override def registerWakeup(at: Instant): IO[Unit] = IO({
     val now = Instant.now()
     val delay = Duration.between(now, at).toScala
-    // can't do context.spawn because this code runs out of actors thread. Shouldnt make any difference.
+    // can't do context.spawn because this code runs out of actor's thread. Shouldn't make any difference.
     val replyTo = context.system.systemActorOf(Behaviors.ignore, s"knocker-upper-wakeup-${UUID.randomUUID()}")
     timers.startSingleTimer(WorkflowBehavior.Command.Wakeup(replyTo), delay)
   }).evalOn(context.executionContext)

@@ -12,7 +12,8 @@ trait KnockerUpper {
 }
 
 object KnockerUpper {
-  val noop: KnockerUpper = _ => IO.unit
+  val noop: KnockerUpper                     = _ => IO.unit
+  val noopFactory: KnockerUpper.Factory[Any] = _ => noop
 
   type Factory[In] = In => KnockerUpper
 }

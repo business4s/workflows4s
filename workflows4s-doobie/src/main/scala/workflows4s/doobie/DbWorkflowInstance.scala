@@ -5,8 +5,8 @@ import cats.effect.{IO, LiftIO, Sync}
 import cats.syntax.all.*
 import doobie.ConnectionIO
 import doobie.implicits.*
-import workflow4s.runtime.RunningWorkflow
-import workflow4s.runtime.RunningWorkflow.UnexpectedSignal
+import workflow4s.runtime.WorkflowInstance
+import workflow4s.runtime.WorkflowInstance.UnexpectedSignal
 import workflow4s.wio.*
 
 import java.time.{Clock, Instant}
@@ -14,16 +14,12 @@ import scala.annotation.tailrec
 
 class DbWorkflowInstance[Ctx <: WorkflowContext, Id](
     id: Id,
-    workflow: WIO.Initial[Ctx, Unit],
-    initialState: WCState[Ctx],
+    baseWorkflow: ActiveWorkflow.ForCtx[Ctx],
     storage: WorkflowStorage[Id],
     liftIO: LiftIO[ConnectionIO],
     eventCodec: EventCodec[WCEvent[Ctx]],
-    knockerUpper: KnockerUpper,
     clock: Clock,
-) extends RunningWorkflow[ConnectionIO, WCState[Ctx]] {
-
-  val aw = ActiveWorkflow(workflow.provideInput(()), initialState)(new Interpreter(knockerUpper))
+) extends WorkflowInstance[ConnectionIO, WCState[Ctx]] {
 
   def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): ConnectionIO[Either[UnexpectedSignal, Resp]] = {
     storage
@@ -82,7 +78,7 @@ class DbWorkflowInstance[Ctx <: WorkflowContext, Id](
   private def restoreWorkflow: ConnectionIO[ActiveWorkflow.ForCtx[Ctx]] = for {
     events <- queryEvents
     now    <- Sync[ConnectionIO].delay(clock.instant())
-  } yield handleEvents(aw, events, now)
+  } yield handleEvents(baseWorkflow, events, now)
 
   @tailrec
   private def handleEvents(wf: ActiveWorkflow.ForCtx[Ctx], events: List[WCEvent[Ctx]], now: Instant): ActiveWorkflow.ForCtx[Ctx] = {

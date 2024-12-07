@@ -18,3 +18,9 @@ class SleepingKnockerUpper(wakeupLogic: IO[Unit]) extends KnockerUpper {
       _   <- wakeupLogic
     } yield ()).start.void
 }
+
+object SleepingKnockerUpper {
+
+  val factory: KnockerUpper.Factory[IO[Unit]] = wakeupLogic => new SleepingKnockerUpper(wakeupLogic)
+
+}

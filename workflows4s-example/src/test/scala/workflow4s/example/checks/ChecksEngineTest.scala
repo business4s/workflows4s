@@ -11,7 +11,7 @@ import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import workflow4s.example.withdrawal.checks.*
 import workflow4s.example.{TestClock, TestRuntimeAdapter, TestUtils}
-import workflow4s.runtime.RunningWorkflow
+import workflow4s.runtime.WorkflowInstance
 import workflow4s.wio.WCState
 import workflow4s.wio.model.{WIOModel, WIOModelInterpreter}
 
@@ -177,7 +177,7 @@ object ChecksEngineTest {
     }
   }
 
-  class ChecksActor[Actor <: RunningWorkflow[Id, WCState[ChecksEngine.Context]]](val wf: Actor, val checks: List[Check[Unit]]) {
+  class ChecksActor[Actor <: WorkflowInstance[Id, WCState[ChecksEngine.Context]]](val wf: Actor, val checks: List[Check[Unit]]) {
     def run(): Unit                            = wf.wakeup()
     def state: ChecksState                     = wf.queryState()
     def review(decision: ReviewDecision): Unit = {
