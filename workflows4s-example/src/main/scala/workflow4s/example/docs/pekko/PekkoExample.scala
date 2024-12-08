@@ -1,16 +1,13 @@
 package workflow4s.example.docs.pekko
 
+import scala.concurrent.Future
+
 import cats.effect.unsafe.IORuntime
 import org.apache.pekko.actor.typed.ActorSystem
 import org.apache.pekko.cluster.sharding.typed.scaladsl.EntityContext
-import workflow4s.example.docs.pekko.PekkoExample.MyWorkflowCtx.InitialState
 import workflow4s.runtime.WorkflowInstance
-import workflow4s.runtime.wakeup.KnockerUpper
-import workflow4s.wio.{WCState, WorkflowContext}
-import workflows4s.doobie.EventCodec
+import workflow4s.wio.WorkflowContext
 import workflows4s.runtime.pekko.PekkoRuntime
-
-import scala.concurrent.Future
 
 object PekkoExample {
 

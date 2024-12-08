@@ -1,23 +1,14 @@
 package workflow4s.wio
 
-import cats.effect.IO
-import workflow4s.wio.WIO.Timer.DurationSource
-import workflow4s.wio.builders.{
-  AllBuilders,
-  AwaitBuilder,
-  BranchBuilder,
-  ForkBuilder,
-  HandleSignalBuilder,
-  InterruptionBuilder,
-  LoopBuilder,
-  WIOBuilderMethods,
-}
-import workflow4s.wio.internal.WorkflowEmbedding.EventEmbedding
-import workflow4s.wio.internal.{EventHandler, SignalHandler, WIOUtils, WorkflowEmbedding}
-
 import java.time.{Duration, Instant}
+
 import scala.annotation.unused
 import scala.language.implicitConversions
+
+import cats.effect.IO
+import workflow4s.wio.WIO.Timer.DurationSource
+import workflow4s.wio.builders.{AllBuilders, AwaitBuilder, BranchBuilder, InterruptionBuilder, WIOBuilderMethods}
+import workflow4s.wio.internal.{EventHandler, SignalHandler, WIOUtils, WorkflowEmbedding}
 
 trait WorkflowContext { ctx: WorkflowContext =>
   type Event

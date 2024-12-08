@@ -1,9 +1,10 @@
 package workflow4s.runtime.wakeup
 
-import cats.effect.IO
-
 import java.time.{Duration, Instant}
+
 import scala.jdk.DurationConverters.JavaDurationOps
+
+import cats.effect.IO
 
 /** Simple implementation for KnockerUpper that relies on IO.sleep It doesn't offer cancellation of registered wakeups
   */

@@ -8,8 +8,8 @@ import org.apache.pekko.http.scaladsl.Http
 import org.apache.pekko.persistence.jdbc.query.scaladsl.JdbcReadJournal
 import org.apache.pekko.persistence.jdbc.testkit.scaladsl.SchemaUtils
 import org.apache.pekko.persistence.query.PersistenceQuery
-import workflow4s.example.withdrawal.{WithdrawalData, WithdrawalWorkflow}
 import workflow4s.example.withdrawal.checks.ChecksEngine
+import workflow4s.example.withdrawal.{WithdrawalData, WithdrawalWorkflow}
 import workflows4s.runtime.pekko.PekkoRuntime
 
 object Main extends IOApp {

@@ -1,9 +1,9 @@
 package workflow4s.example.withdrawal.checks
 
+import java.time.Instant
+
 import io.circe.Codec
 import workflow4s.example.pekko.PekkoCirceSerializer
-
-import java.time.Instant
 
 sealed trait ChecksEvent derives Codec.AsObject
 object ChecksEvent {

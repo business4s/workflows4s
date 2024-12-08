@@ -1,13 +1,5 @@
 package workflow4s.example.checks
 
-import cats.effect.IO
-import cats.implicits.toTraverseOps
-import com.dimafeng.testcontainers.PostgreSQLContainer
-import com.dimafeng.testcontainers.scalatest.TestContainerForAll
-import doobie.*
-import doobie.implicits.*
-import doobie.util.transactor.Transactor
-import org.scalatest.Suite
 import org.scalatest.freespec.AnyFreeSpec
 import workflow4s.example.TestRuntimeAdapter
 import workflow4s.example.testuitls.{CirceEventCodec, PostgresSuite}

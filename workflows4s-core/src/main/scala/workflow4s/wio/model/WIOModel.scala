@@ -1,10 +1,9 @@
 package workflow4s.wio.model
 
+import java.time.Duration
+
 import io.circe.derivation.{Configuration, ConfiguredCodec}
 import io.circe.{Codec, Decoder, Encoder}
-import workflow4s.wio.ErrorMeta
-
-import java.time.Duration
 
 sealed trait WIOModel
 

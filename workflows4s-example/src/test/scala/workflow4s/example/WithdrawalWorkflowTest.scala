@@ -1,5 +1,10 @@
 package workflow4s.example
 
+import java.time.{Clock, Instant, ZoneId, ZoneOffset}
+
+import scala.concurrent.duration.FiniteDuration
+import scala.jdk.DurationConverters.ScalaDurationOps
+
 import cats.effect.IO
 import com.typesafe.scalalogging.StrictLogging
 import org.scalamock.scalatest.MockFactory
@@ -13,10 +18,6 @@ import workflow4s.example.withdrawal.WithdrawalService.{ExecutionResponse, Fee, 
 import workflow4s.example.withdrawal.WithdrawalSignal.CreateWithdrawal
 import workflow4s.example.withdrawal.checks.*
 import workflow4s.wio.model.{WIOModel, WIOModelInterpreter}
-
-import java.time.{Clock, Instant, ZoneId, ZoneOffset}
-import scala.concurrent.duration.FiniteDuration
-import scala.jdk.DurationConverters.ScalaDurationOps
 
 //noinspection ForwardReference
 class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory with WithdrawalWorkflowTest.Suite {

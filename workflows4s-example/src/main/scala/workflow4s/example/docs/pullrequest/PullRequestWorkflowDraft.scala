@@ -1,10 +1,10 @@
 package workflow4s.example.docs.pullrequest
 
+import java.io.File
+
 import org.camunda.bpm.model.bpmn.Bpmn
 import workflow4s.bpmn.BPMNConverter
 import workflow4s.wio.WorkflowContext
-
-import java.io.File
 
 object PullRequestWorkflowDraft {
 

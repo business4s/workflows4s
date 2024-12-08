@@ -1,7 +1,7 @@
 package workflow4s.example.docs
 
-import Context.WIO
 import cats.effect.IO
+import workflow4s.example.docs.`package`.Context.WIO
 import workflow4s.wio.SignalDef
 
 object HandleSignalExample {

@@ -18,7 +18,9 @@ jobs:
       - name: Build and Test
         run: sbt test
       - name: scalafmt check
-        run: sbt scalafmtCheckAll
+        run: sbt scalafmtCheckAll scalafmtSbtCheck
+      - name: scalafix
+        run: sbt "scalafixAll --check"
       - name: Check for uncommitted changes
         run: |
           if [[ $(git status --porcelain) ]]; then

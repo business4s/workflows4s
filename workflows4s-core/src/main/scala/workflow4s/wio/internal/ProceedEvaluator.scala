@@ -1,12 +1,9 @@
 package workflow4s.wio.internal
 
-import cats.data.Ior
-import cats.effect.IO
-import cats.syntax.all.*
-import workflow4s.wio.Interpreter.ProceedResponse
-import workflow4s.wio.*
-
 import java.time.Instant
+
+import cats.syntax.all.*
+import workflow4s.wio.*
 
 // For the given workflow tries to move it to next step if possible without executing any side-effecting comuptations.
 // This is most common in presence of `Pure` or timers awaiting the threshold.

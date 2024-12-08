@@ -7,9 +7,8 @@ import workflow4s.example.withdrawal.WithdrawalService.ExecutionResponse
 import workflow4s.example.withdrawal.WithdrawalSignal.{CancelWithdrawal, CreateWithdrawal, ExecutionCompleted}
 import workflow4s.example.withdrawal.WithdrawalWorkflow.{Signals, checksEmbedding}
 import workflow4s.example.withdrawal.checks.*
-import workflow4s.wio.ActiveWorkflow.ForCtx
 import workflow4s.wio.internal.WorkflowEmbedding
-import workflow4s.wio.{ActiveWorkflow, Interpreter, SignalDef, WorkflowContext}
+import workflow4s.wio.{SignalDef, WorkflowContext}
 
 object WithdrawalWorkflow {
 

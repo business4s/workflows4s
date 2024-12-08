@@ -1,14 +1,13 @@
 package workflow4s.example
 
+import java.nio.file.{Files, Path}
+
 import io.circe.syntax.*
 import io.circe.{Json, Printer}
 import org.camunda.bpm.model.bpmn.Bpmn
 import workflow4s.bpmn.BPMNConverter
 import workflow4s.wio.WIO
 import workflow4s.wio.model.WIOModelInterpreter
-
-import java.io.File
-import java.nio.file.{Files, Path}
 
 object TestUtils {
 

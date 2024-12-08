@@ -1,13 +1,10 @@
 package workflow4s.wio.builders
 
+import scala.jdk.DurationConverters.*
+
 import cats.implicits.catsSyntaxOptionId
 import workflow4s.wio.*
-import workflow4s.wio.internal.EventHandler
 import workflow4s.wio.model.ModelUtils
-
-import java.time.Instant
-import scala.jdk.DurationConverters.*
-import scala.reflect.ClassTag
 
 object ForkBuilder {
 

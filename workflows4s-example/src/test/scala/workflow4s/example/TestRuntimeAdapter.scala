@@ -1,6 +1,11 @@
 package workflow4s.example
 
-import _root_.doobie.ConnectionIO
+import java.time.Clock
+import java.util.UUID
+
+import scala.concurrent.{Await, Future}
+import scala.util.Random
+
 import _root_.doobie.util.transactor.Transactor
 import cats.Id
 import cats.effect.IO
@@ -17,12 +22,7 @@ import workflow4s.runtime.{InMemoryRuntime, InMemorySyncRuntime, WorkflowInstanc
 import workflow4s.wio.*
 import workflows4s.doobie.EventCodec
 import workflows4s.doobie.postgres.{PostgresRuntime, WorkflowId}
-import workflows4s.runtime.pekko.{PekkoRuntime, PekkoWorkflowInstance, WorkflowBehavior}
-
-import java.time.Clock
-import java.util.UUID
-import scala.concurrent.{Await, Future}
-import scala.util.Random
+import workflows4s.runtime.pekko.{PekkoWorkflowInstance, WorkflowBehavior}
 
 // Adapt various runtimes to a single interface for tests
 trait TestRuntimeAdapter[Ctx <: WorkflowContext] {

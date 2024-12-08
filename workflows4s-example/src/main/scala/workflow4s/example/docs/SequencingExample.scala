@@ -1,8 +1,6 @@
 package workflow4s.example.docs
 
-import cats.effect.IO
 import workflow4s.example.docs.Context.WIO
-import workflow4s.wio.SignalDef
 
 object SequencingExample {
 

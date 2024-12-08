@@ -1,10 +1,10 @@
 package workflow4s.example.pekko
 
+import scala.reflect.ClassTag
+
 import io.circe.Codec
 import io.circe.syntax.EncoderOps
 import org.apache.pekko.serialization.Serializer
-
-import scala.reflect.ClassTag
 
 abstract class PekkoCirceSerializer[T <: AnyRef](using ct: ClassTag[T], c: Codec[T]) extends Serializer {
   override def includeManifest: Boolean = true

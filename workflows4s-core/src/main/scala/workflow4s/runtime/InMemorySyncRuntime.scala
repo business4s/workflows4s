@@ -1,12 +1,12 @@
 package workflow4s.runtime
 
+import java.time.Clock
+
 import cats.Id
 import cats.effect.unsafe.IORuntime
 import workflow4s.runtime.wakeup.KnockerUpper
-import workflow4s.wio.WIO.Initial
 import workflow4s.wio.*
-
-import java.time.Clock
+import workflow4s.wio.WIO.Initial
 
 class InMemorySyncRuntime[Ctx <: WorkflowContext, WorkflowId, Input](
     workflow: Initial[Ctx, Input],

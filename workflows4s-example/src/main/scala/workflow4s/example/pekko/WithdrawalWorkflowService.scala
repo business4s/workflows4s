@@ -1,19 +1,12 @@
 package workflow4s.example.pekko
 
 import cats.effect.IO
-import org.apache.pekko.actor.typed.{ActorRef, ActorSystem, Behavior}
-import org.apache.pekko.cluster.sharding.typed.scaladsl.EntityRef
-import org.apache.pekko.persistence.query.scaladsl.{CurrentPersistenceIdsQuery, PagedPersistenceIdsQuery, PersistenceIdsQuery, ReadJournal}
+import org.apache.pekko.actor.typed.ActorSystem
+import org.apache.pekko.persistence.query.scaladsl.{CurrentPersistenceIdsQuery, ReadJournal}
 import org.apache.pekko.stream.scaladsl.Sink
-import org.apache.pekko.util.Timeout
 import workflow4s.example.withdrawal.WithdrawalSignal.CreateWithdrawal
 import workflow4s.example.withdrawal.{WithdrawalData, WithdrawalSignal, WithdrawalWorkflow}
-import workflow4s.runtime.WorkflowRuntime
-import workflows4s.runtime.pekko.{PekkoRuntime, WorkflowBehavior}
-import workflows4s.runtime.pekko.WorkflowBehavior.SignalResponse
-
-import scala.concurrent.Future
-import scala.concurrent.duration.DurationInt
+import workflows4s.runtime.pekko.PekkoRuntime
 
 trait WithdrawalWorkflowService {
 

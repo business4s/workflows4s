@@ -1,8 +1,8 @@
 package workflow4s.wio.builders
 
 import cats.implicits.catsSyntaxOptionId
-import workflow4s.wio.{WIO, *}
 import workflow4s.wio.model.ModelUtils
+import workflow4s.wio.{WIO, *}
 
 object BranchBuilder {
 

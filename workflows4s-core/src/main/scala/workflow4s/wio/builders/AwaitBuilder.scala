@@ -1,15 +1,15 @@
 package workflow4s.wio.builders
 
-import cats.effect.IO
+import java.time.Instant
+
+import scala.jdk.DurationConverters.*
+import scala.reflect.ClassTag
+
 import workflow4s.wio.*
 import workflow4s.wio.WIO.Timer
 import workflow4s.wio.WIO.Timer.DurationSource
 import workflow4s.wio.internal.EventHandler
 import workflow4s.wio.model.ModelUtils
-
-import java.time.Instant
-import scala.jdk.DurationConverters.*
-import scala.reflect.ClassTag
 
 object AwaitBuilder {
 

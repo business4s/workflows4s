@@ -1,6 +1,6 @@
 package workflow4s.runtime
 
-import workflow4s.wio.{WCState, WIO, WorkflowContext}
+import workflow4s.wio.{WCState, WorkflowContext}
 
 trait WorkflowRuntime[F[_], Ctx <: WorkflowContext, WorkflowId, Input] {
 

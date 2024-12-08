@@ -1,22 +1,17 @@
 package workflow4s.example.checks
 
+import scala.reflect.Selectable.reflectiveSelectable
+
 import cats.Id
 import cats.effect.IO
 import com.typesafe.scalalogging.StrictLogging
-import org.apache.pekko.actor.testkit.typed.scaladsl.ActorTestKit
-import org.apache.pekko.persistence.jdbc.testkit.scaladsl.SchemaUtils
 import org.scalatest.Inside.inside
 import org.scalatest.freespec.{AnyFreeSpec, AnyFreeSpecLike}
-import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
-import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import workflow4s.example.withdrawal.checks.*
 import workflow4s.example.{TestClock, TestRuntimeAdapter, TestUtils}
 import workflow4s.runtime.WorkflowInstance
 import workflow4s.wio.WCState
 import workflow4s.wio.model.{WIOModel, WIOModelInterpreter}
-
-import scala.concurrent.Await
-import scala.reflect.Selectable.reflectiveSelectable
 
 class ChecksEngineTest extends AnyFreeSpec with ChecksEngineTest.Suite {
 

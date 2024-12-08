@@ -2,7 +2,6 @@ package workflow4s.example.docs.doobie
 
 import cats.effect.IO
 import doobie.util.transactor.Transactor
-import workflow4s.example.docs.doobie.PostgresExample.MyWorkflowCtx.InitialState
 import workflow4s.runtime.WorkflowInstance
 import workflow4s.runtime.wakeup.KnockerUpper
 import workflow4s.wio.{WCState, WorkflowContext}

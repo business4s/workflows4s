@@ -1,13 +1,13 @@
 package workflow4s.example.docs.pullrequest
 
+import java.io.File
+
 import cats.effect.IO
 import org.camunda.bpm.model.bpmn.Bpmn
 import workflow4s.bpmn.BPMNConverter
 import workflow4s.runtime.InMemorySyncRuntime
 import workflow4s.wio
 import workflow4s.wio.{SignalDef, WorkflowContext}
-
-import java.io.File
 
 object PullRequestWorkflow {
 
@@ -116,7 +116,6 @@ object PullRequestWorkflow {
     // end_render
 
     // start_execution
-    import cats.effect.unsafe.implicits.global
     val runtime    = InMemorySyncRuntime.default[Context.Ctx, PRState.Empty.type](workflow)
     val wfInstance = runtime.createInstance((), PRState.Empty)
 

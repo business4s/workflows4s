@@ -1,13 +1,12 @@
 package workflow4s.wio
 
-import cats.data.Ior
+import scala.annotation.nowarn
+
 import cats.effect.IO
 import cats.syntax.all.*
 import workflow4s.runtime.wakeup.KnockerUpper
 import workflow4s.wio.ActiveWorkflow.ForCtx
 import workflow4s.wio.internal.WorkflowEmbedding
-
-import scala.annotation.nowarn
 
 class Interpreter(
     val knockerUpper: KnockerUpper,

@@ -1,12 +1,12 @@
 package workflow4s.wio.internal
 
+import java.time.Instant
+
 import cats.effect.IO
 import cats.syntax.all.*
 import workflow4s.runtime.wakeup.KnockerUpper
 import workflow4s.wio.*
 import workflow4s.wio.WIO.Timer
-
-import java.time.Instant
 
 object RunIOEvaluator {
   def proceed[Ctx <: WorkflowContext, StIn <: WCState[Ctx]](

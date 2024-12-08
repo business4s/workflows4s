@@ -1,11 +1,12 @@
 package workflow4s.wio
 
+import java.time.Instant
+
+import scala.util.chaining.scalaUtilChainingOps
+
 import cats.effect.IO
 import workflow4s.wio.Interpreter.SignalResponse
 import workflow4s.wio.internal.*
-
-import java.time.Instant
-import scala.util.chaining.scalaUtilChainingOps
 
 abstract class ActiveWorkflow {
   type Context <: WorkflowContext

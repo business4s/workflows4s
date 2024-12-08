@@ -1,11 +1,11 @@
 package workflow4s.runtime
 
+import java.time.Clock
+
 import cats.effect.{IO, Ref}
 import cats.implicits.{catsSyntaxApplicativeId, catsSyntaxEitherId, toTraverseOps}
 import workflow4s.runtime.WorkflowInstance.UnexpectedSignal
 import workflow4s.wio.*
-
-import java.time.Clock
 
 // TODO current implementation is not safe in concurrent scenario. State should be locked for the duration of side effects
 class InMemoryWorkflowInstance[Ctx <: WorkflowContext](
