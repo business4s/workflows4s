@@ -55,7 +55,7 @@ object PekkoRuntime {
       workflow: Initial[Ctx, Input],
       initialState: EntityContext[?] => Input,
       clock: Clock = Clock.systemUTC(),
-  )(implicit
+  )(using
       ioRuntime: IORuntime,
       system: ActorSystem[?],
   ): PekkoRuntime[Ctx] = {

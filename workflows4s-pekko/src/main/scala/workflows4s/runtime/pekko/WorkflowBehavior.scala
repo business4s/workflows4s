@@ -20,7 +20,7 @@ object WorkflowBehavior {
       workflow: WIO.Initial[Ctx, Any],
       initialState: WCState[Ctx],
       clock: Clock,
-  )(implicit ioRuntime: IORuntime): Behavior[Command[Ctx]] =
+  )(using ioRuntime: IORuntime): Behavior[Command[Ctx]] =
     new WorkflowBehavior(id, workflow, initialState, clock).behavior
 
   sealed trait Command[Ctx <: WorkflowContext]
@@ -63,9 +63,8 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
     workflow: WIO.Initial[Ctx, Any],
     initialState: WCState[Ctx],
     clock: Clock,
-)(implicit
-    ioRuntime: IORuntime,
-) extends StrictLogging {
+)(using ioRuntime: IORuntime)
+    extends StrictLogging {
   import WorkflowBehavior.*
 
   private type Event = WCEvent[Ctx] | CommandAccepted.type

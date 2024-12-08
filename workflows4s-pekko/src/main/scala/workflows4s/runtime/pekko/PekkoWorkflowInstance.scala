@@ -15,7 +15,7 @@ class PekkoWorkflowInstance[Ctx <: WorkflowContext](
     actorRef: RecipientRef[WorkflowBehavior.Command[Ctx]],
     stateQueryTimeout: Timeout = Timeout(100.millis),
     signalTimeout: Timeout = Timeout(5.second),
-)(implicit system: ActorSystem[?])
+)(using system: ActorSystem[?])
     extends WorkflowInstance[Future, WCState[Ctx]] {
 
   override def queryState(): Future[WCState[Ctx]] = {

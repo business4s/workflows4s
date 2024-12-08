@@ -183,14 +183,14 @@ object TestRuntimeAdapter {
       override def wakeup(): Id[Unit] = base.wakeup().await
 
       // TODO could at least use futureValue from scalatest
-      implicit class AwaitOps[T](f: Future[T]) {
+      extension [T](f: Future[T]) {
         def await: T = Await.result(f, 5.seconds)
       }
     }
 
     override def recover(first: Actor): Actor = {
-      implicit val timeout: Timeout = Timeout(1.second)
-      val isStopped                 = first.entityRef.ask(replyTo => Stop(replyTo))
+      given Timeout = Timeout(1.second)
+      val isStopped = first.entityRef.ask(replyTo => Stop(replyTo))
       Await.result(isStopped, 1.second)
       Thread.sleep(100) // this is terrible but sometimes akka gives us already terminated actor if we ask for it too fast.
       val entityRef = sharding.entityRefFor(first.entityRef.typeKey, first.entityRef.entityId)

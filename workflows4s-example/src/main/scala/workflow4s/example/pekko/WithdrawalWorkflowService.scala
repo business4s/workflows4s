@@ -32,7 +32,7 @@ trait WithdrawalWorkflowService {
 object WithdrawalWorkflowService {
   type Journal = ReadJournal & CurrentPersistenceIdsQuery
 
-  class Impl(journal: Journal, wdRuntime: PekkoRuntime[WithdrawalWorkflow.Context.Ctx])(implicit val actorSystem: ActorSystem[Any])
+  class Impl(journal: Journal, wdRuntime: PekkoRuntime[WithdrawalWorkflow.Context.Ctx])(using val actorSystem: ActorSystem[Any])
       extends WithdrawalWorkflowService {
 
     override def startWorkflow(id: String, input: CreateWithdrawal): IO[Unit] = {
