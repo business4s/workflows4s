@@ -21,8 +21,8 @@ object ErrorMeta {
     override def nameOpt: Option[String] = Some(name)
   }
 
-  implicit def noError: ErrorMeta[Nothing] = NoError[Nothing]()
+  given noError: ErrorMeta[Nothing] = NoError[Nothing]()
 
-  implicit def fromClassTag[T](implicit ct: ClassTag[T]): ErrorMeta[T] = Present(ModelUtils.getPrettyNameForClass(ct))
+  given fromClassTag[T](using ct: ClassTag[T]): ErrorMeta[T] = Present(ModelUtils.getPrettyNameForClass(ct))
 
 }

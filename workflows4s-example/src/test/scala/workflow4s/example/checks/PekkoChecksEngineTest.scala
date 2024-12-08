@@ -1,5 +1,8 @@
 package workflow4s.example.checks
 
+import scala.concurrent.Await
+import scala.reflect.Selectable.reflectiveSelectable
+
 import cats.Id
 import cats.effect.IO
 import com.typesafe.scalalogging.StrictLogging
@@ -15,9 +18,6 @@ import workflow4s.runtime.WorkflowInstance
 import workflow4s.wio.WCState
 import workflow4s.wio.model.{WIOModel, WIOModelInterpreter}
 
-import scala.concurrent.Await
-import scala.reflect.Selectable.reflectiveSelectable
-
 class PekkoChecksEngineTest extends ScalaTestWithActorTestKit(ActorTestKit("MyCluster")) with AnyFreeSpecLike with ChecksEngineTest.Suite {
 
   override def beforeAll(): Unit = {
@@ -26,7 +26,7 @@ class PekkoChecksEngineTest extends ScalaTestWithActorTestKit(ActorTestKit("MyCl
   }
 
   "pekko" - {
-    checkEngineTests(new TestRuntimeAdapter.Pekko("checks-engine")(testKit.system))
+    checkEngineTests(new TestRuntimeAdapter.Pekko("checks-engine")(using testKit.system))
   }
 
 }
