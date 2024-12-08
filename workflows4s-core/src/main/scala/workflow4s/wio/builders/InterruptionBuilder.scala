@@ -1,14 +1,15 @@
 package workflow4s.wio.builders
 
+import java.time.Instant
+
+import scala.jdk.DurationConverters.ScalaDurationOps
+import scala.reflect.ClassTag
+
 import cats.effect.IO
 import workflow4s.wio.WIO.{InterruptionSource, Timer}
 import workflow4s.wio.internal.{EventHandler, SignalHandler}
 import workflow4s.wio.model.ModelUtils
 import workflow4s.wio.{WIO, *}
-
-import java.time.Instant
-import scala.jdk.DurationConverters.ScalaDurationOps
-import scala.reflect.ClassTag
 
 object InterruptionBuilder {
 
@@ -22,9 +23,9 @@ object InterruptionBuilder {
 
     class SignalInterruptionStep1[Req, Resp](signalDef: SignalDef[Req, Resp]) {
 
-      def handleAsync[Evt <: WCEvent[Ctx]](f: (Input, Req) => IO[Evt])(implicit evtCt: ClassTag[Evt]): Step2[Evt] = Step2(f, evtCt)
+      def handleAsync[Evt <: WCEvent[Ctx]](f: (Input, Req) => IO[Evt])(using evtCt: ClassTag[Evt]): Step2[Evt] = Step2(f, evtCt)
 
-      def handleSync[Evt <: WCEvent[Ctx]](f: (Input, Req) => Evt)(implicit evtCt: ClassTag[Evt]): Step2[Evt] =
+      def handleSync[Evt <: WCEvent[Ctx]](f: (Input, Req) => Evt)(using evtCt: ClassTag[Evt]): Step2[Evt] =
         Step2((x, y) => IO.pure(f(x, y)), evtCt)
 
       class Step2[Evt <: WCEvent[Ctx]](signalHandler: (Input, Req) => IO[Evt], evtCt: ClassTag[Evt]) {
@@ -32,7 +33,7 @@ object InterruptionBuilder {
         def handleEvent[Out <: WCState[Ctx]](f: (Input, Evt) => Out): Step3[Nothing, Out] =
           Step3({ (x, y) => Right(f(x, y)) }, ErrorMeta.noError)
 
-        def handleEventWithError[Err, Out <: WCState[Ctx]](f: (Input, Evt) => Either[Err, Out])(implicit
+        def handleEventWithError[Err, Out <: WCState[Ctx]](f: (Input, Evt) => Either[Err, Out])(using
             errorMeta: ErrorMeta[Err],
         ): Step3[Err, Out] =
           Step3(f, errorMeta)
@@ -56,7 +57,7 @@ object InterruptionBuilder {
             lazy val source: WIO.InterruptionSource[Input, Err, Out, Ctx] = {
               val combined: (Input, Evt) => (Either[Err, Out], Resp)                   = (s: Input, e: Evt) => (eventHandler(s, e), responseBuilder(s, e))
               val eh: EventHandler[Input, (Either[Err, Out], Resp), WCEvent[Ctx], Evt] = EventHandler(evtCt.unapply, identity, combined)
-              val sh: SignalHandler[Req, Evt, Input]                                   = SignalHandler(signalHandler)(signalDef.reqCt)
+              val sh: SignalHandler[Req, Evt, Input]                                   = SignalHandler(signalHandler)(using signalDef.reqCt)
               val meta                                                                 = WIO.HandleSignal.Meta(errorMeta, signalName.getOrElse(ModelUtils.getPrettyNameForClass(signalDef.reqCt)), operationName)
               val handleSignal: WIO.HandleSignal[Ctx, Input, Out, Err, Req, Resp, Evt] = WIO.HandleSignal(signalDef, sh, eh, meta)
               handleSignal

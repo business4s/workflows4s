@@ -1,9 +1,9 @@
 package workflow4s.runtime
 
+import java.time.Clock
+
 import cats.effect.unsafe.IORuntime
 import workflow4s.wio.{ActiveWorkflow, Interpreter, KnockerUpper, WCEvent, WCState, WIO, WorkflowContext}
-
-import java.time.Clock
 
 object InMemorySyncRuntime {
 
@@ -12,7 +12,7 @@ object InMemorySyncRuntime {
       state: In,
       clock: Clock = Clock.systemUTC(),
       events: Seq[WCEvent[Ctx]] = Seq(),
-  )(implicit ior: IORuntime): InMemorySyncRunningWorkflow[Ctx] = createWithState[Ctx, In](behaviour, state, state, clock, events)
+  )(using ior: IORuntime): InMemorySyncRunningWorkflow[Ctx] = createWithState[Ctx, In](behaviour, state, state, clock, events)
 
   // this might need to evolve, we provide initial state in case the input can't be one.
   // its necessary because (theoretically) state can be queried before any successful execution.
@@ -22,7 +22,7 @@ object InMemorySyncRuntime {
       state: WCState[Ctx],
       clock: Clock = Clock.systemUTC(),
       events: Seq[WCEvent[Ctx]] = List(),
-  )(implicit ior: IORuntime): InMemorySyncRunningWorkflow[Ctx] = {
+  )(using ior: IORuntime): InMemorySyncRunningWorkflow[Ctx] = {
     val activeWf: ActiveWorkflow.ForCtx[Ctx] =
       ActiveWorkflow(behaviour.transformInput[Any](_ => input), state)(new Interpreter(KnockerUpper.noop))
     val wf                                   = new InMemorySyncRunningWorkflow[Ctx](activeWf, clock)

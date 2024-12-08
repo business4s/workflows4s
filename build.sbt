@@ -64,13 +64,18 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
   .dependsOn(`workflows4s-core`, `workflows4s-bpmn`, `workflows4s-pekko`, `workflows4s-doobie`)
 
 lazy val commonSettings = Seq(
-  scalaVersion := "3.5.2",
+  scalaVersion      := "3.5.2",
   scalacOptions ++= Seq("-no-indent", "-Xmax-inlines", "64"),
   libraryDependencies ++= Seq(
     "org.scalatest" %% "scalatest" % "3.2.19" % Test,
   ),
+  // scalafix settings
+  semanticdbEnabled := true, // enable SemanticDB
+  scalacOptions += "-Wunused:imports",
 )
 
 lazy val pekkoVerion                = "1.1.2"
 lazy val pekkoHttpVerion            = "1.0.1"
 lazy val testcontainersScalaVersion = "0.41.4"
+
+addCommandAlias("prePR", List("compile", "Test / compile", "test", "scalafmtCheckAll").mkString(";", ";", ""))

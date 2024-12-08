@@ -1,27 +1,27 @@
 package workflow4s.example
 
+import java.time.Clock
+import java.util.UUID
+
+import scala.concurrent.{Await, Future}
+import scala.util.Random
+
+import _root_.doobie.ConnectionIO
+import _root_.doobie.util.transactor.Transactor
 import cats.Id
 import cats.effect.IO
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.pekko.actor.typed.*
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
-import org.apache.pekko.cluster.sharding.typed.ShardingEnvelope
 import org.apache.pekko.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity, EntityRef, EntityTypeKey}
 import org.apache.pekko.persistence.typed.PersistenceId
 import org.apache.pekko.util.Timeout
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
-import _root_.doobie.ConnectionIO
-import _root_.doobie.util.transactor.Transactor
 import workflow4s.runtime.{InMemoryRuntime, InMemorySyncRuntime, RunningWorkflow}
 import workflow4s.wio.*
 import workflows4s.doobie.EventCodec
 import workflows4s.doobie.postgres.{PostgresRuntime, WorkflowId}
 import workflows4s.runtime.pekko.{PekkoRunningWorkflow, WorkflowBehavior}
-
-import java.time.Clock
-import java.util.UUID
-import scala.concurrent.{Await, Future}
-import scala.util.Random
 
 // Adapt various runtimes to a single interface for tests
 trait TestRuntimeAdapter[Ctx <: WorkflowContext] {
@@ -110,9 +110,7 @@ object TestRuntimeAdapter {
 
   }
 
-  class Pekko[Ctx <: WorkflowContext](entityKeyPrefix: String)(implicit actorSystem: ActorSystem[?])
-      extends TestRuntimeAdapter[Ctx]
-      with StrictLogging {
+  class Pekko[Ctx <: WorkflowContext](entityKeyPrefix: String)(using actorSystem: ActorSystem[?]) extends TestRuntimeAdapter[Ctx] with StrictLogging {
 
     val sharding = ClusterSharding(actorSystem)
 
@@ -172,14 +170,14 @@ object TestRuntimeAdapter {
       override def wakeup(): Id[Unit] = base.wakeup().await
 
       // TODO could at least use futureValue from scalatest
-      implicit class AwaitOps[T](f: Future[T]) {
+      extension [T](f: Future[T]) {
         def await: T = Await.result(f, 5.seconds)
       }
     }
 
     override def recover(first: Actor): Actor = {
-      implicit val timeout: Timeout = Timeout(1.second)
-      val isStopped                 = first.entityRef.ask(replyTo => Stop(replyTo))
+      given timeout: Timeout = Timeout(1.second)
+      val isStopped          = first.entityRef.ask(replyTo => Stop(replyTo))
       Await.result(isStopped, 1.second)
       Thread.sleep(100) // this is terrible but sometimes akka gives us already terminated actor if we ask for it too fast.
       val entityRef = sharding.entityRefFor(first.entityRef.typeKey, first.entityRef.entityId)

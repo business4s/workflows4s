@@ -1,12 +1,12 @@
 package workflow4s.wio.builders
 
+import scala.reflect.ClassTag
+
 import cats.effect.IO
+import workflow4s.wio.*
 import workflow4s.wio.WIO.HandleSignal
 import workflow4s.wio.internal.{EventHandler, SignalHandler}
 import workflow4s.wio.model.ModelUtils
-import workflow4s.wio.*
-
-import scala.reflect.ClassTag
 
 object HandleSignalBuilder {
 
@@ -20,9 +20,9 @@ object HandleSignalBuilder {
 
       class Step1[Input] {
 
-        def withSideEffects[Evt <: WCEvent[Ctx]](f: (Input, Req) => IO[Evt])(implicit evtCt: ClassTag[Evt]): Step2[Evt] = Step2(f, evtCt)
+        def withSideEffects[Evt <: WCEvent[Ctx]](f: (Input, Req) => IO[Evt])(using evtCt: ClassTag[Evt]): Step2[Evt] = Step2(f, evtCt)
 
-        def purely[Evt <: WCEvent[Ctx]](f: (Input, Req) => Evt)(implicit evtCt: ClassTag[Evt]): Step2[Evt] =
+        def purely[Evt <: WCEvent[Ctx]](f: (Input, Req) => Evt)(using evtCt: ClassTag[Evt]): Step2[Evt] =
           Step2((x, y) => IO.pure(f(x, y)), evtCt)
 
         class Step2[Evt <: WCEvent[Ctx]](signalHandler: (Input, Req) => IO[Evt], evtCt: ClassTag[Evt]) {
@@ -30,7 +30,7 @@ object HandleSignalBuilder {
           def handleEvent[Out <: WCState[Ctx]](f: (Input, Evt) => Out): Step3[Nothing, Out] =
             Step3({ (x, y) => Right(f(x, y)) }, ErrorMeta.noError)
 
-          def handleEventWithError[Err, Out <: WCState[Ctx]](f: (Input, Evt) => Either[Err, Out])(implicit
+          def handleEventWithError[Err, Out <: WCState[Ctx]](f: (Input, Evt) => Either[Err, Out])(using
               errorMeta: ErrorMeta[Err],
           ): Step3[Err, Out] =
             Step3(f, errorMeta)
@@ -54,7 +54,7 @@ object HandleSignalBuilder {
               def done: WIO[Input, Err, Out, Ctx] = {
                 val combined: (Input, Evt) => (Either[Err, Out], Resp)                   = (s: Input, e: Evt) => (eventHandler(s, e), responseBuilder(s, e))
                 val eh: EventHandler[Input, (Either[Err, Out], Resp), WCEvent[Ctx], Evt] = EventHandler(evtCt.unapply, identity, combined)
-                val sh: SignalHandler[Req, Evt, Input]                                   = SignalHandler(signalHandler)(signalDef.reqCt)
+                val sh: SignalHandler[Req, Evt, Input]                                   = SignalHandler(signalHandler)(using signalDef.reqCt)
                 val meta                                                                 = HandleSignal.Meta(errorMeta, signalName.getOrElse(ModelUtils.getPrettyNameForClass(signalDef.reqCt)), operationName)
                 WIO.HandleSignal(signalDef, sh, eh, meta)
               }
