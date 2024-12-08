@@ -1,15 +1,10 @@
 package workflow4s.example
 
-import java.time.Clock
-import java.util.UUID
-
-import scala.concurrent.{Await, Future}
-import scala.util.Random
-
 import _root_.doobie.ConnectionIO
 import _root_.doobie.util.transactor.Transactor
 import cats.Id
 import cats.effect.IO
+import cats.effect.unsafe.IORuntime
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.pekko.actor.typed.*
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
@@ -17,16 +12,22 @@ import org.apache.pekko.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity
 import org.apache.pekko.persistence.typed.PersistenceId
 import org.apache.pekko.util.Timeout
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
-import workflow4s.runtime.{InMemoryRuntime, InMemorySyncRuntime, RunningWorkflow}
+import workflow4s.runtime.wakeup.KnockerUpper
+import workflow4s.runtime.{InMemoryRuntime, InMemorySyncRuntime, WorkflowInstance}
 import workflow4s.wio.*
 import workflows4s.doobie.EventCodec
 import workflows4s.doobie.postgres.{PostgresRuntime, WorkflowId}
-import workflows4s.runtime.pekko.{PekkoRunningWorkflow, WorkflowBehavior}
+import workflows4s.runtime.pekko.{PekkoRuntime, PekkoWorkflowInstance, WorkflowBehavior}
+
+import java.time.Clock
+import java.util.UUID
+import scala.concurrent.{Await, Future}
+import scala.util.Random
 
 // Adapt various runtimes to a single interface for tests
 trait TestRuntimeAdapter[Ctx <: WorkflowContext] {
 
-  type Actor <: RunningWorkflow[Id, WCState[Ctx]]
+  type Actor <: WorkflowInstance[Id, WCState[Ctx]]
 
   def runWorkflow[In](
       workflow: WIO[In, Nothing, WCState[Ctx], Ctx],
@@ -62,18 +63,21 @@ object TestRuntimeAdapter {
         state: WCState[Ctx],
         clock: Clock,
         events: Seq[WCEvent[Ctx]],
-    ) extends RunningWorkflow[Id, WCState[Ctx]]
+    ) extends WorkflowInstance[Id, WCState[Ctx]]
         with EventIntrospection[WCEvent[Ctx]] {
       val base = {
-        import cats.effect.unsafe.implicits.global
-        InMemorySyncRuntime.runWorkflow(workflow, state, clock, events)
+        val runtime =
+          new InMemorySyncRuntime[Ctx, Unit, Unit](workflow, _ => state, clock, KnockerUpper.noopFactory)(using IORuntime.global)
+        val inst    = runtime.createInstance((), ())
+        inst.recover(events)
+        inst
       }
 
-      override def queryState(): Id[WCState[Ctx]]                                                                                          = base.queryState()
-      override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): Id[Either[RunningWorkflow.UnexpectedSignal, Resp]] =
+      override def queryState(): Id[WCState[Ctx]]                                                                                           = base.queryState()
+      override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): Id[Either[WorkflowInstance.UnexpectedSignal, Resp]] =
         base.deliverSignal(signalDef, req)
-      override def wakeup(): Id[Unit]                                                                                                      = base.wakeup()
-      override def getEvents: Seq[WCEvent[Ctx]]                                                                                            = base.getEvents
+      override def wakeup(): Id[Unit]                                                                                                       = base.wakeup()
+      override def getEvents: Seq[WCEvent[Ctx]]                                                                                             = base.getEvents
     }
 
   }
@@ -96,21 +100,28 @@ object TestRuntimeAdapter {
         state: WCState[Ctx],
         clock: Clock,
         events: Seq[WCEvent[Ctx]],
-    ) extends RunningWorkflow[Id, WCState[Ctx]]
+    ) extends WorkflowInstance[Id, WCState[Ctx]]
         with EventIntrospection[WCEvent[Ctx]] {
       import cats.effect.unsafe.implicits.global
-      val base = InMemoryRuntime.runWorkflow(workflow, state, events, clock).unsafeRunSync()
+      val base = {
+        val runtime = new InMemoryRuntime[Ctx, Unit, Unit](workflow, _ => state, clock, KnockerUpper.noopFactory)
+        val inst    = runtime.createInstance((), ()).unsafeRunSync()
+        inst.recover(events).unsafeRunSync()
+        inst
+      }
 
-      override def queryState(): Id[WCState[Ctx]]                                                                                          = base.queryState().unsafeRunSync()
-      override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): Id[Either[RunningWorkflow.UnexpectedSignal, Resp]] =
+      override def queryState(): Id[WCState[Ctx]]                                                                                           = base.queryState().unsafeRunSync()
+      override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): Id[Either[WorkflowInstance.UnexpectedSignal, Resp]] =
         base.deliverSignal(signalDef, req).unsafeRunSync()
-      override def wakeup(): Id[Unit]                                                                                                      = base.wakeup().unsafeRunSync()
-      override def getEvents: Seq[WCEvent[Ctx]]                                                                                            = base.getEvents.unsafeRunSync()
+      override def wakeup(): Id[Unit]                                                                                                       = base.wakeup().unsafeRunSync()
+      override def getEvents: Seq[WCEvent[Ctx]]                                                                                             = base.getEvents.unsafeRunSync()
     }
 
   }
 
-  class Pekko[Ctx <: WorkflowContext](entityKeyPrefix: String)(using actorSystem: ActorSystem[?]) extends TestRuntimeAdapter[Ctx] with StrictLogging {
+  class Pekko[Ctx <: WorkflowContext](entityKeyPrefix: String)(implicit actorSystem: ActorSystem[?])
+      extends TestRuntimeAdapter[Ctx]
+      with StrictLogging {
 
     val sharding = ClusterSharding(actorSystem)
 
@@ -129,10 +140,12 @@ object TestRuntimeAdapter {
       // with single shard region its tricky to inject input into behavior creation
       val typeKey = EntityTypeKey[Cmd](entityKeyPrefix + "-" + UUID.randomUUID().toString)
 
+      // we dont use PekkoRuntime because its tricky to test recover there.
+      // TODO maybe we could use persistance test kit?
       val shardRegion   = sharding.init(
         Entity(typeKey)(createBehavior = entityContext => {
           val persistenceId = PersistenceId(entityContext.entityTypeKey.name, entityContext.entityId)
-          val base          = WorkflowBehavior.withInput(persistenceId, workflow, state, input, clock)
+          val base          = WorkflowBehavior(persistenceId, workflow.provideInput(input), state, clock)
           Behaviors.intercept[Cmd, RawCmd](() =>
             new BehaviorInterceptor[Cmd, RawCmd]() {
               override def aroundReceive(
@@ -158,10 +171,10 @@ object TestRuntimeAdapter {
       Actor(entityRef)
     }
 
-    case class Actor(entityRef: EntityRef[Cmd]) extends RunningWorkflow[Id, WCState[Ctx]] {
-      val base                                                                                                                             = PekkoRunningWorkflow(entityRef, stateQueryTimeout = Timeout(1.second))
-      override def queryState(): Id[WCState[Ctx]]                                                                                          = base.queryState().await
-      override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): Id[Either[RunningWorkflow.UnexpectedSignal, Resp]] = {
+    case class Actor(entityRef: EntityRef[Cmd]) extends WorkflowInstance[Id, WCState[Ctx]] {
+      val base                                                                                                                              = PekkoWorkflowInstance(entityRef, stateQueryTimeout = Timeout(1.second))
+      override def queryState(): Id[WCState[Ctx]]                                                                                           = base.queryState().await
+      override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): Id[Either[WorkflowInstance.UnexpectedSignal, Resp]] = {
         val resp = base.deliverSignal(signalDef, req).await
         wakeup()
         resp
@@ -176,8 +189,8 @@ object TestRuntimeAdapter {
     }
 
     override def recover(first: Actor): Actor = {
-      given timeout: Timeout = Timeout(1.second)
-      val isStopped          = first.entityRef.ask(replyTo => Stop(replyTo))
+      given Timeout = Timeout(1.second)
+      val isStopped = first.entityRef.ask(replyTo => Stop(replyTo))
       Await.result(isStopped, 1.second)
       Thread.sleep(100) // this is terrible but sometimes akka gives us already terminated actor if we ask for it too fast.
       val entityRef = sharding.entityRefFor(first.entityRef.typeKey, first.entityRef.entityId)
@@ -196,23 +209,24 @@ object TestRuntimeAdapter {
         state: WCState[Ctx],
         clock: Clock,
     ): Actor = {
-      val runtime = PostgresRuntime(_ => KnockerUpper.noop, clock)
-      Actor(runtime.runWorkflow(WorkflowId(Random.nextLong()), workflow.provideInput(input), state, eventCodec))
+      val runtime =
+        PostgresRuntime.defaultWithState[Ctx, Unit](workflow.provideInput(input), _ => state, eventCodec, xa, KnockerUpper.noopFactory, clock)
+      Actor(runtime.createInstance(WorkflowId(Random.nextLong()), ()))
     }
 
     override def recover(first: Actor): Actor = {
       first // in this runtime there is no in-memory state, hence no recovery.
     }
 
-    case class Actor(base: IO[RunningWorkflow[ConnectionIO, WCState[Ctx]]]) extends RunningWorkflow[Id, WCState[Ctx]] {
+    case class Actor(base: IO[WorkflowInstance[IO, WCState[Ctx]]]) extends WorkflowInstance[Id, WCState[Ctx]] {
       import cats.effect.unsafe.implicits.global
 
-      override def queryState(): WCState[Ctx] = base.flatMap(_.queryState().transact(xa)).unsafeRunSync()
+      override def queryState(): WCState[Ctx] = base.flatMap(_.queryState()).unsafeRunSync()
 
-      override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): Either[RunningWorkflow.UnexpectedSignal, Resp] =
-        base.flatMap(_.deliverSignal(signalDef, req).transact(xa)).unsafeRunSync()
+      override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): Either[WorkflowInstance.UnexpectedSignal, Resp] =
+        base.flatMap(_.deliverSignal(signalDef, req)).unsafeRunSync()
 
-      override def wakeup(): Id[Unit] = base.flatMap(_.wakeup().transact(xa)).unsafeRunSync()
+      override def wakeup(): Id[Unit] = base.flatMap(_.wakeup()).unsafeRunSync()
     }
 
   }

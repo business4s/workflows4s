@@ -3,7 +3,7 @@ import React from 'react';
 import CodeBlock from '@theme/CodeBlock';
 
 interface SbtDependencyProps {
-    moduleName: "workflows4s-core" | "workflows4s-doobie" ;
+    moduleName: "workflows4s-core" | "workflows4s-doobie" | "workflows4s-pekko" ;
 }
 
 const SbtDependency: React.FC<SbtDependencyProps> = ({moduleName}) => {

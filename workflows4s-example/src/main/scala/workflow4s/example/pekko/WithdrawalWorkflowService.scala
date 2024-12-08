@@ -1,7 +1,5 @@
 package workflow4s.example.pekko
 
-import scala.concurrent.duration.DurationInt
-
 import cats.effect.IO
 import org.apache.pekko.actor.typed.{ActorRef, ActorSystem, Behavior}
 import org.apache.pekko.cluster.sharding.typed.scaladsl.EntityRef
@@ -10,12 +8,14 @@ import org.apache.pekko.stream.scaladsl.Sink
 import org.apache.pekko.util.Timeout
 import workflow4s.example.withdrawal.WithdrawalSignal.CreateWithdrawal
 import workflow4s.example.withdrawal.{WithdrawalData, WithdrawalSignal, WithdrawalWorkflow}
-import workflows4s.runtime.pekko.WorkflowBehavior
+import workflow4s.runtime.WorkflowRuntime
+import workflows4s.runtime.pekko.{PekkoRuntime, WorkflowBehavior}
 import workflows4s.runtime.pekko.WorkflowBehavior.SignalResponse
 
-trait WithdrawalWorkflowService {
+import scala.concurrent.Future
+import scala.concurrent.duration.DurationInt
 
-  type WithdrawalActor = EntityRef[WithdrawalShard.Command]
+trait WithdrawalWorkflowService {
 
   def startWorkflow(id: String, input: WithdrawalSignal.CreateWithdrawal): IO[Unit]
 
@@ -32,10 +32,11 @@ trait WithdrawalWorkflowService {
 object WithdrawalWorkflowService {
   type Journal = ReadJournal & CurrentPersistenceIdsQuery
 
-  class Impl(journal: Journal, wdShard: WithdrawalShard)(using val actorSystem: ActorSystem[Any]) extends WithdrawalWorkflowService {
+  class Impl(journal: Journal, wdRuntime: PekkoRuntime[WithdrawalWorkflow.Context.Ctx])(using val actorSystem: ActorSystem[Any])
+      extends WithdrawalWorkflowService {
 
     override def startWorkflow(id: String, input: CreateWithdrawal): IO[Unit] = {
-      val workflow = wdShard.workflowInstance(id)
+      val workflow = wdRuntime.createInstance(id)
       IO.fromFuture(IO(workflow.deliverSignal(WithdrawalWorkflow.Signals.createWithdrawal, input)))
         .map({
           case Right(response) => response
@@ -46,7 +47,7 @@ object WithdrawalWorkflowService {
     override def listWorkflows: IO[Seq[String]] = IO.fromFuture(IO(journal.currentPersistenceIds().runWith(Sink.seq)))
 
     override def getState(id: String): IO[WithdrawalData] = {
-      val workflow = wdShard.workflowInstance(id)
+      val workflow = wdRuntime.createInstance(id)
       IO.fromFuture(IO(workflow.queryState()))
     }
 

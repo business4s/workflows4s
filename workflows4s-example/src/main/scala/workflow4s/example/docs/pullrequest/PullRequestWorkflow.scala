@@ -117,10 +117,8 @@ object PullRequestWorkflow {
 
     // start_execution
     import cats.effect.unsafe.implicits.global
-    val wfInstance = InMemorySyncRuntime.runWorkflow[Context.Ctx, PRState.Empty.type](
-      behaviour = workflow,
-      state = PRState.Empty,
-    )
+    val runtime    = InMemorySyncRuntime.default[Context.Ctx, PRState.Empty.type](workflow)
+    val wfInstance = runtime.createInstance((), PRState.Empty)
 
     wfInstance.deliverSignal(Signals.createPR, Signals.CreateRequest("some-sha"))
     println(wfInstance.queryState())
@@ -132,11 +130,8 @@ object PullRequestWorkflow {
     // end_execution
 
     // start_recovery
-    val recoveredInstance = InMemorySyncRuntime.runWorkflow[Context.Ctx, PRState.Empty.type](
-      workflow,
-      PRState.Empty,
-      events = wfInstance.getEvents,
-    )
+    val recoveredInstance = runtime.createInstance((), PRState.Empty)
+    recoveredInstance.recover(wfInstance.getEvents)
     assert(wfInstance.queryState() == recoveredInstance.queryState())
     // end_recovery
 

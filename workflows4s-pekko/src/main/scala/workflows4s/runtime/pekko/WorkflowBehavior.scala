@@ -1,39 +1,27 @@
 package workflows4s.runtime.pekko
 
-import java.time.{Clock, Instant}
-
-import scala.annotation.nowarn
-
 import cats.effect.IO
 import cats.effect.unsafe.IORuntime
 import cats.implicits.catsSyntaxOptionId
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.pekko.actor.typed.scaladsl.{ActorContext, Behaviors}
 import org.apache.pekko.actor.typed.{ActorRef, Behavior}
-import org.apache.pekko.persistence.typed.scaladsl.{Effect, EventSourcedBehavior}
 import org.apache.pekko.persistence.typed.{PersistenceId, RecoveryCompleted}
+import org.apache.pekko.persistence.typed.scaladsl.{Effect, EventSourcedBehavior}
 import workflow4s.wio.*
+
+import java.time.{Clock, Instant}
+import scala.annotation.nowarn
 
 object WorkflowBehavior {
 
-  def apply[Ctx <: WorkflowContext, In <: WCState[Ctx]](
+  def apply[Ctx <: WorkflowContext](
       id: PersistenceId,
-      workflow: WIO.Initial[Ctx, In],
-      initialState: In,
-      clock: Clock = Clock.systemUTC(),
-  )(using ioRuntime: IORuntime): Behavior[Command[Ctx]] =
-    new WorkflowBehavior(id, workflow.provideInput(initialState), initialState, clock).behavior
-
-  def withInput[Ctx <: WorkflowContext, In](
-      id: PersistenceId,
-      workflow: WIO[In, Nothing, WCState[Ctx], Ctx],
+      workflow: WIO.Initial[Ctx, Any],
       initialState: WCState[Ctx],
-      input: In,
-      clock: Clock = Clock.systemUTC(),
-  )(using
-      ioRuntime: IORuntime,
-  ): Behavior[Command[Ctx]] =
-    new WorkflowBehavior(id, workflow.provideInput(input), initialState, clock).behavior
+      clock: Clock,
+  )(using ioRuntime: IORuntime): Behavior[Command[Ctx]] =
+    new WorkflowBehavior(id, workflow, initialState, clock).behavior
 
   sealed trait Command[Ctx <: WorkflowContext]
   object Command {
@@ -70,14 +58,13 @@ object WorkflowBehavior {
   }
 }
 
-private class WorkflowBehavior[Ctx <: WorkflowContext, In](
+private class WorkflowBehavior[Ctx <: WorkflowContext](
     id: PersistenceId,
-    workflow: WIO.Initial[Ctx, Unit],
+    workflow: WIO.Initial[Ctx, Any],
     initialState: WCState[Ctx],
     clock: Clock,
-)(using
-    ioRuntime: IORuntime,
-) extends StrictLogging {
+)(using ioRuntime: IORuntime)
+    extends StrictLogging {
   import WorkflowBehavior.*
 
   private type Event = WCEvent[Ctx] | CommandAccepted.type
@@ -86,6 +73,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext, In](
 
   val behavior: Behavior[Cmd] = Behaviors.setup { context =>
     Behaviors.withTimers { timers =>
+      // TODO this shouldn't be hardcoded
       val knockerUpper                               = PekkoKnockerUpper(timers, context)
       val activeWorkflow: ActiveWorkflow.ForCtx[Ctx] = ActiveWorkflow(workflow.provideInput(()), initialState)(Interpreter(knockerUpper))
       EventSourcedBehavior[Cmd, Event, St](

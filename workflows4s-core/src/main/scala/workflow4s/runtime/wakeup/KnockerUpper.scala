@@ -1,4 +1,4 @@
-package workflow4s.wio
+package workflow4s.runtime.wakeup
 
 import cats.effect.IO
 
@@ -12,7 +12,8 @@ trait KnockerUpper {
 }
 
 object KnockerUpper {
-  val noop: KnockerUpper = _ => IO.unit
+  val noop: KnockerUpper                     = NoOpKnockerUpper
+  val noopFactory: KnockerUpper.Factory[Any] = _ => noop
 
   type Factory[In] = In => KnockerUpper
 }

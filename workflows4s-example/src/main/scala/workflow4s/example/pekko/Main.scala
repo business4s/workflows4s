@@ -8,8 +8,9 @@ import org.apache.pekko.http.scaladsl.Http
 import org.apache.pekko.persistence.jdbc.query.scaladsl.JdbcReadJournal
 import org.apache.pekko.persistence.jdbc.testkit.scaladsl.SchemaUtils
 import org.apache.pekko.persistence.query.PersistenceQuery
-import workflow4s.example.withdrawal.WithdrawalWorkflow
+import workflow4s.example.withdrawal.{WithdrawalData, WithdrawalWorkflow}
 import workflow4s.example.withdrawal.checks.ChecksEngine
+import workflows4s.runtime.pekko.PekkoRuntime
 
 object Main extends IOApp {
 
@@ -19,11 +20,14 @@ object Main extends IOApp {
 
     for {
       journal                  <- setupJournal()
-      shard                     = {
-        val workflow = WithdrawalWorkflow(DummyWithdrawalService, ChecksEngine)
-        WithdrawalShard.create(workflow)
-      }
-      withdrawalWorkflowService = WithdrawalWorkflowService.Impl(journal, shard)
+      workflow                  = WithdrawalWorkflow(DummyWithdrawalService, ChecksEngine)
+      runtime                   =
+        PekkoRuntime.create[WithdrawalWorkflow.Context.Ctx, WithdrawalData.Empty](
+          "withdrawal",
+          workflow.workflowDeclarative,
+          ec => WithdrawalData.Empty(ec.entityId),
+        )
+      withdrawalWorkflowService = WithdrawalWorkflowService.Impl(journal, runtime)
       routes                    = HttpRoutes(system, withdrawalWorkflowService)
       _                        <- runHttpServer(routes)
       _                        <- IO.fromFuture(IO(system.whenTerminated))

@@ -2,6 +2,7 @@ package workflow4s.wio.internal
 
 import cats.effect.IO
 import cats.syntax.all.*
+import workflow4s.runtime.wakeup.KnockerUpper
 import workflow4s.wio.*
 import workflow4s.wio.WIO.Timer
 

@@ -14,7 +14,7 @@ import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import workflow4s.example.withdrawal.checks.*
 import workflow4s.example.{TestClock, TestRuntimeAdapter, TestUtils}
-import workflow4s.runtime.RunningWorkflow
+import workflow4s.runtime.WorkflowInstance
 import workflow4s.wio.WCState
 import workflow4s.wio.model.{WIOModel, WIOModelInterpreter}
 

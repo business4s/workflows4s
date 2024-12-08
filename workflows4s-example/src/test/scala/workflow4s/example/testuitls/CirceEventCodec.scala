@@ -9,7 +9,7 @@ object CirceEventCodec {
   def get[T]()(using Codec[T]): EventCodec[T] = new EventCodec[T] {
 
     import scala.util.{Failure, Success, Try}
-    import io.circe.syntax._
+    import io.circe.syntax.*
     import java.nio.charset.StandardCharsets.UTF_8
 
     override def read(bytes: IArray[Byte]): Try[T] = {

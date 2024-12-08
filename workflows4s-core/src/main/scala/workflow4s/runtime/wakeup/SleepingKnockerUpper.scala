@@ -1,7 +1,6 @@
-package workflow4s.runtime
+package workflow4s.runtime.wakeup
 
 import cats.effect.IO
-import workflow4s.wio.KnockerUpper
 
 import java.time.{Duration, Instant}
 import scala.jdk.DurationConverters.JavaDurationOps
@@ -17,4 +16,10 @@ class SleepingKnockerUpper(wakeupLogic: IO[Unit]) extends KnockerUpper {
       _   <- IO.sleep(Duration.between(now, at).toScala)
       _   <- wakeupLogic
     } yield ()).start.void
+}
+
+object SleepingKnockerUpper {
+
+  val factory: KnockerUpper.Factory[IO[Unit]] = wakeupLogic => new SleepingKnockerUpper(wakeupLogic)
+
 }

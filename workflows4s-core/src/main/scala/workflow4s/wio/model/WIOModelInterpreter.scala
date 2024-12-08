@@ -94,8 +94,8 @@ object WIOModelInterpreter {
       wio.name,
     )
 
-    def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Nothing =
-      ??? // TODO, shouldnt happen unitl we start capturing model of inflight workflows
+    // TODO, shouldnt happen unitl we start capturing model of inflight workflows
+    def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Nothing = ???
 
     def recurse[C <: WorkflowContext, I1, E1, O1 <: WCState[C]](wio: WIO[I1, E1, O1, C], meta: Option[Metadata] = Some(m)): WIOModel = {
       new ModelVisitor(wio, meta.getOrElse(Metadata.empty)).run
