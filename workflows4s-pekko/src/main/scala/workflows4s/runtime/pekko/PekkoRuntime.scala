@@ -21,7 +21,7 @@ class PekkoRuntimeImpl[Ctx <: WorkflowContext, Input <: WCState[Ctx]](
     initialState: EntityContext[?] => Input,
     entityName: String,
     clock: Clock,
-)(implicit
+)(using
     system: ActorSystem[?],
     IORuntime: IORuntime,
 ) extends PekkoRuntime[Ctx] {
