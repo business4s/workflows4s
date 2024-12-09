@@ -3,7 +3,7 @@
 ## Without Error
 
 ### Code
-```scala file=./main/scala/workflow4s/example/docs/RunIOExample.scala start=start_withoutError end=end_withoutError
+```scala file=./main/scala/workflows4s/example/docs/RunIOExample.scala start=start_withoutError end=end_withoutError
 ```
 
 ### BPMN
@@ -17,7 +17,7 @@
 ## With Error
 
 ### Code
-```scala file=./main/scala/workflow4s/example/docs/RunIOExample.scala start=start_withError end=end_withError
+```scala file=./main/scala/workflows4s/example/docs/RunIOExample.scala start=start_withError end=end_withError
 ```
 
 ### BPMN

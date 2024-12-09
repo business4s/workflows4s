@@ -1,7 +1,7 @@
 # Handling Errors
 
 ## Code
-```scala file=./main/scala/workflow4s/example/docs/HandleErrorExample.scala start=start_declarative end=end_declarative
+```scala file=./main/scala/workflows4s/example/docs/HandleErrorExample.scala start=start_declarative end=end_declarative
 ```
 
 ## BPMN

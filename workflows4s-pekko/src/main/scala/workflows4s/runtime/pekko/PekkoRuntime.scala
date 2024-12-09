@@ -2,11 +2,11 @@ package workflows4s.runtime.pekko
 
 import cats.effect.unsafe.IORuntime
 import org.apache.pekko.actor.typed.ActorSystem
-import workflow4s.runtime.{WorkflowInstance, WorkflowRuntime}
-import workflow4s.wio.{WCState, WorkflowContext}
+import workflows4s.runtime.{WorkflowInstance, WorkflowRuntime}
+import workflows4s.wio.{WCState, WorkflowContext}
 import org.apache.pekko.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity, EntityContext, EntityTypeKey}
 import org.apache.pekko.persistence.typed.PersistenceId
-import workflow4s.wio.WIO.Initial
+import workflows4s.wio.WIO.Initial
 
 import java.time.Clock
 import scala.concurrent.Future
