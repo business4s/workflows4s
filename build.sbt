@@ -28,10 +28,10 @@ lazy val `workflows4s-pekko` = (project in file("workflows4s-pekko"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.apache.pekko" %% "pekko-persistence-typed"      % pekkoVerion,
-      "org.apache.pekko" %% "pekko-cluster-typed"          % pekkoVerion,
-      "org.apache.pekko" %% "pekko-cluster-sharding-typed" % pekkoVerion,
-      "org.apache.pekko" %% "pekko-persistence-testkit"    % pekkoVerion % Test,
+      "org.apache.pekko" %% "pekko-persistence-typed"      % pekkoVersion,
+      "org.apache.pekko" %% "pekko-cluster-typed"          % pekkoVersion,
+      "org.apache.pekko" %% "pekko-cluster-sharding-typed" % pekkoVersion,
+      "org.apache.pekko" %% "pekko-persistence-testkit"    % pekkoVersion % Test,
     ),
   )
   .dependsOn(`workflows4s-core`)
@@ -47,16 +47,16 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.apache.pekko"     %% "pekko-http"                      % pekkoHttpVerion, // for interacting with the app
-      "org.apache.pekko"     %% "pekko-cluster-sharding-typed"    % pekkoVerion,     // for realistic example and spawning actors
-      "org.apache.pekko"     %% "pekko-persistence-jdbc"          % "1.1.0",         // published locally until the release is there
+      "org.apache.pekko"     %% "pekko-http"                      % pekkoHttpVersion, // for interacting with the app
+      "org.apache.pekko"     %% "pekko-cluster-sharding-typed"    % pekkoVersion,     // for realistic example and spawning actors
+      "org.apache.pekko"     %% "pekko-persistence-jdbc"          % "1.1.0",          // published locally until the release is there
       "org.apache.pekko"     %% "pekko-serialization-jackson"     % "1.1.2",
       "com.h2database"        % "h2"                              % "2.3.232",
       "io.r2dbc"              % "r2dbc-h2"                        % "1.0.0.RELEASE",
       "com.github.pjfanning" %% "pekko-http-circe"                % "3.0.0",
       "ch.qos.logback"        % "logback-classic"                 % "1.5.12",
       "org.scalamock"        %% "scalamock"                       % "6.0.0" % Test,
-      "org.apache.pekko"     %% "pekko-actor-testkit-typed"       % pekkoVerion % Test,
+      "org.apache.pekko"     %% "pekko-actor-testkit-typed"       % pekkoVersion % Test,
       "com.dimafeng"         %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
       "com.dimafeng"         %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
       "org.postgresql"        % "postgresql"                      % "42.7.4" % Test,
@@ -76,8 +76,8 @@ lazy val commonSettings = Seq(
   scalacOptions += "-Wunused:imports",
 )
 
-lazy val pekkoVerion                = "1.1.2"
-lazy val pekkoHttpVerion            = "1.0.1"
+lazy val pekkoVersion               = "1.1.2"
+lazy val pekkoHttpVersion           = "1.0.1"
 lazy val testcontainersScalaVersion = "0.41.4"
 
 addCommandAlias("prePR", List("compile", "Test / compile", "test", "scalafmtCheckAll").mkString(";", ";", ""))
