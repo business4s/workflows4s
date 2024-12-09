@@ -1,15 +1,15 @@
 package workflows4s.doobie.postgres
 
+import java.time.Clock
+
 import cats.effect.IO
 import doobie.util.transactor.Transactor
 import doobie.{ConnectionIO, WeakAsync}
+import workflows4s.doobie.{DbWorkflowInstance, EventCodec}
 import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.runtime.{MappedWorkflowInstance, WorkflowInstance, WorkflowRuntime}
 import workflows4s.wio.WIO.Initial
-import workflows4s.wio.{ActiveWorkflow, Interpreter, WCEvent, WCState, WIO, WorkflowContext}
-import workflows4s.doobie.{DbWorkflowInstance, EventCodec}
-
-import java.time.Clock
+import workflows4s.wio.{ActiveWorkflow, Interpreter, WCEvent, WCState, WorkflowContext}
 
 class PostgresRuntime[Ctx <: WorkflowContext, Input](
     workflow: Initial[Ctx, Input],

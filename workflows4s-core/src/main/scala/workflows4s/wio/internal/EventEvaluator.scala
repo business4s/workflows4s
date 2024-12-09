@@ -1,10 +1,8 @@
 package workflows4s.wio.internal
 
-import cats.data.Ior
 import cats.implicits.{catsSyntaxEitherId, catsSyntaxOptionId}
 import workflows4s.wio.Interpreter.EventResponse
 import workflows4s.wio.NextWfState.NewBehaviour
-import workflows4s.wio.WIO.Timer.DurationSource
 import workflows4s.wio.{Interpreter, NextWfState, Visitor, WCEvent, WCState, WIO, WorkflowContext}
 
 object EventEvaluator {

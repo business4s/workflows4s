@@ -1,15 +1,15 @@
 package workflows4s.runtime.pekko
 
-import cats.implicits.catsSyntaxEitherId
-import org.apache.pekko.actor.typed.{ActorRef, ActorSystem, Behavior, RecipientRef}
-import workflows4s.runtime.WorkflowInstance
-import workflows4s.wio.{SignalDef, WCState, WorkflowContext}
-import org.apache.pekko.actor.typed.scaladsl.AskPattern.*
-import org.apache.pekko.util.Timeout
-import workflows4s.runtime.pekko.WorkflowBehavior.SignalResponse
-
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.DurationInt
+import scala.concurrent.{ExecutionContext, Future}
+
+import cats.implicits.catsSyntaxEitherId
+import org.apache.pekko.actor.typed.scaladsl.AskPattern.*
+import org.apache.pekko.actor.typed.{ActorSystem, RecipientRef}
+import org.apache.pekko.util.Timeout
+import workflows4s.runtime.WorkflowInstance
+import workflows4s.runtime.pekko.WorkflowBehavior.SignalResponse
+import workflows4s.wio.{SignalDef, WCState, WorkflowContext}
 
 class PekkoWorkflowInstance[Ctx <: WorkflowContext](
     actorRef: RecipientRef[WorkflowBehavior.Command[Ctx]],

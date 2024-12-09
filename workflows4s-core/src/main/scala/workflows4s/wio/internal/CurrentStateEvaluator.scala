@@ -1,11 +1,9 @@
 package workflows4s.wio.internal
 
-import cats.effect.IO
-import cats.syntax.all.*
-import workflows4s.wio.Interpreter.SignalResponse
-import workflows4s.wio.*
-
 import scala.annotation.nowarn
+
+import cats.syntax.all.*
+import workflows4s.wio.*
 
 object CurrentStateEvaluator {
   def getCurrentStateDescription(

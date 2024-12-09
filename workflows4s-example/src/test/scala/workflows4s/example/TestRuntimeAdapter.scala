@@ -1,6 +1,11 @@
 package workflows4s.example
 
-import _root_.doobie.ConnectionIO
+import java.time.Clock
+import java.util.UUID
+
+import scala.concurrent.{Await, Future}
+import scala.util.Random
+
 import _root_.doobie.util.transactor.Transactor
 import cats.Id
 import cats.effect.IO
@@ -12,17 +17,12 @@ import org.apache.pekko.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity
 import org.apache.pekko.persistence.typed.PersistenceId
 import org.apache.pekko.util.Timeout
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
+import workflows4s.doobie.EventCodec
+import workflows4s.doobie.postgres.{PostgresRuntime, WorkflowId}
+import workflows4s.runtime.pekko.{PekkoWorkflowInstance, WorkflowBehavior}
 import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.runtime.{InMemoryRuntime, InMemorySyncRuntime, WorkflowInstance}
 import workflows4s.wio.*
-import workflows4s.doobie.EventCodec
-import workflows4s.doobie.postgres.{PostgresRuntime, WorkflowId}
-import workflows4s.runtime.pekko.{PekkoRuntime, PekkoWorkflowInstance, WorkflowBehavior}
-
-import java.time.Clock
-import java.util.UUID
-import scala.concurrent.{Await, Future}
-import scala.util.Random
 
 // Adapt various runtimes to a single interface for tests
 trait TestRuntimeAdapter[Ctx <: WorkflowContext] {

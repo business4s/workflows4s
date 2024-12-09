@@ -1,7 +1,6 @@
 package workflows4s.example.testuitls
 
 import io.circe.Codec
-import workflows4s.example.withdrawal.checks.ChecksEngine
 import workflows4s.doobie.EventCodec
 
 object CirceEventCodec {

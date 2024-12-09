@@ -1,12 +1,6 @@
 package workflows4s.wio.builders
 
-import cats.effect.IO
 import workflows4s.wio.*
-import workflows4s.wio.WIO.HandleSignal
-import workflows4s.wio.internal.{EventHandler, SignalHandler}
-import workflows4s.wio.model.ModelUtils
-
-import scala.reflect.ClassTag
 
 object LoopBuilder {
 

@@ -1,11 +1,10 @@
 package workflows4s.example.withdrawal.checks
 
+import scala.concurrent.duration.DurationInt
+
 import cats.syntax.all.*
 import workflows4s.wio
-import workflows4s.wio.builders.InterruptionBuilder
 import workflows4s.wio.{SignalDef, WIO, WorkflowContext}
-
-import scala.concurrent.duration.DurationInt
 
 trait ChecksEngine {
   def runChecks: ChecksEngine.Context.WIO[ChecksInput, Nothing, ChecksState.Decided]

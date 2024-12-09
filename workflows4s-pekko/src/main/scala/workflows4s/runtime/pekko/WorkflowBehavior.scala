@@ -1,17 +1,18 @@
 package workflows4s.runtime.pekko
 
+import java.time.Clock
+
+import scala.annotation.nowarn
+
 import cats.effect.IO
 import cats.effect.unsafe.IORuntime
 import cats.implicits.catsSyntaxOptionId
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.pekko.actor.typed.scaladsl.{ActorContext, Behaviors}
 import org.apache.pekko.actor.typed.{ActorRef, Behavior}
-import org.apache.pekko.persistence.typed.{PersistenceId, RecoveryCompleted}
 import org.apache.pekko.persistence.typed.scaladsl.{Effect, EventSourcedBehavior}
+import org.apache.pekko.persistence.typed.{PersistenceId, RecoveryCompleted}
 import workflows4s.wio.*
-
-import java.time.{Clock, Instant}
-import scala.annotation.nowarn
 
 object WorkflowBehavior {
 

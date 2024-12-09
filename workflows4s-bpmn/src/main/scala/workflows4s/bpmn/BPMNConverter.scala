@@ -1,20 +1,17 @@
 package workflows4s.bpmn
 
-import org.camunda.bpm.model.bpmn.builder.{AbstractActivityBuilder, AbstractFlowNodeBuilder, ProcessBuilder}
-import org.camunda.bpm.model.bpmn.instance.bpmndi.{BpmnDiagram, BpmnEdge, BpmnShape}
-import org.camunda.bpm.model.bpmn.instance.di.DiagramElement
-import org.camunda.bpm.model.bpmn.instance.{Activity, BaseElement, Definitions, FlowNode, SequenceFlow}
-import org.camunda.bpm.model.bpmn.{Bpmn, BpmnModelInstance}
-import org.camunda.bpm.model.xml.instance.ModelElementInstance
-import workflows4s.wio.ErrorMeta
-import workflows4s.wio.model.WIOModel
-
-import java.nio.file.Path
 import java.time.Duration
-import java.util.UUID
+
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.util.Random
 import scala.util.chaining.scalaUtilChainingOps
+
+import org.camunda.bpm.model.bpmn.builder.{AbstractActivityBuilder, AbstractFlowNodeBuilder}
+import org.camunda.bpm.model.bpmn.instance.bpmndi.BpmnDiagram
+import org.camunda.bpm.model.bpmn.instance.di.DiagramElement
+import org.camunda.bpm.model.bpmn.instance.{Activity, BaseElement, Definitions, FlowNode}
+import org.camunda.bpm.model.bpmn.{Bpmn, BpmnModelInstance}
+import workflows4s.wio.model.WIOModel
 
 object BPMNConverter {
 
