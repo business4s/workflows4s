@@ -9,7 +9,7 @@ If you want to persist your state directly, and you're fine with doing it throug
 just fine with
 existing Workflows4s mechanisms.
 
-```scala file=./main/scala/workflow4s/example/docs/AppendOnlyPersistance.scala start=start_example end=end_example
+```scala file=./main/scala/workflows4s/example/docs/AppendOnlyPersistance.scala start=start_example end=end_example
 ```
 
 This should work but has not been battle-tested yet.

@@ -1,7 +1,7 @@
 # Loops
 
 ## Code
-```scala file=./main/scala/workflow4s/example/docs/LoopExample.scala start=start_loop end=end_loop
+```scala file=./main/scala/workflows4s/example/docs/LoopExample.scala start=start_loop end=end_loop
 ```
 
 ## BPMN

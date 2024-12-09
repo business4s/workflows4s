@@ -2,7 +2,7 @@
 
 ## Code
 
-```scala file=./main/scala/workflow4s/example/docs/HandleSignalExample.scala start=start_withoutError end=end_withoutError
+```scala file=./main/scala/workflows4s/example/docs/HandleSignalExample.scala start=start_withoutError end=end_withoutError
 ```
 
 ## BPMN

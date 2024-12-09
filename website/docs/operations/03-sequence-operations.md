@@ -6,11 +6,11 @@ import TabItem from '@theme/TabItem';
 ## Code
 <Tabs groupId="flavour" queryString>
   <TabItem value="declarative" label="Declarative" default>
-    ```scala file=./main/scala/workflow4s/example/docs/SequencingExample.scala start=start_declarative end=end_declarative
+    ```scala file=./main/scala/workflows4s/example/docs/SequencingExample.scala start=start_declarative end=end_declarative
     ```
   </TabItem>
   <TabItem value="dynamic" label="Dynamic">    
-    ```scala file=./main/scala/workflow4s/example/docs/SequencingExample.scala start=start_dynamic end=end_dynamic
+    ```scala file=./main/scala/workflows4s/example/docs/SequencingExample.scala start=start_dynamic end=end_dynamic
     ```
   </TabItem>
 </Tabs>

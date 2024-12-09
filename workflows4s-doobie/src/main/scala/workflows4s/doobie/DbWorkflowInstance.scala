@@ -5,9 +5,9 @@ import cats.effect.{IO, LiftIO, Sync}
 import cats.syntax.all.*
 import doobie.ConnectionIO
 import doobie.implicits.*
-import workflow4s.runtime.WorkflowInstance
-import workflow4s.runtime.WorkflowInstance.UnexpectedSignal
-import workflow4s.wio.*
+import workflows4s.runtime.WorkflowInstance
+import workflows4s.runtime.WorkflowInstance.UnexpectedSignal
+import workflows4s.wio.*
 
 import java.time.{Clock, Instant}
 import scala.annotation.tailrec

@@ -2,8 +2,8 @@ package workflows4s.runtime.pekko
 
 import cats.implicits.catsSyntaxEitherId
 import org.apache.pekko.actor.typed.{ActorRef, ActorSystem, Behavior, RecipientRef}
-import workflow4s.runtime.WorkflowInstance
-import workflow4s.wio.{SignalDef, WCState, WorkflowContext}
+import workflows4s.runtime.WorkflowInstance
+import workflows4s.wio.{SignalDef, WCState, WorkflowContext}
 import org.apache.pekko.actor.typed.scaladsl.AskPattern.*
 import org.apache.pekko.util.Timeout
 import workflows4s.runtime.pekko.WorkflowBehavior.SignalResponse
