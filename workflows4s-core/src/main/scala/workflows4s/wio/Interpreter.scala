@@ -350,13 +350,13 @@ object NextWfState {
 
   object NewBehaviour {
     def apply[C <: WorkflowContext, E1, E2, O2 <: WCState[C], S1 <: WCState[C]](
-                                                                                 wio0: workflows4s.wio.WIO[S1, E2, O2, C],
-                                                                                 value0: Either[E1, S1],
+        wio0: workflows4s.wio.WIO[S1, E2, O2, C],
+        value0: Either[E1, S1],
     ): NewBehaviour[C, E2, O2] = new NewBehaviour[C, E2, O2] {
       override type State = S1
       override type Error = E1
       override def wio: workflows4s.wio.WIO[State, E2, O2, C] = wio0
-      override def state: Either[Error, State]               = value0
+      override def state: Either[Error, State]                = value0
     }
   }
 
