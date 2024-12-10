@@ -66,7 +66,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
   .dependsOn(`workflows4s-core`, `workflows4s-bpmn`, `workflows4s-pekko`, `workflows4s-doobie`)
 
 lazy val commonSettings = Seq(
-  scalaVersion      := "3.5.2",
+  scalaVersion      := "3.6.2",
   scalacOptions ++= Seq("-no-indent", "-Xmax-inlines", "64"),
   libraryDependencies ++= Seq(
     "org.scalatest" %% "scalatest" % "3.2.19" % Test,
