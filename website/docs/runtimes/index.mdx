@@ -65,6 +65,20 @@ Below is an overview of the available runtimes, with their strengths and limitat
         </td>
     </tr>
     <tr>
+        <td><code>SqliteRuntime</code></td>
+        <td>Uses SQLite for persistence, with no in-memory state management.</td>
+        <td>
+            <ul>
+                <li>Simplicity</li>
+            </ul>
+        </td>
+        <td>
+            <ul>
+                <li>Production use cases</li>
+            </ul>
+        </td>
+    </tr>
+    <tr>
         <td><code>InMemoryRuntime</code></td>
         <td>Based on Cats Effect; keeps state in memory without persistence.</td>
         <td>
@@ -103,5 +117,5 @@ Below is an overview of the available runtimes, with their strengths and limitat
 ## KnockerUpper
 
 Each `WorkflowRuntime` is usually parameterized by a `KnockerUpper` implementation which is responsible for waking up the workflow when needed.
-See [Wake-Ups](./04-knocker-uppers.md) for additional details.
+See [Wake-Ups](./05-knocker-uppers.md) for additional details.
 
