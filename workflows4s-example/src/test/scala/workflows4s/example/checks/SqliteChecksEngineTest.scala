@@ -1,5 +1,6 @@
 package workflows4s.example.checks
 
+import cats.effect.unsafe.implicits.global
 import com.typesafe.scalalogging.StrictLogging
 import org.scalatest.freespec.AnyFreeSpec
 import workflows4s.doobie.EventCodec
@@ -12,6 +13,7 @@ class SqliteChecksEngineTest extends AnyFreeSpec, SqliteSuite, ChecksEngineTest.
   val eventCodec: EventCodec[ChecksEngine.Context.Event] = CirceEventCodec.get()
 
   "sqlite" - {
+    createSchema(xa).unsafeRunSync()
     checkEngineTests(new TestRuntimeAdapter.Sqlite[ChecksEngine.Context](xa, eventCodec))
   }
 }
