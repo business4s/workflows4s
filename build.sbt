@@ -81,4 +81,4 @@ lazy val pekkoVersion               = "1.1.2"
 lazy val pekkoHttpVersion           = "1.0.1"
 lazy val testcontainersScalaVersion = "0.41.4"
 
-addCommandAlias("prePR", List("compile", "Test / compile", "test", "scalafmtCheckAll").mkString(";", ";", ""))
+addCommandAlias("prePR", List("clean", "cleanFiles", "compile", "Test / compile", "test", "scalafmtCheckAll").mkString(";", ";", ""))

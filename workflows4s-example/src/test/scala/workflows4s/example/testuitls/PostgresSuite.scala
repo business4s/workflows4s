@@ -1,7 +1,7 @@
 package workflows4s.example.testuitls
 
 import cats.effect.IO
-import cats.implicits.toTraverseOps
+import cats.implicits.{catsSyntaxOptionId, toTraverseOps}
 import com.dimafeng.testcontainers.PostgreSQLContainer
 import com.dimafeng.testcontainers.scalatest.TestContainerForAll
 import doobie.*
@@ -22,7 +22,7 @@ trait PostgresSuite extends TestContainerForAll { self: Suite =>
       url = container.jdbcUrl,
       user = container.username,
       password = container.password,
-      logHandler = None,
+      logHandler = DoobieTestLogHandler.make[IO].some,
     )
     import cats.effect.unsafe.implicits.global
     createSchema(xa).unsafeRunSync()
