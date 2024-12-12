@@ -11,6 +11,7 @@ class SqliteWithdrawalWorkflowTest extends AnyFreeSpec, StrictLogging, SqliteSui
   "sqlite" - {
     createSchema(xa).unsafeRunSync()
     withdrawalTests(new TestRuntimeAdapter.Sqlite[WithdrawalWorkflow.Context.Ctx](xa, eventCodec))
-    lazy val eventCodec: EventCodec[WithdrawalWorkflow.Context.Event] = CirceEventCodec.get()
   }
+
+  lazy val eventCodec: EventCodec[WithdrawalWorkflow.Context.Event] = CirceEventCodec.get()
 }
