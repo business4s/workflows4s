@@ -9,7 +9,7 @@ sealed trait WithdrawalEvent derives Codec.AsObject
 
 object WithdrawalEvent {
   sealed trait ValidationResult                                      extends WithdrawalEvent with Product with Serializable
-  case class WithdrawalAccepted(amount: BigDecimal, recipient: Iban) extends ValidationResult
+  case class WithdrawalAccepted(txId: String, amount: BigDecimal, recipient: Iban) extends ValidationResult
   case class WithdrawalRejected(error: String)                       extends ValidationResult
 
   case class FeeSet(fee: Fee) extends WithdrawalEvent

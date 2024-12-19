@@ -22,10 +22,11 @@ object Main extends IOApp {
       journal                  <- setupJournal()
       workflow                  = WithdrawalWorkflow(DummyWithdrawalService, ChecksEngine)
       runtime                   =
-        PekkoRuntime.create[WithdrawalWorkflow.Context.Ctx, WithdrawalData.Empty](
+        PekkoRuntime.create[WithdrawalWorkflow.Context.Ctx](
           "withdrawal",
           workflow.workflowDeclarative,
-          ec => WithdrawalData.Empty(ec.entityId),
+          WithdrawalData.Empty,
+          ???
         )
       withdrawalWorkflowService = WithdrawalWorkflowService.Impl(journal, runtime)
       routes                    = HttpRoutes(system, withdrawalWorkflowService)

@@ -5,18 +5,23 @@ import cats.effect.unsafe.IORuntime
 import cats.implicits.catsSyntaxEitherId
 import com.typesafe.scalalogging.StrictLogging
 import workflows4s.runtime.WorkflowInstance.UnexpectedSignal
+import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.wio.{ActiveWorkflow, SignalDef, WCEvent, WCState, WorkflowContext}
 
 import java.time.Clock
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
-class InMemorySyncWorkflowInstance[Ctx <: WorkflowContext](initialState: ActiveWorkflow.ForCtx[Ctx], clock: Clock)(implicit
+class InMemorySyncWorkflowInstance[Ctx <: WorkflowContext](
+    initialState: ActiveWorkflow[Ctx],
+    clock: Clock,
+    knockerUpper: KnockerUpper.Agent.Curried,
+)(implicit
     IORuntime: IORuntime,
 ) extends WorkflowInstance[Id, WCState[Ctx]]
     with StrictLogging {
 
-  private var wf: ActiveWorkflow.ForCtx[Ctx]       = initialState
+  private var wf: ActiveWorkflow[Ctx]              = initialState
   private val events: mutable.Buffer[WCEvent[Ctx]] = ListBuffer[WCEvent[Ctx]]()
   def getEvents: Seq[WCEvent[Ctx]]                 = events.toList
 
@@ -71,7 +76,10 @@ class InMemorySyncWorkflowInstance[Ctx <: WorkflowContext](initialState: ActiveW
     events += e
   }
 
-  private def updateState(newWf: ActiveWorkflow.ForCtx[Ctx]): Unit = {
+  private def updateState(newWf: ActiveWorkflow[Ctx]): Unit = {
+    if (this.wf != newWf.wakeupAt) {
+      knockerUpper.updateWakeup((), newWf.wakeupAt)
+    }
     logger.debug(s"""Updating workflow
                     | New behaviour: ${newWf.getDesc}
                     | New state: ${newWf.state}""".stripMargin)

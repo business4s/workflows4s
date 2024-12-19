@@ -20,7 +20,7 @@ trait WorkflowContext { ctx: WorkflowContext =>
     type Branch[-In, +Err, +Out <: State]  = workflows4s.wio.WIO.Branch[In, Err, Out, Ctx]
     type Interruption[+Err, +Out <: State] = workflows4s.wio.WIO.Interruption[Ctx, Err, Out, ?, ?]
     type Draft                             = WIO[Any, Nothing, Nothing]
-    type Initial[In]                       = workflows4s.wio.WIO.Initial[Ctx, In]
+    type Initial                       = workflows4s.wio.WIO.Initial[Ctx]
 
     def interruption: InterruptionBuilder.Step0[Ctx] = InterruptionBuilder.Step0[Ctx]()
   }
@@ -43,8 +43,8 @@ sealed trait WIO[-In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext] extend
 
 object WIO {
 
-  type Initial[Ctx <: WorkflowContext, In] = WIO[In, Nothing, WCState[Ctx], Ctx]
-  type Draft[Ctx <: WorkflowContext]       = WIO[Any, Nothing, Nothing, Ctx]
+  type Initial[Ctx <: WorkflowContext] = WIO[Any, Nothing, WCState[Ctx], Ctx]
+  type Draft[Ctx <: WorkflowContext]   = WIO[Any, Nothing, Nothing, Ctx]
 
   sealed trait InterruptionSource[-In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext] extends WIO[In, Err, Out, Ctx]
 

@@ -6,6 +6,7 @@ lazy val `workflows4s` = (project in file("."))
     `workflows4s-example`,
     `workflows4s-doobie`,
     `workflows4s-filesystem`,
+    `workflows4s-db-scheduler`
   )
 
 lazy val `workflows4s-core` = (project in file("workflows4s-core"))
@@ -56,6 +57,15 @@ lazy val `workflows4s-filesystem` = (project in file("workflows4s-filesystem"))
       "co.fs2"        %% "fs2-core"        % "3.11.0",
       "co.fs2"        %% "fs2-io"          % "3.11.0",
       "ch.qos.logback" % "logback-classic" % "1.5.12" % Test,
+    ),
+  )
+  .dependsOn(`workflows4s-core`)
+
+lazy val `workflows4s-db-scheduler` = (project in file("workflows4s-db-scheduler"))
+  .settings(commonSettings)
+  .settings(
+    libraryDependencies ++= Seq(
+      "com.github.kagkarlsson" % "db-scheduler" % "15.0.0",
     ),
   )
   .dependsOn(`workflows4s-core`)

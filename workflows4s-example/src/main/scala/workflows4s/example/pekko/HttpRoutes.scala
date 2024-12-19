@@ -33,7 +33,7 @@ class HttpRoutes(actorSystem: ActorSystem[?], service: WithdrawalWorkflowService
     } ~
       path("withdrawals" / Segment) { id =>
         post {
-          onSuccess(service.startWorkflow(id, CreateWithdrawal(100, Iban("123"))).unsafeToFuture()) {
+          onSuccess(service.startWorkflow(id, CreateWithdrawal(id, 100, Iban("123"))).unsafeToFuture()) {
             complete("OK")
           }
         } ~

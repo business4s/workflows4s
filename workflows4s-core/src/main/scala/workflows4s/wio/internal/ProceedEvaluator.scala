@@ -14,14 +14,13 @@ object ProceedEvaluator {
   def proceed[Ctx <: WorkflowContext, StIn <: WCState[Ctx]](
       wio: WIO[StIn, Nothing, WCState[Ctx], Ctx],
       state: StIn,
-      interpreter: Interpreter,
       now: Instant,
   ): Response[Ctx] = {
     val visitor = new ProceedVisitor(wio, state, state, now)
-    Response(visitor.run.map(_.toActiveWorkflow(interpreter)))
+    Response(visitor.run.map(_.toActiveWorkflow))
   }
 
-  case class Response[Ctx <: WorkflowContext](newFlow: Option[ActiveWorkflow.ForCtx[Ctx]])
+  case class Response[Ctx <: WorkflowContext](newFlow: Option[ActiveWorkflow[Ctx]])
 
   private class ProceedVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](
       wio: WIO[In, Err, Out, Ctx],
@@ -47,7 +46,7 @@ object ProceedEvaluator {
       recurse(wio.base, state).map((newWf: NextWfState[Ctx, ErrIn, Out]) => {
         val casted: NextWfState[Ctx, ErrIn, Out] { type Error = ErrIn } =
           newWf.asInstanceOf[NextWfState[Ctx, ErrIn, Out] { type Error = ErrIn }]
-        applyHandleError(wio, casted, state)
+        applyHandleError(wio, casted)
       })
     }
     def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result                           = {

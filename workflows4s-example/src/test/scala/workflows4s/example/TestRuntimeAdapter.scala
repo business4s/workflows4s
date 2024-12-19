@@ -1,11 +1,5 @@
 package workflows4s.example
 
-import java.time.Clock
-import java.util.UUID
-
-import scala.concurrent.{Await, Future}
-import scala.util.Random
-
 import _root_.doobie.util.transactor.Transactor
 import cats.Id
 import cats.effect.IO
@@ -20,18 +14,22 @@ import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import workflows4s.doobie.EventCodec
 import workflows4s.doobie.postgres.{PostgresRuntime, WorkflowId}
 import workflows4s.runtime.pekko.{PekkoWorkflowInstance, WorkflowBehavior}
-import workflows4s.runtime.wakeup.KnockerUpper
+import workflows4s.runtime.wakeup.NoOpKnockerUpper
 import workflows4s.runtime.{InMemoryRuntime, InMemorySyncRuntime, WorkflowInstance}
 import workflows4s.wio.*
+
+import java.time.Clock
+import java.util.UUID
+import scala.concurrent.{Await, Future}
+import scala.util.Random
 
 // Adapt various runtimes to a single interface for tests
 trait TestRuntimeAdapter[Ctx <: WorkflowContext] {
 
   type Actor <: WorkflowInstance[Id, WCState[Ctx]]
 
-  def runWorkflow[In](
-      workflow: WIO[In, Nothing, WCState[Ctx], Ctx],
-      input: In,
+  def runWorkflow(
+      workflow: WIO[Any, Nothing, WCState[Ctx], Ctx],
       state: WCState[Ctx],
       clock: Clock,
   ): Actor
@@ -47,19 +45,18 @@ object TestRuntimeAdapter {
   }
 
   case class InMemorySync[Ctx <: WorkflowContext]() extends TestRuntimeAdapter[Ctx] {
-    override def runWorkflow[In](
-        workflow: WIO[In, Nothing, WCState[Ctx], Ctx],
-        input: In,
+    override def runWorkflow(
+        workflow: WIO.Initial[Ctx],
         state: WCState[Ctx],
         clock: Clock,
-    ): Actor = Actor(workflow.provideInput(input), state, clock, List())
+    ): Actor = Actor(workflow, state, clock, List())
 
     override def recover(first: Actor): Actor = {
       Actor(first.workflow, first.state, first.clock, first.getEvents)
     }
 
     case class Actor(
-        workflow: WIO[Any, Nothing, WCState[Ctx], Ctx],
+        workflow: WIO.Initial[Ctx],
         state: WCState[Ctx],
         clock: Clock,
         events: Seq[WCEvent[Ctx]],
@@ -67,8 +64,8 @@ object TestRuntimeAdapter {
         with EventIntrospection[WCEvent[Ctx]] {
       val base = {
         val runtime =
-          new InMemorySyncRuntime[Ctx, Unit, Unit](workflow, _ => state, clock, KnockerUpper.noopFactory)(using IORuntime.global)
-        val inst    = runtime.createInstance((), ())
+          new InMemorySyncRuntime[Ctx, Unit](workflow, state, clock, NoOpKnockerUpper.Agent)(using IORuntime.global)
+        val inst    = runtime.createInstance(())
         inst.recover(events)
         inst
       }
@@ -83,13 +80,12 @@ object TestRuntimeAdapter {
   }
 
   case class InMemory[Ctx <: WorkflowContext]() extends TestRuntimeAdapter[Ctx] {
-    override def runWorkflow[In](
-        workflow: WIO[In, Nothing, WCState[Ctx], Ctx],
-        input: In,
+    override def runWorkflow(
+        workflow: WIO.Initial[Ctx],
         state: WCState[Ctx],
         clock: Clock,
     ): Actor = {
-      Actor(workflow.provideInput(input), state, clock, List())
+      Actor(workflow, state, clock, List())
     }
 
     override def recover(first: Actor): Actor =
@@ -104,8 +100,8 @@ object TestRuntimeAdapter {
         with EventIntrospection[WCEvent[Ctx]] {
       import cats.effect.unsafe.implicits.global
       val base = {
-        val runtime = new InMemoryRuntime[Ctx, Unit, Unit](workflow, _ => state, clock, KnockerUpper.noopFactory)
-        val inst    = runtime.createInstance((), ()).unsafeRunSync()
+        val runtime = new InMemoryRuntime[Ctx, Unit](workflow, state, clock, NoOpKnockerUpper.Agent)
+        val inst    = runtime.createInstance(()).unsafeRunSync()
         inst.recover(events).unsafeRunSync()
         inst
       }
@@ -129,9 +125,8 @@ object TestRuntimeAdapter {
     type RawCmd = WorkflowBehavior.Command[Ctx]
     type Cmd    = WorkflowBehavior.Command[Ctx] | Stop
 
-    override def runWorkflow[In](
-        workflow: WIO[In, Nothing, WCState[Ctx], Ctx],
-        input: In,
+    override def runWorkflow(
+        workflow: WIO.Initial[Ctx],
         state: WCState[Ctx],
         clock: Clock,
     ): Actor = {
@@ -145,7 +140,7 @@ object TestRuntimeAdapter {
       val shardRegion   = sharding.init(
         Entity(typeKey)(createBehavior = entityContext => {
           val persistenceId = PersistenceId(entityContext.entityTypeKey.name, entityContext.entityId)
-          val base          = WorkflowBehavior(persistenceId, workflow.provideInput(input), state, clock)
+          val base          = WorkflowBehavior(persistenceId, workflow, state, clock, NoOpKnockerUpper.Agent)
           Behaviors.intercept[Cmd, RawCmd](() =>
             new BehaviorInterceptor[Cmd, RawCmd]() {
               override def aroundReceive(
@@ -201,17 +196,15 @@ object TestRuntimeAdapter {
   }
 
   class Postgres[Ctx <: WorkflowContext](xa: Transactor[IO], eventCodec: EventCodec[WCEvent[Ctx]]) extends TestRuntimeAdapter[Ctx] {
-    import _root_.doobie.implicits.*
 
-    override def runWorkflow[In](
-        workflow: WIO[In, Nothing, WCState[Ctx], Ctx],
-        input: In,
+    override def runWorkflow(
+        workflow: WIO.Initial[Ctx],
         state: WCState[Ctx],
         clock: Clock,
     ): Actor = {
       val runtime =
-        PostgresRuntime.defaultWithState[Ctx, Unit](workflow.provideInput(input), _ => state, eventCodec, xa, KnockerUpper.noopFactory, clock)
-      Actor(runtime.createInstance(WorkflowId(Random.nextLong()), ()))
+        PostgresRuntime.default[Ctx, Unit](workflow, state, eventCodec, xa, NoOpKnockerUpper.Agent, clock)
+      Actor(runtime.createInstance(WorkflowId(Random.nextLong())))
     }
 
     override def recover(first: Actor): Actor = {

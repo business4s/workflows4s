@@ -3,13 +3,11 @@ package workflows4s.example.withdrawal
 import workflows4s.example.withdrawal.WithdrawalService.{Fee, Iban}
 import workflows4s.example.withdrawal.checks.ChecksState
 
-sealed trait WithdrawalData {
-  def txId: String
-}
-
+sealed trait WithdrawalData
 object WithdrawalData {
-  case class Empty(txId: String)                                                                                         extends WithdrawalData {
-    def initiated(amount: BigDecimal, recipient: Iban) = Initiated(txId, amount, recipient)
+  type Empty = Empty.type
+  case object Empty                                                                                                      extends WithdrawalData {
+    def initiated(txId: String, amount: BigDecimal, recipient: Iban) = Initiated(txId, amount, recipient)
   }
   case class Initiated(txId: String, amount: BigDecimal, recipient: Iban)                                                extends WithdrawalData {
     def validated(fee: Fee) = Validated(txId, amount, recipient, fee)
@@ -27,17 +25,13 @@ object WithdrawalData {
   case class Executed(txId: String, amount: BigDecimal, recipient: Iban, fee: Fee, checkResults: ChecksState, externalTransactionId: String)
       extends WithdrawalData {
 
-    def completed(): Completed = Completed.Succesfully()
+    def completed(): Completed = Completed.Successfully()
 
   }
 
   sealed trait Completed extends WithdrawalData
   object Completed {
-    case class Succesfully()         extends Completed {
-      override def txId: String = ???
-    }
-    case class Failed(error: String) extends Completed {
-      override def txId: String = ???
-    }
+    case class Successfully()         extends Completed
+    case class Failed(error: String) extends Completed
   }
 }

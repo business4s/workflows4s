@@ -46,7 +46,7 @@ object WithdrawalWorkflowTest {
     def withdrawalTests(getRuntime: => TestRuntimeAdapter[WithdrawalWorkflow.Context.Ctx]) = {
 
       "happy path" in new Fixture {
-        assert(actor.queryData() == WithdrawalData.Empty(txId))
+        assert(actor.queryData() == WithdrawalData.Empty)
 
         withFeeCalculation(fees)
         withMoneyOnHold(success = true)
@@ -54,21 +54,21 @@ object WithdrawalWorkflowTest {
         withExecutionInitiated(success = true)
         withFundsReleased()
 
-        actor.init(CreateWithdrawal(amount, recipient))
+        actor.init(CreateWithdrawal(txId, amount, recipient))
         assert(
           actor.queryData() ==
             WithdrawalData.Executed(txId, amount, recipient, fees, ChecksState.Decided(Map(), Decision.ApprovedBySystem()), externalId),
         )
 
         actor.confirmExecution(WithdrawalSignal.ExecutionCompleted.Succeeded)
-        assert(actor.queryData() == WithdrawalData.Completed.Succesfully())
+        assert(actor.queryData() == WithdrawalData.Completed.Successfully())
 
         checkRecovery()
       }
       "reject" - {
 
         "in validation" in new Fixture {
-          actor.init(CreateWithdrawal(-100, recipient))
+          actor.init(CreateWithdrawal(txId, -100, recipient))
           assert(actor.queryData() == WithdrawalData.Completed.Failed("Amount must be positive"))
 
           checkRecovery()
@@ -78,7 +78,7 @@ object WithdrawalWorkflowTest {
           withFeeCalculation(fees)
           withMoneyOnHold(success = false)
 
-          actor.init(CreateWithdrawal(amount, recipient))
+          actor.init(CreateWithdrawal(txId, amount, recipient))
           assert(actor.queryData() == WithdrawalData.Completed.Failed("Not enough funds on the user's account"))
 
           checkRecovery()
@@ -90,7 +90,7 @@ object WithdrawalWorkflowTest {
           withChecks(List(StaticCheck(CheckResult.Rejected())))
           withFundsLockCancelled()
 
-          actor.init(CreateWithdrawal(amount, recipient))
+          actor.init(CreateWithdrawal(txId, amount, recipient))
           assert(actor.queryData() == WithdrawalData.Completed.Failed("Transaction rejected in checks"))
 
           checkRecovery()
@@ -103,7 +103,7 @@ object WithdrawalWorkflowTest {
           withExecutionInitiated(success = false)
           withFundsLockCancelled()
 
-          actor.init(CreateWithdrawal(amount, recipient))
+          actor.init(CreateWithdrawal(txId, amount, recipient))
           assert(actor.queryData() == WithdrawalData.Completed.Failed("Rejected by execution engine"))
 
           checkRecovery()
@@ -116,7 +116,7 @@ object WithdrawalWorkflowTest {
           withExecutionInitiated(success = true)
           withFundsLockCancelled()
 
-          actor.init(CreateWithdrawal(amount, recipient))
+          actor.init(CreateWithdrawal(txId, amount, recipient))
           actor.confirmExecution(WithdrawalSignal.ExecutionCompleted.Failed)
           assert(actor.queryData() == WithdrawalData.Completed.Failed("Execution failed"))
 
@@ -134,7 +134,7 @@ object WithdrawalWorkflowTest {
           withExecutionInitiated(success = true)
           withFundsLockCancelled()
 
-          actor.init(CreateWithdrawal(amount, recipient))
+          actor.init(CreateWithdrawal(txId, amount, recipient))
           actor.cancel(WithdrawalSignal.CancelWithdrawal("operator-1", "cancelled", acceptStartedExecution = true))
           assert(actor.queryData() == WithdrawalData.Completed.Failed("Cancelled by operator-1. Comment: cancelled"))
 
@@ -148,7 +148,7 @@ object WithdrawalWorkflowTest {
           withChecks(List(check))
           withFundsLockCancelled()
 
-          actor.init(CreateWithdrawal(amount, recipient))
+          actor.init(CreateWithdrawal(txId, amount, recipient))
           inside(actor.queryData()) { case data: WithdrawalData.Checking =>
             assert(data.checkResults.results == Map(check.key -> CheckResult.Pending()))
           }
@@ -179,10 +179,9 @@ object WithdrawalWorkflowTest {
 
         def createActor(events: Seq[WithdrawalEvent]) = {
           val wf    = runtime
-            .runWorkflow[WithdrawalData.Empty](
+            .runWorkflow(
               workflow,
-              WithdrawalData.Empty(txId),
-              WithdrawalData.Empty(txId),
+              WithdrawalData.Empty,
               clock,
             )
           val actor = new WithdrawalActor(wf)
@@ -197,7 +196,7 @@ object WithdrawalWorkflowTest {
 
         def checksEngine: ChecksEngine = ChecksEngine
 
-        def workflow: WithdrawalWorkflow.Context.WIO[WithdrawalData.Empty, Nothing, WithdrawalData.Completed] =
+        def workflow: WithdrawalWorkflow.Context.WIO.Initial =
           new WithdrawalWorkflow(service, checksEngine).workflowDeclarative
 
         def withFeeCalculation(fee: Fee) =

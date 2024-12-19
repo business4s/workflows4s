@@ -7,6 +7,7 @@ import doobie.ConnectionIO
 import doobie.implicits.*
 import workflows4s.runtime.WorkflowInstance
 import workflows4s.runtime.WorkflowInstance.UnexpectedSignal
+import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.wio.*
 
 import java.time.{Clock, Instant}
@@ -14,11 +15,12 @@ import scala.annotation.tailrec
 
 class DbWorkflowInstance[Ctx <: WorkflowContext, Id](
     id: Id,
-    baseWorkflow: ActiveWorkflow.ForCtx[Ctx],
+    baseWorkflow: ActiveWorkflow[Ctx],
     storage: WorkflowStorage[Id],
     liftIO: LiftIO[ConnectionIO],
     eventCodec: EventCodec[WCEvent[Ctx]],
     clock: Clock,
+    knockerUpper: KnockerUpper.Agent[Id],
 ) extends WorkflowInstance[ConnectionIO, WCState[Ctx]] {
 
   def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): ConnectionIO[Either[UnexpectedSignal, Resp]] = {
@@ -52,19 +54,22 @@ class DbWorkflowInstance[Ctx <: WorkflowContext, Id](
       .use(_ =>
         for {
           wf  <- restoreWorkflow
-          now <- Sync[ConnectionIO].delay(clock.instant()) // TODO suspend and use clock
+          now <- Sync[ConnectionIO].delay(clock.instant())
           _   <- proceed(wf, now)
         } yield (),
       )
   }
 
-  private def proceed(wf: ActiveWorkflow.ForCtx[Ctx], now: Instant): ConnectionIO[Unit] = {
+  private def proceed(wf: ActiveWorkflow[Ctx], now: Instant): ConnectionIO[Unit] = {
     wf.proceed(now) match {
       case Some(eventIO) =>
         for {
           event <- liftIO.liftIO(eventIO)
           _     <- storage.saveEvent(id, eventCodec.write(event))
           newWf  = handleEvents(wf, List(event), now)
+          _     <- if (newWf.wakeupAt != wf.wakeupAt)
+                     liftIO.liftIO(knockerUpper.updateWakeup(id, newWf.wakeupAt)) // TODO should we really rollback tx is this fails?
+                   else Sync[ConnectionIO].unit
           _     <- proceed(newWf, now)
         } yield ()
       case None          => Applicative[ConnectionIO].pure(())
@@ -75,13 +80,13 @@ class DbWorkflowInstance[Ctx <: WorkflowContext, Id](
     storage.getEvents(id).flatMap(_.traverse(eventBytes => Sync[ConnectionIO].fromTry(eventCodec.read(eventBytes))))
   }
 
-  private def restoreWorkflow: ConnectionIO[ActiveWorkflow.ForCtx[Ctx]] = for {
+  private def restoreWorkflow: ConnectionIO[ActiveWorkflow[Ctx]] = for {
     events <- queryEvents
     now    <- Sync[ConnectionIO].delay(clock.instant())
   } yield handleEvents(baseWorkflow, events, now)
 
   @tailrec
-  private def handleEvents(wf: ActiveWorkflow.ForCtx[Ctx], events: List[WCEvent[Ctx]], now: Instant): ActiveWorkflow.ForCtx[Ctx] = {
+  private def handleEvents(wf: ActiveWorkflow[Ctx], events: List[WCEvent[Ctx]], now: Instant): ActiveWorkflow[Ctx] = {
     if (events.isEmpty) wf
     else {
       wf.handleEvent(events.head, now) match {

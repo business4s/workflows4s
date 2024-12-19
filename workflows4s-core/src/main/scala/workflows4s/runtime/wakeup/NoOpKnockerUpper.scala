@@ -4,9 +4,9 @@ import cats.effect.IO
 
 import java.time.Instant
 
-object NoOpKnockerUpper extends KnockerUpper {
+object NoOpKnockerUpper {
 
-  override def registerWakeup(at: Instant): IO[Unit] = IO.unit
-
-  val factory: KnockerUpper.Factory[Any] = _ => this
+  object Agent extends KnockerUpper.Agent[Any] {
+    override def updateWakeup(id: Any, at: Option[Instant]): IO[Unit] = IO.unit
+  }
 }
