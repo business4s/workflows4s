@@ -6,7 +6,8 @@ lazy val `workflows4s` = (project in file("."))
     `workflows4s-example`,
     `workflows4s-doobie`,
     `workflows4s-filesystem`,
-    `workflows4s-db-scheduler`
+    `workflows4s-db-scheduler`,
+    `workflows4s-quartz`,
   )
 
 lazy val `workflows4s-core` = (project in file("workflows4s-core"))
@@ -56,7 +57,7 @@ lazy val `workflows4s-filesystem` = (project in file("workflows4s-filesystem"))
     libraryDependencies ++= Seq(
       "co.fs2"        %% "fs2-core"        % "3.11.0",
       "co.fs2"        %% "fs2-io"          % "3.11.0",
-      "ch.qos.logback" % "logback-classic" % "1.5.12" % Test,
+      "ch.qos.logback" % "logback-classic" % "1.5.14" % Test,
     ),
   )
   .dependsOn(`workflows4s-core`)
@@ -65,7 +66,17 @@ lazy val `workflows4s-db-scheduler` = (project in file("workflows4s-db-scheduler
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "com.github.kagkarlsson" % "db-scheduler" % "15.0.0",
+      "com.github.kagkarlsson" % "db-scheduler" % "15.1.1",
+    ),
+  )
+  .dependsOn(`workflows4s-core`)
+
+lazy val `workflows4s-quartz` = (project in file("workflows4s-quartz"))
+  .settings(commonSettings)
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.quartz-scheduler" % "quartz" % "2.5.0",
+      "ch.qos.logback" % "logback-classic" % "1.5.14" % Test,
     ),
   )
   .dependsOn(`workflows4s-core`)
@@ -81,7 +92,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "com.h2database"        % "h2"                              % "2.3.232",
       "io.r2dbc"              % "r2dbc-h2"                        % "1.0.0.RELEASE",
       "com.github.pjfanning" %% "pekko-http-circe"                % "3.0.0",
-      "ch.qos.logback"        % "logback-classic"                 % "1.5.12",
+      "ch.qos.logback"        % "logback-classic"                 % "1.5.14",
       "org.scalamock"        %% "scalamock"                       % "6.0.0" % Test,
       "org.apache.pekko"     %% "pekko-actor-testkit-typed"       % pekkoVersion % Test,
       "com.dimafeng"         %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
