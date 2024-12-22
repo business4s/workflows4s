@@ -28,7 +28,7 @@ class FilesystemKnockerUpperTest extends AnyFreeSpec {
       val t1         = now.plusSeconds(1)
       val t2         = now.plusSeconds(2)
       knockerUpper
-        .start(id => IO(wakeups :+= id))
+        .initialize(id => IO(wakeups :+= id))
         .use(_ =>
           knockerUpper.updateWakeup(id1, t1.some) *>
             knockerUpper.updateWakeup(id2, t2.some) *> IO {
@@ -60,7 +60,7 @@ class FilesystemKnockerUpperTest extends AnyFreeSpec {
       val t1         = now.plusSeconds(1)
       knockerUpper.updateWakeup(id1, t1.some).unsafeRunSync()
       knockerUpper
-        .start(id => IO(wakeups :+= id))
+        .initialize(id => IO(wakeups :+= id))
         .use(_ =>
           IO {
             assert(wakeups.isEmpty)

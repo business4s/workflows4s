@@ -23,7 +23,7 @@ class QuartzKnockerUpperTest extends AnyFreeSpec with Matchers with BeforeAndAft
     "should schedule a wakeup at a specified time" in withQuartzKnockerUpper { knockerUpper =>
       var wokenUpAt: Instant = null
       val testId             = "test-id"
-      knockerUpper.start(id => IO { if (id == testId) wokenUpAt = Instant.now() }).unsafeRunSync()
+      knockerUpper.initialize(id => IO { if (id == testId) wokenUpAt = Instant.now() }).unsafeRunSync()
       val wakeupAt           = Instant.now().plusMillis(100)
       knockerUpper.updateWakeup(testId, Some(wakeupAt)).unsafeRunSync()
       eventually {
@@ -34,7 +34,7 @@ class QuartzKnockerUpperTest extends AnyFreeSpec with Matchers with BeforeAndAft
     "should allow rescheduling a wakeup" in withQuartzKnockerUpper { knockerUpper =>
       var wokenUpAt: Instant = null
       val testId             = "test-id"
-      knockerUpper.start(id => IO { if (id == testId) wokenUpAt = Instant.now() }).unsafeRunSync()
+      knockerUpper.initialize(id => IO { if (id == testId) wokenUpAt = Instant.now() }).unsafeRunSync()
       val wakeupAt1          = Instant.now().plusMillis(100)
       val wakeupAt2          = Instant.now().plusMillis(200)
       knockerUpper.updateWakeup(testId, Some(wakeupAt1)).unsafeRunSync()
@@ -50,7 +50,7 @@ class QuartzKnockerUpperTest extends AnyFreeSpec with Matchers with BeforeAndAft
       var wokenUpAt: Instant = null
       val testId             = "test-id"
       knockerUpper
-        .start(id =>
+        .initialize(id =>
           IO {
             if (id == testId) wokenUpAt = Instant.now()
           },
@@ -65,8 +65,8 @@ class QuartzKnockerUpperTest extends AnyFreeSpec with Matchers with BeforeAndAft
     }
 
     "should fail to start if wakeup logic is already set" in withQuartzKnockerUpper { knockerUpper =>
-      knockerUpper.start(_ => IO.unit).unsafeRunSync()
-      val secondAttempt = knockerUpper.start(_ => IO.unit).attempt.unsafeRunSync()
+      knockerUpper.initialize(_ => IO.unit).unsafeRunSync()
+      val secondAttempt = knockerUpper.initialize(_ => IO.unit).attempt.unsafeRunSync()
       assert(secondAttempt.isLeft)
     }
 

@@ -8,7 +8,7 @@ import java.time.Instant
 object KnockerUpper {
 
   trait Process[F[_], Id, Result] {
-    def start(wakeUp: Id => F[Unit]): Result
+    def initialize(wakeUp: Id => F[Unit]): Result
   }
 
   trait Agent[-Id] {

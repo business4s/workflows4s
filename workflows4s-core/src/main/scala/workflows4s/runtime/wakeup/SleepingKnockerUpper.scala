@@ -61,7 +61,7 @@ class SleepingKnockerUpper[Id](
     })
   }
 
-  override def start(wakeUp: Id => IO[Unit]): IO[Unit] = {
+  override def initialize(wakeUp: Id => IO[Unit]): IO[Unit] = {
     wakeupLogicRef.evalUpdate({
       case Some(_) => IO.raiseError(new Exception("Start can be called only once"))
       case None    => wakeUp.some.pure[IO]

@@ -6,7 +6,6 @@ lazy val `workflows4s` = (project in file("."))
     `workflows4s-example`,
     `workflows4s-doobie`,
     `workflows4s-filesystem`,
-    `workflows4s-db-scheduler`,
     `workflows4s-quartz`,
   )
 
@@ -62,21 +61,12 @@ lazy val `workflows4s-filesystem` = (project in file("workflows4s-filesystem"))
   )
   .dependsOn(`workflows4s-core`)
 
-lazy val `workflows4s-db-scheduler` = (project in file("workflows4s-db-scheduler"))
-  .settings(commonSettings)
-  .settings(
-    libraryDependencies ++= Seq(
-      "com.github.kagkarlsson" % "db-scheduler" % "15.1.1",
-    ),
-  )
-  .dependsOn(`workflows4s-core`)
-
 lazy val `workflows4s-quartz` = (project in file("workflows4s-quartz"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.quartz-scheduler" % "quartz" % "2.5.0",
-      "ch.qos.logback" % "logback-classic" % "1.5.14" % Test,
+      "org.quartz-scheduler" % "quartz"          % "2.5.0",
+      "ch.qos.logback"       % "logback-classic" % "1.5.14" % Test,
     ),
   )
   .dependsOn(`workflows4s-core`)
@@ -101,7 +91,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
     ),
     Test / parallelExecution := false, // otherwise akka clusters clash
   )
-  .dependsOn(`workflows4s-core`, `workflows4s-bpmn`, `workflows4s-pekko`, `workflows4s-doobie`)
+  .dependsOn(`workflows4s-core`, `workflows4s-bpmn`, `workflows4s-pekko`, `workflows4s-doobie`, `workflows4s-filesystem`, `workflows4s-quartz`)
 
 lazy val commonSettings = Seq(
   scalaVersion      := "3.5.2",

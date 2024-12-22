@@ -22,7 +22,7 @@ class FilesystemKnockerUpper[Id](scheduler: FsScheduler)(using idCodec: StringCo
     }
   }
 
-  override def start(wakeUp: Id => IO[Unit]): ResourceIO[Unit] = scheduler.events
+  override def initialize(wakeUp: Id => IO[Unit]): ResourceIO[Unit] = scheduler.events
     .evalTap(x => IO(println(x)))
     .evalMap(event => {
       (for {

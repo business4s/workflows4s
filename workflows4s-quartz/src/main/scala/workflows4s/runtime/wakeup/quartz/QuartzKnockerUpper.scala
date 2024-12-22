@@ -38,7 +38,7 @@ class QuartzKnockerUpper[Id](runtimeId: RuntimeId, scheduler: Scheduler, dispatc
     }
   }
 
-  override def start(wakeUp: Id => IO[Unit]): IO[Unit] =
+  override def initialize(wakeUp: Id => IO[Unit]): IO[Unit] =
     IO.fromTry(scheduler.setWakeupContext(runtimeId, WakeupJob.Context(wakeUp, idCodec, dispatcher)))
 
 }
