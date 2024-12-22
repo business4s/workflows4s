@@ -1,9 +1,9 @@
 package workflows4s.runtime.wakeup.filesystem
 
+import java.time.Instant
+
 import cats.effect.IO
 import workflows4s.runtime.wakeup.filesystem.FsScheduler.TaskId
-
-import java.time.Instant
 
 trait FsScheduler {
 

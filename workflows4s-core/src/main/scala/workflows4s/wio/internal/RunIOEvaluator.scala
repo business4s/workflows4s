@@ -1,11 +1,11 @@
 package workflows4s.wio.internal
 
+import java.time.Instant
+
 import cats.effect.IO
 import cats.syntax.all.*
 import workflows4s.wio.*
 import workflows4s.wio.WIO.Timer
-
-import java.time.Instant
 
 object RunIOEvaluator {
   def proceed[Ctx <: WorkflowContext, StIn <: WCState[Ctx]](
@@ -64,8 +64,8 @@ object RunIOEvaluator {
     }
 
     def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result = {
-      val started     = WIO.Timer.Started(now)
-      val converted   = wio.startedEventHandler.convert(started)
+      val started   = WIO.Timer.Started(now)
+      val converted = wio.startedEventHandler.convert(started)
       Some(IO.pure(converted))
     }
 

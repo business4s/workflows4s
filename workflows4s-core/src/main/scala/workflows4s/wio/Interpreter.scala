@@ -1,11 +1,12 @@
 package workflows4s.wio
 
+import java.time.Instant
+
+import scala.annotation.nowarn
+
 import cats.effect.IO
 import cats.syntax.all.*
 import workflows4s.wio.internal.WorkflowEmbedding
-
-import java.time.Instant
-import scala.annotation.nowarn
 
 object Interpreter {
 
@@ -214,7 +215,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
     def newWf(err: ErrIn): NewBehaviour[Ctx, Err, Out] = NewBehaviour(
       wio.handleError.provideInput((currentState, err)),
       Right(currentState),
-      None
+      None,
     )
 
     wf.fold(
@@ -289,7 +290,8 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
         }
         val newEmbedded: WIO.Embedded[Ctx, Any, Err, InnerCtx, InnerOut, O1] =
           WIO.Embedded(b.wio.transformInput[Any](_ => b.state.toOption.get), newEmbedding, wio.initialState.compose(_ => input))
-        val newBehaviour: NewBehaviour[Ctx, Err, O1[InnerOut]]               = NewBehaviour(newEmbedded, b.state.map(wio.embedding.convertState(_, input)), b.wakeupAt)
+        val newBehaviour: NewBehaviour[Ctx, Err, O1[InnerOut]]               =
+          NewBehaviour(newEmbedded, b.state.map(wio.embedding.convertState(_, input)), b.wakeupAt)
         convert(newBehaviour)
       },
       v => {

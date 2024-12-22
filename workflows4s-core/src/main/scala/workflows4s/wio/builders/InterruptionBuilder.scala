@@ -6,10 +6,10 @@ import scala.jdk.DurationConverters.ScalaDurationOps
 import scala.reflect.ClassTag
 
 import cats.effect.IO
+import workflows4s.wio.*
 import workflows4s.wio.WIO.{InterruptionSource, Timer}
 import workflows4s.wio.internal.{EventHandler, SignalHandler}
 import workflows4s.wio.model.ModelUtils
-import workflows4s.wio.*
 
 object InterruptionBuilder {
 

@@ -1,8 +1,8 @@
 package workflows4s.runtime.wakeup
 
-import cats.effect.IO
-
 import java.time.Instant
+
+import cats.effect.IO
 
 // https://en.wikipedia.org/wiki/Knocker-up
 object KnockerUpper {

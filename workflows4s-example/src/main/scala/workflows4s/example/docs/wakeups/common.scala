@@ -12,6 +12,6 @@ object common {
 
   // docs_start
   def createRuntime(knockerUpper: KnockerUpper.Agent[MyWorkflowId]): WorkflowRuntime[IO, MyWorkflowCtx, MyWorkflowId] = ???
-  //docs_end
+  // docs_end
 
 }

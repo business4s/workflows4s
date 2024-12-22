@@ -1,9 +1,9 @@
 package workflows4s.example.docs.wakeups
 
 import cats.effect.IO
-import workflows4s.runtime.wakeup.quartz.StringCodec
-import common.*
+import workflows4s.example.docs.wakeups.common.*
 import workflows4s.runtime.WorkflowRuntime
+import workflows4s.runtime.wakeup.quartz.StringCodec
 
 object QuartzKnockerUpperExample {
 

@@ -1,12 +1,12 @@
 package workflows4s.example.docs.pullrequest
 
+import java.io.File
+
 import cats.effect.IO
 import org.camunda.bpm.model.bpmn.Bpmn
 import workflows4s.bpmn.BPMNConverter
 import workflows4s.runtime.InMemorySyncRuntime
 import workflows4s.wio.{SignalDef, WorkflowContext}
-
-import java.io.File
 
 object PullRequestWorkflow {
 

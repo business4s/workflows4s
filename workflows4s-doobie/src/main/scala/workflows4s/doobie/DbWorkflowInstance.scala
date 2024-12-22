@@ -1,5 +1,9 @@
 package workflows4s.doobie
 
+import java.time.{Clock, Instant}
+
+import scala.annotation.tailrec
+
 import cats.Applicative
 import cats.effect.{IO, LiftIO, Sync}
 import cats.syntax.all.*
@@ -9,9 +13,6 @@ import workflows4s.runtime.WorkflowInstance
 import workflows4s.runtime.WorkflowInstance.UnexpectedSignal
 import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.wio.*
-
-import java.time.{Clock, Instant}
-import scala.annotation.tailrec
 
 class DbWorkflowInstance[Ctx <: WorkflowContext, Id](
     id: Id,

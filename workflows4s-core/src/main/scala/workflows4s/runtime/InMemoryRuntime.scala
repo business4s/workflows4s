@@ -1,11 +1,11 @@
 package workflows4s.runtime
 
+import java.time.Clock
+
 import cats.effect.{Deferred, IO, Ref}
 import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.wio.*
 import workflows4s.wio.WIO.Initial
-
-import java.time.Clock
 
 /** This runtime offers no persistance and stores all the events in memory It's designed to be used in test or in very specific scenarios.
   *

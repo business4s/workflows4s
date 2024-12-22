@@ -31,7 +31,7 @@ object WithdrawalData {
 
   sealed trait Completed extends WithdrawalData
   object Completed {
-    case class Successfully()         extends Completed
+    case class Successfully()        extends Completed
     case class Failed(error: String) extends Completed
   }
 }

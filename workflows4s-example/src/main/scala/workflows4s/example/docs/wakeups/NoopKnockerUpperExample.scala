@@ -1,10 +1,8 @@
 package workflows4s.example.docs.wakeups
 
-import cats.effect.{IO, ResourceIO}
-import workflows4s.example.docs.wakeups.QuartzKnockerUpperExample.knockerUpper
+import cats.effect.IO
 import workflows4s.example.docs.wakeups.common.*
 import workflows4s.runtime.WorkflowRuntime
-import workflows4s.runtime.wakeup.KnockerUpper
 
 object NoopKnockerUpperExample {
 

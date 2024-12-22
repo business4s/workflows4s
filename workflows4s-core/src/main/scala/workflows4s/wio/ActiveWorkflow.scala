@@ -1,11 +1,12 @@
 package workflows4s.wio
 
+import java.time.Instant
+
+import scala.util.chaining.scalaUtilChainingOps
+
 import cats.effect.IO
 import workflows4s.wio.Interpreter.SignalResponse
 import workflows4s.wio.internal.*
-
-import java.time.Instant
-import scala.util.chaining.scalaUtilChainingOps
 
 abstract class ActiveWorkflow[Ctx <: WorkflowContext] {
   type CurrentState <: WCState[Ctx]

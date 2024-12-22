@@ -1,13 +1,14 @@
 package workflows4s.runtime.wakeup
 
+import java.time.{Duration, Instant}
+
+import scala.jdk.DurationConverters.JavaDurationOps
+
 import cats.effect.kernel.Outcome
 import cats.effect.std.AtomicCell
 import cats.effect.{FiberIO, IO, Resource}
 import cats.implicits.{catsSyntaxApplicativeId, catsSyntaxOptionId, toTraverseOps}
 import com.typesafe.scalalogging.StrictLogging
-
-import java.time.{Duration, Instant}
-import scala.jdk.DurationConverters.JavaDurationOps
 
 /** Simple implementation for KnockerUpper that relies on IO.sleep.
   */

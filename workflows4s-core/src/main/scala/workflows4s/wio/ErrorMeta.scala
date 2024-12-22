@@ -1,8 +1,8 @@
 package workflows4s.wio
 
-import workflows4s.wio.model.ModelUtils
-
 import scala.reflect.ClassTag
+
+import workflows4s.wio.model.ModelUtils
 
 sealed trait ErrorMeta[T] {
   def nameOpt: Option[String]

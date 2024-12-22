@@ -1,12 +1,12 @@
 package workflows4s.runtime.wakeup.quartz
 
+import scala.util.{Failure, Success, Try}
+
 import cats.effect.IO
 import cats.effect.std.Dispatcher
 import org.quartz.{Job, JobExecutionContext, Scheduler}
 import workflows4s.runtime.wakeup.quartz.QuartzKnockerUpper.RuntimeId
 import workflows4s.runtime.wakeup.quartz.WakeupJob.{runtimeIdKey, wakeupContextsKey, workflowIdKey}
-
-import scala.util.{Failure, Success, Try}
 
 class WakeupJob extends Job {
   override def execute(context: JobExecutionContext): Unit = {

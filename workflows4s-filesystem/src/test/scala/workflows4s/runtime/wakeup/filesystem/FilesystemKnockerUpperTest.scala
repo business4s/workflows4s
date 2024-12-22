@@ -51,13 +51,13 @@ class FilesystemKnockerUpperTest extends AnyFreeSpec {
     val clock = new TestClock
 
     withTemporaryDirectory(tempDir => {
-      val scheduler               = new PollingFsScheduler(tempDir, clock, 100.millis)
+      val scheduler             = new PollingFsScheduler(tempDir, clock, 100.millis)
       var wakeups: Vector[Long] = Vector()
-      val knockerUpper            = new FilesystemKnockerUpper[Long](scheduler)
+      val knockerUpper          = new FilesystemKnockerUpper[Long](scheduler)
 
       val id1 = 1L
-      val now        = clock.instant
-      val t1         = now.plusSeconds(1)
+      val now = clock.instant
+      val t1  = now.plusSeconds(1)
       knockerUpper.updateWakeup(id1, t1.some).unsafeRunSync()
       knockerUpper
         .initialize(id => IO(wakeups :+= id))

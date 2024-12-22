@@ -1,5 +1,7 @@
 package workflows4s.doobie.postgres
 
+import java.time.Clock
+
 import cats.effect.IO
 import doobie.util.transactor.Transactor
 import doobie.{ConnectionIO, WeakAsync}
@@ -8,8 +10,6 @@ import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.runtime.{MappedWorkflowInstance, WorkflowInstance, WorkflowRuntime}
 import workflows4s.wio.WIO.Initial
 import workflows4s.wio.{ActiveWorkflow, WCEvent, WCState, WorkflowContext}
-
-import java.time.Clock
 
 class PostgresRuntime[Ctx <: WorkflowContext](
     workflow: Initial[Ctx],
@@ -25,14 +25,14 @@ class PostgresRuntime[Ctx <: WorkflowContext](
       .liftIO[ConnectionIO]
       .use(liftIo =>
         IO {
-          val base         = new DbWorkflowInstance(
+          val base = new DbWorkflowInstance(
             id,
             ActiveWorkflow(workflow, initialState, None),
             PostgresWorkflowStorage,
             liftIo,
             eventCodec,
             clock,
-            knockerUpper
+            knockerUpper,
           )
           new MappedWorkflowInstance(base, xa.trans)
         },

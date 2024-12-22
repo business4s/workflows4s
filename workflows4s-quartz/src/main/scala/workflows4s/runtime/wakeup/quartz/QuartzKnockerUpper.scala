@@ -1,13 +1,13 @@
 package workflows4s.runtime.wakeup.quartz
 
+import java.time.Instant
+import java.util.Date
+
 import cats.effect.IO
 import cats.effect.std.Dispatcher
 import org.quartz.*
 import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.runtime.wakeup.quartz.QuartzKnockerUpper.RuntimeId
-
-import java.time.Instant
-import java.util.Date
 
 class QuartzKnockerUpper[Id](runtimeId: RuntimeId, scheduler: Scheduler, dispatcher: Dispatcher[IO])(using
     idCodec: StringCodec[Id],

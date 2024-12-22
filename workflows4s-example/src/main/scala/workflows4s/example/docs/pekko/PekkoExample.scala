@@ -1,13 +1,13 @@
 package workflows4s.example.docs.pekko
 
+import scala.concurrent.Future
+
 import cats.effect.unsafe.IORuntime
 import org.apache.pekko.actor.typed.ActorSystem
 import workflows4s.runtime.WorkflowInstance
 import workflows4s.runtime.pekko.PekkoRuntime
 import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.wio.WorkflowContext
-
-import scala.concurrent.Future
 
 object PekkoExample {
 

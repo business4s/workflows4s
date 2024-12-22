@@ -1,13 +1,14 @@
 package workflows4s.runtime.wakeup.filesystem
 
+import java.time.format.DateTimeFormatter
+import java.time.{Clock, Instant}
+
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
+
 import cats.effect.{Async, IO}
 import com.typesafe.scalalogging.StrictLogging
 import fs2.io.file.{Files, Path}
 import workflows4s.runtime.wakeup.filesystem.FsScheduler.TaskId
-
-import java.time.format.DateTimeFormatter
-import java.time.{Clock, Instant}
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 class PollingFsScheduler(workdir: Path, clock: Clock, pollInterval: FiniteDuration = 1.second) extends FsScheduler with StrictLogging {
 

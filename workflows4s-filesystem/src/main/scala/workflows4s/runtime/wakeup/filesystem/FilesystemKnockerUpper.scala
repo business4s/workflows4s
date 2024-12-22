@@ -1,13 +1,13 @@
 package workflows4s.runtime.wakeup.filesystem
 
+import java.nio.file.Path
+import java.time.{Clock, Instant}
+
 import cats.effect.{IO, ResourceIO}
 import com.typesafe.scalalogging.StrictLogging
 import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.runtime.wakeup.filesystem.FilesystemKnockerUpper.StringCodec
 import workflows4s.runtime.wakeup.filesystem.FsScheduler.TaskId
-
-import java.nio.file.Path
-import java.time.{Clock, Instant}
 
 class FilesystemKnockerUpper[Id](scheduler: FsScheduler)(using idCodec: StringCodec[Id])
     extends KnockerUpper.Process[IO, Id, ResourceIO[Unit]]
@@ -29,7 +29,7 @@ class FilesystemKnockerUpper[Id](scheduler: FsScheduler)(using idCodec: StringCo
         _ <- wakeUp(idCodec.decode(event.entity))
         _ <- IO(logger.info(s"Woken up for task ${event.entity} scheduled for ${event.scheduleTime}"))
         _ <- scheduler.clear(event.entity, event.scheduleTime)
-      } yield ()).handleError(ex => logger.error(s"Failed to wakeup ${event.entity}",ex))
+      } yield ()).handleError(ex => logger.error(s"Failed to wakeup ${event.entity}", ex))
     })
     .compile
     .drain

@@ -1,5 +1,10 @@
 package workflows4s.runtime
 
+import java.time.Clock
+
+import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
+
 import cats.Id
 import cats.effect.unsafe.IORuntime
 import cats.implicits.catsSyntaxEitherId
@@ -7,10 +12,6 @@ import com.typesafe.scalalogging.StrictLogging
 import workflows4s.runtime.WorkflowInstance.UnexpectedSignal
 import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.wio.{ActiveWorkflow, SignalDef, WCEvent, WCState, WorkflowContext}
-
-import java.time.Clock
-import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
 
 class InMemorySyncWorkflowInstance[Ctx <: WorkflowContext](
     initialState: ActiveWorkflow[Ctx],
