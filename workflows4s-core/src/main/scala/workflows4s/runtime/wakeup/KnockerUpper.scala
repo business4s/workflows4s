@@ -7,7 +7,7 @@ import java.time.Instant
 // https://en.wikipedia.org/wiki/Knocker-up
 object KnockerUpper {
 
-  trait Process[F[_], Id, Result] {
+  trait Process[F[_], +Id, +Result] {
     def initialize(wakeUp: Id => F[Unit]): Result
   }
 

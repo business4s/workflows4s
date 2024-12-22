@@ -65,7 +65,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
     workflow: WIO.Initial[Ctx],
     initialState: WCState[Ctx],
     clock: Clock,
-    knockerUpper: KnockerUpper.Agent.Curried, // TODO unused
+    knockerUpper: KnockerUpper.Agent.Curried,
 )(using ioRuntime: IORuntime)
     extends StrictLogging {
   import WorkflowBehavior.*

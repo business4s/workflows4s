@@ -25,7 +25,7 @@ class SleepingKnockerUpper[Id](
           wakeupOpt  <- wakeupLogicRef.get
           wakeup     <- IO.fromOption(wakeupOpt)(new Exception("No wakeup logic registered. Please call start before calling updateWakeup."))
           sleepFiber <- sleepAndWakeup(id, wakeupTime, wakeup).start
-          prevState  <- state.updateAndGet(_.updated(id, (wakeupTime, sleepFiber)))
+          prevState  <- state.getAndUpdate(_.updated(id, (wakeupTime, sleepFiber)))
           _          <- prevState.get(id).traverse(_._2.cancel)
         } yield ()
       case None             =>
@@ -46,7 +46,7 @@ class SleepingKnockerUpper[Id](
       _       <- wakeup(id)
     } yield ())
       .guaranteeCase({
-        case Outcome.Succeeded(_) => removeSpecific(id, at)
+        case Outcome.Succeeded(_) => IO(logger.debug(s"Sleep for $id cancelled")) *> removeSpecific(id, at)
         case Outcome.Errored(e)   => IO(logger.debug(s"Failed to wake up $id"), e) *> removeSpecific(id, at)
         case Outcome.Canceled()   => removeSpecific(id, at)
       })
