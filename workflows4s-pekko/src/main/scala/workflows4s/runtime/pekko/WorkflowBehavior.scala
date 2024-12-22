@@ -85,7 +85,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
           case Command.QueryState(replyTo)              => Effect.none.thenRun(state => replyTo ! state.workflow.state)
           case cmd: Command.Wakeup[Ctx]                 => handleWakeup(cmd, state, context)
           case cmd: Command.PersistEvent[Ctx, ?]        => handlePersistEvent(cmd, state)
-          case cmd: Command.UpdateWakeup                => handlePersistEvent(cmd, state)
+          case cmd: Command.UpdateWakeup                => handleUpdateWakeup(cmd)
 
         },
       eventHandler = handleEvent,
@@ -179,6 +179,12 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
         }
       })
       .thenUnstashAll()
+  }
+
+  private def handleUpdateWakeup(cmd: Command.UpdateWakeup): Effect[Event, St] = {
+    logger.debug(s"Updating wakeup to ${cmd.wakeup}")
+    knockerUpper.updateWakeup((), cmd.wakeup).unsafeToFuture() // TODO error handling?
+    Effect.none
   }
 
 }
