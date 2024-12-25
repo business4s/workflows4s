@@ -57,7 +57,7 @@ object WIOModelInterpreter {
       }
     }
 
-    def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                             = WIOModel.Pure(m.name, wio.errorMeta.toModel)
+    def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                             = WIOModel.Pure(wio.meta.name, wio.meta.error.toModel)
     def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result =
       WIOModel.Loop(recurse(wio.loop), wio.meta.conditionName, wio.meta.releaseBranchName, wio.meta.restartBranchName, wio.onRestart.map(recurse(_)))
     def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                             =

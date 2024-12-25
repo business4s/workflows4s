@@ -82,7 +82,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
       commandHandler = (state, cmd) =>
         cmd match {
           case cmd: Command.DeliverSignal[?, resp, Ctx] => handleSignalDelivery(cmd, state, context)
-          case Command.QueryState(replyTo)              => Effect.none.thenRun(state => replyTo ! state.workflow.state)
+          case Command.QueryState(replyTo)              => Effect.none.thenRun(state => replyTo ! state.workflow.liveState(clock.instant()))
           case cmd: Command.Wakeup[Ctx]                 => handleWakeup(cmd, state, context)
           case cmd: Command.PersistEvent[Ctx, ?]        => handlePersistEvent(cmd, state)
           case cmd: Command.UpdateWakeup                => handleUpdateWakeup(cmd)

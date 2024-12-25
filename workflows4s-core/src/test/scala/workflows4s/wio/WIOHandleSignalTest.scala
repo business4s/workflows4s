@@ -152,7 +152,7 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers {
 
       // Assert
       assert(newWorkflowOpt.isDefined)
-      assert(newWorkflowOpt.get.state == "eventHandled(initialState, test-event)")
+      assert(newWorkflowOpt.get.staticState == "eventHandled(initialState, test-event)")
     }
 
     "proceed should be a no-op" in {

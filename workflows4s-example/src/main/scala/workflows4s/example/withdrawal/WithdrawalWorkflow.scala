@@ -7,6 +7,7 @@ import workflows4s.example.withdrawal.WithdrawalService.ExecutionResponse
 import workflows4s.example.withdrawal.WithdrawalSignal.{CancelWithdrawal, CreateWithdrawal, ExecutionCompleted}
 import workflows4s.example.withdrawal.WithdrawalWorkflow.{Signals, checksEmbedding}
 import workflows4s.example.withdrawal.checks.*
+import workflows4s.wio
 import workflows4s.wio.internal.WorkflowEmbedding
 import workflows4s.wio.{SignalDef, WorkflowContext}
 
@@ -127,13 +128,15 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
       )(checksEmbedding, _ => ChecksState.Empty) // TODO
 
     val actOnDecision = WIO
-      .pure[WithdrawalData.Checked]
-      .makeError(_.checkResults.decision match {
+      .pure
+      .makeUsing[WithdrawalData.Checked]
+      .errorOpt(_.checkResults.decision match {
         case Decision.RejectedBySystem()   => Some(WithdrawalRejection.RejectedInChecks())
         case Decision.ApprovedBySystem()   => None
         case Decision.RejectedByOperator() => Some(WithdrawalRejection.RejectedInChecks())
         case Decision.ApprovedByOperator() => None
       })
+      .autoNamed
 
     doRunChecks >>> actOnDecision
   }

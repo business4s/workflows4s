@@ -1,14 +1,13 @@
 package workflows4s.wio
 
-import java.time.{Duration, Instant}
-
-import scala.annotation.unused
-import scala.language.implicitConversions
-
 import cats.effect.IO
 import workflows4s.wio.WIO.Timer.DurationSource
-import workflows4s.wio.builders.{AllBuilders, AwaitBuilder, BranchBuilder, InterruptionBuilder, WIOBuilderMethods}
+import workflows4s.wio.builders.{AllBuilders, InterruptionBuilder}
 import workflows4s.wio.internal.{EventHandler, SignalHandler, WIOUtils, WorkflowEmbedding}
+
+import java.time.{Duration, Instant}
+import scala.annotation.unused
+import scala.language.implicitConversions
 
 trait WorkflowContext { ctx: WorkflowContext =>
   type Event
@@ -87,8 +86,12 @@ object WIO {
 
   case class Pure[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]](
       value: In => Either[Err, Out],
-      errorMeta: ErrorMeta[?],
+      meta: Pure.Meta,
   ) extends WIO[In, Err, Out, Ctx]
+
+  object Pure {
+    case class Meta(error: ErrorMeta[?], name: Option[String])
+  }
 
   // TODO this should ne called `Never` or `Halt` or `End` or similar, as the workflow cant proceed from that point.
   case class Noop[Ctx <: WorkflowContext]() extends WIO[Any, Nothing, Nothing, Ctx]
@@ -189,9 +192,7 @@ object WIO {
 
   // -----
 
-  def build[Ctx <: WorkflowContext]: WIOBuilderMethods[Ctx] & BranchBuilder.Step0[Ctx] & AwaitBuilder.Step0[Ctx] = new WIOBuilderMethods[Ctx]
-    with BranchBuilder.Step0[Ctx]
-    with AwaitBuilder.Step0[Ctx] {}
+  def build[Ctx <: WorkflowContext]: AllBuilders[Ctx] = new AllBuilders[Ctx] {}
 
   trait Branch[-In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext] {
     type I // Intermediate

@@ -18,7 +18,10 @@ class InMemoryWorkflowInstance[Ctx <: WorkflowContext](
 
   def getEvents: IO[Vector[WCEvent[Ctx]]] = eventsRef.get
 
-  override def queryState(): IO[WCState[Ctx]] = stateRef.get.map(_.state)
+  override def queryState(): IO[WCState[Ctx]] = for {
+    state <- stateRef.get
+    now   <- IO(clock.instant())
+  } yield state.liveState(now)
 
   override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): IO[Either[UnexpectedSignal, Resp]] = {
     for {

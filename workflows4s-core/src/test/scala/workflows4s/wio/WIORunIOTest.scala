@@ -41,9 +41,9 @@ class WIORunIOTest extends AnyFreeSpec with Matchers {
 
       val activeWorkflow = ActiveWorkflow[Ctx, String](wio, "initialState", None)
 
-      val Some(result) = activeWorkflow.proceed(Instant.now)
+      val Some(result) = activeWorkflow.proceed(Instant.now): @unchecked
 
-      val Left(ex) = result.attempt.unsafeRunSync()
+      val Left(ex) = result.attempt.unsafeRunSync(): @unchecked
       assert(ex.getMessage == "IO failed")
     }
 
@@ -55,9 +55,9 @@ class WIORunIOTest extends AnyFreeSpec with Matchers {
 
       val activeWorkflow = ActiveWorkflow[Ctx, String](wio, "initialInput", None)
 
-      val Some(result) = activeWorkflow.handleEvent("my-event", Instant.now)
+      val Some(result) = activeWorkflow.handleEvent("my-event", Instant.now): @unchecked
 
-      assert(result.state == "SuccessHandled(initialInput, my-event)")
+      assert(result.staticState == "SuccessHandled(initialInput, my-event)")
     }
     "handle signal " in {
       val wio: WIO[Any, Nothing, String] = WIO
@@ -72,7 +72,7 @@ class WIORunIOTest extends AnyFreeSpec with Matchers {
       assert(resultOpt.isEmpty)
     }
 
-    "metadata attachment for RunIO" - {
+    "metadata attachment" - {
       val base = WIO
         .runIO[String](input => IO.pure(s"EventGenerated($input)"))
         .handleEvent(ignore)
