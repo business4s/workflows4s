@@ -1,0 +1,128 @@
+# Wake-Ups
+
+The `KnockerUpper` is responsible for waking up the workflow when needed, e.g.:
+
+- When a workflow is awaiting a specific time to pass.
+- When a workflow has timer-based interruptions.
+
+This component ensures workflows resume execution at the right moment.
+
+## Available Implementations
+
+Below is an overview of the available `KnockerUpper` implementations, with their strengths and limitations:
+
+<table>
+    <thead>
+    <tr>
+        <th>Implementation</th>
+        <th>Description</th>
+        <th>Good For</th>
+        <th>Bad For</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td><code>NoOpKnockerUpper</code></td>
+        <td>Does nothing; ignores all registered wake-ups.</td>
+        <td>
+            <ul>
+                <li>Disabled wake-up scenarios.</li>
+                <li>Testing workflows.</li>
+            </ul>
+        </td>
+        <td>
+            <ul>
+                <li>Real use cases requiring wake-ups.</li>
+            </ul>
+        </td>
+    </tr>
+    <tr>
+        <td><code>SleepingKnockerUpper</code></td>
+        <td>In-memory implementation based on `IO.sleep`, non-persistent.</td>
+        <td>
+            <ul>
+                <li>Ephemeral workflows.</li>
+                <li>Development and testing environments.</li>
+            </ul>
+        </td>
+        <td>
+            <ul>
+                <li>Long-running workflows.</li>
+                <li>Persistent or distributed setups.</li>
+            </ul>
+        </td>
+    </tr>
+    <tr>
+        <td><code>FilesystemKnockerUpper</code></td>
+        <td>Relies on the filesystem and stores a file per workflow for scheduling wake-ups.</td>
+        <td>
+            <ul>
+                <li>Environments where a shared filesystem exists.</li>
+                <li>Simple deployments without additional dependencies.</li>
+            </ul>
+        </td>
+        <td>
+            <ul>
+                <li>Distributed systems without a shared filesystem.</li>
+                <li>High-frequency schedules.</li>
+            </ul>
+        </td>
+    </tr>
+    <tr>
+        <td><code>QuartzKnockerUpper</code></td>
+        <td>Integrates with [Quartz](https://www.quartz-scheduler.org/) for sophisticated scheduling capabilities.</td>
+        <td>
+            <ul>
+                <li>Complex schedule management.</li>
+                <li>Enterprise setups with Quartz integration.</li>
+            </ul>
+        </td>
+        <td>
+            <ul>
+                <li>Lightweight deployments without Quartz dependencies.</li>
+                <li>Simple scheduling needs.</li>
+            </ul>
+        </td>
+    </tr>
+    </tbody>
+</table>
+
+
+## Design Overview
+
+The overall design of `KnockerUpper` splits responsibilities across two interfaces:
+
+- `KnockerUpper.Agent`: Responsible for managing wake-up schedules. This includes adding, updating, and removing wake-up times for workflows.
+- `KnockerUpper.Process`: Responsible for starting the background process that triggers wake-ups.
+
+
+---
+
+## Usage Examples
+
+All runtimes take a `KnockerUpper.Agent` as an argument.
+Hence, you can use any `KnockerUpper` with any `WorkflowRuntime`.
+This is encoded in the examples below as a `createRuntime`.
+
+```scala file=./main/scala/workflows4s/example/docs/wakeups/common.scala start=docs_start end=docs_end
+```
+
+### NoOpKnockerUpper
+
+```scala file=./main/scala/workflows4s/example/docs/wakeups/NoopKnockerUpperExample.scala start=docs_start end=docs_end
+```
+
+### SleepingKnockerUpper
+
+```scala file=./main/scala/workflows4s/example/docs/wakeups/SleepingKnockerUpperExample.scala start=docs_start end=docs_end
+```
+
+### FilesystemKnockerUpper
+
+```scala file=./main/scala/workflows4s/example/docs/wakeups/FsKnockerUpperExample.scala start=docs_start end=docs_end
+```
+
+### QuartzKnockerUpper
+
+```scala file=./main/scala/workflows4s/example/docs/wakeups/QuartzKnockerUpperExample.scala start=docs_start end=docs_end
+```

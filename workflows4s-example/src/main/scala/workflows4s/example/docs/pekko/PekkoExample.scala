@@ -1,16 +1,13 @@
 package workflows4s.example.docs.pekko
 
+import scala.concurrent.Future
+
 import cats.effect.unsafe.IORuntime
 import org.apache.pekko.actor.typed.ActorSystem
-import org.apache.pekko.cluster.sharding.typed.scaladsl.EntityContext
-import workflows4s.example.docs.pekko.PekkoExample.MyWorkflowCtx.InitialState
 import workflows4s.runtime.WorkflowInstance
-import workflows4s.runtime.wakeup.KnockerUpper
-import workflows4s.wio.{WCState, WorkflowContext}
-import workflows4s.doobie.EventCodec
 import workflows4s.runtime.pekko.PekkoRuntime
-
-import scala.concurrent.Future
+import workflows4s.runtime.wakeup.KnockerUpper
+import workflows4s.wio.WorkflowContext
 
 object PekkoExample {
 
@@ -22,16 +19,16 @@ object PekkoExample {
 
   // doc_start
   import MyWorkflowCtx.*
-  given IORuntime                                    = ???
-  given ActorSystem[?]                               = ???
-  val workflow: WIO.Initial[InitialState]            = ???
-  val initialState: EntityContext[?] => InitialState = ???
+  given IORuntime                                               = ???
+  given ActorSystem[?]                                          = ???
+  val knockerUpper: KnockerUpper.Agent[PekkoRuntime.WorkflowId] = ???
+  val workflow: WIO.Initial                                     = ???
 
-  val runtime: PekkoRuntime[Ctx] = PekkoRuntime.create("my-workflow", workflow, initialState)
+  val runtime: PekkoRuntime[Ctx] = PekkoRuntime.create("my-workflow", workflow, InitialState(), knockerUpper)
 
   runtime.initializeShard()
 
-  val instance: WorkflowInstance[Future, State] = runtime.createInstance("my-workflow-id")
+  val instance: WorkflowInstance[Future, State] = runtime.createInstance_("my-workflow-id")
   // doc_end
 
 }

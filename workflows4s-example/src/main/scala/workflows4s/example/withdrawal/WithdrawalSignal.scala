@@ -5,7 +5,7 @@ import workflows4s.example.withdrawal.WithdrawalService.Iban
 
 object WithdrawalSignal {
 
-  case class CreateWithdrawal(amount: BigDecimal, recipient: Iban)
+  case class CreateWithdrawal(txId: String, amount: BigDecimal, recipient: Iban)
 
   sealed trait ExecutionCompleted derives Codec.AsObject
   object ExecutionCompleted {

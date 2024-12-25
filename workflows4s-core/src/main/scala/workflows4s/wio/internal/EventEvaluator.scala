@@ -11,11 +11,10 @@ object EventEvaluator {
       event: WCEvent[Ctx],
       wio: WIO[StIn, Nothing, WCState[Ctx], Ctx],
       state: StIn,
-      interpreter: Interpreter,
   ): EventResponse[Ctx] = {
     val visitor = new EventVisitor(wio, event, state, state)
     visitor.run
-      .map(wf => wf.toActiveWorkflow(interpreter))
+      .map(wf => wf.toActiveWorkflow)
       .map(EventResponse.Ok(_))
       .getOrElse(EventResponse.UnexpectedEvent())
   }
@@ -46,7 +45,7 @@ object EventEvaluator {
       recurse(wio.base, state, event).map((newWf: NextWfState[Ctx, ErrIn, Out]) => {
         val casted: NextWfState[Ctx, ErrIn, Out] { type Error = ErrIn } =
           newWf.asInstanceOf[NextWfState[Ctx, ErrIn, Out] { type Error = ErrIn }] // TODO casting
-        applyHandleError(wio, casted, state)
+        applyHandleError(wio, casted)
       })
     def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result                           =
       recurse(wio.base, state, event).map((newWf: NextWfState[Ctx, ErrIn, Out]) => {
@@ -89,7 +88,7 @@ object EventEvaluator {
         case x @ WIO.Timer(_, _, _, _)       =>
           runTimer(x, initialState) match {
             case Some(awaitTime) =>
-              val mainFlowOut     = NewBehaviour(wio.base.transformInput[Any](_ => state), initialState.asRight)
+              val mainFlowOut     = NewBehaviour(wio.base.transformInput[Any](_ => state), initialState.asRight, Some(awaitTime.resumeAt))
               val newInterruption = WIO.Interruption(awaitTime, wio.interruption.buildFinal)
               preserveHandleInterruption(newInterruption, mainFlowOut).some
             case None            => runBase
@@ -102,7 +101,7 @@ object EventEvaluator {
 
     def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result               = {
       runTimer(wio, state).map(result => {
-        NextWfState.NewBehaviour(result.provideInput(state), initialState.asRight)
+        NextWfState.NewBehaviour(result.provideInput(state), initialState.asRight, Some(result.resumeAt))
       })
     }
 

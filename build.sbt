@@ -1,17 +1,25 @@
 lazy val `workflows4s` = (project in file("."))
   .settings(commonSettings)
-  .aggregate(`workflows4s-core`, `workflows4s-bpmn`, `workflows4s-example`)
+  .aggregate(
+    `workflows4s-core`,
+    `workflows4s-bpmn`,
+    `workflows4s-example`,
+    `workflows4s-doobie`,
+    `workflows4s-filesystem`,
+    `workflows4s-quartz`,
+  )
 
 lazy val `workflows4s-core` = (project in file("workflows4s-core"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel"              %% "cats-effect"   % "3.5.5",
-      // should be required only for simple actor, probably worth separate module
-      "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",
-      "io.circe"                   %% "circe-core"    % "0.14.10", // for model serialization
-      "io.circe"                   %% "circe-generic" % "0.14.10", // for model serialization
-      "com.lihaoyi"                %% "sourcecode"    % "0.4.2",   // for auto naming
+      "org.typelevel"              %% "cats-effect"     % "3.5.7",
+      "co.fs2"                     %% "fs2-core"        % "3.11.0",
+      "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.5",
+      "io.circe"                   %% "circe-core"      % "0.14.10", // for model serialization
+      "io.circe"                   %% "circe-generic"   % "0.14.10", // for model serialization
+      "com.lihaoyi"                %% "sourcecode"      % "0.4.2",   // for auto naming
+      "ch.qos.logback"              % "logback-classic" % "1.5.14" % Test,
     ),
   )
 
@@ -43,6 +51,26 @@ lazy val `workflows4s-doobie` = (project in file("workflows4s-doobie"))
   )
   .dependsOn(`workflows4s-core`)
 
+lazy val `workflows4s-filesystem` = (project in file("workflows4s-filesystem"))
+  .settings(commonSettings)
+  .settings(
+    libraryDependencies ++= Seq(
+      "co.fs2"        %% "fs2-io"          % "3.11.0",
+      "ch.qos.logback" % "logback-classic" % "1.5.14" % Test,
+    ),
+  )
+  .dependsOn(`workflows4s-core`)
+
+lazy val `workflows4s-quartz` = (project in file("workflows4s-quartz"))
+  .settings(commonSettings)
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.quartz-scheduler" % "quartz"          % "2.5.0",
+      "ch.qos.logback"       % "logback-classic" % "1.5.14" % Test,
+    ),
+  )
+  .dependsOn(`workflows4s-core`)
+
 lazy val `workflows4s-example` = (project in file("workflows4s-example"))
   .settings(commonSettings)
   .settings(
@@ -54,7 +82,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "com.h2database"        % "h2"                              % "2.3.232",
       "io.r2dbc"              % "r2dbc-h2"                        % "1.0.0.RELEASE",
       "com.github.pjfanning" %% "pekko-http-circe"                % "3.0.0",
-      "ch.qos.logback"        % "logback-classic"                 % "1.5.12",
+      "ch.qos.logback"        % "logback-classic"                 % "1.5.14",
       "org.scalamock"        %% "scalamock"                       % "6.0.0" % Test,
       "org.apache.pekko"     %% "pekko-actor-testkit-typed"       % pekkoVersion % Test,
       "com.dimafeng"         %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
@@ -63,7 +91,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
     ),
     Test / parallelExecution := false, // otherwise akka clusters clash
   )
-  .dependsOn(`workflows4s-core`, `workflows4s-bpmn`, `workflows4s-pekko`, `workflows4s-doobie`)
+  .dependsOn(`workflows4s-core`, `workflows4s-bpmn`, `workflows4s-pekko`, `workflows4s-doobie`, `workflows4s-filesystem`, `workflows4s-quartz`)
 
 lazy val commonSettings = Seq(
   scalaVersion      := "3.5.2",

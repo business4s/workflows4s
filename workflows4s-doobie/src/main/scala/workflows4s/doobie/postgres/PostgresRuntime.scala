@@ -9,29 +9,30 @@ import workflows4s.doobie.{DbWorkflowInstance, EventCodec}
 import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.runtime.{MappedWorkflowInstance, WorkflowInstance, WorkflowRuntime}
 import workflows4s.wio.WIO.Initial
-import workflows4s.wio.{ActiveWorkflow, Interpreter, WCEvent, WCState, WorkflowContext}
+import workflows4s.wio.{ActiveWorkflow, WCEvent, WCState, WorkflowContext}
 
-class PostgresRuntime[Ctx <: WorkflowContext, Input](
-    workflow: Initial[Ctx, Input],
-    initialState: Input => WCState[Ctx],
+class PostgresRuntime[Ctx <: WorkflowContext](
+    workflow: Initial[Ctx],
+    initialState: WCState[Ctx],
     clock: Clock,
-    knockerUpper: KnockerUpper.Factory[WorkflowId],
+    knockerUpper: KnockerUpper.Agent[WorkflowId],
     eventCodec: EventCodec[WCEvent[Ctx]],
     xa: Transactor[IO],
-) extends WorkflowRuntime[IO, Ctx, WorkflowId, Input] {
+) extends WorkflowRuntime[IO, Ctx, WorkflowId] {
 
-  override def createInstance(id: WorkflowId, in: Input): IO[WorkflowInstance[IO, WCState[Ctx]]] = {
+  override def createInstance(id: WorkflowId): IO[WorkflowInstance[IO, WCState[Ctx]]] = {
     WeakAsync
       .liftIO[ConnectionIO]
       .use(liftIo =>
         IO {
           val base = new DbWorkflowInstance(
             id,
-            ActiveWorkflow(workflow.provideInput(in), initialState(in))(new Interpreter(knockerUpper(id))),
+            ActiveWorkflow(workflow, initialState, None),
             PostgresWorkflowStorage,
             liftIo,
             eventCodec,
             clock,
+            knockerUpper,
           )
           new MappedWorkflowInstance(base, xa.trans)
         },
@@ -42,20 +43,12 @@ class PostgresRuntime[Ctx <: WorkflowContext, Input](
 }
 
 object PostgresRuntime {
-  def defaultWithState[Ctx <: WorkflowContext, Input](
-      workflow: Initial[Ctx, Input],
-      initialState: Input => WCState[Ctx],
+  def default[Ctx <: WorkflowContext, Input](
+      workflow: Initial[Ctx],
+      initialState: WCState[Ctx],
       eventCodec: EventCodec[WCEvent[Ctx]],
       xa: Transactor[IO],
-      knockerUpper: KnockerUpper.Factory[WorkflowId],
+      knockerUpper: KnockerUpper.Agent[WorkflowId],
       clock: Clock = Clock.systemUTC(),
-  ) = new PostgresRuntime[Ctx, Input](workflow, initialState, clock, knockerUpper, eventCodec, xa)
-
-  def default[Ctx <: WorkflowContext, Input <: WCState[Ctx]](
-      workflow: Initial[Ctx, Input],
-      eventCodec: EventCodec[WCEvent[Ctx]],
-      xa: Transactor[IO],
-      knockerUpper: KnockerUpper.Factory[WorkflowId],
-      clock: Clock = Clock.systemUTC(),
-  ) = defaultWithState(workflow, identity, eventCodec, xa, knockerUpper, clock)
+  ) = new PostgresRuntime[Ctx](workflow, initialState, clock, knockerUpper, eventCodec, xa)
 }

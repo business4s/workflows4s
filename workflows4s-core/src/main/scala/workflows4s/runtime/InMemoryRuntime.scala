@@ -1,30 +1,30 @@
 package workflows4s.runtime
 
-import cats.effect.{Deferred, IO, Ref}
-import workflows4s.runtime.wakeup.{KnockerUpper, SleepingKnockerUpper}
-import workflows4s.wio.WIO.Initial
-import workflows4s.wio.*
-
 import java.time.Clock
+
+import cats.effect.{Deferred, IO, Ref}
+import workflows4s.runtime.wakeup.KnockerUpper
+import workflows4s.wio.*
+import workflows4s.wio.WIO.Initial
 
 /** This runtime offers no persistance and stores all the events in memory It's designed to be used in test or in very specific scenarios.
   *
   * IT'S NOT A GENERAL-PURPOSE RUNTIME
   */
-class InMemoryRuntime[Ctx <: WorkflowContext, WorkflowId, Input](
-    workflow: Initial[Ctx, Input],
-    initialState: Input => WCState[Ctx],
+class InMemoryRuntime[Ctx <: WorkflowContext, WorkflowId](
+    workflow: Initial[Ctx],
+    initialState: WCState[Ctx],
     clock: Clock,
-    knockerUpper: KnockerUpper.Factory[(WorkflowId, IO[Unit])],
-) extends WorkflowRuntime[IO, Ctx, WorkflowId, Input] {
+    knockerUpper: KnockerUpper.Agent[WorkflowId],
+) extends WorkflowRuntime[IO, Ctx, WorkflowId] {
 
-  override def createInstance(id: WorkflowId, in: Input): IO[InMemoryWorkflowInstance[Ctx]] = {
+  override def createInstance(id: WorkflowId): IO[InMemoryWorkflowInstance[Ctx]] = {
     for {
       runningWfRef <- Deferred[IO, InMemoryWorkflowInstance[Ctx]]
-      initialWf     = ActiveWorkflow(workflow.provideInput(in), initialState(in))(new Interpreter(knockerUpper(id, runningWfRef.get.flatMap(_.wakeup()))))
+      initialWf     = ActiveWorkflow(workflow, initialState, None)
       stateRef     <- Ref[IO].of(initialWf)
       eventsRef    <- Ref[IO].of(Vector[WCEvent[Ctx]]())
-      runningWf     = InMemoryWorkflowInstance[Ctx](stateRef, eventsRef, clock)
+      runningWf     = InMemoryWorkflowInstance[Ctx](stateRef, eventsRef, clock, knockerUpper.curried(id))
       _            <- runningWfRef.complete(runningWf)
     } yield runningWf
   }
@@ -33,10 +33,11 @@ class InMemoryRuntime[Ctx <: WorkflowContext, WorkflowId, Input](
 
 object InMemoryRuntime {
 
-  def default[Ctx <: WorkflowContext, In](workflow: Initial[Ctx, In], initialState: In => WCState[Ctx]): InMemoryRuntime[Ctx, Unit, In] =
-    new InMemoryRuntime[Ctx, Unit, In](workflow, initialState, Clock.systemUTC(), SleepingKnockerUpper.factory.compose(_._2))
-
-  def default[Ctx <: WorkflowContext, In <: WCState[Ctx]](workflow: Initial[Ctx, In]): InMemoryRuntime[Ctx, Unit, In] =
-    default(workflow, identity)
+  def default[Ctx <: WorkflowContext, Id](
+      workflow: Initial[Ctx],
+      initialState: WCState[Ctx],
+      knockerUpper: KnockerUpper.Agent[Id],
+  ): InMemoryRuntime[Ctx, Id] =
+    new InMemoryRuntime[Ctx, Id](workflow, initialState, Clock.systemUTC(), knockerUpper)
 
 }

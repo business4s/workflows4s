@@ -8,8 +8,8 @@ import org.apache.pekko.http.scaladsl.Http
 import org.apache.pekko.persistence.jdbc.query.scaladsl.JdbcReadJournal
 import org.apache.pekko.persistence.jdbc.testkit.scaladsl.SchemaUtils
 import org.apache.pekko.persistence.query.PersistenceQuery
-import workflows4s.example.withdrawal.{WithdrawalData, WithdrawalWorkflow}
 import workflows4s.example.withdrawal.checks.ChecksEngine
+import workflows4s.example.withdrawal.{WithdrawalData, WithdrawalWorkflow}
 import workflows4s.runtime.pekko.PekkoRuntime
 
 object Main extends IOApp {
@@ -22,10 +22,11 @@ object Main extends IOApp {
       journal                  <- setupJournal()
       workflow                  = WithdrawalWorkflow(DummyWithdrawalService, ChecksEngine)
       runtime                   =
-        PekkoRuntime.create[WithdrawalWorkflow.Context.Ctx, WithdrawalData.Empty](
+        PekkoRuntime.create[WithdrawalWorkflow.Context.Ctx](
           "withdrawal",
           workflow.workflowDeclarative,
-          ec => WithdrawalData.Empty(ec.entityId),
+          WithdrawalData.Empty,
+          ???,
         )
       withdrawalWorkflowService = WithdrawalWorkflowService.Impl(journal, runtime)
       routes                    = HttpRoutes(system, withdrawalWorkflowService)

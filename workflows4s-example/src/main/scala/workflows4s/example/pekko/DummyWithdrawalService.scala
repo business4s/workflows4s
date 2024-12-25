@@ -1,11 +1,11 @@
 package workflows4s.example.pekko
 
+import java.util.UUID
+
 import cats.effect.IO
 import cats.implicits.catsSyntaxEitherId
 import workflows4s.example.withdrawal.checks.Check
 import workflows4s.example.withdrawal.{WithdrawalData, WithdrawalService}
-
-import java.util.UUID
 
 object DummyWithdrawalService extends WithdrawalService {
 

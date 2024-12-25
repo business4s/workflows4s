@@ -1,21 +1,19 @@
 package workflows4s.wio.internal
 
+import java.time.Instant
+
 import cats.effect.IO
 import cats.syntax.all.*
-import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.wio.*
 import workflows4s.wio.WIO.Timer
-
-import java.time.Instant
 
 object RunIOEvaluator {
   def proceed[Ctx <: WorkflowContext, StIn <: WCState[Ctx]](
       wio: WIO[StIn, Nothing, WCState[Ctx], Ctx],
       state: StIn,
-      interpreter: Interpreter,
       now: Instant,
   ): Response[Ctx] = {
-    val visitor = new RunIOVisitor(wio, state, state, now, interpreter.knockerUpper)
+    val visitor = new RunIOVisitor(wio, state, state, now)
     Response(visitor.run)
   }
 
@@ -26,7 +24,6 @@ object RunIOEvaluator {
       state: In,
       initialState: WCState[Ctx],
       now: Instant,
-      knockerUpper: KnockerUpper,
   ) extends Visitor[Ctx, In, Err, Out](wio) {
     override type Result = Option[IO[WCEvent[Ctx]]]
 
@@ -55,7 +52,7 @@ object RunIOEvaluator {
           .getOrElse(
             wio.initialState(state),
           ) // TODO, this is not safe, we will use initial state if the state mapping is incorrect (not symetrical). This will be very hard for the user to diagnose.
-      new RunIOVisitor(wio.inner, state, newState, now, knockerUpper).run
+      new RunIOVisitor(wio.inner, state, newState, now).run
         .map(_.map(wio.embedding.convertEvent))
     }
 
@@ -67,12 +64,9 @@ object RunIOEvaluator {
     }
 
     def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result = {
-      val started     = WIO.Timer.Started(now)
-      val converted   = wio.startedEventHandler.convert(started)
-      val releaseTime = wio.getReleaseTime(started, state)
-      (for {
-        _ <- knockerUpper.registerWakeup(releaseTime)
-      } yield converted).some
+      val started   = WIO.Timer.Started(now)
+      val converted = wio.startedEventHandler.convert(started)
+      Some(IO.pure(converted))
     }
 
     def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result = {
@@ -83,7 +77,7 @@ object RunIOEvaluator {
     }
 
     private def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], s: I1): Option[IO[WCEvent[Ctx]]] =
-      new RunIOVisitor(wio, s, initialState, now, knockerUpper).run
+      new RunIOVisitor(wio, s, initialState, now).run
   }
 
 }
