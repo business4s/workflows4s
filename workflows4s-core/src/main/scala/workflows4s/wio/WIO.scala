@@ -63,7 +63,6 @@ object WIO {
     case class Meta(error: ErrorMeta[?], signalName: String, operationName: Option[String])
   }
 
-  // theoretically state is not needed, it could be State.extract.flatMap(RunIO)
   case class RunIO[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx], Evt](
       buildIO: In => IO[Evt],
       evtHandler: EventHandler[In, Either[Err, Out], WCEvent[Ctx], Evt],
