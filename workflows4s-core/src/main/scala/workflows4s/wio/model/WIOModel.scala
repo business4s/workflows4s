@@ -22,7 +22,7 @@ object WIOModel {
   case class HandleSignal(signalName: String, error: Option[Error], operationName: Option[String]) extends WIOModel with Interruption
   // TODO error name?
   case class HandleError(base: WIOModel, handler: WIOModel, error: Option[Error])                  extends WIOModel
-  case object Noop                                                                                 extends WIOModel
+  case object End                                                                                 extends WIOModel
   case class Pure(name: Option[String], error: Option[Error])                                      extends WIOModel
   case class Loop(
       base: WIOModel,

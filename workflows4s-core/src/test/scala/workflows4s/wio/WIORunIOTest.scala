@@ -10,23 +10,18 @@ import java.time.Instant
 
 class WIORunIOTest extends AnyFreeSpec with Matchers {
 
-  object TestCtx extends WorkflowContext {
-    type Event = String
-    type State = String
-  }
   import TestCtx.*
 
   "WIO.RunIO" - {
 
     "proceed" in {
-      val wio: WIO[String, Nothing, String] = WIO
+      val wf = WIO
         .runIO[String](input => IO.pure(s"ProcessedEvent($input)"))
         .handleEvent(ignore)
         .done
+        .toWorkflow("initialState")
 
-      val activeWorkflow = ActiveWorkflow[Ctx, String](wio, "initialState", None)
-
-      val resultOpt = activeWorkflow.proceed(Instant.now)
+      val resultOpt = wf.proceed(Instant.now)
 
       assert(resultOpt.isDefined)
       val newEvent = resultOpt.get.unsafeRunSync()
@@ -34,40 +29,37 @@ class WIORunIOTest extends AnyFreeSpec with Matchers {
     }
 
     "error in IO" in {
-      val wio: WIO[String, Nothing, String] = WIO
+      val wf = WIO
         .runIO[String](_ => IO.raiseError(new RuntimeException("IO failed")))
         .handleEvent(ignore)
         .done
+        .toWorkflow("initialState")
 
-      val activeWorkflow = ActiveWorkflow[Ctx, String](wio, "initialState", None)
-
-      val Some(result) = activeWorkflow.proceed(Instant.now): @unchecked
+      val Some(result) = wf.proceed(Instant.now): @unchecked
 
       val Left(ex) = result.attempt.unsafeRunSync(): @unchecked
       assert(ex.getMessage == "IO failed")
     }
 
     "event handling" in {
-      val wio: WIO[String, Nothing, String] = WIO
+      val wf = WIO
         .runIO[String](_ => ???)
         .handleEvent((input, evt) => s"SuccessHandled($input, $evt)")
         .done
+        .toWorkflow("initialState")
 
-      val activeWorkflow = ActiveWorkflow[Ctx, String](wio, "initialInput", None)
+      val Some(result) = wf.handleEvent("my-event", Instant.now): @unchecked
 
-      val Some(result) = activeWorkflow.handleEvent("my-event", Instant.now): @unchecked
-
-      assert(result.staticState == "SuccessHandled(initialInput, my-event)")
+      assert(result.staticState == "SuccessHandled(initialState, my-event)")
     }
     "handle signal " in {
-      val wio: WIO[Any, Nothing, String] = WIO
+      val wf = WIO
         .runIO[Any](_ => ???)
         .handleEvent(ignore)
         .done
+        .toWorkflow("initialState")
 
-      val activeWorkflow = ActiveWorkflow[Ctx, String](wio, "initialState", None)
-
-      val resultOpt = activeWorkflow.handleSignal(SignalDef[String, String]())("", Instant.now)
+      val resultOpt = wf.handleSignal(SignalDef[String, String]())("", Instant.now)
 
       assert(resultOpt.isEmpty)
     }

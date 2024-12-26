@@ -2,71 +2,51 @@ package workflows4s.wio
 
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
-import workflows4s.wio.WIO.{Pure, RunIO}
+import workflows4s.wio.WIO.Pure
 
 import java.time.Instant
 
 class WIOPureTest extends AnyFreeSpec with Matchers {
 
-  object TestCtx extends WorkflowContext {
-    type Event = String
-    type State = String
-  }
   import TestCtx.*
 
   "WIO.Pure" - {
 
     "state" in {
-      val wio: WIO[Any, Nothing, String] = WIO.pure("myValue").done
-      val activeWorkflow = ActiveWorkflow[Ctx, String](wio, "initialState", None)
+      val  wf: ActiveWorkflow[Ctx] = WIO.pure("myValue").done.toWorkflow("initialState")
 
-      val state = activeWorkflow.liveState(Instant.now)
+      val state = wf.liveState(Instant.now)
 
       assert(state == "myValue")
     }
 
-      // TODO
-//    "error" in {
-//      val wio: WIO[Any, String, Nothing] = WIO.pure.error("Error")
-//
-//      val activeWorkflow = ActiveWorkflow[Ctx, String](wio, "initialState", None)
-//
-//      val Some(result) = activeWorkflow.proceed(Instant.now)
-//
-//      val Left(ex) = result.attempt.unsafeRunSync()
-//      assert(ex.getMessage == "IO failed")
-//    }
+    // TODO error case
 
     "proceed no-op" in {
-      val wio: WIO[Any, Nothing, String] = WIO.pure("myValue").done
-      val activeWorkflow = ActiveWorkflow[Ctx, String](wio, "initialState", None)
+      val wf: ActiveWorkflow[Ctx] = WIO.pure("myValue").done.toWorkflow("initialState")
 
-      val resultOpt = activeWorkflow.proceed(Instant.now)
+      val resultOpt = wf.proceed(Instant.now)
 
       assert(resultOpt.isEmpty)
     }
 
     "event handling no-op" in {
-      val wio: WIO[Any, Nothing, String] = WIO.pure("myValue").done
+      val wf: ActiveWorkflow[Ctx] = WIO.pure("myValue").done.toWorkflow("initialState")
 
-      val activeWorkflow = ActiveWorkflow[Ctx, String](wio, "initialInput", None)
-
-      val resultOpt = activeWorkflow.handleEvent("my-event", Instant.now)
+      val resultOpt = wf.handleEvent("my-event", Instant.now)
 
       assert(resultOpt.isEmpty)
     }
 
     "handle signal no-op" in {
-      val wio: WIO[Any, Nothing, String] = WIO.pure("initialState").done
+      val wf: ActiveWorkflow[Ctx] = WIO.pure("initialState").done.toWorkflow("initialState")
 
-      val activeWorkflow = ActiveWorkflow[Ctx, String](wio, "initialState", None)
-
-      val resultOpt = activeWorkflow.handleSignal(SignalDef[String, String]())("", Instant.now)
+      val resultOpt = wf.handleSignal(SignalDef[String, String]())("", Instant.now)
       assert(resultOpt.isEmpty)
     }
 
     "metadata attachment" - {
-      val base = WIO.pure[String]("initialState")
+      val base = WIO.pure("initialState")
 
       extension (x: WIO[?, ?, ?]) {
         def extractMeta: Pure.Meta = x.asInstanceOf[workflows4s.wio.WIO.Pure[?, ?, ?, ?]].meta

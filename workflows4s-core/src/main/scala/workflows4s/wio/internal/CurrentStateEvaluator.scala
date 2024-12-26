@@ -17,12 +17,13 @@ object CurrentStateEvaluator {
       extends Visitor[Ctx, In, Err, Out](wio) {
     override type Result = String
 
-    def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result                     =
+    def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result     =
       withName(s"Expects signal ${wio.sigHandler.ct.runtimeClass.getSimpleName}")
-    def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result                                                   = withName("Awaits IO execution")
-    def onFlatMap[Out1 <: State, Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result                 = recurse(wio.base)
-    def onMap[In1, Out1 <: State](wio: WIO.Map[Ctx, In1, Err, Out1, In, Out]): Result                                  = recurse(wio.base)
-    def onNoop(wio: WIO.Noop[Ctx]): Result                                                                             = "Noop"
+    def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result                                   = withName("Awaits IO execution")
+    def onFlatMap[Out1 <: State, Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result = recurse(wio.base)
+
+    def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Result          = recurse(wio.base)
+    def onNoop(wio: WIO.End[Ctx]): Result                                                                              = "Noop"
     def onNamed(wio: WIO.Named[Ctx, In, Err, Out]): Result                                                             = withName(recurse(wio.base))
     def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result =
       s"(Handle error or ${recurse(wio.base)})"
@@ -54,9 +55,9 @@ object CurrentStateEvaluator {
       case WIO.HandleSignal(_, _, _, m)      => m.operationName
       case WIO.RunIO(_, _, _)                => none
       case WIO.FlatMap(_, _, _)              => none
-      case WIO.Map(_, _, _)                  => none
+      case WIO.Transform(_, _, _)            => none
       case WIO.Pure(_, _)                    => none
-      case WIO.Noop()                        => none
+      case WIO.End()                         => none
       case WIO.HandleError(_, _, _, _)       => none
       case WIO.HandleErrorWith(_, _, _, _)   => none
       case WIO.Named(_, name, _, _)          => name.some

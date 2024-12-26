@@ -37,10 +37,10 @@ object ProceedEvaluator {
       val x: Option[NextWfState[Ctx, Err1, Out1]] = recurse(wio.base, state)
       x.map(preserveFlatMap(wio, _))
     }
-    def onMap[In1, Out1 <: WCState[Ctx]](wio: WIO.Map[Ctx, In1, Err, Out1, In, Out]): Result                           = {
+    def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Result          = {
       recurse(wio.base, wio.contramapInput(state)).map(preserveMap(wio, _, state))
     }
-    def onNoop(wio: WIO.Noop[Ctx]): Result                                                                             = None
+    def onNoop(wio: WIO.End[Ctx]): Result                                                                              = None
     def onNamed(wio: WIO.Named[Ctx, In, Err, Out]): Result                                                             = recurse(wio.base, state) // TODO, should name be preserved?
     def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result = {
       recurse(wio.base, state).map((newWf: NextWfState[Ctx, ErrIn, Out]) => {

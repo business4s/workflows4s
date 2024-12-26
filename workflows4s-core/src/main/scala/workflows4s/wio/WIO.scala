@@ -72,18 +72,6 @@ object WIO {
     case class Meta(error: ErrorMeta[?], name: Option[String])
   }
 
-  case class FlatMap[Ctx <: WorkflowContext, Err1 <: Err2, Err2, Out1 <: WCState[Ctx], +Out2 <: WCState[Ctx], -In](
-      base: WIO[In, Err1, Out1, Ctx],
-      getNext: Out1 => WIO[Out1, Err2, Out2, Ctx],
-      errorMeta: ErrorMeta[?],
-  ) extends WIO[In, Err2, Out2, Ctx]
-
-  case class Map[Ctx <: WorkflowContext, In, Err, Out1 <: WCState[Ctx], -In2, +Out2 <: WCState[Ctx]](
-      base: WIO[In, Err, Out1, Ctx],
-      contramapInput: In2 => In,
-      mapValue: (In2, Out1) => Out2,
-  ) extends WIO[In2, Err, Out2, Ctx]
-
   case class Pure[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]](
       value: In => Either[Err, Out],
       meta: Pure.Meta,
@@ -93,8 +81,19 @@ object WIO {
     case class Meta(error: ErrorMeta[?], name: Option[String])
   }
 
-  // TODO this should ne called `Never` or `Halt` or `End` or similar, as the workflow cant proceed from that point.
-  case class Noop[Ctx <: WorkflowContext]() extends WIO[Any, Nothing, Nothing, Ctx]
+  case class FlatMap[Ctx <: WorkflowContext, Err1 <: Err2, Err2, Out1 <: WCState[Ctx], +Out2 <: WCState[Ctx], -In](
+      base: WIO[In, Err1, Out1, Ctx],
+      getNext: Out1 => WIO[Out1, Err2, Out2, Ctx],
+      errorMeta: ErrorMeta[?],
+  ) extends WIO[In, Err2, Out2, Ctx]
+
+  case class Transform[Ctx <: WorkflowContext, In1, Err1, Out1 <: WCState[Ctx], -In2, +Out2 <: WCState[Ctx], Err2](
+      base: WIO[In1, Err1, Out1, Ctx],
+      contramapInput: In2 => In1,
+      mapOutput: (In2, Either[Err1, Out1]) => Either[Err2, Out2],
+  ) extends WIO[In2, Err2, Out2, Ctx]
+
+  case class End[Ctx <: WorkflowContext]() extends WIO[Any, Nothing, Nothing, Ctx]
 
   case class HandleError[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx], ErrIn, TempOut <: WCState[Ctx]](
       base: WIO[In, ErrIn, Out, Ctx],

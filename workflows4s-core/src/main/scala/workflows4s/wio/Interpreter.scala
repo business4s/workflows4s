@@ -67,8 +67,8 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
   def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result
   def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result
   def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result
-  def onMap[In1, Out1 <: WCState[Ctx]](wio: WIO.Map[Ctx, In1, Err, Out1, In, Out]): Result
-  def onNoop(wio: WIO.Noop[Ctx]): Result
+  def onTransform[In1, Out1 <: WCState[Ctx], Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Result
+  def onNoop(wio: WIO.End[Ctx]): Result
   def onNamed(wio: WIO.Named[Ctx, In, Err, Out]): Result
   def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result
   def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result
@@ -92,8 +92,8 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
         x match {
           case x: WIO.FlatMap[?, err1, Err, out1, ?, In] => onFlatMap[out1, err1](x)
         }
-      case x: WIO.Map[?, ?, Err, ? <: State, ?, ?]                   => onMap(x)
-      case x: WIO.Noop[?]                                            => onNoop(x)
+      case x: WIO.Transform[?, ?, ?, ? <: State, ?, ?, Err]          => onTransform(x)
+      case x: WIO.End[?]                                             => onNoop(x)
       case x: WIO.HandleError[?, ?, ?, ?, ?, ? <: State]             => onHandleError(x)
       case x: WIO.Named[?, ?, ?, ?]                                  => onNamed(x)
       case x: WIO.AndThen[?, ?, ?, ? <: State, ? <: State]           => onAndThen(x)
@@ -156,23 +156,22 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
       },
     )
 
-  def preserveMap[Out1 <: WCState[Ctx], In1](
-      wio: WIO.Map[Ctx, In1, Err, Out1, In, Out],
-      wf: NextWfState[Ctx, Err, Out1],
+  def preserveMap[Out1 <: WCState[Ctx], In1, Err1](
+      wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err],
+      wf: NextWfState[Ctx, Err1, Out1],
       initState: In,
   ): NextWfState[Ctx, Err, Out] = {
     wf.fold[NextWfState[Ctx, Err, Out]](
       b => {
         val newWIO: WIO[b.State, Err, Out, Ctx] =
-          WIO.Map(
+          WIO.Transform(
             b.wio,
             identity[b.State],
-            (s1: b.State, o1: Out1) => wio.mapValue(initState, o1),
+            (s1: b.State, o1: Either[Err1, Out1]) => wio.mapOutput(initState, o1),
           )
-//          NewBehaviour[b.Error, Err, b.Value, Out, b.State](newWIO, b.state): NextWfState[Err, Out]
         NewBehaviour(newWIO, b.state, b.wakeupAt)
       },
-      v => NewValue(v.value.map(x => wio.mapValue(initState, x))),
+      v => NewValue(wio.mapOutput(initState, v.value)),
     )
   }
 
@@ -323,7 +322,7 @@ sealed trait NextWfState[C <: WorkflowContext, +E, +O <: WCState[C]] { self =>
     case behaviour: NextWfState.NewBehaviour[C, E, O] =>
       def cast[I](wio: workflows4s.wio.WIO[I, E, O, C])(using E <:< Nothing): workflows4s.wio.WIO[I, Nothing, O, C] = wio.asInstanceOf // TODO, cast
       ActiveWorkflow[C, behaviour.State](cast(behaviour.wio), behaviour.state.toOption.get, behaviour.wakeupAt)
-    case value: NextWfState.NewValue[C, E, O]         => ActiveWorkflow(WIO.Noop(), value.value.toOption.get, None)
+    case value: NextWfState.NewValue[C, E, O]         => ActiveWorkflow(WIO.End(), value.value.toOption.get, None)
   }
 
   // its safe, compiler cant get the connection between
