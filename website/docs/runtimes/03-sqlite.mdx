@@ -1,0 +1,57 @@
+
+import SbtDependency from '@site/src/components/SbtDependency';
+
+# Sqlite Runtime
+
+`SqliteRuntime` provides a simple, file-based runtime for workflows. It uses [Doobie](https://tpolecat.github.io/doobie/) to interact with the database.
+
+It is suitable for small to medium-sized applications that require a simple, reliable, and easy-to-use runtime.
+
+
+## Usage
+
+Follow these steps to use the Sqlite runtime. Detailed explanations are provided in the sections below:
+
+1. Add the dependency:
+<SbtDependency moduleName={"workflows4s-doobie"}/>
+2. Include the [database migration](https://github.com/business4s/workflows4s/tree/main/workflows4s-doobie/src/main/resources/schema/) as part of your application lifecycle.
+3. Implement the `EventCodec`.
+4. Use the runtime.
+
+### Database Migrations
+
+Sqlite runtime requires a basic database table to store events. While alternative schemas are possible, they may necessitate a custom `WorkflowStorage`. Refer to [Other Databases](#other-databases--custom-storages) for more details.
+
+<!-- @formatter:off -->
+```sql file=../../workflows4s-doobie/src/main/resources/schema/sqlite-schema.sql
+```
+<!-- @formatter:on -->
+
+This implementation makes several assumptions and is intentionally kept simple. For more demanding use cases, consider using a different runtime or implementing a custom storage solution.
+
+### Event Codec
+
+Events are stored in the database as binary data. The `EventCodec` is used to handle the serialization and deserialization of these events.
+
+### Example
+
+Here is an example of using the Sqlite runtime:
+
+```scala file=./main/scala/workflows4s/example/docs/doobie/SqliteExample.scala start=doc_start end=doc_end
+```
+
+## Locking the Workflow
+
+Consider the following scenario:
+
+1. A workflow awaits two signals in parallel.
+2. Both signals arrive simultaneously.
+3. Only one path of the workflow can be followed.
+
+To address this, workflows are locked, ensuring that only a single signal is processed at a time.
+
+### Workflow ID
+
+The `WorkflowId` is used to identify a workflow instance. It is unique across all workflows.
+
+Locking is implemented by inserting a row into the `workflow_locks` table. If the row already exists, the lock is not acquired. This approach is a workaround for Sqlite, which does not support transactional locks.
