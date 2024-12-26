@@ -1,17 +1,19 @@
 package workflows4s.runtime
 
+import java.time.Clock
+
 import cats.effect.{IO, Ref}
 import cats.implicits.{catsSyntaxApplicativeId, catsSyntaxEitherId, toTraverseOps}
 import workflows4s.runtime.WorkflowInstance.UnexpectedSignal
+import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.wio.*
-
-import java.time.Clock
 
 // TODO current implementation is not safe in concurrent scenario. State should be locked for the duration of side effects
 class InMemoryWorkflowInstance[Ctx <: WorkflowContext](
-    stateRef: Ref[IO, ActiveWorkflow.ForCtx[Ctx]],
+    stateRef: Ref[IO, ActiveWorkflow[Ctx]],
     eventsRef: Ref[IO, Vector[WCEvent[Ctx]]],
     clock: Clock,
+    knockerUpper: KnockerUpper.Agent.Curried,
 ) extends WorkflowInstance[IO, WCState[Ctx]] {
 
   def getEvents: IO[Vector[WCEvent[Ctx]]] = eventsRef.get
@@ -52,6 +54,7 @@ class InMemoryWorkflowInstance[Ctx <: WorkflowContext](
       newState   <- IO.fromOption(newStateOpt)(new Exception("Event returned by signal handling was not handled"))
       _          <- eventsRef.update(_.appended(event))
       _          <- stateRef.set(newState)
+      _          <- if (!inRecovery && state.wakeupAt != newState.wakeupAt) knockerUpper.updateWakeup((), newState.wakeupAt) else IO.unit
       _          <- if (!inRecovery) wakeup() else IO.unit
     } yield ()
   }

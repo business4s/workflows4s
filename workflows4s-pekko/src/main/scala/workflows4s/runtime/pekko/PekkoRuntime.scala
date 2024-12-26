@@ -2,25 +2,27 @@ package workflows4s.runtime.pekko
 
 import cats.effect.unsafe.IORuntime
 import org.apache.pekko.actor.typed.ActorSystem
-import workflows4s.runtime.{WorkflowInstance, WorkflowRuntime}
-import workflows4s.wio.{WCState, WorkflowContext}
-import org.apache.pekko.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity, EntityContext, EntityTypeKey}
+import org.apache.pekko.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity, EntityTypeKey}
 import org.apache.pekko.persistence.typed.PersistenceId
+import workflows4s.runtime.wakeup.KnockerUpper
+import workflows4s.runtime.{WorkflowInstance, WorkflowRuntime}
 import workflows4s.wio.WIO.Initial
+import workflows4s.wio.{WCState, WorkflowContext}
 
 import java.time.Clock
 import scala.concurrent.Future
 
-trait PekkoRuntime[Ctx <: WorkflowContext] extends WorkflowRuntime[Future, Ctx, String, Unit] {
-  def createInstance(id: String): WorkflowInstance[Future, WCState[Ctx]]
+trait PekkoRuntime[Ctx <: WorkflowContext] extends WorkflowRuntime[Future, Ctx, PekkoRuntime.WorkflowId] {
+  def createInstance_(id: String): WorkflowInstance[Future, WCState[Ctx]]
   def initializeShard(): Unit
 }
 
-class PekkoRuntimeImpl[Ctx <: WorkflowContext, Input <: WCState[Ctx]](
-    workflow: Initial[Ctx, Input],
-    initialState: EntityContext[?] => Input,
+class PekkoRuntimeImpl[Ctx <: WorkflowContext](
+    workflow: Initial[Ctx],
+    initialState: WCState[Ctx],
     entityName: String,
     clock: Clock,
+    knockerUpper: KnockerUpper.Agent[PekkoRuntime.WorkflowId],
 )(using
     system: ActorSystem[?],
     IORuntime: IORuntime,
@@ -29,10 +31,10 @@ class PekkoRuntimeImpl[Ctx <: WorkflowContext, Input <: WCState[Ctx]](
   private type Command = WorkflowBehavior.Command[Ctx]
   private val typeKey = EntityTypeKey[Command](entityName)
 
-  override def createInstance(id: String, in: Unit): Future[WorkflowInstance[Future, WCState[Ctx]]] = {
-    Future.successful(createInstance(id))
+  override def createInstance(id: String): Future[WorkflowInstance[Future, WCState[Ctx]]] = {
+    Future.successful(createInstance_(id))
   }
-  override def createInstance(id: String): WorkflowInstance[Future, WCState[Ctx]]                   = {
+  override def createInstance_(id: String): WorkflowInstance[Future, WCState[Ctx]]        = {
     PekkoWorkflowInstance(sharding.entityRefFor(typeKey, id))
   }
 
@@ -40,8 +42,9 @@ class PekkoRuntimeImpl[Ctx <: WorkflowContext, Input <: WCState[Ctx]](
     sharding.init(
       Entity(typeKey)(createBehavior = entityContext => {
         val persistenceId = PersistenceId(entityContext.entityTypeKey.name, entityContext.entityId)
-        val input         = initialState(entityContext)
-        WorkflowBehavior(persistenceId, workflow.provideInput(input), input, clock)
+        val input         = initialState
+        val knockerUpperC = knockerUpper.curried(entityContext.entityId)
+        WorkflowBehavior(persistenceId, workflow.provideInput(input), input, clock, knockerUpperC)
       }),
     )
   }
@@ -50,16 +53,20 @@ class PekkoRuntimeImpl[Ctx <: WorkflowContext, Input <: WCState[Ctx]](
 
 object PekkoRuntime {
 
-  def create[Ctx <: WorkflowContext, Input <: WCState[Ctx]](
+  // TODO opaque type?
+  type WorkflowId = String
+
+  def create[Ctx <: WorkflowContext](
       entityName: String,
-      workflow: Initial[Ctx, Input],
-      initialState: EntityContext[?] => Input,
+      workflow: Initial[Ctx],
+      initialState: WCState[Ctx],
+      knockerUpper: KnockerUpper.Agent[WorkflowId],
       clock: Clock = Clock.systemUTC(),
   )(using
       ioRuntime: IORuntime,
       system: ActorSystem[?],
   ): PekkoRuntime[Ctx] = {
-    new PekkoRuntimeImpl(workflow, initialState, entityName, clock)
+    new PekkoRuntimeImpl(workflow, initialState, entityName, clock, knockerUpper)
   }
 
 }

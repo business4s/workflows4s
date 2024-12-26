@@ -12,5 +12,3 @@ trait WorkflowStorage[Id] {
   def lockWorkflow(id: Id): Resource[ConnectionIO, Unit]
 
 }
-
-

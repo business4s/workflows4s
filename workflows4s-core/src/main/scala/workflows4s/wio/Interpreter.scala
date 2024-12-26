@@ -1,46 +1,42 @@
 package workflows4s.wio
 
+import java.time.Instant
+
 import scala.annotation.nowarn
 
 import cats.effect.IO
 import cats.syntax.all.*
-import workflows4s.runtime.wakeup.KnockerUpper
-import workflows4s.wio.ActiveWorkflow.ForCtx
 import workflows4s.wio.internal.WorkflowEmbedding
-
-class Interpreter(
-    val knockerUpper: KnockerUpper,
-)
 
 object Interpreter {
 
   sealed trait EventResponse[Ctx <: WorkflowContext] {
-    def newWorkflow: Option[ForCtx[Ctx]] = this match {
+    def newWorkflow: Option[ActiveWorkflow[Ctx]] = this match {
       case EventResponse.Ok(newFlow)       => newFlow.some
       case EventResponse.UnexpectedEvent() => None
     }
   }
 
   object EventResponse {
-    case class Ok[Ctx <: WorkflowContext](newFlow: ActiveWorkflow.ForCtx[Ctx]) extends EventResponse[Ctx]
-    case class UnexpectedEvent[Ctx <: WorkflowContext]()                       extends EventResponse[Ctx]
+    case class Ok[Ctx <: WorkflowContext](newFlow: ActiveWorkflow[Ctx]) extends EventResponse[Ctx]
+    case class UnexpectedEvent[Ctx <: WorkflowContext]()                extends EventResponse[Ctx]
 
-    def fromOption[Ctx <: WorkflowContext](o: Option[ActiveWorkflow.ForCtx[Ctx]]): EventResponse[Ctx] = o match {
+    def fromOption[Ctx <: WorkflowContext](o: Option[ActiveWorkflow[Ctx]]): EventResponse[Ctx] = o match {
       case Some(value) => Ok(value)
       case None        => UnexpectedEvent()
     }
   }
 
   sealed trait ProceedResponse[Ctx <: WorkflowContext] {
-    def newWorkflow: Option[ActiveWorkflow.ForCtx[Ctx]] = this match {
+    def newWorkflow: Option[ActiveWorkflow[Ctx]] = this match {
       case ProceedResponse.Executed(newFlow) => newFlow.some
       case ProceedResponse.Noop()            => none
     }
   }
 
   object ProceedResponse {
-    case class Executed[Ctx <: WorkflowContext](newFlow: ActiveWorkflow.ForCtx[Ctx]) extends ProceedResponse[Ctx]
-    case class Noop[Ctx <: WorkflowContext]()                                        extends ProceedResponse[Ctx]
+    case class Executed[Ctx <: WorkflowContext](newFlow: ActiveWorkflow[Ctx]) extends ProceedResponse[Ctx]
+    case class Noop[Ctx <: WorkflowContext]()                                 extends ProceedResponse[Ctx]
   }
 
   sealed trait RunIOResponse[Ctx <: WorkflowContext] {
@@ -134,13 +130,13 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
             NewValue(errCasted.asLeft)
           case Right(value) =>
             val effectiveWIO: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, b.State] = WIO.FlatMap(b.wio, (x: Out1) => wio.getNext(x), wio.errorMeta)
-            NewBehaviour(effectiveWIO, b.state)
+            NewBehaviour(effectiveWIO, b.state, b.wakeupAt)
         }
       },
       v => {
         v.value match {
           case Left(err)     => NewValue(Left(err))
-          case Right(output) => NewBehaviour(wio.getNext(output), Right(output))
+          case Right(output) => NewBehaviour(wio.getNext(output), Right(output), None)
         }
       },
     )
@@ -153,10 +149,10 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
     wf.fold(
       b => {
         val newWIO = WIO.AndThen(b.wio, wio.second)
-        NewBehaviour(newWIO, b.state)
+        NewBehaviour(newWIO, b.state, b.wakeupAt)
       },
       v => {
-        NewBehaviour(wio.second, v.value) // we ignore error, might backfire
+        NewBehaviour(wio.second, v.value, None) // we ignore error, might backfire
       },
     )
 
@@ -174,7 +170,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
             (s1: b.State, o1: Out1) => wio.mapValue(initState, o1),
           )
 //          NewBehaviour[b.Error, Err, b.Value, Out, b.State](newWIO, b.state): NextWfState[Err, Out]
-        NewBehaviour(newWIO, b.state)
+        NewBehaviour(newWIO, b.state, b.wakeupAt)
       },
       v => NewValue(v.value.map(x => wio.mapValue(initState, x))),
     )
@@ -183,11 +179,10 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
   protected def applyHandleError[ErrIn, TempOut <: WCState[Ctx]](
       wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut],
       wf: NextWfState[Ctx, ErrIn, Out] { type Error = ErrIn },
-      originalState: In,
   ): NextWfState[Ctx, Err, Out] = {
     def newWf(err: ErrIn): NewBehaviour[Ctx, Err, Out] = {
       val (newState, newWio) = wio.handleError(err)
-      NewBehaviour(newWio, Right(newState))
+      NewBehaviour(newWio, Right(newState), None)
     }
 
     wf.fold(
@@ -200,7 +195,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
               (newState, newWio.transformInput[Any](_ => newState))
             }
             val newWIO: WIO[b.State, Err, Out, Ctx]                              = WIO.HandleError(b.wio, adjustedHandler, wio.handledErrorMeta, wio.newErrorMeta)
-            NewBehaviour(newWIO, v.asRight)
+            NewBehaviour(newWIO, v.asRight, b.wakeupAt)
         }
       },
       v => {
@@ -220,6 +215,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
     def newWf(err: ErrIn): NewBehaviour[Ctx, Err, Out] = NewBehaviour(
       wio.handleError.provideInput((currentState, err)),
       Right(currentState),
+      None,
     )
 
     wf.fold(
@@ -229,7 +225,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
           case Right(v)    =>
             val newWIO: WIO[b.State, Err, Out, Ctx] =
               WIO.HandleErrorWith(b.wio, wio.handleError, wio.handledErrorMeta, wio.newErrorCt)
-            NewBehaviour(newWIO, v.asRight)
+            NewBehaviour(newWIO, v.asRight, b.wakeupAt)
         }
       },
       v => {
@@ -248,7 +244,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
     wf.fold[NextWfState[Ctx, Err, Out]](
       b => {
         val newWIO: WIO[b.State, Err, Out, Ctx] = wio.copy(current = b.wio)
-        NewBehaviour(newWIO, b.state): NextWfState[Ctx, Err, Out]
+        NewBehaviour(newWIO, b.state, b.wakeupAt): NextWfState[Ctx, Err, Out]
       },
       v =>
         v.value match {
@@ -266,7 +262,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
                       case Some(onReturn) => wio.copy(current = onReturn, isReturning = true)
                       case None           => wio.copy(current = wio.loop, isReturning = false)
                     }
-                NewBehaviour(newWIO, v.value)
+                NewBehaviour(newWIO, v.value, None)
             }
         },
     )
@@ -294,7 +290,8 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
         }
         val newEmbedded: WIO.Embedded[Ctx, Any, Err, InnerCtx, InnerOut, O1] =
           WIO.Embedded(b.wio.transformInput[Any](_ => b.state.toOption.get), newEmbedding, wio.initialState.compose(_ => input))
-        val newBehaviour: NewBehaviour[Ctx, Err, O1[InnerOut]]               = NewBehaviour(newEmbedded, b.state.map(wio.embedding.convertState(_, input)))
+        val newBehaviour: NewBehaviour[Ctx, Err, O1[InnerOut]]               =
+          NewBehaviour(newEmbedded, b.state.map(wio.embedding.convertState(_, input)), b.wakeupAt)
         convert(newBehaviour)
       },
       v => {
@@ -311,7 +308,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
     newWf.fold(
       b => {
         val newBehaviour = WIO.HandleInterruption(b.wio, interruption)
-        NewBehaviour(newBehaviour, b.state)
+        NewBehaviour(newBehaviour, b.state, b.wakeupAt)
       },
       v => v,
     )
@@ -322,11 +319,11 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
 sealed trait NextWfState[C <: WorkflowContext, +E, +O <: WCState[C]] { self =>
   type Error
 
-  def toActiveWorkflow(interpreter: Interpreter)(using E <:< Nothing): ActiveWorkflow.ForCtx[C] = this match {
+  def toActiveWorkflow(using E <:< Nothing): ActiveWorkflow[C] = this match {
     case behaviour: NextWfState.NewBehaviour[C, E, O] =>
       def cast[I](wio: workflows4s.wio.WIO[I, E, O, C])(using E <:< Nothing): workflows4s.wio.WIO[I, Nothing, O, C] = wio.asInstanceOf // TODO, cast
-      ActiveWorkflow[C, behaviour.State](cast(behaviour.wio), behaviour.state.toOption.get)(interpreter)
-    case value: NextWfState.NewValue[C, E, O]         => ActiveWorkflow(WIO.Noop(), value.value.toOption.get)(interpreter)
+      ActiveWorkflow[C, behaviour.State](cast(behaviour.wio), behaviour.state.toOption.get, behaviour.wakeupAt)
+    case value: NextWfState.NewValue[C, E, O]         => ActiveWorkflow(WIO.Noop(), value.value.toOption.get, None)
   }
 
   // its safe, compiler cant get the connection between
@@ -345,17 +342,20 @@ object NextWfState {
 
     def wio: workflows4s.wio.WIO[State, NextError, NextValue, C]
     def state: Either[Error, State]
+    def wakeupAt: Option[Instant]
   }
 
   object NewBehaviour {
     def apply[C <: WorkflowContext, E1, E2, O2 <: WCState[C], S1 <: WCState[C]](
         wio0: workflows4s.wio.WIO[S1, E2, O2, C],
         value0: Either[E1, S1],
+        wakeupAt0: Option[Instant],
     ): NewBehaviour[C, E2, O2] = new NewBehaviour[C, E2, O2] {
       override type State = S1
       override type Error = E1
       override def wio: workflows4s.wio.WIO[State, E2, O2, C] = wio0
       override def state: Either[Error, State]                = value0
+      def wakeupAt: Option[Instant]                           = wakeupAt0
     }
   }
 

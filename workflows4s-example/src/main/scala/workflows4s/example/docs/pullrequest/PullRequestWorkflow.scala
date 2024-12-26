@@ -1,13 +1,12 @@
 package workflows4s.example.docs.pullrequest
 
+import java.io.File
+
 import cats.effect.IO
 import org.camunda.bpm.model.bpmn.Bpmn
-import workflows4s.runtime.InMemorySyncRuntime
-import workflows4s.wio
-import workflows4s.wio.{SignalDef, WorkflowContext}
 import workflows4s.bpmn.BPMNConverter
-
-import java.io.File
+import workflows4s.runtime.InMemorySyncRuntime
+import workflows4s.wio.{SignalDef, WorkflowContext}
 
 object PullRequestWorkflow {
 
@@ -116,9 +115,8 @@ object PullRequestWorkflow {
     // end_render
 
     // start_execution
-    import cats.effect.unsafe.implicits.global
-    val runtime    = InMemorySyncRuntime.default[Context.Ctx, PRState.Empty.type](workflow)
-    val wfInstance = runtime.createInstance((), PRState.Empty)
+    val runtime    = InMemorySyncRuntime.default[Context.Ctx](workflow, PRState.Empty)
+    val wfInstance = runtime.createInstance(())
 
     wfInstance.deliverSignal(Signals.createPR, Signals.CreateRequest("some-sha"))
     println(wfInstance.queryState())

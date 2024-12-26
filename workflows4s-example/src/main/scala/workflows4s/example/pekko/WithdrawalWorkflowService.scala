@@ -29,7 +29,7 @@ object WithdrawalWorkflowService {
       extends WithdrawalWorkflowService {
 
     override def startWorkflow(id: String, input: CreateWithdrawal): IO[Unit] = {
-      val workflow = wdRuntime.createInstance(id)
+      val workflow = wdRuntime.createInstance_(id)
       IO.fromFuture(IO(workflow.deliverSignal(WithdrawalWorkflow.Signals.createWithdrawal, input)))
         .map({
           case Right(response) => response
@@ -40,7 +40,7 @@ object WithdrawalWorkflowService {
     override def listWorkflows: IO[Seq[String]] = IO.fromFuture(IO(journal.currentPersistenceIds().runWith(Sink.seq)))
 
     override def getState(id: String): IO[WithdrawalData] = {
-      val workflow = wdRuntime.createInstance(id)
+      val workflow = wdRuntime.createInstance_(id)
       IO.fromFuture(IO(workflow.queryState()))
     }
 

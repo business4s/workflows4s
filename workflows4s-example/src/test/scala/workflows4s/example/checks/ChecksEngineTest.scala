@@ -151,9 +151,8 @@ object ChecksEngineTest {
         val runtime = getRuntime
 
         def createWorkflow(checks: List[Check[Unit]]) = {
-          val wf = runtime.runWorkflow[ChecksInput](
-            ChecksEngine.runChecks,
-            ChecksInput((), checks),
+          val wf = runtime.runWorkflow(
+            ChecksEngine.runChecks.provideInput(ChecksInput((), checks)),
             null: ChecksState,
             clock,
           )

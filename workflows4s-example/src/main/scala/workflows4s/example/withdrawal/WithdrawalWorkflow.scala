@@ -65,7 +65,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
     } yield s)
       .handleErrorWith(cancelFundsIfNeeded)
 
-  val workflowDeclarative: WIO[WithdrawalData.Empty, Nothing, WithdrawalData.Completed] =
+  val workflowDeclarative: WIO.Initial =
     (
       (
         receiveWithdrawal >>>
@@ -77,18 +77,18 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
         >>> releaseFunds
     ).handleErrorWith(cancelFundsIfNeeded) >>> WIO.noop()
 
-  private def receiveWithdrawal: WIO[WithdrawalData.Empty, WithdrawalRejection.InvalidInput, WithdrawalData.Initiated] =
+  private def receiveWithdrawal: WIO[Any, WithdrawalRejection.InvalidInput, WithdrawalData.Initiated] =
     WIO
       .handleSignal(Signals.createWithdrawal)
-      .using[WithdrawalData.Empty]
+      .using[Any]
       .purely { (_, signal) =>
-        if (signal.amount > 0) WithdrawalAccepted(signal.amount, signal.recipient)
+        if (signal.amount > 0) WithdrawalAccepted(signal.txId, signal.amount, signal.recipient)
         else WithdrawalRejected("Amount must be positive")
       }
       .handleEventWithError { (st, event) =>
         event match {
-          case WithdrawalAccepted(amount, recipient) => st.initiated(amount, recipient).asRight
-          case WithdrawalRejected(error)             => WithdrawalRejection.InvalidInput(error).asLeft
+          case WithdrawalAccepted(txId, amount, recipient) => WithdrawalData.Initiated(txId, amount, recipient).asRight
+          case WithdrawalRejected(error)                   => WithdrawalRejection.InvalidInput(error).asLeft
         }
       }
       .voidResponse

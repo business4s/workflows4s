@@ -169,4 +169,4 @@ We created a new instance and provided the initial events taken from the previou
 and recovered the state without executing any side-effectful operations.
 
 You can find the whole
-code [here](https://github.com/business4s/workflows4s/tree/main/workflows4s-example/src/main/scala/workflow4s/example/docs/pullrequest).
+code [here](https://github.com/business4s/workflows4s/tree/main/workflows4s-example/src/main/scala/workflows4s/example/docs/pullrequest).
