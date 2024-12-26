@@ -9,35 +9,6 @@ import java.time.{Duration, Instant}
 import scala.annotation.unused
 import scala.language.implicitConversions
 
-trait WorkflowContext { ctx: WorkflowContext =>
-  type Event
-  type State
-  type Ctx = WorkflowContext.AUX[State, Event]
-
-  type WIO[-In, +Err, +Out <: State] = workflows4s.wio.WIO[In, Err, Out, Ctx]
-  object WIO extends AllBuilders[Ctx] {
-    type Branch[-In, +Err, +Out <: State]  = workflows4s.wio.WIO.Branch[In, Err, Out, Ctx]
-    type Interruption[+Err, +Out <: State] = workflows4s.wio.WIO.Interruption[Ctx, Err, Out, ?, ?]
-    type Draft                             = WIO[Any, Nothing, Nothing]
-    type Initial                           = workflows4s.wio.WIO.Initial[Ctx]
-
-    def interruption: InterruptionBuilder.Step0[Ctx] = InterruptionBuilder.Step0[Ctx]()
-  }
-}
-
-object WorkflowContext {
-  type AuxS[_S]                    = WorkflowContext { type State = _S }
-  type AuxE[_E]                    = WorkflowContext { type Event = _E }
-  type State[T <: WorkflowContext] = T match {
-    case AuxS[s] => s
-  }
-  type Event[T <: WorkflowContext] = T match {
-    case AuxE[s] => s
-  }
-
-  type AUX[St, Evt] = WorkflowContext { type State = St; type Event = Evt }
-}
-
 sealed trait WIO[-In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext] extends WIOMethods[Ctx, In, Err, Out]
 
 object WIO {
@@ -80,13 +51,6 @@ object WIO {
   object Pure {
     case class Meta(error: ErrorMeta[?], name: Option[String])
   }
-
-  case class FlatMap[Ctx <: WorkflowContext, Err1 <: Err2, Err2, Out1 <: WCState[Ctx], +Out2 <: WCState[Ctx], -In](
-      base: WIO[In, Err1, Out1, Ctx],
-      getNext: Out1 => WIO[Out1, Err2, Out2, Ctx],
-      errorMeta: ErrorMeta[?],
-  ) extends WIO[In, Err2, Out2, Ctx]
-
   case class Transform[Ctx <: WorkflowContext, In1, Err1, Out1 <: WCState[Ctx], -In2, +Out2 <: WCState[Ctx], Err2](
       base: WIO[In1, Err1, Out1, Ctx],
       contramapInput: In2 => In1,
@@ -94,6 +58,12 @@ object WIO {
   ) extends WIO[In2, Err2, Out2, Ctx]
 
   case class End[Ctx <: WorkflowContext]() extends WIO[Any, Nothing, Nothing, Ctx]
+
+  case class FlatMap[Ctx <: WorkflowContext, Err1 <: Err2, Err2, Out1 <: WCState[Ctx], +Out2 <: WCState[Ctx], -In](
+      base: WIO[In, Err1, Out1, Ctx],
+      getNext: Out1 => WIO[Out1, Err2, Out2, Ctx],
+      errorMeta: ErrorMeta[?],
+  ) extends WIO[In, Err2, Out2, Ctx]
 
   case class HandleError[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx], ErrIn, TempOut <: WCState[Ctx]](
       base: WIO[In, ErrIn, Out, Ctx],
