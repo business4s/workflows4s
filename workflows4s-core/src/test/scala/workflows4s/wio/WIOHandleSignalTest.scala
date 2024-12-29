@@ -165,5 +165,4 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers {
   }
 
   val mySignalDef: SignalDef[Int, String] = SignalDef[Int, String]()
-  def ignore[A, B, C]: (A, B) => C        = (_, _) => ???
 }

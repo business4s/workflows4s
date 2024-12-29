@@ -6,16 +6,8 @@ import org.scalatest.matchers.should.Matchers
 import java.time.Instant
 
 class WIOTransformTest extends AnyFreeSpec with Matchers {
-
-  object TestCtx extends WorkflowContext {
-    type Event = String
-    type State = String
-  }
+  
   import TestCtx.*
-
-  extension [In, Out <: WCState[Ctx]](wio: WIO[In, Nothing, Out]) {
-    def toWorkflow[In1 <: In & WCState[Ctx]](state: In1): ActiveWorkflow[Ctx] = ActiveWorkflow(wio, state, None)
-  }
 
   "WIO.Transform" - {
 
@@ -33,7 +25,7 @@ class WIOTransformTest extends AnyFreeSpec with Matchers {
     "transformInput" in {
       val wf: ActiveWorkflow[TestCtx.Ctx] = WIO
         .pure
-        .makeUsing[String]
+        .makeFrom[String]
         .value(identity)
         .done
         .transformInput[String](_.toUpperCase)
@@ -44,6 +36,4 @@ class WIOTransformTest extends AnyFreeSpec with Matchers {
     }
 
   }
-
-  def ignore[A, B, C]: (A, B) => C = (_, _) => ???
 }

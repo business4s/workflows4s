@@ -189,7 +189,6 @@ object WIO {
   ) {
     val finalWIO: WIO[WCState[Ctx], Err, Out, Ctx] = buildFinal(trigger)
     assert(WIOUtils.getFirstRaw(finalWIO) == trigger)
-
   }
 
   object Branch {

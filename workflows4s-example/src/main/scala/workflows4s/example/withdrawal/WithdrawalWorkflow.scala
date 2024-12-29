@@ -129,7 +129,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
 
     val actOnDecision = WIO
       .pure
-      .makeUsing[WithdrawalData.Checked]
+      .makeFrom[WithdrawalData.Checked]
       .errorOpt(_.checkResults.decision match {
         case Decision.RejectedBySystem()   => Some(WithdrawalRejection.RejectedInChecks())
         case Decision.ApprovedBySystem()   => None

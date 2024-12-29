@@ -88,5 +88,4 @@ class WIOPureTest extends AnyFreeSpec with Matchers {
     }
   }
 
-  def ignore[A, B, C]: (A, B) => C = (_, _) => ???
 }

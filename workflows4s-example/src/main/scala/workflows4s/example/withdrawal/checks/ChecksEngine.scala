@@ -40,7 +40,7 @@ object ChecksEngine extends ChecksEngine {
   private def refreshChecksUntilAllComplete: WIO[ChecksInput, Nothing, ChecksState.Executed] = {
 
     val initialize: WIO[ChecksInput, Nothing, ChecksState.Pending] =
-      WIO.pure.makeUsing[ChecksInput].value(ci => ChecksState.Pending(ci, Map())).done
+      WIO.pure.makeFrom[ChecksInput].value(ci => ChecksState.Pending(ci, Map())).done
 
     val awaitRetry: WIO[ChecksState.Pending, Nothing, ChecksState.Pending] = WIO
       .await[ChecksState.Pending](retryBackoff)
@@ -80,7 +80,7 @@ object ChecksEngine extends ChecksEngine {
 
   private val systemDecision: WIO[ChecksState.Executed, Nothing, ChecksState.Decided] =
     WIO.pure
-      .makeUsing[ChecksState.Executed]
+      .makeFrom[ChecksState.Executed]
       .value(st => {
         val decision =
           if (st.isRejected) Decision.RejectedBySystem()
@@ -113,7 +113,7 @@ object ChecksEngine extends ChecksEngine {
 
   private def putInReview: WIO[ChecksState, Nothing, ChecksState.Executed] =
     WIO.pure
-      .makeUsing[ChecksState]
+      .makeFrom[ChecksState]
       .value({
         case progress: ChecksState.InProgress =>
           ChecksState.Executed(progress.results.map({
