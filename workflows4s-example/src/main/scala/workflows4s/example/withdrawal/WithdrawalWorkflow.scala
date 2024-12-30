@@ -127,8 +127,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
           //          .transformOutput((validated, checkState) => validated.checked(checkState)),
       )(checksEmbedding, _ => ChecksState.Empty) // TODO
 
-    val actOnDecision = WIO
-      .pure
+    val actOnDecision = WIO.pure
       .makeFrom[WithdrawalData.Checked]
       .errorOpt(_.checkResults.decision match {
         case Decision.RejectedBySystem()   => Some(WithdrawalRejection.RejectedInChecks())

@@ -13,7 +13,7 @@ class WIOEndTest extends AnyFreeSpec with Matchers {
   "WIO.Pure" - {
 
     "state" in {
-      val  wf: ActiveWorkflow[Ctx] = WIO.end.toWorkflow("initialState")
+      val wf: ActiveWorkflow[Ctx] = WIO.end.toWorkflow("initialState")
 
       val state = wf.liveState(Instant.now)
 

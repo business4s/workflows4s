@@ -57,7 +57,7 @@ object ActiveWorkflow {
   ): ActiveWorkflow[Ctx] =
     new ActiveWorkflow[Ctx] {
       override type CurrentState = In
-      override val staticState: CurrentState                                = value0
+      override val staticState: CurrentState                          = value0
       override def wio: WIO[CurrentState, Nothing, WCState[Ctx], Ctx] = wio0
       override def wakeupAt: Option[Instant]                          = wakeupAt0
     }

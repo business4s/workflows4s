@@ -13,7 +13,7 @@ class WIOPureTest extends AnyFreeSpec with Matchers {
   "WIO.Pure" - {
 
     "state" in {
-      val  wf: ActiveWorkflow[Ctx] = WIO.pure("myValue").done.toWorkflow("initialState")
+      val wf: ActiveWorkflow[Ctx] = WIO.pure("myValue").done.toWorkflow("initialState")
 
       val state = wf.liveState(Instant.now)
 

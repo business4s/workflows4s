@@ -24,7 +24,7 @@ class WIOFlatMapTest extends AnyFreeSpec with Matchers {
 
     "handle signal" - {
       "handle on first" in {
-        val mySignalDef = SignalDef[Int, String]()
+        val mySignalDef  = SignalDef[Int, String]()
         val handleSignal = WIO
           .handleSignal(mySignalDef)
           .using[String]
@@ -40,7 +40,7 @@ class WIOFlatMapTest extends AnyFreeSpec with Matchers {
         assert(eventIO.unsafeRunSync() == ("input: initialState, request: 42", "response(initialState, input: initialState, request: 42)"))
       }
       "handle on second" in {
-        val mySignalDef = SignalDef[Int, String]()
+        val mySignalDef  = SignalDef[Int, String]()
         val handleSignal = WIO
           .handleSignal(mySignalDef)
           .using[String]
@@ -48,7 +48,7 @@ class WIOFlatMapTest extends AnyFreeSpec with Matchers {
           .handleEvent((input, request) => s"eventProcessed($input, $request)")
           .produceResponse((input, request) => s"response($input, $request)")
           .done
-        val pure = WIO.pure("A").done
+        val pure         = WIO.pure("A").done
 
         val wf = pure.flatMap(_ => handleSignal).toWorkflow("initialState")
 
@@ -109,7 +109,6 @@ class WIOFlatMapTest extends AnyFreeSpec with Matchers {
         assert(result.staticState == "SuccessHandled(A, my-event)")
       }
     }
-
 
   }
 }

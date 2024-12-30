@@ -43,7 +43,7 @@
         <boundaryEvent attachedToRef="serviceTask_14" id="boundaryEvent_22" name="Not Enough Funds">
           <errorEventDefinition id="errorEventDefinition_6"/>
         </boundaryEvent>
-        <serviceTask id="serviceTask_15" name="">
+        <serviceTask id="serviceTask_15" name="Act On Decision">
           <incoming>sequenceFlow_33</incoming>
           <outgoing>sequenceFlow_34</outgoing>
         </serviceTask>

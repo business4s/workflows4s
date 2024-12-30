@@ -71,7 +71,7 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers {
     // TODO event with error case
 
     "proceed should be a no-op" in {
-      val  wf: ActiveWorkflow[Ctx] = WIO
+      val wf: ActiveWorkflow[Ctx] = WIO
         .handleSignal(mySignalDef)
         .using[String]
         .withSideEffects(ignore)
@@ -109,7 +109,7 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers {
       }
       "globally named signal" in {
         val namedSignal = SignalDef[String, String](name = "explicitSignalName")
-        val wio = WIO
+        val wio         = WIO
           .handleSignal(namedSignal)
           .using[String]
           .withSideEffects(ignore)
@@ -123,7 +123,7 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers {
 
       "autonamed step" in {
         val myName = base.autoNamed() // Automatically derives a name from the code
-        val meta = myName.extractMeta
+        val meta   = myName.extractMeta
         assert(meta.operationName == "My Name".some)
       }
 
@@ -149,7 +149,7 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers {
 
       "with error explicitly named" in {
         val errMeta = ErrorMeta.Present("errorOccurred")
-        val wio = WIO
+        val wio     = WIO
           .handleSignal(mySignalDef)
           .using[String]
           .withSideEffects(ignore)

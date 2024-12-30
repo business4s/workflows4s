@@ -1,6 +1,5 @@
 package workflows4s.wio
 
-
 object TestCtx extends WorkflowContext {
   type Event = String
   type State = String
@@ -9,7 +8,5 @@ object TestCtx extends WorkflowContext {
     def toWorkflow[In1 <: In & WCState[Ctx]](state: In1): ActiveWorkflow[Ctx] = ActiveWorkflow(wio, state, None)
   }
 
-
   def ignore[A, B, C]: (A, B) => C = (_, _) => ???
 }
-

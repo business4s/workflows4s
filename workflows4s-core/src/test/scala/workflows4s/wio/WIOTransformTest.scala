@@ -6,7 +6,7 @@ import org.scalatest.matchers.should.Matchers
 import java.time.Instant
 
 class WIOTransformTest extends AnyFreeSpec with Matchers {
-  
+
   import TestCtx.*
 
   "WIO.Transform" - {
@@ -23,8 +23,7 @@ class WIOTransformTest extends AnyFreeSpec with Matchers {
     }
 
     "transformInput" in {
-      val wf: ActiveWorkflow[TestCtx.Ctx] = WIO
-        .pure
+      val wf: ActiveWorkflow[TestCtx.Ctx] = WIO.pure
         .makeFrom[String]
         .value(identity)
         .done
