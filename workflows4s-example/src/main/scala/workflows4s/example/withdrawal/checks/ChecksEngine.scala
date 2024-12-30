@@ -1,10 +1,9 @@
 package workflows4s.example.withdrawal.checks
 
-import scala.concurrent.duration.DurationInt
-
 import cats.syntax.all.*
-import workflows4s.wio
-import workflows4s.wio.{SignalDef, WIO, WorkflowContext}
+import workflows4s.wio.{SignalDef, WorkflowContext}
+
+import scala.concurrent.duration.DurationInt
 
 trait ChecksEngine {
   def runChecks: ChecksEngine.Context.WIO[ChecksInput, Nothing, ChecksState.Decided]
@@ -41,7 +40,7 @@ object ChecksEngine extends ChecksEngine {
   private def refreshChecksUntilAllComplete: WIO[ChecksInput, Nothing, ChecksState.Executed] = {
 
     val initialize: WIO[ChecksInput, Nothing, ChecksState.Pending] =
-      WIO.pure[ChecksInput].make(ci => ChecksState.Pending(ci, Map()))
+      WIO.pure.makeFrom[ChecksInput].value(ci => ChecksState.Pending(ci, Map())).done
 
     val awaitRetry: WIO[ChecksState.Pending, Nothing, ChecksState.Pending] = WIO
       .await[ChecksState.Pending](retryBackoff)
@@ -80,12 +79,15 @@ object ChecksEngine extends ChecksEngine {
       .autoNamed
 
   private val systemDecision: WIO[ChecksState.Executed, Nothing, ChecksState.Decided] =
-    WIO.pure.make(st => {
-      val decision =
-        if (st.isRejected) Decision.RejectedBySystem()
-        else Decision.ApprovedBySystem()
-      st.asDecided(decision)
-    })
+    WIO.pure
+      .makeFrom[ChecksState.Executed]
+      .value(st => {
+        val decision =
+          if (st.isRejected) Decision.RejectedBySystem()
+          else Decision.ApprovedBySystem()
+        st.asDecided(decision)
+      })
+      .done
 
   private def handleReview: WIO[ChecksState.Executed, Nothing, ChecksState.Decided] = WIO
     .handleSignal(Signals.review)
@@ -110,9 +112,9 @@ object ChecksEngine extends ChecksEngine {
       .andThen(_ >>> putInReview)
 
   private def putInReview: WIO[ChecksState, Nothing, ChecksState.Executed] =
-    WIO
-      .pure[ChecksState]
-      .make({
+    WIO.pure
+      .makeFrom[ChecksState]
+      .value({
         case progress: ChecksState.InProgress =>
           ChecksState.Executed(progress.results.map({
             case (key, result: CheckResult.Finished) => (key, result)
@@ -120,6 +122,6 @@ object ChecksEngine extends ChecksEngine {
           }))
         case _: ChecksState.Decided           => ??? // not supported
       })
-      .autoNamed()
+      .autoNamed
 
 }

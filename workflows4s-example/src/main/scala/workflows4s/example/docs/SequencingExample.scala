@@ -5,9 +5,9 @@ import workflows4s.example.docs.Context.WIO
 object SequencingExample {
 
   // start_declarative
-  val step1 = WIO.pure[MyState](MyState(1)).autoNamed()
-  val step2 = WIO.pure[MyState](MyState(2)).autoNamed()
-  val step3 = WIO.pure[MyState](MyState(3)).autoNamed()
+  val step1 = WIO.pure(MyState(1)).autoNamed
+  val step2 = WIO.pure(MyState(2)).autoNamed
+  val step3 = WIO.pure(MyState(3)).autoNamed
 
   val sequence1 = step1 >>> step2 >>> step3
   val sequence2 = step1.andThen(step2).andThen(step3)
@@ -15,9 +15,9 @@ object SequencingExample {
 
   object Dynamic {
     // start_dynamic
-    val step1 = WIO.pure[MyState](MyState(1)).autoNamed()
-    val step2 = WIO.pure[MyState](MyState(2)).autoNamed()
-    val step3 = WIO.pure[MyState](MyState(3)).autoNamed()
+    val step1 = WIO.pure(MyState(1)).autoNamed
+    val step2 = WIO.pure(MyState(2)).autoNamed
+    val step3 = WIO.pure(MyState(3)).autoNamed
 
     val sequence1 = for {
       a <- step1

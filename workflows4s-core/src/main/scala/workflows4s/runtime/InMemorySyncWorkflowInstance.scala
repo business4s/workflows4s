@@ -26,7 +26,7 @@ class InMemorySyncWorkflowInstance[Ctx <: WorkflowContext](
   private val events: mutable.Buffer[WCEvent[Ctx]] = ListBuffer[WCEvent[Ctx]]()
   def getEvents: Seq[WCEvent[Ctx]]                 = events.toList
 
-  override def queryState(): WCState[Ctx] = wf.state
+  override def queryState(): WCState[Ctx] = wf.liveState(clock.instant())
 
   override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): Either[WorkflowInstance.UnexpectedSignal, Resp] = {
     logger.debug(s"Handling signal ${req}")
@@ -83,7 +83,7 @@ class InMemorySyncWorkflowInstance[Ctx <: WorkflowContext](
     }
     logger.debug(s"""Updating workflow
                     | New behaviour: ${newWf.getDesc}
-                    | New state: ${newWf.state}""".stripMargin)
+                    | New state: ${newWf.staticState}""".stripMargin)
     wf = newWf
   }
 

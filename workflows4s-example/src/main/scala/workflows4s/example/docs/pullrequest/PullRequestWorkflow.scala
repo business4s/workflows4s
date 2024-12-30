@@ -96,9 +96,9 @@ object PullRequestWorkflow {
 
   // start_steps_3
   val mergePR: WIO[PRState.Reviewed, Nothing, PRState.Merged]   =
-    WIO.pure[PRState.Reviewed].make(in => in).autoNamed()
+    WIO.pure.makeFrom[PRState.Reviewed].value(identity).autoNamed
   val closePR: WIO[(PRState, PRError), Nothing, PRState.Closed] =
-    WIO.pure[(PRState, PRError)].make((state, err) => PRState.Closed(state, err)).autoNamed()
+    WIO.pure.makeFrom[(PRState, PRError)].value((state, err) => PRState.Closed(state, err)).autoNamed
 
   val workflow: WIO[Any, Nothing, PRState] = (
     createPR >>>

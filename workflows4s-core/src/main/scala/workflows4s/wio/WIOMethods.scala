@@ -1,7 +1,6 @@
 package workflows4s.wio
 
 import scala.annotation.targetName
-
 import workflows4s.wio.model.{ModelUtils, WIOModel, WIOModelInterpreter}
 
 trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self: WIO[In, Err, Out, Ctx] =>
@@ -9,10 +8,10 @@ trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self
       errorCt: ErrorMeta[Err1],
   ): WIO[In, Err1, Out1, Ctx] = WIO.FlatMap(this, f, errorCt)
 
-  def map[Out1 <: WCState[Ctx]](f: Out => Out1): WIO[In, Err, Out1, Ctx] = WIO.Map(
+  def map[Out1 <: WCState[Ctx]](f: Out => Out1): WIO[In, Err, Out1, Ctx] = WIO.Transform(
     this,
     identity[In],
-    (_: In, out: Out) => f(out),
+    (_: In, out: Either[Err, Out]) => out.map(f),
   )
 
 //    def checkpointed[Evt, O1, StIn1 <: StIn, StOut1 >: StOut](genEvent: (StOut, Out) => Evt)(
@@ -20,7 +19,7 @@ trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self
 //    ): WIO[Err, O1, StIn, StOut] = ???
 
   def transform[NewIn, NewOut <: WCState[Ctx]](f: NewIn => In, g: (NewIn, Out) => NewOut): WIO[NewIn, Err, NewOut, Ctx] =
-    WIO.Map(this, f, (in: NewIn, out: Out) => g(in, out))
+    WIO.Transform(this, f, (in: NewIn, out: Either[Err, Out]) => out.map(g(in, _)))
 
   def transformInput[NewIn](f: NewIn => In): WIO[NewIn, Err, Out, Ctx] = transform(f, (_, x) => x)
   def provideInput(value: In): WIO[Any, Err, Out, Ctx]                 = transformInput[Any](_ => value)
