@@ -57,9 +57,9 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
 
   val workflow: WIO[WithdrawalData.Empty, Nothing, WithdrawalData.Completed] =
     (for {
-      _ <- receiveWithdrawal
+      _ <- validate
       _ <- calculateFees
-      _ <- putMoneyOnHold
+      _ <- putFundsOnHold
       _ <- runChecks
       _ <- execute
       s <- releaseFunds
@@ -69,16 +69,16 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
   val workflowDeclarative: WIO.Initial =
     (
       (
-        receiveWithdrawal >>>
+        validate >>>
           calculateFees >>>
-          putMoneyOnHold >>>
+          putFundsOnHold >>>
           runChecks >>>
           execute
       ).interruptWith(handleCancellation)
         >>> releaseFunds
     ).handleErrorWith(cancelFundsIfNeeded) >>> WIO.noop()
 
-  private def receiveWithdrawal: WIO[Any, WithdrawalRejection.InvalidInput, WithdrawalData.Initiated] =
+  private def validate: WIO[Any, WithdrawalRejection.InvalidInput, WithdrawalData.Initiated] =
     WIO
       .handleSignal(Signals.createWithdrawal)
       .using[Any]
@@ -93,7 +93,6 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
         }
       }
       .voidResponse
-      .done
       .autoNamed()
 
   private def calculateFees: WIO[WithdrawalData.Initiated, Nothing, WithdrawalData.Validated] = WIO
@@ -101,7 +100,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
     .handleEvent { (state, event) => state.validated(event.fee) }
     .autoNamed
 
-  private def putMoneyOnHold: WIO[WithdrawalData.Validated, WithdrawalRejection.NotEnoughFunds, WithdrawalData.Validated] =
+  private def putFundsOnHold: WIO[WithdrawalData.Validated, WithdrawalRejection.NotEnoughFunds, WithdrawalData.Validated] =
     WIO
       .runIO[WithdrawalData.Validated](state =>
         service
@@ -172,7 +171,6 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
       )
       .voidResponse
       .done
-      .autoNamed()
 
   private def releaseFunds: WIO[WithdrawalData.Executed, Nothing, WithdrawalData.Completed] =
     WIO
