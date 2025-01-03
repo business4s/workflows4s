@@ -1,11 +1,11 @@
 package workflows4s.bpmn
 
-import java.time.Duration
+import cats.implicits.catsSyntaxOptionId
 
+import java.time.Duration
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.util.Random
 import scala.util.chaining.scalaUtilChainingOps
-
 import org.camunda.bpm.model.bpmn.builder.{AbstractActivityBuilder, AbstractFlowNodeBuilder}
 import org.camunda.bpm.model.bpmn.instance.bpmndi.BpmnDiagram
 import org.camunda.bpm.model.bpmn.instance.di.DiagramElement

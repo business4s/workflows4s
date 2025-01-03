@@ -47,7 +47,6 @@ object ChecksEngine extends ChecksEngine {
       .persistStartThrough(started => ChecksEvent.AwaitingRefresh(started.at))(_.started)
       .persistReleaseThrough(released => ChecksEvent.RefreshReleased(released.at))(_.released)
       .autoNamed
-      .done
 
     def isDone(checksState: ChecksState.Pending): Option[ChecksState.Executed] = checksState.asExecuted
 
@@ -87,7 +86,7 @@ object ChecksEngine extends ChecksEngine {
           else Decision.ApprovedBySystem()
         st.asDecided(decision)
       })
-      .done
+      .autoNamed
 
   private def handleReview: WIO[ChecksState.Executed, Nothing, ChecksState.Decided] = WIO
     .handleSignal(Signals.review)

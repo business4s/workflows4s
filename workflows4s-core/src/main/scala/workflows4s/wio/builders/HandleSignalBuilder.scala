@@ -53,7 +53,7 @@ object HandleSignalBuilder {
                   Option(signalName).orElse(this.signalName),
                 ).done
 
-              def autoNamed()(using n: sourcecode.Name): WIO[Input, Err, Out, Ctx] = named(operationName = ModelUtils.prettifyName(n.value))
+              def autoNamed(using n: sourcecode.Name): WIO[Input, Err, Out, Ctx] = named(operationName = ModelUtils.prettifyName(n.value))
 
               def done: WIO[Input, Err, Out, Ctx] = {
                 val combined: (Input, Evt) => (Either[Err, Out], Resp)                   = (s: Input, e: Evt) => (eventHandler(s, e), responseBuilder(s, e))

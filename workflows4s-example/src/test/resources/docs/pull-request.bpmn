@@ -38,7 +38,7 @@
         <signalEventDefinition id="signalEventDefinition_31" signalRef="signal_29"/>
       </intermediateCatchEvent>
       <sequenceFlow id="sequenceFlow_20" sourceRef="serviceTask_9" targetRef="intermediateCatchEvent_1"/>
-      <serviceTask id="serviceTask_10" name="Await Review">
+      <serviceTask id="serviceTask_10" name="Process Review">
         <incoming>sequenceFlow_21</incoming>
         <outgoing>sequenceFlow_22</outgoing>
       </serviceTask>

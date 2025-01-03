@@ -1,0 +1,5 @@
+{
+  "duration" : "PT24H",
+  "name" : "Wait For Input",
+  "_type" : "Timer"
+}

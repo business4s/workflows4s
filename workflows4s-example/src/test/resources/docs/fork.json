@@ -1,0 +1,22 @@
+{
+  "branches" : [
+    {
+      "logic" : {
+        "name" : "Do A",
+        "error" : null,
+        "_type" : "Pure"
+      },
+      "label" : "Yes"
+    },
+    {
+      "logic" : {
+        "name" : "Do B",
+        "error" : null,
+        "_type" : "Pure"
+      },
+      "label" : "No"
+    }
+  ],
+  "name" : "Is counter positive?",
+  "_type" : "Fork"
+}

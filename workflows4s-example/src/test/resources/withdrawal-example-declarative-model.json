@@ -11,7 +11,7 @@
                   "error" : {
                     "name" : "Invalid Input"
                   },
-                  "operationName" : null,
+                  "operationName" : "Validate",
                   "_type" : "HandleSignal"
                 },
                 {
@@ -23,11 +23,11 @@
                   "error" : {
                     "name" : "Not Enough Funds"
                   },
-                  "name" : "Put Money On Hold",
+                  "name" : "Put Funds On Hold",
                   "_type" : "RunIO"
                 },
                 {
-                  "name" : null,
+                  "name" : "Run Checks",
                   "error" : null,
                   "_type" : "Pure"
                 },
@@ -64,7 +64,7 @@
               "operationName" : null,
               "_type" : "HandleSignal"
             },
-            "flow" : null,
+            "handleFlow" : null,
             "_type" : "Interruptible"
           },
           {
