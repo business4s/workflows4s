@@ -33,7 +33,7 @@ object WIOModel {
   ) extends WIOModel
   case class Fork(branches: Vector[Branch], name: Option[String])                                  extends WIOModel
   // handle flow is optional because handling might end on single step(the trigger)
-  case class Interruptible(base: WIOModel, trigger: Interruption, handleFlow: Option[WIOModel])          extends WIOModel
+  case class Interruptible(base: WIOModel, trigger: Interruption, handleFlow: Option[WIOModel])    extends WIOModel
   case class Timer(duration: Option[Duration], name: Option[String])                               extends WIOModel with Interruption
 
   // as of now we always capture error name. It can change in the future

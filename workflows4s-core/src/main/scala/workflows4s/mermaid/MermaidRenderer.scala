@@ -98,9 +98,8 @@ object MermaidRenderer {
         } yield stepId.some
     }
 
-  private val eventShape = "stadium"
+  private val eventShape     = "stadium"
   private val conditionShape = "hex"
-
 
   private def cleanActiveNodes: State[RenderState, Seq[ActiveNode]]            = State { s => s.copy(activeNodes = Seq()) -> s.activeNodes }
   private def cleanPendingErrors: State[RenderState, Seq[PendingError]]        = State { s => s.copy(pendingErrors = Seq()) -> s.pendingErrors }
@@ -120,7 +119,7 @@ object MermaidRenderer {
   private def addStep(label: String, shape: Option[String] = None): State[RenderState, NodeId]                                    = {
     addStepGeneral(id => Node(id, label, shape))
   }
-  private def addStepGeneral(createElem: NodeId => MermaidElement): State[RenderState, NodeId]                                          = {
+  private def addStepGeneral(createElem: NodeId => MermaidElement): State[RenderState, NodeId]                                    = {
     for {
       prev <- cleanActiveNodes
       id   <- addNode(createElem, active = true)
@@ -158,7 +157,7 @@ object MermaidRenderer {
   private type NextLinkLabel = Option[String]
   private type ActiveNode    = (NodeId, NextLinkLabel)
   private type PendingError  = (NodeId, WIOModel.Error)
-  
+
   case class RenderState(
       chart: MermaidFlowchart,
       idIdx: Int,
