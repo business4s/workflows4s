@@ -47,7 +47,6 @@ object ChecksEngine extends ChecksEngine {
       .persistStartThrough(started => ChecksEvent.AwaitingRefresh(started.at))(_.started)
       .persistReleaseThrough(released => ChecksEvent.RefreshReleased(released.at))(_.released)
       .autoNamed
-      .done
 
     def isDone(checksState: ChecksState.Pending): Option[ChecksState.Executed] = checksState.asExecuted
 

@@ -68,7 +68,7 @@ object PullRequestWorkflow {
         else Right(PRState.Initiated(evt.commit)),
       )
       .voidResponse
-      .autoNamed()
+      .autoNamed
   // end_steps_1
 
   // start_steps_2
@@ -81,7 +81,7 @@ object PullRequestWorkflow {
       )
       .autoNamed
 
-  val awaitReview: WIO[PRState.Checked, PRError.ReviewRejected.type, PRState.Reviewed] =
+  val processReview: WIO[PRState.Checked, PRError.ReviewRejected.type, PRState.Reviewed] =
     WIO
       .handleSignal(Signals.reviewPR)
       .using[PRState.Checked]
@@ -91,7 +91,7 @@ object PullRequestWorkflow {
         else Left(PRError.ReviewRejected),
       )
       .voidResponse
-      .autoNamed()
+      .autoNamed
   // end_steps_2
 
   // start_steps_3
@@ -103,7 +103,7 @@ object PullRequestWorkflow {
   val workflow: WIO[Any, Nothing, PRState] = (
     createPR >>>
       runPipeline >>>
-      awaitReview >>>
+      processReview >>>
       mergePR
   ).handleErrorWith(closePR)
   // end_steps_3

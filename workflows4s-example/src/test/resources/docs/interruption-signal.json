@@ -1,0 +1,19 @@
+{
+  "base" : {
+    "name" : "Do A",
+    "error" : null,
+    "_type" : "Pure"
+  },
+  "trigger" : {
+    "signalName" : "My Request",
+    "error" : null,
+    "operationName" : "Interruption",
+    "_type" : "HandleSignal"
+  },
+  "handleFlow" : {
+    "name" : "Do B",
+    "error" : null,
+    "_type" : "Pure"
+  },
+  "_type" : "Interruptible"
+}

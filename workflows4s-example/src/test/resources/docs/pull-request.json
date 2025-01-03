@@ -21,7 +21,7 @@
         "error" : {
           "name" : "Review Rejected"
         },
-        "operationName" : "Await Review",
+        "operationName" : "Process Review",
         "_type" : "HandleSignal"
       },
       {

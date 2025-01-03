@@ -93,7 +93,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
         }
       }
       .voidResponse
-      .autoNamed()
+      .autoNamed
 
   private def calculateFees: WIO[WithdrawalData.Initiated, Nothing, WithdrawalData.Validated] = WIO
     .runIO[WithdrawalData.Initiated](state => service.calculateFees(state.amount).map(WithdrawalEvent.FeeSet.apply))

@@ -33,6 +33,7 @@ object TestUtils {
   def renderDocsExample(wio: WIO[?, ?, ?, ?], name: String) = {
     renderModelToFile(wio, s"docs/${name}.json")
     renderBpmnToFile(wio, s"docs/${name}.bpmn")
+    renderMermaidToFile(wio, s"docs/${name}.mermaid")
   }
 
   val jsonPrinter = Printer.spaces2
