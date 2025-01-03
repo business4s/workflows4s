@@ -1,32 +1,39 @@
 flowchart TD
 node0@{ shape: circle, label: "Start"}
 subgraph node1 [ ]
-node2[Validate]
-node0 -->|fa:fa-envelope Create Withdrawal| node2
-node3[Calculate Fees]
+node2@{ shape: stadium, label: "fa:fa-envelope Create Withdrawal"}
+node0 --> node2
+node3[Validate]
 node2 --> node3
-node4[Put Funds On Hold]
+node4[Calculate Fees]
 node3 --> node4
-node5[Run Checks]
+node5[Put Funds On Hold]
 node4 --> node5
-node6[Act On Decision]
+node6[Run Checks]
 node5 --> node6
-node7[Initiate Execution]
+node7[Act On Decision]
 node6 --> node7
-node8[Handle Execution Completed]
-node7 -->|fa:fa-envelope Execution Completed| node8
+node8[Initiate Execution]
+node7 --> node8
+node9@{ shape: stadium, label: "fa:fa-envelope Execution Completed"}
+node8 --> node9
+node10[Handle Execution Completed]
+node9 --> node10
 end
-node11[Handle Cancel Withdrawal]
-node1 -->|fa:fa-envelope Cancel Withdrawal| node11
-node12[Release Funds]
-node8 --> node12
-node13[Cancel Funds If Needed]
-node2 -.->|fa:fa-bolt Invalid Input| node13
-node4 -.->|fa:fa-bolt Not Enough Funds| node13
-node6 -.->|fa:fa-bolt Rejected In Checks| node13
-node7 -.->|fa:fa-bolt Rejected By Execution Engine| node13
-node8 -.->|fa:fa-bolt Rejected By Execution Engine| node13
-node11 -.->|fa:fa-bolt Cancelled| node13
-node14@{ shape: circle, label: "End"}
-node12 --> node14
+node13@{ shape: stadium, label: "fa:fa-envelope Cancel Withdrawal"}
+node1 --> node13
+node14[Handle Cancel Withdrawal]
 node13 --> node14
+node15[Release Funds]
+node14 --> node15
+node10 --> node15
+node16[Cancel Funds If Needed]
+node3 -.->|fa:fa-bolt Invalid Input| node16
+node5 -.->|fa:fa-bolt Not Enough Funds| node16
+node7 -.->|fa:fa-bolt Rejected In Checks| node16
+node8 -.->|fa:fa-bolt Rejected By Execution Engine| node16
+node10 -.->|fa:fa-bolt Rejected By Execution Engine| node16
+node14 -.->|fa:fa-bolt Cancelled| node16
+node17@{ shape: circle, label: "End"}
+node15 --> node17
+node16 --> node17

@@ -87,7 +87,7 @@ object ChecksEngine extends ChecksEngine {
           else Decision.ApprovedBySystem()
         st.asDecided(decision)
       })
-      .done
+      .autoNamed
 
   private def handleReview: WIO[ChecksState.Executed, Nothing, ChecksState.Decided] = WIO
     .handleSignal(Signals.review)
