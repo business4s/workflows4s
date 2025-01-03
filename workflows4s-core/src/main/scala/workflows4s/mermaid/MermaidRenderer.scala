@@ -10,19 +10,18 @@ object MermaidRenderer {
 
   def renderWorkflow(model: WIOModel): MermaidFlowchart = {
     (addNode(id => Node(id, "Start", shape = "circle".some), active = true) *>
-      go(model))
+      render(model))
       .run(RenderState.initial(0))
       .value
       ._1
       .chart
-      .build
   }
 
-  private def go(model: WIOModel): State[RenderState, Option[NodeId]] =
+  private def render(model: WIOModel): State[RenderState, Option[NodeId]] =
     model match {
       case WIOModel.Sequence(steps)                                                         =>
         for {
-          subSteps <- steps.traverse(go)
+          subSteps <- steps.traverse(render)
         } yield subSteps.flatten.headOption
       case WIOModel.Dynamic(name, error)                                                    =>
         for {
@@ -36,24 +35,22 @@ object MermaidRenderer {
         } yield stepId.some
       case WIOModel.HandleSignal(signalName, error, operationName)                          =>
         for {
-          signalId <- addStep1(id => Node(id, s"fa:fa-envelope $signalName", shape = "stadium".some))
+          signalId <- addStepGeneral(id => Node(id, s"fa:fa-envelope $signalName", shape = eventShape.some))
           stepId   <- addStep(operationName.getOrElse(s"Handle ${signalName}"))
           _        <- error.traverse(addPendingError(stepId, _))
         } yield signalId.some
       case WIOModel.HandleError(base, handler, error)                                       =>
-        // TODO error unused?
+        // generalized error label is unused as we connect specific errors directly to the handler
         for {
-          baseStart    <- go(base)
+          baseStart    <- render(base)
           baseEnds     <- cleanActiveNodes
-          errors       <- State[RenderState, Seq[(NodeId, WIOModel.Error)]](s => s.copy(lastNodes = Seq(), pendingErrors = Seq()) -> s.pendingErrors)
-          handlerStart <- go(handler)
+          errors       <- cleanPendingErrors
+          handlerStart <- render(handler)
           _            <- handleErrors(errors, handlerStart.get) // TODO better error handling or more typesafety?
-          _            <- State.modify[RenderState] { s => s.copy(lastNodes = baseEnds ++ s.lastNodes) }
+          _            <- State.modify[RenderState] { s => s.copy(activeNodes = baseEnds ++ s.activeNodes) }
         } yield baseStart
       case WIOModel.End                                                                     =>
-        for {
-          stepId <- addStep("End", shape = "circle".some)
-        } yield stepId.some
+        addStep("End", shape = "circle".some).map(_.some)
       case WIOModel.Pure(name, error)                                                       =>
         if (name.isDefined || error.isDefined) {
           for {
@@ -63,10 +60,10 @@ object MermaidRenderer {
         } else State.pure(None)
       case WIOModel.Loop(base, conditionName, exitBranchName, restartBranchName, onRestart) =>
         for {
-          baseStart     <- go(base)
-          conditionNode <- addStep(conditionName.getOrElse(" "), shape = "hex".some)
+          baseStart     <- render(base)
+          conditionNode <- addStep(conditionName.getOrElse(" "), shape = conditionShape.some)
           _             <- setNextLinkLabel(restartBranchName)
-          _             <- onRestart.flatTraverse(go)
+          _             <- onRestart.flatTraverse(render)
           ends          <- cleanActiveNodes
           _             <- addLinks(ends, baseStart.get)
           _             <- setActiveNodes(Seq(conditionNode -> exitBranchName))
@@ -75,56 +72,55 @@ object MermaidRenderer {
         def renderBranch(branch: WIOModel.Branch, conditionNode: NodeId): State[RenderState, Vector[(NodeId, NextLinkLabel)]] = {
           for {
             _           <- cleanActiveNodes
-            branchStart <- go(branch.logic)
+            branchStart <- render(branch.logic)
             _           <- branchStart.traverse(addLink(conditionNode, _, label = branch.label))
             branchEnds  <- cleanActiveNodes
           } yield branchEnds.toVector
         }
         for {
-          conditionNode <- addStep(name.getOrElse(" "), shape = "hex".some)
+          conditionNode <- addStep(name.getOrElse(" "), shape = conditionShape.some)
           ends          <- branches.flatTraverse(renderBranch(_, conditionNode))
           _             <- setActiveNodes(ends)
         } yield conditionNode.some
       }
       case WIOModel.Interruptible(base, trigger, handleFlow)                                =>
         for {
-          (baseEnds, baseStart) <- addSubgraph(go(base))
-          _                     <- go(trigger)
-          _                     <- handleFlow.traverse(go)
-          _                     <- State.modify[RenderState](s => s.copy(lastNodes = s.lastNodes ++ baseEnds))
+          (baseEnds, baseStart) <- addSubgraph(render(base))
+          _                     <- render(trigger)
+          _                     <- handleFlow.traverse(render)
+          _                     <- State.modify[RenderState](s => s.copy(activeNodes = s.activeNodes ++ baseEnds))
         } yield baseStart
       case WIOModel.Timer(duration, name)                                                   =>
-        val durationStr = duration.map(humanReadableDuration).getOrElse("dynamic duration")
+        val durationStr = duration.map(humanReadableDuration).getOrElse("dynamic")
         val label       = s"${name.getOrElse("")} ($durationStr)"
         for {
-          stepId <- addStep1(id => Node(id, s"fa:fa-clock ${label}", shape = "stadium".some))
+          stepId <- addStepGeneral(id => Node(id, s"fa:fa-clock ${label}", shape = eventShape.some))
         } yield stepId.some
     }
 
-  type NodeId        = String
-  type NextLinkLabel = Option[String]
-  type ActiveNode    = (NodeId, NextLinkLabel)
+  private val eventShape = "stadium"
+  private val conditionShape = "hex"
 
-  def cleanActiveNodes: State[RenderState, Seq[ActiveNode]]            = State { s => s.copy(lastNodes = Seq()) -> s.lastNodes }
-  def setActiveNodes(nodes: Seq[ActiveNode]): State[RenderState, Unit] = State.modify { s => s.copy(lastNodes = nodes) }
-  def setNextLinkLabel(label: NextLinkLabel): State[RenderState, Unit] = State.modify { s => s.copy(lastNodes = s.lastNodes.map(_._1 -> label)) }
 
-  def addNode(nodeF: NodeId => MermaidElement, active: Boolean, label: Option[String] = None): State[RenderState, NodeId] = State { s =>
+  private def cleanActiveNodes: State[RenderState, Seq[ActiveNode]]            = State { s => s.copy(activeNodes = Seq()) -> s.activeNodes }
+  private def cleanPendingErrors: State[RenderState, Seq[PendingError]]        = State { s => s.copy(pendingErrors = Seq()) -> s.pendingErrors }
+  private def setActiveNodes(nodes: Seq[ActiveNode]): State[RenderState, Unit] = State.modify(_.copy(activeNodes = nodes))
+  private def setNextLinkLabel(label: NextLinkLabel): State[RenderState, Unit] = State.modify { s =>
+    s.copy(activeNodes = s.activeNodes.map(_._1 -> label))
+  }
+
+  private def addNode(nodeF: NodeId => MermaidElement, active: Boolean, label: Option[String] = None): State[RenderState, NodeId] = State { s =>
     val nodeId = s"node${s.idIdx}"
     s.copy(
       chart = s.chart.addElement(nodeF(nodeId)),
       idIdx = s.idIdx + 1,
-      lastNodes = if (active) s.lastNodes.appended(nodeId -> label) else s.lastNodes,
+      activeNodes = if (active) s.activeNodes.appended(nodeId -> label) else s.activeNodes,
     ) -> nodeId
   }
-  def addStep(label: String, shape: Option[String] = None): State[RenderState, NodeId]                                    = {
-    for {
-      prev <- cleanActiveNodes
-      id   <- addNode(id => Node(id, label, shape), active = true)
-      _    <- addLinks(prev, id)
-    } yield id
+  private def addStep(label: String, shape: Option[String] = None): State[RenderState, NodeId]                                    = {
+    addStepGeneral(id => Node(id, label, shape))
   }
-  def addStep1(createElem: NodeId => MermaidElement): State[RenderState, NodeId]                                          = {
+  private def addStepGeneral(createElem: NodeId => MermaidElement): State[RenderState, NodeId]                                          = {
     for {
       prev <- cleanActiveNodes
       id   <- addNode(createElem, active = true)
@@ -132,48 +128,48 @@ object MermaidRenderer {
     } yield id
   }
 
-  def addPendingError(from: NodeId, err: WIOModel.Error): State[RenderState, Unit]              = State { state =>
-    (
-      state.addPendingError(from, err),
-      (),
-    )
-  }
-  def handleErrors(errors: Seq[(NodeId, WIOModel.Error)], to: NodeId): State[RenderState, Unit] = State { state =>
+  private def addPendingError(from: NodeId, err: WIOModel.Error): State[RenderState, Unit] =
+    State.modify(_.addPendingError(from, err))
+
+  private def handleErrors(errors: Seq[(NodeId, WIOModel.Error)], to: NodeId): State[RenderState, Unit] = State.modify { state =>
     val links = errors.map(pendingErr => Link(pendingErr._1, to, s"fa:fa-bolt ${pendingErr._2.name}".some, midfix = "."))
-    state.copy(chart = state.chart.addElements(links)) -> ()
+    state.addElements(links)
   }
-  def addLink(from: NodeId, to: NodeId, label: Option[String] = None): State[RenderState, Unit] = State { state =>
-    (state.copy(chart = state.chart.addLink(from, to, label = label)), ())
-  }
-  def addLinks(from: Seq[(NodeId, NextLinkLabel)], to: NodeId): State[RenderState, Unit]        = State { state =>
-    (state.copy(chart = state.chart.addElements(from.map(f => Link(f._1, to, f._2)))), ())
-  }
-  def addSubgraph[T](subgraph: State[RenderState, T]): State[RenderState, (Seq[ActiveNode], T)] = State { state =>
+  private def addLink(from: NodeId, to: NodeId, label: Option[String] = None): State[RenderState, Unit] =
+    addLinks(Seq((from, label)), to)
+  private def addLinks(from: Seq[(NodeId, NextLinkLabel)], to: NodeId): State[RenderState, Unit]        =
+    State.modify(_.addElements(from.map(f => Link(f._1, to, f._2))))
+
+  private def addSubgraph[T](subgraph: State[RenderState, T]): State[RenderState, (Seq[ActiveNode], T)] = State { state =>
     val id                  = s"node${state.idIdx}"
-    val (subState, subProc) = subgraph.run(RenderState.initial(state.idIdx + 1).copy(lastNodes = state.lastNodes)).value
+    val (subState, subProc) = subgraph.run(RenderState.initial(state.idIdx + 1).copy(activeNodes = state.activeNodes)).value
     (
       state.copy(
-        chart = state.chart.addSubgraph(id, " ")(_ => subState.chart),
+        chart = state.chart.addElement(Subgraph(id, " ", subState.chart.elements)),
         idIdx = state.idIdx + subState.idIdx + 1,
-        lastNodes = Seq((id, None)),
+        activeNodes = Seq((id, None)),
         pendingErrors = state.pendingErrors ++ subState.pendingErrors,
       ),
-      (subState.lastNodes, subProc),
+      (subState.activeNodes, subProc),
     )
   }
 
+  private type NodeId        = String
+  private type NextLinkLabel = Option[String]
+  private type ActiveNode    = (NodeId, NextLinkLabel)
+  private type PendingError  = (NodeId, WIOModel.Error)
+  
   case class RenderState(
-      chart: MermaidFlowchart.Builder,
+      chart: MermaidFlowchart,
       idIdx: Int,
-      lastNodes: Seq[ActiveNode] = Seq(),
-      pendingErrors: Seq[(NodeId, WIOModel.Error)],
+      activeNodes: Seq[ActiveNode] = Seq(),
+      pendingErrors: Seq[PendingError],
   ) {
     def addPendingError(from: NodeId, error: WIOModel.Error): RenderState = copy(pendingErrors = pendingErrors.appended((from, error)))
+    def addElements(els: Seq[MermaidElement]): RenderState                = copy(chart = chart.addElements(els))
   }
-  object RenderState {
-    def initial(idIdx: Int) = {
-      RenderState(MermaidFlowchart.builder, idIdx, Seq(), Seq())
-    }
+  private object RenderState {
+    def initial(idIdx: Int): RenderState = RenderState(MermaidFlowchart(), idIdx, Seq(), Seq())
   }
 
   // TODO commonize with bpmn renderer
