@@ -72,8 +72,13 @@ Both options are considered experimental, and they are subject to change.
 ```scala file=./main/scala/workflows4s/example/docs/visualization/BPMNExample.scala start=start_doc end=end_doc
 ```
 
+![pull-request.svg](/../../workflows4s-example/src/test/resources/docs/pull-request.svg)
+
 ### Mermaid Flowchart
 
 
 ```scala file=./main/scala/workflows4s/example/docs/visualization/MermaidExample.scala start=start_doc end=end_doc
+```
+
+```mermaid file=./test/resources/docs/pull-request.mermaid
 ```

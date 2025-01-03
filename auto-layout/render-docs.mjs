@@ -1,9 +1,6 @@
 import { readdir } from 'fs/promises';
 import { join, parse } from 'path';
 import { convertAll } from 'bpmn-to-image';
-import puppeteer from "puppeteer";
-
-// const browser = await puppeteer.launch({ timeout: 60000 });
 
 // Function to convert all .bpmn files in the specified directory to SVG images
 async function convertBpmnToSvg(directoryPath) {
