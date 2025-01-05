@@ -256,7 +256,7 @@ object WithdrawalWorkflowTest {
 
   object DummyChecksEngine extends ChecksEngine {
     override def runChecks: ChecksEngine.Context.WIO[ChecksInput, Nothing, ChecksState.Decided] =
-      ChecksEngine.Context.WIO.pure(ChecksState.Decided(Map(), Decision.ApprovedBySystem()))
+      ChecksEngine.Context.WIO.pure(ChecksState.Decided(Map(), Decision.ApprovedBySystem())).done
   }
 
 }

@@ -28,8 +28,8 @@ object WIOModelInterpreter {
     def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result          = {
       WIOModel.Sequence(Seq(recurse(wio.base, None), WIOModel.Dynamic(m.name, wio.errorMeta.toModel)))
     }
-    def onMap[In1, Out1 <: WCState[Ctx]](wio: WIO.Map[Ctx, In1, Err, Out1, In, Out]): Result                           = recurse(wio.base)
-    def onNoop(wio: WIO.Noop[Ctx]): Result                                                                             = WIOModel.Noop
+    def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Result          = recurse(wio.base)
+    def onNoop(wio: WIO.End[Ctx]): Result                                                                              = WIOModel.End
     def onNamed(wio: WIO.Named[Ctx, In, Err, Out]): Result                                                             =
       new ModelVisitor(wio.base, Metadata(wio.name.some, wio.description)).run
     def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result = {
@@ -57,7 +57,7 @@ object WIOModelInterpreter {
       }
     }
 
-    def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                             = WIOModel.Pure(m.name, wio.errorMeta.toModel)
+    def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                             = WIOModel.Pure(wio.meta.name, wio.meta.error.toModel)
     def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result =
       WIOModel.Loop(recurse(wio.loop), wio.meta.conditionName, wio.meta.releaseBranchName, wio.meta.restartBranchName, wio.onRestart.map(recurse(_)))
     def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                             =
@@ -129,7 +129,7 @@ object WIOModelInterpreter {
         case x @ WIOModel.RunIO(error, name)                    => handleRaw(x)
         case x @ WIOModel.HandleSignal(signalName, error, name) => handleRaw(x)
         case WIOModel.HandleError(base, handler, errorName)     => stripFirst(base, toBeStripped).map(WIOModel.HandleError(_, handler, errorName))
-        case x @ WIOModel.Noop                                  => handleRaw(x) // does it make any sense?, can noop be element in sequence?
+        case x @ WIOModel.End                                   => handleRaw(x) // does it make any sense?, can noop be element in sequence?
         case x @ WIOModel.Pure(name, errorMeta)                 => handleRaw(x)
         case x: WIOModel.Loop                                   => stripFirst(x.base, toBeStripped).map(y => x.copy(base = y))
         case x @ WIOModel.Fork(_, _)                            => handleRaw(x)

@@ -73,7 +73,7 @@ object BPMNConverter {
           .endEvent()
           .moveToNode(subProcessStartEventId)
           .subProcessDone()
-      case WIOModel.Noop                                              => builder
+      case WIOModel.End                                               => builder
       case WIOModel.Pure(name, errorOpt)                              =>
         if (errorOpt.isDefined || name.isDefined) {
           builder

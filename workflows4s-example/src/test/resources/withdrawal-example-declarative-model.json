@@ -32,7 +32,7 @@
                   "_type" : "Pure"
                 },
                 {
-                  "name" : null,
+                  "name" : "Act On Decision",
                   "error" : {
                     "name" : "Rejected In Checks"
                   },
@@ -86,7 +86,7 @@
       "_type" : "HandleError"
     },
     {
-      "_type" : "Noop"
+      "_type" : "End"
     }
   ],
   "_type" : "Sequence"

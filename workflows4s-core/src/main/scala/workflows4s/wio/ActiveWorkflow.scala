@@ -10,14 +10,16 @@ import workflows4s.wio.internal.*
 
 abstract class ActiveWorkflow[Ctx <: WorkflowContext] {
   type CurrentState <: WCState[Ctx]
-  val state: CurrentState
+  val staticState: CurrentState
   def wio: WIO[CurrentState, Nothing, WCState[Ctx], Ctx]
   def wakeupAt: Option[Instant]
+
+  def liveState(now: Instant): WCState[Ctx] = effectlessProceed(now).getOrElse(this).staticState
 
   def handleSignal[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req, now: Instant): Option[IO[(WCEvent[Ctx], Resp)]] = {
     effectlessProceed(now)
       .getOrElse(this)
-      .pipe(x => SignalEvaluator.handleSignal(signalDef, req, x.wio, x.state)) match {
+      .pipe(x => SignalEvaluator.handleSignal(signalDef, req, x.wio, x.staticState)) match {
       case SignalResponse.Ok(value)          => Some(value)
       case SignalResponse.UnexpectedSignal() => None
     }
@@ -26,20 +28,20 @@ abstract class ActiveWorkflow[Ctx <: WorkflowContext] {
   def handleEvent(event: WCEvent[Ctx], now: Instant): Option[ActiveWorkflow[Ctx]] = {
     val wf = effectlessProceed(now).getOrElse(this)
     EventEvaluator
-      .handleEvent(event, wf.wio, wf.state)
+      .handleEvent(event, wf.wio, wf.staticState)
       .newWorkflow
       .map(x => x.effectlessProceed(now).getOrElse(x))
   }
 
   def proceed(now: Instant): Option[IO[WCEvent[Ctx]]] = {
     val wf = effectlessProceed(now).getOrElse(this)
-    RunIOEvaluator.proceed(wf.wio, wf.state, now).event
+    RunIOEvaluator.proceed(wf.wio, wf.staticState, now).event
   }
 
   // moves forward as far as possible
   private def effectlessProceed(now: Instant): Option[ActiveWorkflow[Ctx]] =
     ProceedEvaluator
-      .proceed(wio, state, now)
+      .proceed(wio, staticState, now)
       .newFlow
       .map(x => x.effectlessProceed(now).getOrElse(x))
 
@@ -55,7 +57,7 @@ object ActiveWorkflow {
   ): ActiveWorkflow[Ctx] =
     new ActiveWorkflow[Ctx] {
       override type CurrentState = In
-      override val state: CurrentState                                = value0
+      override val staticState: CurrentState                          = value0
       override def wio: WIO[CurrentState, Nothing, WCState[Ctx], Ctx] = wio0
       override def wakeupAt: Option[Instant]                          = wakeupAt0
     }

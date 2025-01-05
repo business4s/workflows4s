@@ -46,7 +46,10 @@ class DbWorkflowInstance[Ctx <: WorkflowContext, Id](
   }
 
   def queryState(): ConnectionIO[WCState[Ctx]] = {
-    restoreWorkflow.map(_.state)
+    for {
+      wf  <- restoreWorkflow
+      now <- Sync[ConnectionIO].delay(clock.instant())
+    } yield wf.liveState(now)
   }
 
   def wakeup(): ConnectionIO[Unit] = {
