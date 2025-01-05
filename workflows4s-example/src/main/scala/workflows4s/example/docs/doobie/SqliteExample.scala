@@ -17,14 +17,16 @@ object SqliteExample {
 
   // doc_start
   import MyWorkflowCtx.*
-  val knockerUpper: KnockerUpper.Factory[WorkflowId] = ???
-  val workflow: WIO[InitialState, Nothing, State]    = ???
-  val initialState: State                            = ???
-  val eventCodec: EventCodec[Event]                  = ???
-  val transactor: Transactor[IO]                     = ???
+  val knockerUpper: KnockerUpper.Agent[WorkflowId] = ???
+  val workflow: WIO.Initial                        = ???
+  val initialState: State                          = ???
+  val eventCodec: EventCodec[Event]                = ???
+  val transactor: Transactor[IO]                   = ???
 
-  val runtime: SqliteRuntime[Ctx, InitialState]          = SqliteRuntime.default(workflow, eventCodec, transactor, knockerUpper)
-  val wfInstance: IO[WorkflowInstance[IO, WCState[Ctx]]] = runtime.createInstance(WorkflowId(1L), InitialState())
+  val runtime: SqliteRuntime[Ctx] =
+    SqliteRuntime.default(workflow = workflow, initialState = InitialState(), eventCodec = eventCodec, xa = transactor, knockerUpper = knockerUpper)
+
+  val wfInstance: IO[WorkflowInstance[IO, WCState[Ctx]]] = runtime.createInstance(WorkflowId(1L))
 
   // doc_end
 }

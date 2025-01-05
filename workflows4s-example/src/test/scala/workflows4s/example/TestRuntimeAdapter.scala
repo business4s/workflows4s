@@ -228,11 +228,9 @@ object TestRuntimeAdapter {
 
   class Sqlite[Ctx <: WorkflowContext](xa: Transactor[IO], eventCodec: EventCodec[WCEvent[Ctx]]) extends TestRuntimeAdapter[Ctx] {
     import _root_.doobie.implicits.*
-
-    override def runWorkflow[In](workflow: WIO[In, Nothing, State[Ctx], Ctx], input: In, state: State[Ctx], clock: Clock): Actor = {
-      val runtime =
-        SqliteRuntime.defaultWithState[Ctx, Unit](workflow.provideInput(input), _ => state, eventCodec, xa, KnockerUpper.noopFactory, clock)
-      Actor(runtime.createInstance(_root_.workflows4s.doobie.sqlite.WorkflowId(Random.nextLong()), ()))
+    override def runWorkflow(workflow: WIO[Any, Nothing, State[Ctx], Ctx], state: State[Ctx], clock: Clock): Actor = {
+      val runtime = SqliteRuntime.default[Ctx, Unit](workflow, state, eventCodec, xa, NoOpKnockerUpper.Agent, clock)
+      Actor(runtime.createInstance(_root_.workflows4s.doobie.sqlite.WorkflowId(Random.nextLong())))
     }
 
     override def recover(first: Actor): Actor = first
