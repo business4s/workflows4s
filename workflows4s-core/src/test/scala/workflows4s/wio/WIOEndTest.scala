@@ -2,7 +2,6 @@ package workflows4s.wio
 
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
-import workflows4s.wio.WIO.Pure
 
 import java.time.Instant
 

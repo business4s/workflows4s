@@ -14,7 +14,7 @@ lazy val `workflows4s-core` = (project in file("workflows4s-core"))
   .settings(
     libraryDependencies ++= Seq(
       "org.typelevel"              %% "cats-effect"     % "3.5.7",
-      "co.fs2"                     %% "fs2-core"      % "3.11.0",
+      "co.fs2"                     %% "fs2-core"        % "3.11.0",
       "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.5",
       "io.circe"                   %% "circe-core"      % "0.14.10", // for model serialization
       "io.circe"                   %% "circe-generic"   % "0.14.10", // for model serialization
@@ -101,7 +101,10 @@ lazy val commonSettings = Seq(
   ),
   // scalafix settings
   semanticdbEnabled := true, // enable SemanticDB
-  scalacOptions += "-Wunused:imports",
+  scalacOptions ++= Seq(
+    "-Wunused:imports",
+    "-Wconf:id=E198:error", // unused imports
+  ),
 )
 
 lazy val pekkoVersion               = "1.1.2"

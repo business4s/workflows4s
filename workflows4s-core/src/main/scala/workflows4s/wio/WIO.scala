@@ -2,7 +2,7 @@ package workflows4s.wio
 
 import cats.effect.IO
 import workflows4s.wio.WIO.Timer.DurationSource
-import workflows4s.wio.builders.{AllBuilders, InterruptionBuilder}
+import workflows4s.wio.builders.AllBuilders
 import workflows4s.wio.internal.{EventHandler, SignalHandler, WIOUtils, WorkflowEmbedding}
 
 import java.time.{Duration, Instant}

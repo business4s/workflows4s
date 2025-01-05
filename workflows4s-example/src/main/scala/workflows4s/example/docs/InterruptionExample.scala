@@ -3,8 +3,6 @@ package workflows4s.example.docs
 import workflows4s.example.docs.Context.WIO
 import workflows4s.wio.SignalDef
 
-import scala.concurrent.duration.DurationInt
-
 object InterruptionExample {
 
   // start_signal
