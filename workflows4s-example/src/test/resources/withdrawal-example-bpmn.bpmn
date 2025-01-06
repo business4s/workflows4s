@@ -16,7 +16,7 @@
         <signalEventDefinition id="signalEventDefinition_21" signalRef="signal_20"/>
       </intermediateCatchEvent>
       <sequenceFlow id="sequenceFlow_12" sourceRef="startEvent_23" targetRef="intermediateCatchEvent_0"/>
-      <serviceTask id="serviceTask_6" name="Handle &quot;Create Withdrawal&quot;">
+      <serviceTask id="serviceTask_6" name="Validate">
         <incoming>sequenceFlow_13</incoming>
         <outgoing>sequenceFlow_14</outgoing>
       </serviceTask>
