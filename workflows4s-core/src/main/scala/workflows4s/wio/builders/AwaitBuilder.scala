@@ -61,9 +61,10 @@ object AwaitBuilder {
             private val name: Option[String] = None,
         ) {
 
-          def named(timerName: String): Step3 = this.copy(name = Some(timerName))
+          def named(timerName: String): WIO[InOut, Nothing, InOut, Ctx] = this.copy(name = Some(timerName)).done
 
-          def autoNamed(using name: sourcecode.Name): Step3 = this.copy(name = Some(ModelUtils.prettifyName(name.value)))
+          def autoNamed(using name: sourcecode.Name): WIO[InOut, Nothing, InOut, Ctx] =
+            this.copy(name = Some(ModelUtils.prettifyName(name.value))).done
 
           def done: WIO[InOut, Nothing, InOut, Ctx] = WIO.Timer(durationSource, startedEventHandler, name, releasedEventHandler)
         }

@@ -1,0 +1,24 @@
+flowchart TD
+node0@{ shape: circle, label: "Start"}
+subgraph node1 [" "]
+node2["Run Pending Checks"]
+node0 --> node2
+node3@{ shape: hex, label: "All checks completed?"}
+node2 --> node3
+node4@{ shape: stadium, label: "fa:fa-clock Await Retry (20s)"}
+node3 -->|"No"| node4
+node4 --> node2
+end
+node7@{ shape: stadium, label: "fa:fa-clock Execution Timeout (2m)"}
+node1 --> node7
+node8["Put In Review"]
+node7 --> node8
+node9@{ shape: hex, label: "Requires review?"}
+node8 --> node9
+node3 -->|"Yes"| node9
+node10@{ shape: stadium, label: "fa:fa-envelope Review Decision"}
+node11["Handle Review Decision"]
+node10 --> node11
+node9 -->|"Yes"| node10
+node12["System Decision"]
+node9 -->|"No"| node12

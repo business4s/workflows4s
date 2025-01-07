@@ -25,6 +25,11 @@ const config: Config = {
         locales: ['en'],
     },
 
+    markdown: {
+        mermaid: true,
+    },
+    themes: ['@docusaurus/theme-mermaid'],
+
     presets: [
         [
             'classic',
@@ -32,7 +37,7 @@ const config: Config = {
                 docs: {
                     sidebarPath: './sidebars.ts',
                     editUrl: 'https://github.com/business4s/workflows4s/webstie',
-                    remarkPlugins: [
+                    beforeDefaultRemarkPlugins: [
                         [
                             require('remark-code-snippets'),
                             {baseDir: "../workflows4s-example/src/"}

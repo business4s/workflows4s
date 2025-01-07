@@ -65,7 +65,7 @@ object WIOModelInterpreter {
     def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_] <: WCState[Ctx]](
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
     ): Result = {
-      recurse(wio.inner)
+      recurse(wio.inner) // TODO should express in model?
     }
     def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result = {
       val trigger: WIOModel & WIOModel.Interruption = {

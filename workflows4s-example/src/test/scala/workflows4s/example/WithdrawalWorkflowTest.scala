@@ -38,6 +38,11 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory with Withdrawa
     TestUtils.renderBpmnToFile(wf.workflow, "withdrawal-example-bpmn.bpmn")
     TestUtils.renderBpmnToFile(wf.workflowDeclarative, "withdrawal-example-bpmn-declarative.bpmn")
   }
+  "render mermaid model" in {
+    val wf = new WithdrawalWorkflow(null, DummyChecksEngine)
+    TestUtils.renderMermaidToFile(wf.workflow, "withdrawal-example.mermaid")
+    TestUtils.renderMermaidToFile(wf.workflowDeclarative, "withdrawal-example-declarative.mermaid")
+  }
 }
 object WithdrawalWorkflowTest {
 
@@ -256,7 +261,7 @@ object WithdrawalWorkflowTest {
 
   object DummyChecksEngine extends ChecksEngine {
     override def runChecks: ChecksEngine.Context.WIO[ChecksInput, Nothing, ChecksState.Decided] =
-      ChecksEngine.Context.WIO.pure(ChecksState.Decided(Map(), Decision.ApprovedBySystem())).done
+      ChecksEngine.Context.WIO.pure(ChecksState.Decided(Map(), Decision.ApprovedBySystem())).autoNamed
   }
 
 }

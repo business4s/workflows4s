@@ -3,3 +3,5 @@
 target
 /pr.bpmn
 /test.db
+node_modules
+
