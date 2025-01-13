@@ -6,8 +6,3 @@ CREATE TABLE if not exists workflow_journal
     created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP -- Timestamp for event creation
 );
 
-CREATE INDEX if not exists idx_workflow_id ON workflow_journal (workflow_id);
-
-CREATE TABLE IF NOT EXISTS workflow_locks (
-  workflow_id BIGINT PRIMARY KEY
-);
