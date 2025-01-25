@@ -1,5 +1,5 @@
 flowchart TD
-node0@{ shape: circle, label: "Start"}
+node0:::executed@{ shape: circle, label: "Start"}
 node1@{ shape: stadium, label: "fa:fa-envelope Create Withdrawal"}
 node0 --> node1
 node2["Validate"]
@@ -9,3 +9,4 @@ node2 --> node3
 node4["Cancel Funds If Needed"]
 node2 -.->|"fa:fa-bolt Invalid Input"| node4
 node3 -.->|"fa:fa-bolt Withdrawal Rejection"| node4
+classDef executed fill:#0e0

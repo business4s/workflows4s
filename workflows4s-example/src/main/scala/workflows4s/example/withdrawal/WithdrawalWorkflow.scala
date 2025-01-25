@@ -195,7 +195,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
       .autoNamed
   }
 
-  private def handleCancellation: WIO.Interruption[WithdrawalRejection.Cancelled, Nothing] = {
+  private def handleCancellation = {
     WIO.interruption
       .throughSignal(Signals.cancel)
       .handleAsync((state, signal) => {

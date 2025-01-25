@@ -1,6 +1,10 @@
 {
+  "id" : [
+    0
+  ],
   "signalName" : "My Request",
   "error" : null,
   "operationName" : "Do Things",
+  "executed" : false,
   "_type" : "HandleSignal"
 }

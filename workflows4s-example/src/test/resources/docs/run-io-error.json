@@ -1,7 +1,11 @@
 {
+  "id" : [
+    0
+  ],
   "error" : {
     "name" : "My Error"
   },
   "name" : "Do Things With Error",
+  "executed" : false,
   "_type" : "RunIO"
 }

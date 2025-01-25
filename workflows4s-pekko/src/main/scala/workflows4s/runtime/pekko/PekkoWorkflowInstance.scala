@@ -2,13 +2,13 @@ package workflows4s.runtime.pekko
 
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, Future}
-
 import cats.implicits.catsSyntaxEitherId
 import org.apache.pekko.actor.typed.scaladsl.AskPattern.*
 import org.apache.pekko.actor.typed.{ActorSystem, RecipientRef}
 import org.apache.pekko.util.Timeout
 import workflows4s.runtime.WorkflowInstance
 import workflows4s.runtime.pekko.WorkflowBehavior.SignalResponse
+import workflows4s.wio.model.WIOModel
 import workflows4s.wio.{SignalDef, WCState, WorkflowContext}
 
 class PekkoWorkflowInstance[Ctx <: WorkflowContext](
@@ -37,5 +37,10 @@ class PekkoWorkflowInstance[Ctx <: WorkflowContext](
   override def wakeup(): Future[Unit] = {
     given Timeout = signalTimeout
     actorRef.ask[Unit](replyTo => WorkflowBehavior.Command.Wakeup(replyTo))
+  }
+
+  override def getModel: Future[WIOModel] = {
+    given Timeout = stateQueryTimeout
+    actorRef.ask(ref => WorkflowBehavior.Command.GetModel(ref))
   }
 }

@@ -1,15 +1,29 @@
 {
+  "id" : [
+    0
+  ],
   "steps" : [
     {
+      "id" : [
+        0,
+        0
+      ],
       "name" : "Step1",
       "error" : null,
+      "executed" : false,
       "_type" : "Pure"
     },
     {
+      "id" : [
+        0,
+        1
+      ],
       "name" : null,
       "error" : null,
+      "executed" : false,
       "_type" : "Dynamic"
     }
   ],
+  "executed" : false,
   "_type" : "Sequence"
 }

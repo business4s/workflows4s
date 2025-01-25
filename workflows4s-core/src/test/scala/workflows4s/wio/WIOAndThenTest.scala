@@ -1,22 +1,22 @@
 package workflows4s.wio
 
 import cats.effect.IO
-import org.scalatest.freespec.AnyFreeSpec
 import cats.effect.unsafe.implicits.global
+import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
+
 import java.time.Instant
 
-class WIOFlatMapTest extends AnyFreeSpec with Matchers {
+class WIOAndThenTest extends AnyFreeSpec with Matchers {
 
   import TestCtx.*
 
-  "WIO.FlatMap" - {
+  "WIO.AndThen" - {
 
     "simple" in {
       val a     = WIO.pure.makeFrom[String].value(_ + "A").done
       val b     = WIO.pure.makeFrom[String].value(_ + "B").done
-      val wf    = a
-        .flatMap(_ => b)
+      val wf    = (a >>> b)
         .toWorkflow("0")
       val state = wf.liveState(Instant.now)
       assert(state == "0AB")
@@ -33,7 +33,7 @@ class WIOFlatMapTest extends AnyFreeSpec with Matchers {
           .produceResponse((input, request) => s"response($input, $request)")
           .done
 
-        val wf = handleSignal.flatMap(_ => WIO.end).toWorkflow("initialState")
+        val wf = (handleSignal >>> WIO.end).toWorkflow("initialState")
 
         val Some(eventIO) = wf.handleSignal(mySignalDef)(42, Instant.now): @unchecked
 
@@ -54,7 +54,7 @@ class WIOFlatMapTest extends AnyFreeSpec with Matchers {
           .done
         val pure         = WIO.pure("A").done
 
-        val wf = pure.flatMap(_ => handleSignal).toWorkflow("initialState")
+        val wf = (pure >>> handleSignal).toWorkflow("initialState")
 
         val Some(eventIO) = wf.handleSignal(mySignalDef)(42, Instant.now): @unchecked
 
@@ -68,7 +68,7 @@ class WIOFlatMapTest extends AnyFreeSpec with Matchers {
           .handleEvent(ignore)
           .done
 
-        val wf = runIO.flatMap(_ => WIO.end).toWorkflow("initialState")
+        val wf = (runIO >>> WIO.end).toWorkflow("initialState")
 
         val Some(eventIO) = wf.proceed(Instant.now): @unchecked
 
@@ -80,7 +80,7 @@ class WIOFlatMapTest extends AnyFreeSpec with Matchers {
           .handleEvent(ignore)
           .done
 
-        val wf = WIO.pure("A").done.flatMap(_ => runIO).toWorkflow("")
+        val wf = (WIO.pure("A").done >>> runIO).toWorkflow("")
 
         val Some(eventIO) = wf.proceed(Instant.now): @unchecked
 
@@ -94,7 +94,7 @@ class WIOFlatMapTest extends AnyFreeSpec with Matchers {
           .handleEvent((input, evt) => s"SuccessHandled($input, $evt)")
           .done
 
-        val wf = runIO.flatMap(_ => WIO.end).toWorkflow("initialState")
+        val wf = (runIO >>> WIO.end).toWorkflow("initialState")
 
         val Some(result) = wf.handleEvent("my-event", Instant.now): @unchecked
 
@@ -106,7 +106,7 @@ class WIOFlatMapTest extends AnyFreeSpec with Matchers {
           .handleEvent((input, evt) => s"SuccessHandled($input, $evt)")
           .done
 
-        val wf = WIO.pure("A").done.flatMap(_ => runIO).toWorkflow("")
+        val wf = (WIO.pure("A").done >>> runIO).toWorkflow("")
 
         val Some(result) = wf.handleEvent("my-event", Instant.now): @unchecked
 

@@ -1,5 +1,5 @@
 flowchart TD
-node0@{ shape: circle, label: "Start"}
+node0:::executed@{ shape: circle, label: "Start"}
 subgraph node1 [" "]
 node2@{ shape: stadium, label: "fa:fa-envelope Create Withdrawal"}
 node0 --> node2
@@ -22,7 +22,7 @@ node9 --> node10
 end
 node13@{ shape: stadium, label: "fa:fa-envelope Cancel Withdrawal"}
 node1 --> node13
-node14["Handle Cancel Withdrawal"]
+node14["Handle Cancellation"]
 node13 --> node14
 node15["Release Funds"]
 node14 --> node15
@@ -37,3 +37,4 @@ node14 -.->|"fa:fa-bolt Cancelled"| node16
 node17@{ shape: circle, label: "End"}
 node15 --> node17
 node16 --> node17
+classDef executed fill:#0e0

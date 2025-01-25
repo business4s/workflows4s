@@ -1,93 +1,228 @@
 {
+  "id" : [
+    0
+  ],
   "steps" : [
     {
+      "id" : [
+        0,
+        0
+      ],
       "base" : {
+        "id" : [
+          0,
+          0,
+          0
+        ],
         "steps" : [
           {
+            "id" : [
+              0,
+              0,
+              0,
+              0
+            ],
             "base" : {
+              "id" : [
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
               "steps" : [
                 {
+                  "id" : [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
                   "signalName" : "Create Withdrawal",
                   "error" : {
                     "name" : "Invalid Input"
                   },
                   "operationName" : "Validate",
+                  "executed" : false,
                   "_type" : "HandleSignal"
                 },
                 {
+                  "id" : [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    1
+                  ],
                   "error" : null,
                   "name" : "Calculate Fees",
+                  "executed" : false,
                   "_type" : "RunIO"
                 },
                 {
+                  "id" : [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    1
+                  ],
                   "error" : {
                     "name" : "Not Enough Funds"
                   },
                   "name" : "Put Funds On Hold",
+                  "executed" : false,
                   "_type" : "RunIO"
                 },
                 {
+                  "id" : [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    1,
+                    0,
+                    0,
+                    0
+                  ],
                   "name" : "Run Checks",
                   "error" : null,
+                  "executed" : false,
                   "_type" : "Pure"
                 },
                 {
+                  "id" : [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    1,
+                    1
+                  ],
                   "name" : "Act On Decision",
                   "error" : {
                     "name" : "Rejected In Checks"
                   },
+                  "executed" : false,
                   "_type" : "Pure"
                 },
                 {
+                  "id" : [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    1,
+                    0
+                  ],
                   "error" : {
                     "name" : "Rejected By Execution Engine"
                   },
                   "name" : "Initiate Execution",
+                  "executed" : false,
                   "_type" : "RunIO"
                 },
                 {
+                  "id" : [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    1,
+                    1
+                  ],
                   "signalName" : "Execution Completed",
                   "error" : {
                     "name" : "Rejected By Execution Engine"
                   },
                   "operationName" : null,
+                  "executed" : false,
                   "_type" : "HandleSignal"
                 }
               ],
+              "executed" : false,
               "_type" : "Sequence"
             },
             "trigger" : {
+              "id" : [
+                0,
+                0,
+                0,
+                0,
+                1
+              ],
               "signalName" : "Cancel Withdrawal",
               "error" : {
                 "name" : "Cancelled"
               },
-              "operationName" : null,
+              "operationName" : "Handle Cancellation",
+              "executed" : false,
               "_type" : "HandleSignal"
             },
             "handleFlow" : null,
+            "executed" : false,
             "_type" : "Interruptible"
           },
           {
+            "id" : [
+              0,
+              0,
+              0,
+              1
+            ],
             "error" : null,
             "name" : "Release Funds",
+            "executed" : false,
             "_type" : "RunIO"
           }
         ],
+        "executed" : false,
         "_type" : "Sequence"
       },
       "handler" : {
+        "id" : [
+          0,
+          0,
+          1
+        ],
         "error" : null,
         "name" : "Cancel Funds If Needed",
+        "executed" : false,
         "_type" : "RunIO"
       },
       "error" : {
         "name" : "Withdrawal Rejection"
       },
+      "executed" : false,
       "_type" : "HandleError"
     },
     {
+      "id" : [
+        0,
+        1
+      ],
+      "executed" : false,
       "_type" : "End"
     }
   ],
+  "executed" : false,
   "_type" : "Sequence"
 }

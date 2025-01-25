@@ -34,7 +34,7 @@ object PullRequestWorkflowDraft {
 
   def main(args: Array[String]): Unit = {
     // start_render
-    val bpmnModel = BPMNConverter.convert(workflow.getModel, "process")
+    val bpmnModel = BPMNConverter.convert(workflow.toModel, "process")
     Bpmn.writeModelToFile(new File(s"pr-draft.bpmn").getAbsoluteFile, bpmnModel)
     // end_render
   }

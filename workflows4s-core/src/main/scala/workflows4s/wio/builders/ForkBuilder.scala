@@ -14,7 +14,7 @@ object ForkBuilder {
 
     case class ForkBuilder[-In, +Err, +Out <: WCState[Ctx]](branches: Vector[WIO.Branch[In, Err, Out, Ctx]], name: Option[String]) {
       def onSome[T, Err1 >: Err, Out1 >: Out <: WCState[Ctx], In1 <: In](cond: In1 => Option[T])(
-          wio: WIO[(In1, T), Err1, Out1, Ctx],
+          wio: WIO[T, Err1, Out1, Ctx],
           name: String = null,
       ): ForkBuilder[In1, Err1, Out1] = addBranch(WIO.Branch(cond, wio, Option(name)))
 
@@ -29,6 +29,7 @@ object ForkBuilder {
           WIO.build[Ctx].branch[In1].when(condition.andThen(!_))(onFalse).named("No").done,
         ),
         Option(name),
+        None,
       )
 
       def addBranch[T, Err1 >: Err, Out1 >: Out <: WCState[Ctx], In1 <: In](
@@ -38,7 +39,7 @@ object ForkBuilder {
       def named(name: String): ForkBuilder[In, Err, Out]                   = this.copy(name = name.some)
       def autoNamed()(using n: sourcecode.Name): ForkBuilder[In, Err, Out] = named(ModelUtils.prettifyName(n.value))
 
-      def done: WIO[In, Err, Out, Ctx] = WIO.Fork(branches, name)
+      def done: WIO[In, Err, Out, Ctx] = WIO.Fork(branches, name, None)
     }
 
   }

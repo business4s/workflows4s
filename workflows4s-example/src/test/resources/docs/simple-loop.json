@@ -1,12 +1,21 @@
 {
+  "id" : [
+    0
+  ],
   "base" : {
+    "id" : [
+      0,
+      0
+    ],
     "name" : "Step1",
     "error" : null,
+    "executed" : false,
     "_type" : "Pure"
   },
   "conditionName" : null,
   "exitBranchName" : null,
   "restartBranchName" : null,
   "onRestart" : null,
+  "executed" : false,
   "_type" : "Loop"
 }

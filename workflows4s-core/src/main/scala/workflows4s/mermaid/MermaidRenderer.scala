@@ -9,37 +9,46 @@ import java.time.Duration
 object MermaidRenderer {
 
   def renderWorkflow(model: WIOModel): MermaidFlowchart = {
-    (addNode(id => Node(id, "Start", shape = "circle".some), active = true) *>
+    (addNode(id => Node(id, "Start", shape = "circle".some, clazz = executedClass.some), active = true) *>
       render(model))
       .run(RenderState.initial(0))
       .value
       ._1
       .chart
+      .addElement(styles)
   }
 
-  private def render(model: WIOModel): State[RenderState, Option[NodeId]] =
+  val executedClass = "executed"
+  val styles        = ClassDef(executedClass, "fill:#0e0")
+
+  private def render(model: WIOModel): State[RenderState, Option[NodeId]] = {
+    def addStep(label: String, shape: Option[String] = None): State[RenderState, NodeId] = {
+      addStepGeneral(id => Node(id, label, shape, clazz = if (model.executed) executedClass.some else None))
+    }
     model match {
-      case WIOModel.Sequence(steps)                                                         =>
+      case WIOModel.Sequence(_, steps, _)                                                         =>
         for {
           subSteps <- steps.traverse(render)
         } yield subSteps.flatten.headOption
-      case WIOModel.Dynamic(name, error)                                                    =>
+      case WIOModel.Dynamic(_, name, error, _)                                                    =>
         for {
           stepId <- addStep(name.getOrElse("@dynamic"))
           _      <- error.traverse(addPendingError(stepId, _))
         } yield stepId.some
-      case WIOModel.RunIO(error, name)                                                      =>
+      case WIOModel.RunIO(_, error, name, _)                                                      =>
         for {
           stepId <- addStep(name.getOrElse("@computation"))
           _      <- error.traverse(addPendingError(stepId, _))
         } yield stepId.some
-      case WIOModel.HandleSignal(signalName, error, operationName)                          =>
+      case WIOModel.HandleSignal(_, signalName, error, operationName, _)                          =>
         for {
-          signalId <- addStepGeneral(id => Node(id, s"fa:fa-envelope $signalName", shape = eventShape.some))
+          signalId <- addStepGeneral(id =>
+                        Node(id, s"fa:fa-envelope $signalName", shape = eventShape.some, clazz = if (model.executed) executedClass.some else None),
+                      )
           stepId   <- addStep(operationName.getOrElse(s"Handle ${signalName}"))
           _        <- error.traverse(addPendingError(stepId, _))
         } yield signalId.some
-      case WIOModel.HandleError(base, handler, error)                                       =>
+      case WIOModel.HandleError(_, base, handler, error, _)                                       =>
         // generalized error label is unused as we connect specific errors directly to the handler
         for {
           baseStart    <- render(base)
@@ -49,16 +58,16 @@ object MermaidRenderer {
           _            <- handleErrors(errors, handlerStart.get) // TODO better error handling or more typesafety?
           _            <- State.modify[RenderState] { s => s.copy(activeNodes = baseEnds ++ s.activeNodes) }
         } yield baseStart
-      case WIOModel.End                                                                     =>
+      case WIOModel.End(_, _)                                                                     =>
         addStep("End", shape = "circle".some).map(_.some)
-      case WIOModel.Pure(name, error)                                                       =>
+      case WIOModel.Pure(_, name, error, _)                                                       =>
         if (name.isDefined || error.isDefined) {
           for {
             stepId <- addStep(name.getOrElse("@computation"))
             _      <- error.traverse(addPendingError(stepId, _))
           } yield stepId.some
         } else State.pure(None)
-      case WIOModel.Loop(base, conditionName, exitBranchName, restartBranchName, onRestart) =>
+      case WIOModel.Loop(_, base, conditionName, exitBranchName, restartBranchName, onRestart, _) =>
         for {
           baseStart     <- render(base)
           conditionNode <- addStep(conditionName.getOrElse(" "), shape = conditionShape.some)
@@ -68,7 +77,7 @@ object MermaidRenderer {
           _             <- addLinks(ends, baseStart.get)
           _             <- setActiveNodes(Seq(conditionNode -> exitBranchName))
         } yield baseStart
-      case WIOModel.Fork(branches, name)                                                    => {
+      case WIOModel.Fork(_, branches, name, _)                                                    => {
         def renderBranch(branch: WIOModel.Branch, conditionNode: NodeId): State[RenderState, Vector[(NodeId, NextLinkLabel)]] = {
           for {
             _           <- cleanActiveNodes
@@ -83,20 +92,22 @@ object MermaidRenderer {
           _             <- setActiveNodes(ends)
         } yield conditionNode.some
       }
-      case WIOModel.Interruptible(base, trigger, handleFlow)                                =>
+      case WIOModel.Interruptible(_, base, trigger, handleFlow, _)                                =>
         for {
           (baseEnds, baseStart) <- addSubgraph(render(base))
           _                     <- render(trigger)
           _                     <- handleFlow.traverse(render)
           _                     <- State.modify[RenderState](s => s.copy(activeNodes = s.activeNodes ++ baseEnds))
         } yield baseStart
-      case WIOModel.Timer(duration, name)                                                   =>
+      case WIOModel.Timer(_, duration, name, _)                                                   =>
         val durationStr = duration.map(humanReadableDuration).getOrElse("dynamic")
         val label       = s"${name.getOrElse("")} ($durationStr)"
         for {
-          stepId <- addStepGeneral(id => Node(id, s"fa:fa-clock ${label}", shape = eventShape.some))
+          stepId <-
+            addStepGeneral(id => Node(id, s"fa:fa-clock ${label}", shape = eventShape.some, clazz = if (model.executed) executedClass.some else None))
         } yield stepId.some
     }
+  }
 
   private val eventShape     = "stadium"
   private val conditionShape = "hex"
@@ -115,9 +126,6 @@ object MermaidRenderer {
       idIdx = s.idIdx + 1,
       activeNodes = if (active) s.activeNodes.appended(nodeId -> label) else s.activeNodes,
     ) -> nodeId
-  }
-  private def addStep(label: String, shape: Option[String] = None): State[RenderState, NodeId]                                    = {
-    addStepGeneral(id => Node(id, label, shape))
   }
   private def addStepGeneral(createElem: NodeId => MermaidElement): State[RenderState, NodeId]                                    = {
     for {

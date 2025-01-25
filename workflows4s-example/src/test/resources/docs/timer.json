@@ -1,5 +1,9 @@
 {
+  "id" : [
+    0
+  ],
   "duration" : "PT24H",
   "name" : "Wait For Input",
+  "executed" : false,
   "_type" : "Timer"
 }

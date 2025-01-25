@@ -21,7 +21,7 @@ class InMemoryRuntime[Ctx <: WorkflowContext, WorkflowId](
   override def createInstance(id: WorkflowId): IO[InMemoryWorkflowInstance[Ctx]] = {
     for {
       runningWfRef <- Deferred[IO, InMemoryWorkflowInstance[Ctx]]
-      initialWf     = ActiveWorkflow(workflow, initialState, None)
+      initialWf     = ActiveWorkflow(workflow, initialState)
       stateRef     <- Ref[IO].of(initialWf)
       eventsRef    <- Ref[IO].of(Vector[WCEvent[Ctx]]())
       runningWf     = InMemoryWorkflowInstance[Ctx](stateRef, eventsRef, clock, knockerUpper.curried(id))

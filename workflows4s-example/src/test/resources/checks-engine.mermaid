@@ -1,5 +1,5 @@
 flowchart TD
-node0@{ shape: circle, label: "Start"}
+node0:::executed@{ shape: circle, label: "Start"}
 subgraph node1 [" "]
 node2["Run Pending Checks"]
 node0 --> node2
@@ -11,14 +11,13 @@ node4 --> node2
 end
 node7@{ shape: stadium, label: "fa:fa-clock Execution Timeout (2m)"}
 node1 --> node7
-node8["Put In Review"]
+node8@{ shape: hex, label: "Requires review?"}
 node7 --> node8
-node9@{ shape: hex, label: "Requires review?"}
-node8 --> node9
-node3 -->|"Yes"| node9
-node10@{ shape: stadium, label: "fa:fa-envelope Review Decision"}
-node11["Handle Review Decision"]
-node10 --> node11
-node9 -->|"Yes"| node10
-node12["System Decision"]
-node9 -->|"No"| node12
+node3 -->|"Yes"| node8
+node9@{ shape: stadium, label: "fa:fa-envelope Review Decision"}
+node10["Handle Review Decision"]
+node9 --> node10
+node8 -->|"Yes"| node9
+node11["System Decision"]
+node8 -->|"No"| node11
+classDef executed fill:#0e0

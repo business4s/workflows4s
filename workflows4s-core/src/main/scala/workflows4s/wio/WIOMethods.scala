@@ -55,10 +55,10 @@ trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self
   def >>>[Err1 >: Err, Out1 <: WCState[Ctx]](next: WIO[Out, Err1, Out1, Ctx]): WIO[In, Err1, Out1, Ctx] = andThen(next)
 
   def interruptWith[Out1 >: Out <: WCState[Ctx], Err1 >: Err, In1 <: In](
-      interruption: WIO.Interruption[Ctx, Err1, Out1, ?, ?],
+      interruption: WIO.Interruption[Ctx, Err1, Out1],
   ): WIO.HandleInterruption[Ctx, In1, Err1, Out1] =
-    WIO.HandleInterruption(this, interruption)
+    WIO.HandleInterruption(this, interruption.handler, WIO.HandleInterruption.InterruptionStatus.Pending, interruption.tpe)
 
-  def getModel: WIOModel = WIOModelInterpreter.run(this)
+  def toModel: WIOModel = WIOModelInterpreter.run(this)
 
 }

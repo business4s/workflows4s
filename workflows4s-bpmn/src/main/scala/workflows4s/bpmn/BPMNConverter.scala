@@ -34,20 +34,20 @@ object BPMNConverter {
       builder: Builder,
   ): Builder = {
     model match {
-      case WIOModel.Sequence(steps)                                   =>
+      case WIOModel.Sequence(_, steps, _)                                   =>
         steps.foldLeft[AbstractFlowNodeBuilder[?, ?]](builder)((builder, step) => handle(step, builder))
-      case WIOModel.Dynamic(name, error)                              =>
+      case WIOModel.Dynamic(_, name, error, _)                              =>
         val taskName = name.map(_ + " (Dynamic)").getOrElse("<Dynamic>")
         builder
           .serviceTask()
           .name(taskName)
           .pipe(renderError(error))
-      case WIOModel.RunIO(error, name)                                =>
+      case WIOModel.RunIO(_, error, name, _)                                =>
         builder
           .serviceTask()
           .name(name.getOrElse("Task"))
           .pipe(renderError(error))
-      case WIOModel.HandleSignal(signalName, error, operationName)    =>
+      case WIOModel.HandleSignal(_, signalName, error, operationName, _)    =>
         builder
           .intermediateCatchEvent()
           .signal(signalName)
@@ -55,7 +55,7 @@ object BPMNConverter {
           .serviceTask()
           .name(operationName.getOrElse(s"""Handle "${signalName}""""))
           .pipe(renderError(error))
-      case WIOModel.HandleError(base, handler, error)                 =>
+      case WIOModel.HandleError(_, base, handler, error, _)                 =>
         val subProcessStartEventId = Random.alphanumeric.filter(_.isLetter).take(10).mkString
         val subBuilder             = builder
           .subProcess()
@@ -72,15 +72,15 @@ object BPMNConverter {
           .endEvent()
           .moveToNode(subProcessStartEventId)
           .subProcessDone()
-      case WIOModel.End                                               => builder
-      case WIOModel.Pure(name, errorOpt)                              =>
+      case WIOModel.End(_, _)                                               => builder
+      case WIOModel.Pure(_, name, errorOpt, _)                              =>
         if (errorOpt.isDefined || name.isDefined) {
           builder
             .serviceTask()
             .name(name.orNull)
             .pipe(renderError(errorOpt))
         } else builder
-      case loop: WIOModel.Loop                                        =>
+      case loop: WIOModel.Loop                                              =>
         val loopStartGwId      = Random.alphanumeric.filter(_.isLetter).take(10).mkString
         val loopEndGwId        = Random.alphanumeric.filter(_.isLetter).take(10).mkString
         val nextTaskTempNodeId = Random.alphanumeric.filter(_.isLetter).take(10).mkString
@@ -101,7 +101,7 @@ object BPMNConverter {
           )
           .connectTo(loopStartGwId)
           .moveToNode(nextTaskTempNodeId)
-      case WIOModel.Fork(branches, name)                              =>
+      case WIOModel.Fork(_, branches, name, _)                              =>
         val base                           = builder.exclusiveGateway().name(name.orNull)
         val gwId                           = base.getElement.getId
         val (resultBuilder, Some(endGwId)) = {
@@ -119,7 +119,7 @@ object BPMNConverter {
           })
         }: @unchecked
         resultBuilder.moveToNode(endGwId)
-      case WIOModel.Interruptible(base, trigger, interruptionFlowOpt) =>
+      case WIOModel.Interruptible(_, base, trigger, interruptionFlowOpt, _) =>
         val subProcessStartEventId = Random.alphanumeric.filter(_.isLetter).take(10).mkString
         val subBuilder             = builder
           .subProcess()
@@ -151,7 +151,7 @@ object BPMNConverter {
           .endEvent()
           .moveToNode(subProcessStartEventId)
           .subProcessDone()
-      case WIOModel.Timer(duration, name)                             =>
+      case WIOModel.Timer(_, duration, name, _)                             =>
         val label = (duration, name) match {
           case (Some(duration), Some(name)) => s"$name (${humanReadableDuration(duration)})"
           case (None, Some(name))           => name

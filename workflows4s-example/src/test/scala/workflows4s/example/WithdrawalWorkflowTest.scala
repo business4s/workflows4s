@@ -3,6 +3,7 @@ package workflows4s.example
 import cats.effect.IO
 import com.typesafe.scalalogging.StrictLogging
 import org.scalamock.scalatest.MockFactory
+import org.scalatest.EitherValues.*
 import org.scalatest.Inside.inside
 import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.freespec.{AnyFreeSpec, AnyFreeSpecLike}
@@ -169,7 +170,7 @@ object WithdrawalWorkflowTest {
         val runtime = getRuntime
         val txId    = "abc"
         val clock   = new TestClock
-        val actor   = createActor(List())
+        val actor   = createActor()
 
         def checkRecovery() = {
           logger.debug("Checking recovery")
@@ -182,7 +183,7 @@ object WithdrawalWorkflowTest {
           assert(recoveredState == originalState)
         }
 
-        def createActor(events: Seq[WithdrawalEvent]) = {
+        def createActor() = {
           val wf    = runtime
             .runWorkflow(
               workflow,
@@ -235,16 +236,16 @@ object WithdrawalWorkflowTest {
 
         class WithdrawalActor(val wf: runtime.Actor) {
           def init(req: CreateWithdrawal): Unit = {
-            wf.deliverSignal(WithdrawalWorkflow.Signals.createWithdrawal, req)
+            wf.deliverSignal(WithdrawalWorkflow.Signals.createWithdrawal, req).value
             wf.wakeup()
           }
 
           def confirmExecution(req: WithdrawalSignal.ExecutionCompleted): Unit = {
-            wf.deliverSignal(WithdrawalWorkflow.Signals.executionCompleted, req)
+            wf.deliverSignal(WithdrawalWorkflow.Signals.executionCompleted, req).value
           }
 
           def cancel(req: WithdrawalSignal.CancelWithdrawal): Unit = {
-            wf.deliverSignal(WithdrawalWorkflow.Signals.cancel, req)
+            wf.deliverSignal(WithdrawalWorkflow.Signals.cancel, req).value
           }
 
           def queryData(): WithdrawalData = wf.queryState()

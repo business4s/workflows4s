@@ -1,7 +1,6 @@
 package workflows4s.example.checks
 
 import scala.reflect.Selectable.reflectiveSelectable
-
 import cats.Id
 import cats.effect.IO
 import com.typesafe.scalalogging.StrictLogging
@@ -9,6 +8,7 @@ import org.scalatest.Inside.inside
 import org.scalatest.freespec.{AnyFreeSpec, AnyFreeSpecLike}
 import workflows4s.example.withdrawal.checks.*
 import workflows4s.example.{TestClock, TestRuntimeAdapter, TestUtils}
+import workflows4s.mermaid.MermaidRenderer
 import workflows4s.runtime.WorkflowInstance
 import workflows4s.wio.WCState
 import workflows4s.wio.model.{WIOModel, WIOModelInterpreter}
@@ -81,6 +81,7 @@ object ChecksEngineTest {
         }
         clock.advanceBy(ChecksEngine.timeoutThreshold)
         wf.run()
+        val diagram            = MermaidRenderer.renderWorkflow(wf.wf.getModel)
         assert(wf.state == ChecksState.Executed(Map(check.key -> CheckResult.TimedOut())))
         wf.review(ReviewDecision.Approve)
         assert(
