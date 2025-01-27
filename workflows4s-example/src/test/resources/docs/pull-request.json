@@ -1,21 +1,7 @@
 {
-  "id" : [
-    0
-  ],
   "base" : {
-    "id" : [
-      0,
-      0
-    ],
     "steps" : [
       {
-        "id" : [
-          0,
-          0,
-          0,
-          0,
-          0
-        ],
         "signalName" : "Create Request",
         "error" : {
           "name" : "Commit Not Found"
@@ -25,13 +11,6 @@
         "_type" : "HandleSignal"
       },
       {
-        "id" : [
-          0,
-          0,
-          0,
-          0,
-          1
-        ],
         "error" : {
           "name" : "Pipeline Failed"
         },
@@ -40,12 +19,6 @@
         "_type" : "RunIO"
       },
       {
-        "id" : [
-          0,
-          0,
-          0,
-          1
-        ],
         "signalName" : "Review Request",
         "error" : {
           "name" : "Review Rejected"
@@ -55,11 +28,6 @@
         "_type" : "HandleSignal"
       },
       {
-        "id" : [
-          0,
-          0,
-          1
-        ],
         "name" : "Merge PR",
         "error" : null,
         "executed" : false,
@@ -70,10 +38,6 @@
     "_type" : "Sequence"
   },
   "handler" : {
-    "id" : [
-      0,
-      1
-    ],
     "name" : "Close PR",
     "error" : null,
     "executed" : false,

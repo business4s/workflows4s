@@ -1,21 +1,7 @@
 {
-  "id" : [
-    0
-  ],
   "base" : {
-    "id" : [
-      0,
-      0
-    ],
     "steps" : [
       {
-        "id" : [
-          0,
-          0,
-          0,
-          0,
-          0
-        ],
         "signalName" : "Create PR",
         "error" : null,
         "operationName" : null,
@@ -23,13 +9,6 @@
         "_type" : "HandleSignal"
       },
       {
-        "id" : [
-          0,
-          0,
-          0,
-          0,
-          1
-        ],
         "error" : {
           "name" : "Critical Issue"
         },
@@ -38,12 +17,6 @@
         "_type" : "RunIO"
       },
       {
-        "id" : [
-          0,
-          0,
-          0,
-          1
-        ],
         "signalName" : "Await Review",
         "error" : {
           "name" : "Rejected"
@@ -53,11 +26,6 @@
         "_type" : "HandleSignal"
       },
       {
-        "id" : [
-          0,
-          0,
-          1
-        ],
         "error" : null,
         "name" : "Merge PR",
         "executed" : false,
@@ -68,10 +36,6 @@
     "_type" : "Sequence"
   },
   "handler" : {
-    "id" : [
-      0,
-      1
-    ],
     "error" : null,
     "name" : "Close PR",
     "executed" : false,

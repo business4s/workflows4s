@@ -1,23 +1,11 @@
 {
-  "id" : [
-    0
-  ],
   "base" : {
-    "id" : [
-      0,
-      0
-    ],
     "name" : "Do A",
     "error" : null,
     "executed" : false,
     "_type" : "Pure"
   },
   "trigger" : {
-    "id" : [
-      0,
-      1,
-      0
-    ],
     "signalName" : "My Request",
     "error" : null,
     "operationName" : "Interruption",

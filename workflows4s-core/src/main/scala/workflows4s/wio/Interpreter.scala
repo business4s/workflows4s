@@ -4,7 +4,6 @@ import cats.effect.IO
 import cats.syntax.all.*
 import workflows4s.wio.WIO.HandleInterruption.{InterruptionStatus, InterruptionType}
 import workflows4s.wio.internal.WorkflowEmbedding
-import workflows4s.wio.model.WIOId
 
 object Interpreter {
 
@@ -57,7 +56,7 @@ object Interpreter {
   }
 }
 
-abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio: WIO[In, Err, Out, Ctx], id: WIOId) {
+abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio: WIO[In, Err, Out, Ctx]) {
   type Result
   type State = WCState[Ctx]
 

@@ -6,7 +6,6 @@ import cats.syntax.all.*
 import workflows4s.wio.*
 import workflows4s.wio.WIO.HandleInterruption.InterruptionStatus
 import workflows4s.wio.WIO.Timer
-import workflows4s.wio.model.WIOId
 
 object RunIOEvaluator {
   def proceed[Ctx <: WorkflowContext, StIn <: WCState[Ctx]](
@@ -14,7 +13,7 @@ object RunIOEvaluator {
       state: StIn,
       now: Instant,
   ): Response[Ctx] = {
-    val visitor = new RunIOVisitor(wio, state, state, now, WIOId.root)
+    val visitor = new RunIOVisitor(wio, state, state, now)
     Response(visitor.run)
   }
 
@@ -25,8 +24,7 @@ object RunIOEvaluator {
       input: In,
       lastSeenState: WCState[Ctx],
       now: Instant,
-      id: WIOId,
-  ) extends Visitor[Ctx, In, Err, Out](wio, id) {
+  ) extends Visitor[Ctx, In, Err, Out](wio) {
     override type Result = Option[IO[WCEvent[Ctx]]]
 
     def onExecuted(wio: WIO.Executed[Ctx, Err, Out]): Result                                       = None
@@ -37,19 +35,19 @@ object RunIOEvaluator {
 
     def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result = wio.buildIO(input).map(wio.evtHandler.convert).some
 
-    def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result          = recurse(wio.base, input, 0)
+    def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result          = recurse(wio.base, input)
     def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Result          =
-      recurse(wio.base, wio.contramapInput(input), 0)
-    def onNamed(wio: WIO.Named[Ctx, In, Err, Out]): Result                                                             = recurse(wio.base, input, 0) // TODO, should name be preserved?
-    def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result = recurse(wio.base, input, 0)
+      recurse(wio.base, wio.contramapInput(input))
+    def onNamed(wio: WIO.Named[Ctx, In, Err, Out]): Result                                                             = recurse(wio.base, input) // TODO, should name be preserved?
+    def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result = recurse(wio.base, input)
     def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result                           = {
       wio.base.asExecuted match {
         case Some(baseExecuted) =>
           baseExecuted.output match {
-            case Left(err) => recurse(wio.handleError, (lastSeenState, err), 1)
+            case Left(err) => recurse(wio.handleError, (lastSeenState, err))
             case Right(_)  => ??? // TODO better error, we should never reach here
           }
-        case None               => recurse(wio.base, input, 0)
+        case None               => recurse(wio.base, input)
       }
     }
     def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result                             = {
@@ -59,17 +57,17 @@ object RunIOEvaluator {
             case Left(_)      =>
               // This should not happen, whole AndThen should be marked as executed and never entered
               ??? // TODO better exception
-            case Right(value) => recurse(wio.second, value, 1)
+            case Right(value) => recurse(wio.second, value)
           }
-        case None                => recurse(wio.first, input, 0)
+        case None                => recurse(wio.first, input)
       }
     }
 
     def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result =
-      recurse(wio.current, input, 0)
+      recurse(wio.current, input)
 
     def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result =
-      selectMatching(wio, input).flatMap((nextWio, idx) => recurse(nextWio, input, idx))
+      selectMatching(wio, input).flatMap((nextWio, idx) => recurse(nextWio, input))
 
     def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_] <: WCState[Ctx]](
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
@@ -80,7 +78,7 @@ object RunIOEvaluator {
           .getOrElse(
             wio.initialState(input),
           ) // TODO, this is not safe, we will use initial state if the state mapping is incorrect (not symetrical). This will be very hard for the user to diagnose.
-      new RunIOVisitor(wio.inner, input, newState, now, id.child(0)).run
+      new RunIOVisitor(wio.inner, input, newState, now).run
         .map(_.map(wio.embedding.convertEvent))
     }
 
@@ -88,10 +86,10 @@ object RunIOEvaluator {
     def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result = {
       wio.status match {
         case InterruptionStatus.Interrupted                               =>
-          recurse(wio.interruption, lastSeenState, 1)
+          recurse(wio.interruption, lastSeenState)
         case InterruptionStatus.TimerStarted | InterruptionStatus.Pending =>
-          recurse(wio.interruption, lastSeenState, 1)
-            .orElse(recurse(wio.base, input, 0))
+          recurse(wio.interruption, lastSeenState)
+            .orElse(recurse(wio.base, input))
       }
     }
 
@@ -108,8 +106,8 @@ object RunIOEvaluator {
       )
     }
 
-    private def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], s: I1, idx: Int): Option[IO[WCEvent[Ctx]]] =
-      new RunIOVisitor(wio, s, lastSeenState, now, id.child(idx)).run
+    private def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], s: I1): Option[IO[WCEvent[Ctx]]] =
+      new RunIOVisitor(wio, s, lastSeenState, now).run
   }
 
 }

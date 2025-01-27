@@ -1,12 +1,5 @@
 {
-  "id" : [
-    0
-  ],
   "base" : {
-    "id" : [
-      0,
-      0
-    ],
     "name" : "Step1",
     "error" : null,
     "executed" : false,
@@ -16,10 +9,6 @@
   "exitBranchName" : "Yes!",
   "restartBranchName" : "No",
   "onRestart" : {
-    "id" : [
-      0,
-      1
-    ],
     "name" : "Step2",
     "error" : null,
     "executed" : false,

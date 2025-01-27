@@ -1,35 +1,18 @@
 {
-  "id" : [
-    0
-  ],
   "steps" : [
     {
-      "id" : [
-        0,
-        0,
-        0
-      ],
       "name" : "Step1",
       "error" : null,
       "executed" : false,
       "_type" : "Pure"
     },
     {
-      "id" : [
-        0,
-        0,
-        1
-      ],
       "name" : "Step2",
       "error" : null,
       "executed" : false,
       "_type" : "Pure"
     },
     {
-      "id" : [
-        0,
-        1
-      ],
       "name" : "Step3",
       "error" : null,
       "executed" : false,

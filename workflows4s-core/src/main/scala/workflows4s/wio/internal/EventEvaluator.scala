@@ -4,7 +4,6 @@ import cats.implicits.catsSyntaxOptionId
 import workflows4s.wio.*
 import workflows4s.wio.Interpreter.EventResponse
 import workflows4s.wio.WIO.HandleInterruption.InterruptionStatus
-import workflows4s.wio.model.WIOId
 
 object EventEvaluator {
 
@@ -13,7 +12,7 @@ object EventEvaluator {
       wio: WIO[Any, Nothing, WCState[Ctx], Ctx],
       state: WCState[Ctx],
   ): EventResponse[Ctx] = {
-    val visitor: EventVisitor[Ctx, Any, Nothing, WCState[Ctx]] = new EventVisitor(wio, event, state, state, WIOId.root)
+    val visitor: EventVisitor[Ctx, Any, Nothing, WCState[Ctx]] = new EventVisitor(wio, event, state, state)
     visitor.run
       .map(wf => wf.toActiveWorkflow(state))
       .map(EventResponse.Ok(_))
@@ -25,8 +24,7 @@ object EventEvaluator {
       event: WCEvent[Ctx],
       input: In,
       lastSeenState: WCState[Ctx],
-      id: WIOId,
-  ) extends Visitor[Ctx, In, Err, Out](wio, id) {
+  ) extends Visitor[Ctx, In, Err, Out](wio) {
     type NewWf           = WFExecution[Ctx, In, Err, Out]
     override type Result = Option[NewWf]
 
@@ -143,7 +141,7 @@ object EventEvaluator {
           ) // TODO, this is not safe, we will use initial state if the state mapping is incorrect (not symetrical). This will be very hard for the user to diagnose.
       wio.embedding
         .unconvertEvent(event)
-        .flatMap(convertedEvent => new EventVisitor(wio.inner, convertedEvent, input, newState, id.child(0)).run)
+        .flatMap(convertedEvent => new EventVisitor(wio.inner, convertedEvent, input, newState).run)
         .map(convertEmbeddingResult2(wio, _, input))
     }
 
@@ -173,7 +171,7 @@ object EventEvaluator {
 
     // TODO not entirely correct, need to udpate lastSeenState ?
     def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], s: I1, e: WCEvent[Ctx], idx: Int): EventVisitor[Ctx, I1, E1, O1]#Result =
-      new EventVisitor(wio, e, s, lastSeenState, id.child(idx)).run
+      new EventVisitor(wio, e, s, lastSeenState).run
 
   }
 }

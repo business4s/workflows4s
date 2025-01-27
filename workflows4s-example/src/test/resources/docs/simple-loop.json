@@ -1,12 +1,5 @@
 {
-  "id" : [
-    0
-  ],
   "base" : {
-    "id" : [
-      0,
-      0
-    ],
     "name" : "Step1",
     "error" : null,
     "executed" : false,

@@ -1,7 +1,6 @@
 package workflows4s.wio.internal
 
 import workflows4s.wio.*
-import workflows4s.wio.model.WIOId
 
 import java.time.Instant
 import scala.math.Ordering.Implicits.infixOrderingOps
@@ -17,7 +16,7 @@ object GetWakeupEvaluator {
 
   private class GetWakeupVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](
       wio: WIO[In, Err, Out, Ctx],
-  ) extends Visitor[Ctx, In, Err, Out](wio, WIOId.root) {
+  ) extends Visitor[Ctx, In, Err, Out](wio) {
 
     override type Result = Option[Instant]
 

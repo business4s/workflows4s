@@ -2,7 +2,6 @@ package workflows4s.wio.internal
 
 import cats.implicits.catsSyntaxOptionId
 import workflows4s.wio.*
-import workflows4s.wio.model.WIOId
 
 object GetStateEvaluator {
 
@@ -19,7 +18,7 @@ object GetStateEvaluator {
       wio: WIO[In, Err, Out, Ctx],
       input: In,
       lastSeenState: WCState[Ctx],
-  ) extends Visitor[Ctx, In, Err, Out](wio, WIOId.root) {
+  ) extends Visitor[Ctx, In, Err, Out](wio) {
     override type Result = Option[WCState[Ctx]]
 
     def onExecuted(wio: WIO.Executed[Ctx, Err, Out]): Result = wio.output.toOption

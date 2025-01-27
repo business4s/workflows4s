@@ -3,18 +3,17 @@ package workflows4s.wio.internal
 import scala.annotation.nowarn
 import cats.syntax.all.*
 import workflows4s.wio.*
-import workflows4s.wio.model.WIOId
 
 object CurrentStateEvaluator {
   def getCurrentStateDescription(
       wio: WIO[?, ?, ?, ?],
   ): String = {
-    val visitor = new DescriptionVisitor(wio, WIOId.root)
+    val visitor = new DescriptionVisitor(wio)
     visitor.run
   }
 
-  private class DescriptionVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio: WIO[In, Err, Out, Ctx], id: WIOId)
-      extends Visitor[Ctx, In, Err, Out](wio, id) {
+  private class DescriptionVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio: WIO[In, Err, Out, Ctx])
+      extends Visitor[Ctx, In, Err, Out](wio) {
     override type Result = String
 
     def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result     =
@@ -28,7 +27,7 @@ object CurrentStateEvaluator {
     def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result =
       s"(Handle error or ${recurseUnique(wio.base)})"
     def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result                           =
-      s"(${recurse(wio.base, 0)}, on error: ${recurse(wio.handleError, 1)}"
+      s"(${recurse(wio.base)}, on error: ${recurse(wio.handleError)}"
     def onAndThen[Out1 <: State](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result                                    = recurseUnique(wio.first)
     def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                                                               = withName("pure")
     def onLoop[Out1 <: State](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result                                          = s"do-while; current = ${recurseUnique(wio.current)}"
@@ -38,18 +37,18 @@ object CurrentStateEvaluator {
     ): Result =
       recurseUnique(wio.inner)
     def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result                                   =
-      s"${recurse(wio.base, 0)}, interruptible with: ${recurse(wio.interruption, 1)} )"
+      s"${recurse(wio.base)}, interruptible with: ${recurse(wio.interruption)} )"
 
     def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result               = withName("timer")
     def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result = s"awaiting ${wio.resumeAt}"
-    def onExecuted(wio: WIO.Executed[Ctx, Err, Out]): Result             = s"executed: ${recurse(wio.original, 1)}"
-    def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result             = s"discarded: ${recurse(wio.original, 1)}"
+    def onExecuted(wio: WIO.Executed[Ctx, Err, Out]): Result             = s"executed: ${recurse(wio.original)}"
+    def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result             = s"discarded: ${recurse(wio.original)}"
 
     private def recurseUnique[C <: WorkflowContext, I1, E1, O1 <: WCState[C]](wio: WIO[I1, E1, O1, C]): String =
-      recurse(wio, 0)
+      recurse(wio)
 
-    private def recurse[C <: WorkflowContext, I1, E1, O1 <: WCState[C]](wio: WIO[I1, E1, O1, C], idx: Int): String =
-      new DescriptionVisitor(wio, id.child(idx)).run
+    private def recurse[C <: WorkflowContext, I1, E1, O1 <: WCState[C]](wio: WIO[I1, E1, O1, C]): String =
+      new DescriptionVisitor(wio).run
 
     def withName(str: String) = s"[${name.getOrElse("")}] ${str}"
 

@@ -1,12 +1,5 @@
 {
-  "id" : [
-    0
-  ],
   "base" : {
-    "id" : [
-      0,
-      0
-    ],
     "name" : "Do Things",
     "error" : {
       "name" : "My Error"
@@ -15,10 +8,6 @@
     "_type" : "Pure"
   },
   "handler" : {
-    "id" : [
-      0,
-      1
-    ],
     "name" : "Handle That Nasty Error",
     "error" : null,
     "executed" : false,

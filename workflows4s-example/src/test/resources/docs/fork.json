@@ -1,14 +1,7 @@
 {
-  "id" : [
-    0
-  ],
   "branches" : [
     {
       "logic" : {
-        "id" : [
-          0,
-          0
-        ],
         "name" : "Do A",
         "error" : null,
         "executed" : false,
@@ -18,10 +11,6 @@
     },
     {
       "logic" : {
-        "id" : [
-          0,
-          1
-        ],
         "name" : "Do B",
         "error" : null,
         "executed" : false,
