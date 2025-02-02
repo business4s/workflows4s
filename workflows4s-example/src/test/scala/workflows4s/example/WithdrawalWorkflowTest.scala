@@ -13,7 +13,6 @@ import workflows4s.example.withdrawal.*
 import workflows4s.example.withdrawal.WithdrawalService.{ExecutionResponse, Fee, Iban}
 import workflows4s.example.withdrawal.WithdrawalSignal.CreateWithdrawal
 import workflows4s.example.withdrawal.checks.*
-import workflows4s.wio.model.{WIOModel, WIOModelInterpreter}
 
 import java.time.{Clock, Instant, ZoneId, ZoneOffset}
 import scala.concurrent.duration.FiniteDuration
@@ -249,10 +248,6 @@ object WithdrawalWorkflowTest {
           }
 
           def queryData(): WithdrawalData = wf.queryState()
-        }
-
-        def getModel(wio: WithdrawalWorkflow.Context.WIO[?, ?, ?]): WIOModel = {
-          WIOModelInterpreter.run(wio)
         }
 
       }

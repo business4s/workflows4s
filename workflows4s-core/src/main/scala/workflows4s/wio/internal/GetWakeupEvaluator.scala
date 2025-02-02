@@ -23,7 +23,7 @@ object GetWakeupEvaluator {
     def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result = Some(wio.resumeAt)
 
     def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result                                         = None
-    def onExecuted(wio: WIO.Executed[Ctx, Err, Out]): Result                                       = None
+    def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result                                       = None
     def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result = None
     def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result                               = None
     def onNoop(wio: WIO.End[Ctx]): Result                                                          = None
@@ -32,7 +32,6 @@ object GetWakeupEvaluator {
 
     def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result          = recurse(wio.base)
     def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Result          = recurse(wio.base)
-    def onNamed(wio: WIO.Named[Ctx, In, Err, Out]): Result                                                             = recurse(wio.base)
     def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result                                   = recurse(wio.current)
     def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result = recurse(wio.base)
 

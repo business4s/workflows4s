@@ -7,7 +7,6 @@ import org.scalatest.exceptions.TestFailedException
 import workflows4s.bpmn.BPMNConverter
 import workflows4s.mermaid.MermaidRenderer
 import workflows4s.wio.WIO
-import workflows4s.wio.model.WIOModelInterpreter
 
 import java.nio.file.{Files, Path}
 
@@ -17,14 +16,14 @@ object TestUtils {
 
   val jsonPrinter                                           = Printer.spaces2
   def renderModelToFile(wio: WIO[?, ?, ?, ?], path: String) = {
-    val model           = WIOModelInterpreter.run(wio)
+    val model           = wio.toModel
     val modelJson: Json = model.asJson
     val outputPath      = basePath.resolve(s"workflows4s-example/src/test/resources/${path}")
     ensureFileContentMatchesOrUpdate(jsonPrinter.print(modelJson), outputPath)
   }
 
   def renderBpmnToFile(wio: WIO[?, ?, ?, ?], path: String) = {
-    val model       = WIOModelInterpreter.run(wio)
+    val model       = wio.toModel
     val bpmnModel   = BPMNConverter.convert(model, "process")
     val outputPath  = basePath.resolve(s"workflows4s-example/src/test/resources/${path}")
     val bpmnContent = Bpmn.convertToString(bpmnModel)
@@ -33,7 +32,7 @@ object TestUtils {
   }
 
   def renderMermaidToFile(wio: WIO[?, ?, ?, ?], path: String) = {
-    val model      = WIOModelInterpreter.run(wio)
+    val model      = wio.toProgress
     val flowchart  = MermaidRenderer.renderWorkflow(model)
     val outputPath = basePath.resolve(s"workflows4s-example/src/test/resources/${path}")
 

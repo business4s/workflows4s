@@ -3,14 +3,12 @@ package workflows4s.example.docs.visualization
 import workflows4s.example.docs.pullrequest.PullRequestWorkflow
 import workflows4s.mermaid.MermaidRenderer
 import workflows4s.wio.WIO
-import workflows4s.wio.model.WIOModelInterpreter
 
 object MermaidExample {
 
   // start_doc
   val wio: WIO[?, ?, ?, ?] = PullRequestWorkflow.workflow
-  val model                = WIOModelInterpreter.run(wio)
-  val mermaidString        = MermaidRenderer.renderWorkflow(model)
+  val mermaidString        = MermaidRenderer.renderWorkflow(wio.toProgress)
   // end_doc
 
 }

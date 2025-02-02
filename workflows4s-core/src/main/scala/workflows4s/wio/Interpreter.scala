@@ -65,7 +65,6 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
   def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result
   def onTransform[In1, Out1 <: WCState[Ctx], Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Result
   def onNoop(wio: WIO.End[Ctx]): Result
-  def onNamed(wio: WIO.Named[Ctx, In, Err, Out]): Result
   def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result
   def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result
   def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result
@@ -78,8 +77,8 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
   def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result
   def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result
   def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result
-  def onExecuted(wio: WIO.Executed[Ctx, Err, Out]): Result
-  def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result
+  def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result
+  def onDiscarded[In1](wio: WIO.Discarded[Ctx, In1]): Result
 
   def run: Result = {
     wio match {
@@ -93,7 +92,6 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
       case x: WIO.Transform[?, ?, ?, ? <: State, ?, ?, Err]          => onTransform(x)
       case x: WIO.End[?]                                             => onNoop(x)
       case x: WIO.HandleError[?, ?, ?, ?, ?, ? <: State]             => onHandleError(x)
-      case x: WIO.Named[?, ?, ?, ?]                                  => onNamed(x)
       case x: WIO.AndThen[?, ?, ?, ? <: State, ? <: State]           => onAndThen(x)
       case x: WIO.Pure[?, ?, ?, ?]                                   => onPure(x)
       case x: WIO.HandleErrorWith[?, ?, ?, ?, ?]                     => onHandleErrorWith(x)
@@ -112,7 +110,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
       case x: WIO.HandleInterruption[?, ?, ?, ?]                     => onHandleInterruption(x)
       case x: WIO.Timer[?, ?, ?, ?]                                  => onTimer(x)
       case x: WIO.AwaitingTime[?, ?, ?, ?]                           => onAwaitingTime(x)
-      case x: WIO.Executed[?, ?, ?]                                  => onExecuted(x)
+      case x: WIO.Executed[?, ?, ?, ?]                               => onExecuted(x)
       case x: WIO.Discarded[?, ?]                                    => onDiscarded(x)
     }
   }
@@ -124,7 +122,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
     baseResult match {
       case WFExecution.Complete(newWio) =>
         newWio.output match {
-          case Left(err)    => WFExecution.complete(wio.copy(base = newWio), Left(err))
+          case Left(err)    => WFExecution.complete(wio.copy(base = newWio), Left(err), newWio.input)
           case Right(value) => WFExecution.Partial(WIO.AndThen(newWio, wio.getNext(value)))
         }
       case WFExecution.Partial(newWio)  => WFExecution.Partial(wio.copy(base = newWio))
@@ -134,28 +132,17 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
   def processTransform[Out1 <: WCState[Ctx], In1, Err1](
       transform: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err],
       baseResult: WFExecution[Ctx, In1, Err1, Out1],
-      initState: In,
+      input: In,
   ): WFExecution[Ctx, In, Err, Out] = {
     baseResult match {
-      case WFExecution.Complete(wio) =>
-        WFExecution.Complete(
-          WIO.Executed(
-            WIO.Transform(wio, transform.contramapInput, transform.mapOutput),
-            transform.mapOutput(initState, wio.output),
-          ),
+      case WFExecution.Complete(newWio) =>
+        WFExecution.complete(
+          WIO.Transform(newWio, transform.contramapInput, transform.mapOutput),
+          transform.mapOutput(input, newWio.output),
+          input,
         )
-      case WFExecution.Partial(wio)  =>
-        WFExecution.Partial[Ctx, In, Err, Out](WIO.Transform(wio, transform.contramapInput, (_, out) => transform.mapOutput(initState, out)))
-    }
-  }
-
-  protected def processNamed(
-      wio: WIO.Named[Ctx, In, Err, Out],
-      baseResult: WFExecution[Ctx, In, Err, Out],
-  ): WFExecution[Ctx, In, Err, Out] = {
-    baseResult match {
-      case WFExecution.Complete(newWio) => WFExecution.complete(wio.copy(base = newWio), newWio.output)
-      case WFExecution.Partial(newWio)  => WFExecution.Partial(wio.copy(base = newWio))
+      case WFExecution.Partial(wio)     =>
+        WFExecution.Partial[Ctx, In, Err, Out](WIO.Transform(wio, transform.contramapInput, (_, out) => transform.mapOutput(input, out)))
     }
   }
 
@@ -169,22 +156,23 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
         executedBase.output match {
           case Left(err)    =>
             WFExecution.Partial(WIO.HandleErrorWith(executedBase, wio.handleError(state, err), wio.handledErrorMeta, wio.newErrorMeta))
-          case Right(value) => WFExecution.complete(wio.copy(base = executedBase), Right(value))
+          case Right(value) => WFExecution.complete(wio.copy(base = executedBase), Right(value), executedBase.input)
         }
-      case WFExecution.Partial(wio)           => ???
+      case WFExecution.Partial(newWio)        => WFExecution.Partial(wio.copy(base = newWio))
     }
   }
 
   protected def processHandleErrorWith_Base[ErrIn](
       wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err],
       baseResult: WFExecution[Ctx, In, ErrIn, Out],
+      input: In,
   ): WFExecution[Ctx, In, Err, Out] = {
     def updateBase(newBase: WIO[In, ErrIn, Out, Ctx]) = wio.copy(base = newBase)
     baseResult match {
       case WFExecution.Complete(newWio) =>
         newWio.output match {
           case Left(_)      => WFExecution.Partial(updateBase(newWio))
-          case Right(value) => WFExecution.complete(updateBase(newWio), Right(value))
+          case Right(value) => WFExecution.complete(updateBase(newWio), Right(value), input)
         }
       case WFExecution.Partial(newWio)  => WFExecution.Partial(updateBase(newWio))
     }
@@ -193,12 +181,12 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
   protected def processHandleErrorWithHandler[ErrIn](
       wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err],
       handlerResult: WFExecution[Ctx, (WCState[Ctx], ErrIn), Err, Out],
-      baseExecuted: WIO[Any, ErrIn, Out, Ctx], // we need it to make compiler happy.
+      input: In,
       // its already part of `wio` but we need a prove the input is Any
   ): WFExecution[Ctx, In, Err, Out] = {
-    def updateHandler(newHandler: WIO[(WCState[Ctx], ErrIn), Err, Out, Ctx]) = wio.copy(base = baseExecuted, handleError = newHandler)
+    def updateHandler(newHandler: WIO[(WCState[Ctx], ErrIn), Err, Out, Ctx]) = wio.copy(handleError = newHandler)
     handlerResult match {
-      case WFExecution.Complete(newHandler) => WFExecution.complete(updateHandler(newHandler), newHandler.output)
+      case WFExecution.Complete(newHandler) => WFExecution.complete(updateHandler(newHandler), newHandler.output, input)
       case WFExecution.Partial(newHandler)  => WFExecution.Partial(updateHandler(newHandler))
     }
   }
@@ -206,19 +194,20 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
   def processLoop[LoopOut <: WCState[Ctx]](
       wio: WIO.Loop[Ctx, In, Err, LoopOut, Out],
       currentResult: WFExecution[Ctx, In, Err, LoopOut],
+      input: In,
   ): WFExecution[Ctx, In, Err, Out] = {
     // TODO all the `.provideInput` here are not good, they enlarge the graph unnecessarly.
     //  alternatively we could maybe take the input from the last history entry
     currentResult match {
       case WFExecution.Complete(newWio) =>
         newWio.output match {
-          case Left(err)    => WFExecution.complete(wio.copy(history = wio.history :+ newWio), Left(err))
+          case Left(err)    => WFExecution.complete(wio.copy(history = wio.history :+ newWio), Left(err), input)
           case Right(value) =>
             if (wio.isReturning) {
               WFExecution.Partial(wio.copy(current = wio.loop.provideInput(value), isReturning = false, history = wio.history :+ newWio))
             } else {
               wio.stopCondition(value) match {
-                case Some(value) => WFExecution.complete(wio.copy(history = wio.history :+ newWio), Right(value))
+                case Some(value) => WFExecution.complete(wio.copy(history = wio.history :+ newWio), Right(value), input)
                 case None        =>
                   wio.onRestart match {
                     case Some(onRestart) =>
@@ -248,11 +237,10 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
     newWf match {
       case WFExecution.Complete(newWio) =>
         convert(
-          WFExecution.Complete(
-            WIO.Executed(
-              WIO.Embedded(newWio, wio.embedding, wio.initialState),
-              newWio.output.map(wio.embedding.convertState(_, input)),
-            ),
+          WFExecution.complete(
+            WIO.Embedded(newWio, wio.embedding, wio.initialState),
+            newWio.output.map(wio.embedding.convertState(_, input)),
+            input,
           ),
         )
       case WFExecution.Partial(newWio)  =>
@@ -266,7 +254,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
       baseResult: WFExecution[Ctx, In, Err, Out],
   ): WFExecution[Ctx, In, Err, Out] = {
     baseResult match {
-      case WFExecution.Complete(newWio) => WFExecution.complete(wio.copy(base = newWio), newWio.output)
+      case WFExecution.Complete(newWio) => WFExecution.complete(wio.copy(base = newWio), newWio.output, newWio.input)
       case WFExecution.Partial(newWio)  => WFExecution.Partial(wio.copy(base = newWio))
     }
   }
@@ -287,7 +275,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
       }
     interruptionResult match {
       case WFExecution.Complete(newInterruptionWio) =>
-        WFExecution.complete(wio.copy(interruption = newInterruptionWio, status = newStatus), newInterruptionWio.output)
+        WFExecution.complete(wio.copy(interruption = newInterruptionWio, status = newStatus), newInterruptionWio.output, input)
       case WFExecution.Partial(newInterruptionWio)  =>
         val newBase = newStatus match {
           case InterruptionStatus.Interrupted  => WIO.Discarded(wio.base, input)
@@ -298,9 +286,9 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
   }
 
   extension [I, E, O <: WCState[C], C <: WorkflowContext](wio: WIO[I, E, O, C]) {
-    def asExecuted: Option[WIO.Executed[C, E, O]] = wio match {
-      case x: WIO.Executed[C, E, O] => x.some
-      case _                        => None
+    def asExecuted: Option[WIO.Executed[C, E, O, ?]] = wio match {
+      case x: WIO.Executed[C, E, O, ?] => x.some
+      case _                           => None
     }
   }
 
@@ -317,11 +305,11 @@ object WFExecution {
       ActiveWorkflow(wfe.wio, initialState)
     }
   }
-  case class Complete[C <: WorkflowContext, E, O <: WCState[C]](wio: WIO.Executed[C, E, O]) extends WFExecution[C, Any, E, O]
+  case class Complete[C <: WorkflowContext, E, O <: WCState[C], I](wio: WIO.Executed[C, E, O, I]) extends WFExecution[C, I, E, O]
 
   case class Partial[C <: WorkflowContext, I, E, O <: WCState[C]](wio: WIO[I, E, O, C]) extends WFExecution[C, I, E, O]
 
-  def complete[Ctx <: WorkflowContext, Err, Out <: WCState[Ctx]](original: WIO[?, ?, ?, Ctx], output: Either[Err, Out]) =
-    WFExecution.Complete(WIO.Executed(original, output))
+  def complete[Ctx <: WorkflowContext, Err, Out <: WCState[Ctx], In](original: WIO[In, ?, ?, Ctx], output: Either[Err, Out], input: In) =
+    WFExecution.Complete(WIO.Executed(original, output, input))
 
 }

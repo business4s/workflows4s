@@ -77,18 +77,11 @@ object WIO {
   ) extends WIO[In, Err, Out, Ctx]
 
   case class HandleErrorWith[Ctx <: WorkflowContext, -In, Err, +Out <: WCState[Ctx], +ErrOut](
-      base: WIO[In, Err, Out, Ctx],
-      handleError: WIO[(WCState[Ctx], Err), ErrOut, Out, Ctx],
-      handledErrorMeta: ErrorMeta[?],
-      newErrorCt: ErrorMeta[?],
+                                                                                               base: WIO[In, Err, Out, Ctx],
+                                                                                               handleError: WIO[(WCState[Ctx], Err), ErrOut, Out, Ctx],
+                                                                                               handledErrorMeta: ErrorMeta[?],
+                                                                                               newErrorMeta: ErrorMeta[?],
   ) extends WIO[In, ErrOut, Out, Ctx]
-
-  case class Named[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]](
-      base: WIO[In, Err, Out, Ctx],
-      name: String,
-      description: Option[String],
-      errorMeta: ErrorMeta[?],
-  ) extends WIO[In, Err, Out, Ctx]
 
   case class AndThen[Ctx <: WorkflowContext, -In, +Err, Out1 <: WCState[Ctx], +Out2 <: WCState[Ctx]](
       first: WIO[In, Err, Out1, Ctx],
@@ -101,7 +94,7 @@ object WIO {
       current: WIO[In, Err, LoopOut, Ctx],
       onRestart: Option[WIO[LoopOut, Err, LoopOut, Ctx]],
       meta: Loop.Meta,
-      isReturning: Boolean, // true if current is comign from onReturn
+      isReturning: Boolean, // true if current is coming from onReturn
       history: Vector[WIO[Any, Err, LoopOut, Ctx]],
   ) extends WIO[In, Err, Out, Ctx]
 
@@ -222,7 +215,7 @@ object WIO {
     }
   }
 
-  case class Executed[Ctx <: WorkflowContext, +Err, +Out <: WCState[Ctx]](original: WIO[?, ?, ?, Ctx], output: Either[Err, Out])
+  case class Executed[Ctx <: WorkflowContext, +Err, +Out <: WCState[Ctx], In](original: WIO[In, ?, ?, Ctx], output: Either[Err, Out], input: In)
       extends WIO[Any, Err, Out, Ctx]
 
   case class Discarded[Ctx <: WorkflowContext, In](original: WIO[In, ?, ?, Ctx], input: In) extends WIO[Any, Nothing, Nothing, Ctx]

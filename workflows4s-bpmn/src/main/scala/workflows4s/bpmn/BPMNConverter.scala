@@ -5,7 +5,7 @@ import org.camunda.bpm.model.bpmn.instance.bpmndi.BpmnDiagram
 import org.camunda.bpm.model.bpmn.instance.di.DiagramElement
 import org.camunda.bpm.model.bpmn.instance.{Activity, BaseElement, Definitions, FlowNode}
 import org.camunda.bpm.model.bpmn.{Bpmn, BpmnModelInstance}
-import workflows4s.wio.model.WIOModel
+import workflows4s.wio.model.{WIOMeta, WIOModel}
 
 import java.time.Duration
 import scala.jdk.CollectionConverters.CollectionHasAsScala
@@ -34,28 +34,27 @@ object BPMNConverter {
       builder: Builder,
   ): Builder = {
     model match {
-      case WIOModel.Sequence(steps, _)                                   =>
+      case WIOModel.Sequence(steps)                                      =>
         steps.foldLeft[AbstractFlowNodeBuilder[?, ?]](builder)((builder, step) => handle(step, builder))
-      case WIOModel.Dynamic(name, error, _)                              =>
-        val taskName = name.map(_ + " (Dynamic)").getOrElse("<Dynamic>")
+      case WIOModel.Dynamic(meta)                                        =>
         builder
           .serviceTask()
-          .name(taskName)
-          .pipe(renderError(error))
-      case WIOModel.RunIO(error, name, _)                                =>
+          .name("<Dynamic>")
+          .pipe(renderError(meta.error))
+      case WIOModel.RunIO(meta)                                =>
         builder
           .serviceTask()
-          .name(name.getOrElse("Task"))
-          .pipe(renderError(error))
-      case WIOModel.HandleSignal(signalName, error, operationName, _)    =>
+          .name(meta.name.getOrElse("Task"))
+          .pipe(renderError(meta.error))
+      case WIOModel.HandleSignal(meta)    =>
         builder
           .intermediateCatchEvent()
-          .signal(signalName)
-          .name(signalName)
+          .signal(meta.signalName)
+          .name(meta.signalName)
           .serviceTask()
-          .name(operationName.getOrElse(s"""Handle "${signalName}""""))
-          .pipe(renderError(error))
-      case WIOModel.HandleError(base, handler, error, _)                 =>
+          .name(meta.operationName.getOrElse(s"""Handle "${meta.signalName}""""))
+          .pipe(renderError(meta.error))
+      case WIOModel.HandleError(base, handler, meta)                 =>
         val subProcessStartEventId = Random.alphanumeric.filter(_.isLetter).take(10).mkString
         val subBuilder             = builder
           .subProcess()
@@ -67,18 +66,18 @@ object BPMNConverter {
           .subProcessDone()
           .boundaryEvent()
           .error()
-          .name(error.map(_.name).getOrElse(""))
+          .name(meta.handledErrorMeta.map(_.name).getOrElse(""))
         handle(handler, errPath)
           .endEvent()
           .moveToNode(subProcessStartEventId)
           .subProcessDone()
-      case WIOModel.End(_)                                               => builder
-      case WIOModel.Pure(name, errorOpt, _)                              =>
-        if (errorOpt.isDefined || name.isDefined) {
+      case WIOModel.End                                               => builder
+      case WIOModel.Pure(meta)                              =>
+        if (meta.error.isDefined || meta.name.isDefined) {
           builder
             .serviceTask()
-            .name(name.orNull)
-            .pipe(renderError(errorOpt))
+            .name(meta.name.orNull)
+            .pipe(renderError(meta.error))
         } else builder
       case loop: WIOModel.Loop                                           =>
         val loopStartGwId      = Random.alphanumeric.filter(_.isLetter).take(10).mkString
@@ -87,12 +86,12 @@ object BPMNConverter {
         val newBuilder         = builder.exclusiveGateway(loopStartGwId).name("")
         handle(loop.base, newBuilder)
           .exclusiveGateway(loopEndGwId)
-          .name(loop.conditionName.getOrElse(""))
-          .condition(loop.exitBranchName.orNull, "")
+          .name(loop.meta.conditionName.getOrElse(""))
+          .condition(loop.meta.exitBranchName.orNull, "")
           .serviceTask(nextTaskTempNodeId)
           .name("")
           .moveToLastGateway()
-          .condition(loop.restartBranchName.orNull, "")
+          .condition(loop.meta.restartBranchName.orNull, "")
           .pipe(builder =>
             loop.onRestart match {
               case Some(value) => handle(value, builder)
@@ -101,13 +100,13 @@ object BPMNConverter {
           )
           .connectTo(loopStartGwId)
           .moveToNode(nextTaskTempNodeId)
-      case WIOModel.Fork(branches, name, _)                              =>
-        val base                           = builder.exclusiveGateway().name(name.orNull)
+      case WIOModel.Fork(branches, meta)                              =>
+        val base                           = builder.exclusiveGateway().name(meta.name.orNull)
         val gwId                           = base.getElement.getId
         val (resultBuilder, Some(endGwId)) = {
           branches.zipWithIndex.foldLeft[(Builder, Option[String])](base -> None)({ case ((builder1, endGw), (branch, idx)) =>
-            val b2              = builder1.moveToNode(gwId).condition(branch.label.getOrElse(s"Branch ${idx}"), "")
-            val result: Builder = handle(branch.logic, b2)
+            val b2              = builder1.moveToNode(gwId).condition(meta.branches(idx).name.getOrElse(s"Branch ${idx}"), "")
+            val result: Builder = handle(branch, b2)
             endGw match {
               case Some(value) =>
                 (result.connectTo(value), endGw)
@@ -119,7 +118,7 @@ object BPMNConverter {
           })
         }: @unchecked
         resultBuilder.moveToNode(endGwId)
-      case WIOModel.Interruptible(base, trigger, interruptionFlowOpt, _) =>
+      case WIOModel.Interruptible(base, trigger, interruptionFlowOpt) =>
         val subProcessStartEventId = Random.alphanumeric.filter(_.isLetter).take(10).mkString
         val subBuilder             = builder
           .subProcess()
@@ -134,15 +133,15 @@ object BPMNConverter {
             trigger match {
               case x: WIOModel.HandleSignal =>
                 builder
-                  .signal(x.signalName)
-                  .name(x.signalName)
+                  .signal(x.meta.signalName)
+                  .name(x.meta.signalName)
                   .serviceTask()
-                  .name(s"Handle ${x.signalName}")
-                  .pipe(renderError(x.error))
+                  .name(s"Handle ${x.meta.signalName}")
+                  .pipe(renderError(x.meta.error))
               case x: WIOModel.Timer        =>
                 builder
                   .timerWithDuration("")
-                  .name(x.name.orNull)
+                  .name(x.meta.name.orNull)
             },
           )
         interruptionFlowOpt
@@ -151,8 +150,8 @@ object BPMNConverter {
           .endEvent()
           .moveToNode(subProcessStartEventId)
           .subProcessDone()
-      case WIOModel.Timer(duration, name, _)                             =>
-        val label = (duration, name) match {
+      case WIOModel.Timer(meta)                             =>
+        val label = (meta.duration, meta.name) match {
           case (Some(duration), Some(name)) => s"$name (${humanReadableDuration(duration)})"
           case (None, Some(name))           => name
           case (Some(duration), None)       => humanReadableDuration(duration)
@@ -166,7 +165,7 @@ object BPMNConverter {
   }
 
   def renderError[B <: AbstractActivityBuilder[B, E], E <: Activity](
-      error: Option[WIOModel.Error],
+      error: Option[WIOMeta.Error],
   ): AbstractActivityBuilder[B, E] => Builder = { (x: AbstractActivityBuilder[B, E]) =>
     {
       error match {

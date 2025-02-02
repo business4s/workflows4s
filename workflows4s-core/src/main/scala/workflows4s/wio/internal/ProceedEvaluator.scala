@@ -33,7 +33,7 @@ object ProceedEvaluator {
     def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result = None
     def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result                               = None
     def onNoop(wio: WIO.End[Ctx]): Result                                                          = None
-    def onExecuted(wio: WIO.Executed[Ctx, Err, Out]): Result                                       = None
+    def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result                             = None
     def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result                                         = None
     def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result                           = None
     def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result                                       = None
@@ -43,9 +43,6 @@ object ProceedEvaluator {
 
     def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Result =
       recurse(wio.base, wio.contramapInput(input)).map(processTransform(wio, _, input))
-
-    def onNamed(wio: WIO.Named[Ctx, In, Err, Out]): Result =
-      recurse(wio.base, input).map(processNamed(wio, _))
 
     def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result = {
       wio.base.asExecuted match {
@@ -66,20 +63,20 @@ object ProceedEvaluator {
       wio.base.asExecuted match {
         case Some(baseExecuted) =>
           baseExecuted.output match {
-            case Left(err)    => recurse(wio.handleError, (lastSeenState, err)).map(processHandleErrorWithHandler(wio, _, baseExecuted))
-            case Right(value) => WFExecution.complete(wio, Right(value)).some
+            case Left(err)    => recurse(wio.handleError, (lastSeenState, err)).map(processHandleErrorWithHandler(wio, _, input))
+            case Right(value) => WFExecution.complete(wio, Right(value), input).some
           }
-        case None               => recurse(wio.base, input).map(processHandleErrorWith_Base(wio, _))
+        case None               => recurse(wio.base, input).map(processHandleErrorWith_Base(wio, _, input))
       }
     }
     def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result                             = {
       wio.first.asExecuted match {
         case Some(firstExecuted) =>
           firstExecuted.output match {
-            case Left(err)    => WFExecution.complete(wio, Left(err)).some
+            case Left(err)    => WFExecution.complete(wio, Left(err), input).some
             case Right(value) =>
               recurse(wio.second, value).map({
-                case WFExecution.Complete(newWio) => WFExecution.complete(WIO.AndThen(wio.first, newWio), newWio.output)
+                case WFExecution.Complete(newWio) => WFExecution.complete(WIO.AndThen(wio.first, newWio), newWio.output, input)
                 case WFExecution.Partial(newWio)  => WFExecution.Partial(WIO.AndThen(firstExecuted, newWio))
               })
           }
@@ -89,10 +86,10 @@ object ProceedEvaluator {
     }
 
     def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result =
-      WFExecution.complete(wio, wio.value(input)).some
+      WFExecution.complete(wio, wio.value(input), input).some
 
     def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result =
-      recurse(wio.current, input).map(processLoop(wio, _))
+      recurse(wio.current, input).map(processLoop(wio, _, input))
 
     def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result =
       selectMatching(wio, input).flatMap({ case (nextWio, idx) => recurse(nextWio, input) })

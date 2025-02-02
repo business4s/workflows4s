@@ -31,25 +31,22 @@ object EventEvaluator {
     def doHandle[Evt](handler: EventHandler[In, Either[Err, Out], WCEvent[Ctx], Evt]): Result =
       handler
         .detect(event)
-        .map(x => WFExecution.complete(wio, handler.handle(input, x)))
+        .map(x => WFExecution.complete(wio, handler.handle(input, x), input))
 
     def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result = doHandle(wio.evtHandler.map(_._1))
     def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result                               = doHandle(wio.evtHandler)
     def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result                           = doHandle(wio.releasedEventHandler)
 
-    def onNoop(wio: WIO.End[Ctx]): Result                    = None
-    def onExecuted(wio: WIO.Executed[Ctx, Err, Out]): Result = None
-    def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result = None
-    def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result     = None
+    def onNoop(wio: WIO.End[Ctx]): Result                              = None
+    def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result = None
+    def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result           = None
+    def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result               = None
 
     def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result =
       recurse(wio.base, input, event, 0).map(processFlatMap(wio, _))
 
     def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Result =
       recurse(wio.base, wio.contramapInput(input), event, 0).map(processTransform(wio, _, input))
-
-    def onNamed(wio: WIO.Named[Ctx, In, Err, Out]): Result =
-      recurse(wio.base, input, event, 0).map(processNamed(wio, _))
 
     def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result = {
       wio.base.asExecuted match {
@@ -71,10 +68,10 @@ object EventEvaluator {
       wio.base.asExecuted match {
         case Some(baseExecuted) =>
           baseExecuted.output match {
-            case Left(err)    => recurse(wio.handleError, (lastSeenState, err), event, 1).map(processHandleErrorWithHandler(wio, _, baseExecuted))
-            case Right(value) => WFExecution.complete(wio, Right(value)).some
+            case Left(err)    => recurse(wio.handleError, (lastSeenState, err), event, 1).map(processHandleErrorWithHandler(wio, _, input))
+            case Right(value) => WFExecution.complete(wio, Right(value), input).some
           }
-        case None               => recurse(wio.base, input, event, 0).map(processHandleErrorWith_Base(wio, _))
+        case None               => recurse(wio.base, input, event, 0).map(processHandleErrorWith_Base(wio, _, input))
       }
     }
 
@@ -82,11 +79,11 @@ object EventEvaluator {
       wio.first.asExecuted match {
         case Some(firstExecuted) =>
           firstExecuted.output match {
-            case Left(err)    => WFExecution.complete(wio, Left(err)).some
+            case Left(err)    => WFExecution.complete(wio, Left(err), input).some
             case Right(value) =>
               recurse(wio.second, value, event, 0)
                 .map({
-                  case WFExecution.Complete(newWio) => WFExecution.complete(WIO.AndThen(wio.first, newWio), newWio.output)
+                  case WFExecution.Complete(newWio) => WFExecution.complete(WIO.AndThen(wio.first, newWio), newWio.output, input)
                   case WFExecution.Partial(newWio)  => WFExecution.Partial(WIO.AndThen(firstExecuted, newWio))
                 })
           }
@@ -100,7 +97,7 @@ object EventEvaluator {
     }
 
     def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result = {
-      recurse(wio.current, input, event, 0).map(processLoop(wio, _))
+      recurse(wio.current, input, event, 0).map(processLoop(wio, _, input))
     }
 
     def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result = {
@@ -117,13 +114,13 @@ object EventEvaluator {
           val branch    = wio.branches(selectedIdx)
           val branchOut = branch.condition(input).get
           recurse(branch.wio, branchOut, event, selectedIdx).map({
-            case WFExecution.Complete(wio) => WFExecution.complete(updateSelectedBranch(selectedIdx, wio), wio.output)
+            case WFExecution.Complete(wio) => WFExecution.complete(updateSelectedBranch(selectedIdx, wio), wio.output, input)
             case WFExecution.Partial(wio)  => WFExecution.Partial(updateSelectedBranch(selectedIdx, wio))
           })
         case None              =>
           selectMatching(wio, input).flatMap({ case (wio, selectedIdx) =>
             recurse(wio, input, event, selectedIdx).map({
-              case WFExecution.Complete(wio) => WFExecution.complete(updateSelectedBranch(selectedIdx, wio), wio.output)
+              case WFExecution.Complete(wio) => WFExecution.complete(updateSelectedBranch(selectedIdx, wio), wio.output, input)
               case WFExecution.Partial(wio)  => WFExecution.Partial(updateSelectedBranch(selectedIdx, wio))
             })
           })
