@@ -1,18 +1,19 @@
 {
   "base" : {
-    "name" : "Do A",
-    "error" : null,
-    "executed" : false,
+    "meta" : {
+      "name" : "Do A",
+      "error" : null
+    },
     "_type" : "Pure"
   },
   "trigger" : {
-    "signalName" : "My Request",
-    "error" : null,
-    "operationName" : "Interruption",
-    "executed" : false,
+    "meta" : {
+      "signalName" : "My Request",
+      "operationName" : "Interruption",
+      "error" : null
+    },
     "_type" : "HandleSignal"
   },
-  "handleFlow" : null,
-  "executed" : false,
+  "handler" : null,
   "_type" : "Interruptible"
 }

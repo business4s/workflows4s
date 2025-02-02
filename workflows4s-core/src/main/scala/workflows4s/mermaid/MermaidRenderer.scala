@@ -26,29 +26,34 @@ object MermaidRenderer {
       addStepGeneral(id => Node(id, label, shape, clazz = if (model.result.isDefined) executedClass.some else None))
     }
     model match {
-      case WIOExecutionProgress.Sequence(steps)                                                            =>
+      case WIOExecutionProgress.Sequence(steps)                             =>
         for {
           subSteps <- steps.traverse(render)
         } yield subSteps.flatten.headOption
-      case WIOExecutionProgress.Dynamic(meta)                                                              =>
+      case WIOExecutionProgress.Dynamic(meta)                               =>
         for {
           stepId <- addStep("@dynamic")
           _      <- meta.error.traverse(addPendingError(stepId, _))
         } yield stepId.some
-      case WIOExecutionProgress.RunIO(meta, _)                                                             =>
+      case WIOExecutionProgress.RunIO(meta, _)                              =>
         for {
           stepId <- addStep(meta.name.getOrElse("@computation"))
           _      <- meta.error.traverse(addPendingError(stepId, _))
         } yield stepId.some
-      case WIOExecutionProgress.HandleSignal(meta, _)                                                      =>
+      case WIOExecutionProgress.HandleSignal(meta, _)                       =>
         for {
           signalId <- addStepGeneral(id =>
-                        Node(id, s"fa:fa-envelope ${meta.signalName}", shape = eventShape.some, clazz = if (model.result.isDefined) executedClass.some else None),
+                        Node(
+                          id,
+                          s"fa:fa-envelope ${meta.signalName}",
+                          shape = eventShape.some,
+                          clazz = if (model.result.isDefined) executedClass.some else None,
+                        ),
                       )
           stepId   <- addStep(meta.operationName.getOrElse(s"Handle ${meta.signalName}"))
           _        <- meta.error.traverse(addPendingError(stepId, _))
         } yield signalId.some
-      case WIOExecutionProgress.HandleError(base, handler, error, _)                                       =>
+      case WIOExecutionProgress.HandleError(base, handler, error, _)        =>
         // generalized error label is unused as we connect specific errors directly to the handler
         for {
           baseStart    <- render(base)
@@ -58,16 +63,16 @@ object MermaidRenderer {
           _            <- handleErrors(errors, handlerStart.get) // TODO better error handling or more typesafety?
           _            <- State.modify[RenderState] { s => s.copy(activeNodes = baseEnds ++ s.activeNodes) }
         } yield baseStart
-      case WIOExecutionProgress.End(_)                                                                     =>
+      case WIOExecutionProgress.End(_)                                      =>
         addStep("End", shape = "circle".some).map(_.some)
-      case WIOExecutionProgress.Pure(meta, _)                                                       =>
+      case WIOExecutionProgress.Pure(meta, _)                               =>
         if (meta.name.isDefined || meta.error.isDefined) {
           for {
             stepId <- addStep(meta.name.getOrElse("@computation"))
             _      <- meta.error.traverse(addPendingError(stepId, _))
           } yield stepId.some
         } else State.pure(None)
-      case WIOExecutionProgress.Loop(base, onRestart, meta, history) =>
+      case WIOExecutionProgress.Loop(base, onRestart, meta, history)        =>
         // TODO shoudl render history if present
         for {
           baseStart     <- render(base.toEmptyProgress)
@@ -78,7 +83,7 @@ object MermaidRenderer {
           _             <- addLinks(ends, baseStart.get)
           _             <- setActiveNodes(Seq(conditionNode -> meta.exitBranchName))
         } yield baseStart
-      case WIOExecutionProgress.Fork(branches, meta, _)                                                    => {
+      case WIOExecutionProgress.Fork(branches, meta, _)                     => {
         def renderBranch(
             branch: WIOExecutionProgress[?],
             meta: WIOMeta.Branch,
@@ -97,14 +102,14 @@ object MermaidRenderer {
           _             <- setActiveNodes(ends)
         } yield conditionNode.some
       }
-      case WIOExecutionProgress.Interruptible(base, trigger, handleFlow, _)                                =>
+      case WIOExecutionProgress.Interruptible(base, trigger, handleFlow, _) =>
         for {
           (baseEnds, baseStart) <- addSubgraph(render(base))
           _                     <- render(trigger)
           _                     <- handleFlow.traverse(render)
           _                     <- State.modify[RenderState](s => s.copy(activeNodes = s.activeNodes ++ baseEnds))
         } yield baseStart
-      case WIOExecutionProgress.Timer(meta, _)                                                             =>
+      case WIOExecutionProgress.Timer(meta, _)                              =>
         val durationStr = meta.duration.map(humanReadableDuration).getOrElse("dynamic")
         val label       = s"${meta.name.getOrElse("")} ($durationStr)"
         for {
@@ -145,7 +150,7 @@ object MermaidRenderer {
   private def addPendingError(from: NodeId, err: WIOMeta.Error): State[RenderState, Unit] =
     State.modify(_.addPendingError(from, err))
 
-  private def handleErrors(errors: Seq[(NodeId, WIOMeta.Error)], to: NodeId): State[RenderState, Unit] = State.modify { state =>
+  private def handleErrors(errors: Seq[(NodeId, WIOMeta.Error)], to: NodeId): State[RenderState, Unit]  = State.modify { state =>
     val links = errors.map(pendingErr => Link(pendingErr._1, to, s"fa:fa-bolt ${pendingErr._2.name}".some, midfix = "."))
     state.addElements(links)
   }
@@ -180,7 +185,7 @@ object MermaidRenderer {
       pendingErrors: Seq[PendingError],
   ) {
     def addPendingError(from: NodeId, error: WIOMeta.Error): RenderState = copy(pendingErrors = pendingErrors.appended((from, error)))
-    def addElements(els: Seq[MermaidElement]): RenderState                = copy(chart = chart.addElements(els))
+    def addElements(els: Seq[MermaidElement]): RenderState               = copy(chart = chart.addElements(els))
   }
   private object RenderState {
     def initial(idIdx: Int): RenderState = RenderState(MermaidFlowchart(), idIdx, Seq(), Seq())

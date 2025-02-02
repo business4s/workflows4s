@@ -6,7 +6,11 @@ import workflows4s.wio.model.{WIOExecutionProgress, WIOMeta}
 import workflows4s.wio.*
 object ExecutionProgressEvaluator {
 
-  def run[Ctx <: WorkflowContext, In](wio: WIO[In, ?, ?, Ctx], input: Option[In], lastSeenState: Option[WCState[Ctx]]): WIOExecutionProgress[WCState[Ctx]] = {
+  def run[Ctx <: WorkflowContext, In](
+      wio: WIO[In, ?, ?, Ctx],
+      input: Option[In],
+      lastSeenState: Option[WCState[Ctx]],
+  ): WIOExecutionProgress[WCState[Ctx]] = {
     new ModelVisitor(wio, None, lastSeenState, input).run
   }
 
@@ -14,7 +18,7 @@ object ExecutionProgressEvaluator {
       wio: WIO[In, Err, Out, Ctx],
       result: WIOExecutionProgress.ExecutionResult[WCState[Ctx]],
       lastSeenState: Option[WCState[Ctx]],
-      input: Option[In]
+      input: Option[In],
   ) extends Visitor[Ctx, In, Err, Out](wio) {
     override type Result = WIOExecutionProgress[WCState[Ctx]]
 
@@ -29,7 +33,8 @@ object ExecutionProgressEvaluator {
     def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result          = {
       WIOExecutionProgress.Sequence(Seq(recurse(wio.base, input, None), WIOExecutionProgress.Dynamic(WIOMeta.Dynamic(wio.errorMeta.toModel))))
     }
-    def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Result          = recurse(wio.base, input.map(wio.contramapInput))
+    def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Result          =
+      recurse(wio.base, input.map(wio.contramapInput))
     def onNoop(wio: WIO.End[Ctx]): Result                                                                              = WIOExecutionProgress.End(result)
     def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result = {
       WIOExecutionProgress.HandleError(
@@ -81,7 +86,7 @@ object ExecutionProgressEvaluator {
         wio.inner,
         this.result.flatMap(_.traverse(wio.embedding.unconvertState)),
         lastSeenState.flatMap(wio.embedding.unconvertState),
-        input
+        input,
       )
       visitor.run.map(x => input.map(wio.embedding.convertState(x, _))) // get is unsafe
       // but it should always be present.
@@ -114,7 +119,7 @@ object ExecutionProgressEvaluator {
     def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]) =
       WIOExecutionProgress.Timer(WIOMeta.Timer(None, None), result) // TODO persist duration and name
     def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result = recurse(wio.original, wio.input.some, wio.output.some)
-    def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result = recurse(wio.original, wio.input.some, None)
+    def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result           = recurse(wio.original, wio.input.some, None)
 
     def recurse[I1, E1, O1 <: WCState[Ctx]](
         wio: WIO[I1, E1, O1, Ctx],

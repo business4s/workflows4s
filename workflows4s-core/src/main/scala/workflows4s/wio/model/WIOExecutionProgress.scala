@@ -105,21 +105,22 @@ object WIOExecutionProgress {
     override def map[NewState](f: State => Option[NewState]): Timer[NewState] = Timer(meta, result.flatMap(_.traverse(f)))
   }
 
-  def fromModel(model: WIOModel): WIOExecutionProgress[Nothing] = model match {
-    case x: WIOModel.Interruption => fromModelInterruption(x)
-    case WIOModel.Sequence(steps) => Sequence(steps.map(fromModel))
-    case WIOModel.Dynamic(meta) => Dynamic(meta)
-    case WIOModel.RunIO(meta) => RunIO(meta, None)
-    case WIOModel.HandleError(base, handler, meta) => HandleError(fromModel(base), fromModel(handler), meta, None)
-    case WIOModel.End => End(None)
-    case WIOModel.Pure(meta) => Pure(meta, None)
-    case WIOModel.Loop(base, onRestart, meta) => Loop(base, onRestart, meta, Seq.empty)
-    case WIOModel.Fork(branches, meta) => Fork(branches.map(fromModel), meta, None)
-    case WIOModel.Interruptible(base, trigger, handler) => Interruptible(fromModel(base), fromModelInterruption(trigger), handler.map(fromModel), None)
+  def fromModel(model: WIOModel): WIOExecutionProgress[Nothing]                                               = model match {
+    case x: WIOModel.Interruption                       => fromModelInterruption(x)
+    case WIOModel.Sequence(steps)                       => Sequence(steps.map(fromModel))
+    case WIOModel.Dynamic(meta)                         => Dynamic(meta)
+    case WIOModel.RunIO(meta)                           => RunIO(meta, None)
+    case WIOModel.HandleError(base, handler, meta)      => HandleError(fromModel(base), fromModel(handler), meta, None)
+    case WIOModel.End                                   => End(None)
+    case WIOModel.Pure(meta)                            => Pure(meta, None)
+    case WIOModel.Loop(base, onRestart, meta)           => Loop(base, onRestart, meta, Seq.empty)
+    case WIOModel.Fork(branches, meta)                  => Fork(branches.map(fromModel), meta, None)
+    case WIOModel.Interruptible(base, trigger, handler) =>
+      Interruptible(fromModel(base), fromModelInterruption(trigger), handler.map(fromModel), None)
   }
   private def fromModelInterruption(model: WIOModel.Interruption): WIOExecutionProgress.Interruption[Nothing] = model match {
     case WIOModel.HandleSignal(meta) => HandleSignal(meta, None)
-    case WIOModel.Timer(meta) => Timer(meta, None)
+    case WIOModel.Timer(meta)        => Timer(meta, None)
   }
-  
+
 }

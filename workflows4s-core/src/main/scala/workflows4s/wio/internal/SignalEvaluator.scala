@@ -48,7 +48,7 @@ object SignalEvaluator {
     // the problem is identifying the timer, but we could parametrize the signal request with time, so its
     // "release timers as if current time was time communicated in the signal"
     def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result                           = None
-    def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result                                       = None
+    def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result                             = None
     def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result                                       = None
 
     def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result          = recurse(wio.base, input)

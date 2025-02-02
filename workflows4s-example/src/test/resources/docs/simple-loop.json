@@ -1,14 +1,16 @@
 {
   "base" : {
-    "name" : "Step1",
-    "error" : null,
-    "executed" : false,
+    "meta" : {
+      "name" : "Step1",
+      "error" : null
+    },
     "_type" : "Pure"
   },
-  "conditionName" : null,
-  "exitBranchName" : null,
-  "restartBranchName" : null,
   "onRestart" : null,
-  "executed" : false,
+  "meta" : {
+    "conditionName" : null,
+    "exitBranchName" : null,
+    "restartBranchName" : null
+  },
   "_type" : "Loop"
 }

@@ -1,6 +1,7 @@
 {
-  "duration" : "PT24H",
-  "name" : "Wait For Input",
-  "executed" : false,
+  "meta" : {
+    "duration" : "PT24H",
+    "name" : "Wait For Input"
+  },
   "_type" : "Timer"
 }

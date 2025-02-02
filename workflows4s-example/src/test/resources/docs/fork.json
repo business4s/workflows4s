@@ -1,25 +1,30 @@
 {
   "branches" : [
     {
-      "logic" : {
+      "meta" : {
         "name" : "Do A",
-        "error" : null,
-        "executed" : false,
-        "_type" : "Pure"
+        "error" : null
       },
-      "label" : "Yes"
+      "_type" : "Pure"
     },
     {
-      "logic" : {
+      "meta" : {
         "name" : "Do B",
-        "error" : null,
-        "executed" : false,
-        "_type" : "Pure"
+        "error" : null
       },
-      "label" : "No"
+      "_type" : "Pure"
     }
   ],
-  "name" : "Is counter positive?",
-  "executed" : false,
+  "meta" : {
+    "name" : "Is counter positive?",
+    "branches" : [
+      {
+        "name" : "Yes"
+      },
+      {
+        "name" : "No"
+      }
+    ]
+  },
   "_type" : "Fork"
 }

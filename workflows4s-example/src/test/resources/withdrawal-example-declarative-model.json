@@ -7,103 +7,110 @@
             "base" : {
               "steps" : [
                 {
-                  "signalName" : "Create Withdrawal",
-                  "error" : {
-                    "name" : "Invalid Input"
+                  "meta" : {
+                    "signalName" : "Create Withdrawal",
+                    "operationName" : "Validate",
+                    "error" : {
+                      "name" : "Invalid Input"
+                    }
                   },
-                  "operationName" : "Validate",
-                  "executed" : false,
                   "_type" : "HandleSignal"
                 },
                 {
-                  "error" : null,
-                  "name" : "Calculate Fees",
-                  "executed" : false,
-                  "_type" : "RunIO"
-                },
-                {
-                  "error" : {
-                    "name" : "Not Enough Funds"
+                  "meta" : {
+                    "name" : "Calculate Fees",
+                    "error" : null
                   },
-                  "name" : "Put Funds On Hold",
-                  "executed" : false,
                   "_type" : "RunIO"
                 },
                 {
-                  "name" : "Run Checks",
-                  "error" : null,
-                  "executed" : false,
+                  "meta" : {
+                    "name" : "Put Funds On Hold",
+                    "error" : {
+                      "name" : "Not Enough Funds"
+                    }
+                  },
+                  "_type" : "RunIO"
+                },
+                {
+                  "meta" : {
+                    "name" : "Run Checks",
+                    "error" : null
+                  },
                   "_type" : "Pure"
                 },
                 {
-                  "name" : "Act On Decision",
-                  "error" : {
-                    "name" : "Rejected In Checks"
+                  "meta" : {
+                    "name" : "Act On Decision",
+                    "error" : {
+                      "name" : "Rejected In Checks"
+                    }
                   },
-                  "executed" : false,
                   "_type" : "Pure"
                 },
                 {
-                  "error" : {
-                    "name" : "Rejected By Execution Engine"
+                  "meta" : {
+                    "name" : "Initiate Execution",
+                    "error" : {
+                      "name" : "Rejected By Execution Engine"
+                    }
                   },
-                  "name" : "Initiate Execution",
-                  "executed" : false,
                   "_type" : "RunIO"
                 },
                 {
-                  "signalName" : "Execution Completed",
-                  "error" : {
-                    "name" : "Rejected By Execution Engine"
+                  "meta" : {
+                    "signalName" : "Execution Completed",
+                    "operationName" : null,
+                    "error" : {
+                      "name" : "Rejected By Execution Engine"
+                    }
                   },
-                  "operationName" : null,
-                  "executed" : false,
                   "_type" : "HandleSignal"
                 }
               ],
-              "executed" : false,
               "_type" : "Sequence"
             },
             "trigger" : {
-              "signalName" : "Cancel Withdrawal",
-              "error" : {
-                "name" : "Cancelled"
+              "meta" : {
+                "signalName" : "Cancel Withdrawal",
+                "operationName" : null,
+                "error" : {
+                  "name" : "Cancelled"
+                }
               },
-              "operationName" : null,
-              "executed" : false,
               "_type" : "HandleSignal"
             },
-            "handleFlow" : null,
-            "executed" : false,
+            "handler" : null,
             "_type" : "Interruptible"
           },
           {
-            "error" : null,
-            "name" : "Release Funds",
-            "executed" : false,
+            "meta" : {
+              "name" : "Release Funds",
+              "error" : null
+            },
             "_type" : "RunIO"
           }
         ],
-        "executed" : false,
         "_type" : "Sequence"
       },
       "handler" : {
-        "error" : null,
-        "name" : "Cancel Funds If Needed",
-        "executed" : false,
+        "meta" : {
+          "name" : "Cancel Funds If Needed",
+          "error" : null
+        },
         "_type" : "RunIO"
       },
-      "error" : {
-        "name" : "Withdrawal Rejection"
+      "meta" : {
+        "newErrorMeta" : null,
+        "handledErrorMeta" : {
+          "name" : "Withdrawal Rejection"
+        }
       },
-      "executed" : false,
       "_type" : "HandleError"
     },
     {
-      "executed" : false,
       "_type" : "End"
     }
   ],
-  "executed" : false,
   "_type" : "Sequence"
 }

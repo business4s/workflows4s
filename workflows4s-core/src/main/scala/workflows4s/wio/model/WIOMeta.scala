@@ -1,6 +1,5 @@
 package workflows4s.wio.model
 
-
 import io.circe.Codec
 
 import java.time.Duration

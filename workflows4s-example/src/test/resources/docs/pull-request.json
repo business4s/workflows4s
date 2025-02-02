@@ -2,50 +2,56 @@
   "base" : {
     "steps" : [
       {
-        "signalName" : "Create Request",
-        "error" : {
-          "name" : "Commit Not Found"
+        "meta" : {
+          "signalName" : "Create Request",
+          "operationName" : "Create PR",
+          "error" : {
+            "name" : "Commit Not Found"
+          }
         },
-        "operationName" : "Create PR",
-        "executed" : false,
         "_type" : "HandleSignal"
       },
       {
-        "error" : {
-          "name" : "Pipeline Failed"
+        "meta" : {
+          "name" : "Run Pipeline",
+          "error" : {
+            "name" : "Pipeline Failed"
+          }
         },
-        "name" : "Run Pipeline",
-        "executed" : false,
         "_type" : "RunIO"
       },
       {
-        "signalName" : "Review Request",
-        "error" : {
-          "name" : "Review Rejected"
+        "meta" : {
+          "signalName" : "Review Request",
+          "operationName" : "Process Review",
+          "error" : {
+            "name" : "Review Rejected"
+          }
         },
-        "operationName" : "Process Review",
-        "executed" : false,
         "_type" : "HandleSignal"
       },
       {
-        "name" : "Merge PR",
-        "error" : null,
-        "executed" : false,
+        "meta" : {
+          "name" : "Merge PR",
+          "error" : null
+        },
         "_type" : "Pure"
       }
     ],
-    "executed" : false,
     "_type" : "Sequence"
   },
   "handler" : {
-    "name" : "Close PR",
-    "error" : null,
-    "executed" : false,
+    "meta" : {
+      "name" : "Close PR",
+      "error" : null
+    },
     "_type" : "Pure"
   },
-  "error" : {
-    "name" : "PRError"
+  "meta" : {
+    "newErrorMeta" : null,
+    "handledErrorMeta" : {
+      "name" : "PRError"
+    }
   },
-  "executed" : false,
   "_type" : "HandleError"
 }

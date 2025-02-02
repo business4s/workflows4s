@@ -77,10 +77,10 @@ object WIO {
   ) extends WIO[In, Err, Out, Ctx]
 
   case class HandleErrorWith[Ctx <: WorkflowContext, -In, Err, +Out <: WCState[Ctx], +ErrOut](
-                                                                                               base: WIO[In, Err, Out, Ctx],
-                                                                                               handleError: WIO[(WCState[Ctx], Err), ErrOut, Out, Ctx],
-                                                                                               handledErrorMeta: ErrorMeta[?],
-                                                                                               newErrorMeta: ErrorMeta[?],
+      base: WIO[In, Err, Out, Ctx],
+      handleError: WIO[(WCState[Ctx], Err), ErrOut, Out, Ctx],
+      handledErrorMeta: ErrorMeta[?],
+      newErrorMeta: ErrorMeta[?],
   ) extends WIO[In, ErrOut, Out, Ctx]
 
   case class AndThen[Ctx <: WorkflowContext, -In, +Err, Out1 <: WCState[Ctx], +Out2 <: WCState[Ctx]](

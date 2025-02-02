@@ -1,19 +1,22 @@
 {
   "base" : {
-    "name" : "Step1",
-    "error" : null,
-    "executed" : false,
+    "meta" : {
+      "name" : "Step1",
+      "error" : null
+    },
     "_type" : "Pure"
   },
-  "conditionName" : "Is everything done?",
-  "exitBranchName" : "Yes!",
-  "restartBranchName" : "No",
   "onRestart" : {
-    "name" : "Step2",
-    "error" : null,
-    "executed" : false,
+    "meta" : {
+      "name" : "Step2",
+      "error" : null
+    },
     "_type" : "Pure"
   },
-  "executed" : false,
+  "meta" : {
+    "conditionName" : "Is everything done?",
+    "exitBranchName" : "Yes!",
+    "restartBranchName" : "No"
+  },
   "_type" : "Loop"
 }

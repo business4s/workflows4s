@@ -27,7 +27,7 @@ object RunIOEvaluator {
   ) extends Visitor[Ctx, In, Err, Out](wio) {
     override type Result = Option[IO[WCEvent[Ctx]]]
 
-    def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result                                       = None
+    def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result                             = None
     def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result = None
     def onNoop(wio: WIO.End[Ctx]): Result                                                          = None
     def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                                           = None

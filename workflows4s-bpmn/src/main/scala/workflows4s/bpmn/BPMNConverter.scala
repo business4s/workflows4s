@@ -34,19 +34,19 @@ object BPMNConverter {
       builder: Builder,
   ): Builder = {
     model match {
-      case WIOModel.Sequence(steps)                                      =>
+      case WIOModel.Sequence(steps)                                   =>
         steps.foldLeft[AbstractFlowNodeBuilder[?, ?]](builder)((builder, step) => handle(step, builder))
-      case WIOModel.Dynamic(meta)                                        =>
+      case WIOModel.Dynamic(meta)                                     =>
         builder
           .serviceTask()
           .name("<Dynamic>")
           .pipe(renderError(meta.error))
-      case WIOModel.RunIO(meta)                                =>
+      case WIOModel.RunIO(meta)                                       =>
         builder
           .serviceTask()
           .name(meta.name.getOrElse("Task"))
           .pipe(renderError(meta.error))
-      case WIOModel.HandleSignal(meta)    =>
+      case WIOModel.HandleSignal(meta)                                =>
         builder
           .intermediateCatchEvent()
           .signal(meta.signalName)
@@ -54,7 +54,7 @@ object BPMNConverter {
           .serviceTask()
           .name(meta.operationName.getOrElse(s"""Handle "${meta.signalName}""""))
           .pipe(renderError(meta.error))
-      case WIOModel.HandleError(base, handler, meta)                 =>
+      case WIOModel.HandleError(base, handler, meta)                  =>
         val subProcessStartEventId = Random.alphanumeric.filter(_.isLetter).take(10).mkString
         val subBuilder             = builder
           .subProcess()
@@ -72,14 +72,14 @@ object BPMNConverter {
           .moveToNode(subProcessStartEventId)
           .subProcessDone()
       case WIOModel.End                                               => builder
-      case WIOModel.Pure(meta)                              =>
+      case WIOModel.Pure(meta)                                        =>
         if (meta.error.isDefined || meta.name.isDefined) {
           builder
             .serviceTask()
             .name(meta.name.orNull)
             .pipe(renderError(meta.error))
         } else builder
-      case loop: WIOModel.Loop                                           =>
+      case loop: WIOModel.Loop                                        =>
         val loopStartGwId      = Random.alphanumeric.filter(_.isLetter).take(10).mkString
         val loopEndGwId        = Random.alphanumeric.filter(_.isLetter).take(10).mkString
         val nextTaskTempNodeId = Random.alphanumeric.filter(_.isLetter).take(10).mkString
@@ -150,7 +150,7 @@ object BPMNConverter {
           .endEvent()
           .moveToNode(subProcessStartEventId)
           .subProcessDone()
-      case WIOModel.Timer(meta)                             =>
+      case WIOModel.Timer(meta)                                       =>
         val label = (meta.duration, meta.name) match {
           case (Some(duration), Some(name)) => s"$name (${humanReadableDuration(duration)})"
           case (None, Some(name))           => name
