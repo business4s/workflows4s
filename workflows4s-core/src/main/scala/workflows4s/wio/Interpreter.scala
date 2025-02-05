@@ -2,7 +2,6 @@ package workflows4s.wio
 
 import cats.effect.IO
 import cats.syntax.all.*
-import workflows4s.wio.WIO.HandleInterruption.{InterruptionStatus, InterruptionType}
 import workflows4s.wio.internal.WorkflowEmbedding
 
 object Interpreter {
@@ -114,117 +113,10 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
       case x: WIO.Discarded[?, ?]                                    => onDiscarded(x)
     }
   }
-
-  protected def processFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](
-      wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In],
-      baseResult: WFExecution[Ctx, In, Err1, Out1],
-  ): WFExecution[Ctx, In, Err, Out] = {
-    baseResult match {
-      case WFExecution.Complete(newWio) =>
-        newWio.output match {
-          case Left(err)    => WFExecution.complete(wio.copy(base = newWio), Left(err), newWio.input)
-          case Right(value) => WFExecution.Partial(WIO.AndThen(newWio, wio.getNext(value)))
-        }
-      case WFExecution.Partial(newWio)  => WFExecution.Partial(wio.copy(base = newWio))
-    }
-  }
-
-  def processTransform[Out1 <: WCState[Ctx], In1, Err1](
-      transform: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err],
-      baseResult: WFExecution[Ctx, In1, Err1, Out1],
-      input: In,
-  ): WFExecution[Ctx, In, Err, Out] = {
-    baseResult match {
-      case WFExecution.Complete(newWio) =>
-        WFExecution.complete(
-          WIO.Transform(newWio, transform.contramapInput, transform.mapOutput),
-          transform.mapOutput(input, newWio.output),
-          input,
-        )
-      case WFExecution.Partial(wio)     =>
-        WFExecution.Partial[Ctx, In, Err, Out](WIO.Transform(wio, transform.contramapInput, (_, out) => transform.mapOutput(input, out)))
-    }
-  }
-
-  protected def processHandleErrorBase[ErrIn, TempOut <: WCState[Ctx]](
-      wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut],
-      baseResult: WFExecution[Ctx, In, ErrIn, Out],
-      state: WCState[Ctx],
-  ): WFExecution[Ctx, In, Err, Out] = {
-    baseResult match {
-      case WFExecution.Complete(executedBase) =>
-        executedBase.output match {
-          case Left(err)    =>
-            WFExecution.Partial(WIO.HandleErrorWith(executedBase, wio.handleError(state, err), wio.handledErrorMeta, wio.newErrorMeta))
-          case Right(value) => WFExecution.complete(wio.copy(base = executedBase), Right(value), executedBase.input)
-        }
-      case WFExecution.Partial(newWio)        => WFExecution.Partial(wio.copy(base = newWio))
-    }
-  }
-
-  protected def processHandleErrorWith_Base[ErrIn](
-      wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err],
-      baseResult: WFExecution[Ctx, In, ErrIn, Out],
-      input: In,
-  ): WFExecution[Ctx, In, Err, Out] = {
-    def updateBase(newBase: WIO[In, ErrIn, Out, Ctx]) = wio.copy(base = newBase)
-    baseResult match {
-      case WFExecution.Complete(newWio) =>
-        newWio.output match {
-          case Left(_)      => WFExecution.Partial(updateBase(newWio))
-          case Right(value) => WFExecution.complete(updateBase(newWio), Right(value), input)
-        }
-      case WFExecution.Partial(newWio)  => WFExecution.Partial(updateBase(newWio))
-    }
-  }
-
-  protected def processHandleErrorWithHandler[ErrIn](
-      wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err],
-      handlerResult: WFExecution[Ctx, (WCState[Ctx], ErrIn), Err, Out],
-      input: In,
-      // its already part of `wio` but we need a prove the input is Any
-  ): WFExecution[Ctx, In, Err, Out] = {
-    def updateHandler(newHandler: WIO[(WCState[Ctx], ErrIn), Err, Out, Ctx]) = wio.copy(handleError = newHandler)
-    handlerResult match {
-      case WFExecution.Complete(newHandler) => WFExecution.complete(updateHandler(newHandler), newHandler.output, input)
-      case WFExecution.Partial(newHandler)  => WFExecution.Partial(updateHandler(newHandler))
-    }
-  }
-
-  def processLoop[LoopOut <: WCState[Ctx]](
-      wio: WIO.Loop[Ctx, In, Err, LoopOut, Out],
-      currentResult: WFExecution[Ctx, In, Err, LoopOut],
-      input: In,
-  ): WFExecution[Ctx, In, Err, Out] = {
-    // TODO all the `.provideInput` here are not good, they enlarge the graph unnecessarly.
-    //  alternatively we could maybe take the input from the last history entry
-    currentResult match {
-      case WFExecution.Complete(newWio) =>
-        newWio.output match {
-          case Left(err)    => WFExecution.complete(wio.copy(history = wio.history :+ newWio), Left(err), input)
-          case Right(value) =>
-            if (wio.isReturning) {
-              WFExecution.Partial(wio.copy(current = wio.loop.provideInput(value), isReturning = false, history = wio.history :+ newWio))
-            } else {
-              wio.stopCondition(value) match {
-                case Some(value) => WFExecution.complete(wio.copy(history = wio.history :+ newWio), Right(value), input)
-                case None        =>
-                  wio.onRestart match {
-                    case Some(onRestart) =>
-                      WFExecution.Partial(wio.copy(current = onRestart.provideInput(value), isReturning = true, history = wio.history :+ newWio))
-                    case None            =>
-                      WFExecution.Partial(wio.copy(current = wio.loop.provideInput(value), isReturning = true, history = wio.history :+ newWio))
-                  }
-
-              }
-            }
-        }
-      case WFExecution.Partial(newWio)  => WFExecution.Partial(wio.copy(current = newWio))
-    }
-  }
-
-  def selectMatching(wio: WIO.Fork[Ctx, In, Err, Out], in: In): Option[(WIO[In, Err, Out, Ctx], Int)] = {
-    wio.branches.zipWithIndex.collectFirstSome(b => b._1.condition(in).map(interm => b._1.wio.transformInput[In](s => interm) -> b._2))
+  
+  case class Matching[BranchIn](idx: Int, input: BranchIn, wio: WIO[BranchIn, Err, Out, Ctx])
+  def selectMatching(wio: WIO.Fork[Ctx, In, Err, Out], in: In): Option[Matching[?]] = {
+    wio.branches.zipWithIndex.collectFirstSome((branch, idx) => branch.condition(in).map(interm => Matching(idx, interm, branch.wio)))
   }
 
   def convertEmbeddingResult2[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], O1[_] <: WCState[Ctx]](
@@ -246,42 +138,6 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
       case WFExecution.Partial(newWio)  =>
         val embedding: WorkflowEmbedding.Aux[InnerCtx, Ctx, O1, Any] = wio.embedding.contramap(_ => input)
         convert(WFExecution.Partial(WIO.Embedded(newWio, embedding, _ => wio.initialState(input))))
-    }
-  }
-
-  def processHandleInterruption_Base(
-      wio: WIO.HandleInterruption[Ctx, In, Err, Out],
-      baseResult: WFExecution[Ctx, In, Err, Out],
-  ): WFExecution[Ctx, In, Err, Out] = {
-    baseResult match {
-      case WFExecution.Complete(newWio) => WFExecution.complete(wio.copy(base = newWio), newWio.output, newWio.input)
-      case WFExecution.Partial(newWio)  => WFExecution.Partial(wio.copy(base = newWio))
-    }
-  }
-  def processHandleInterruption_Interruption(
-      wio: WIO.HandleInterruption[Ctx, In, Err, Out],
-      interruptionResult: WFExecution[Ctx, WCState[Ctx], Err, Out],
-      input: In,
-  ): WFExecution[Ctx, In, Err, Out] = {
-    val newStatus: InterruptionStatus.Interrupted.type | InterruptionStatus.TimerStarted.type =
-      wio.status match {
-        case InterruptionStatus.Interrupted  => InterruptionStatus.Interrupted
-        case InterruptionStatus.TimerStarted => InterruptionStatus.Interrupted
-        case InterruptionStatus.Pending      =>
-          wio.interruptionType match {
-            case InterruptionType.Signal => InterruptionStatus.Interrupted
-            case InterruptionType.Timer  => InterruptionStatus.TimerStarted
-          }
-      }
-    interruptionResult match {
-      case WFExecution.Complete(newInterruptionWio) =>
-        WFExecution.complete(wio.copy(interruption = newInterruptionWio, status = newStatus), newInterruptionWio.output, input)
-      case WFExecution.Partial(newInterruptionWio)  =>
-        val newBase = newStatus match {
-          case InterruptionStatus.Interrupted  => WIO.Discarded(wio.base, input)
-          case InterruptionStatus.TimerStarted => wio.base.provideInput(input)
-        }
-        WFExecution.Partial(wio.copy(base = newBase, newInterruptionWio, status = newStatus))
     }
   }
 

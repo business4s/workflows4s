@@ -66,7 +66,7 @@ object RunIOEvaluator {
       recurse(wio.current, input)
 
     def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result =
-      selectMatching(wio, input).flatMap((nextWio, idx) => recurse(nextWio, input))
+      selectMatching(wio, input).flatMap(selected => recurse(selected.wio, selected.input))
 
     def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_] <: WCState[Ctx]](
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],

@@ -16,8 +16,7 @@ class WIOAndThenTest extends AnyFreeSpec with Matchers {
     "simple" in {
       val a     = WIO.pure.makeFrom[String].value(_ + "A").done
       val b     = WIO.pure.makeFrom[String].value(_ + "B").done
-      val wf    = (a >>> b)
-        .toWorkflow("0")
+      val wf    = (a >>> b).toWorkflow("0")
       val state = wf.liveState(Instant.now)
       assert(state == "0AB")
     }

@@ -23,7 +23,7 @@ object BranchBuilder {
         def named(name: String): Step2[T, Err, Out]                   = this.copy(name = name.some)
         def autoNamed()(using n: sourcecode.Name): Step2[T, Err, Out] = named(ModelUtils.prettifyName(n.value))
 
-        def done: WIO.Branch[In, Err, Out, Ctx] = WIO.Branch(cond, wio, name)
+        def done: WIO.Branch[In, Err, Out, Ctx, ?] = WIO.Branch(cond, wio, name)
       }
 
     }

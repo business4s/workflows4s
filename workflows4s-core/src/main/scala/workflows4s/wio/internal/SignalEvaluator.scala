@@ -66,7 +66,8 @@ object SignalEvaluator {
       }
     }
     def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result                                   = recurse(wio.current, input)
-    def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                                                               = selectMatching(wio, input).flatMap((nextWio, idx) => recurse(nextWio, input))
+    def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                                                               = 
+      selectMatching(wio, input).flatMap(selected => recurse(selected.wio, selected.input))
 
     def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result = {
       wio.first.asExecuted match {

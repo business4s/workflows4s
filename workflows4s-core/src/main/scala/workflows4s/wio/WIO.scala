@@ -107,7 +107,7 @@ object WIO {
   }
 
   case class Fork[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]](
-      branches: Vector[Branch[In, Err, Out, Ctx]],
+      branches: Vector[Branch[In, Err, Out, Ctx, ?]],
       name: Option[String],
       selected: Option[Int],
   ) extends WIO[In, Err, Out, Ctx] {
@@ -177,42 +177,18 @@ object WIO {
 
   def build[Ctx <: WorkflowContext]: AllBuilders[Ctx] = new AllBuilders[Ctx] {}
 
-  trait Branch[-In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext] { self =>
-    type I // Intermediate
-
-    def condition: In => Option[I]
-
-    def wio: WIO[I, Err, Out, Ctx]
-
-    def name: Option[String]
-
-    def discard: Branch[Any, Err, Out, Ctx] = Branch.discarded(wio, name)
-  }
-
+  case class Branch[-In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext, BranchIn](
+      condition: In => Option[BranchIn],
+      wio: WIO[BranchIn, Err, Out, Ctx],
+      name: Option[String],
+  ) 
   object Branch {
-    def apply[Ctx <: WorkflowContext, In, T, Err, Out <: WCState[Ctx]](
-        cond: In => Option[T],
-        wio0: WIO[T, Err, Out, Ctx],
-        name0: Option[String],
-    ): Branch[In, Err, Out, Ctx] = {
-      new Branch[In, Err, Out, Ctx] {
-        override type I = T
-        override def condition: In => Option[I] = cond
-        override def wio: WIO[I, Err, Out, Ctx] = wio0
-        override def name: Option[String]       = name0
-      }
-    }
-    def discarded[Ctx <: WorkflowContext, Err, Out <: WCState[Ctx], In](
-        wio0: WIO[In, Err, Out, Ctx],
-        name0: Option[String],
-    ): Branch[Any, Err, Out, Ctx] = {
-      new Branch[Any, Err, Out, Ctx] {
-        override type I = In
-        override def condition: Any => Option[I] = _ => None
-        override def wio: WIO[In, Err, Out, Ctx] = wio0
-        override def name: Option[String]        = name0
-      }
-    }
+    def selected[Err, Out <: WCState[Ctx], Ctx <: WorkflowContext, BranchIn](
+        branchIn: BranchIn,
+        wio: WIO[BranchIn, Err, Out, Ctx],
+        name: Option[String],
+    ): Branch[Any, Err, Out, Ctx, BranchIn] =
+      Branch(_ => Some(branchIn), wio, name)
   }
 
   case class Executed[Ctx <: WorkflowContext, +Err, +Out <: WCState[Ctx], In](original: WIO[In, ?, ?, Ctx], output: Either[Err, Out], input: In)
