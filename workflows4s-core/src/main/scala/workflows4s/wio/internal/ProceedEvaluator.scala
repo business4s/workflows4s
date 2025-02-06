@@ -48,8 +48,8 @@ object ProceedEvaluator {
         .map(convertEmbeddingResult2(wio, _, input))
     }
 
-    def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], s: I1): Option[WFExecution[Ctx, I1, E1, O1]] =
-      new ProceedVisitor(wio, s, lastSeenState, now).run
+    def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], in: I1, state: WCState[Ctx]): Option[WFExecution[Ctx, I1, E1, O1]] =
+      new ProceedVisitor(wio, in, state, now).run
   }
 
 }

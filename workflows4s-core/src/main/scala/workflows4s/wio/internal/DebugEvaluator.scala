@@ -63,7 +63,9 @@ object DebugEvaluator {
         executedDesc ++ firstNonExecuted ++ remainingDesc
       case x: WIOExecutionProgress.Dynamic          => Seq()
       case x: WIOExecutionProgress.RunIO[?]         => Seq()
-      case x: WIOExecutionProgress.HandleError[?]   => renderChildren("base" -> x.base, "handler" -> x.handler)
+      case x: WIOExecutionProgress.HandleError[?]   =>
+        // TODO should render handler without its children unless handler was entered.
+        renderChildren("base" -> x.base, "handler" -> x.handler)
       case x: WIOExecutionProgress.HandleSignal[?]  => Seq()
       case x: WIOExecutionProgress.End[?]           => Seq()
       case x: WIOExecutionProgress.Pure[?]          => Seq()

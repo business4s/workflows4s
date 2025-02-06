@@ -66,7 +66,7 @@ object SignalEvaluator {
       }
     }
     def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result                                   = recurse(wio.current, input)
-    def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                                                               = 
+    def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                                                               =
       selectMatching(wio, input).flatMap(selected => recurse(selected.wio, selected.input))
 
     def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result = {
@@ -76,7 +76,7 @@ object SignalEvaluator {
             case Left(_)      =>
               // This should not happen, whole AndThen should be marked as executed and never entered
               ??? // TODO better exception
-            case Right(value) => recurse(wio.second, value)
+            case Right(value) => recurse(wio.second, value, value)
           }
         case None                => recurse(wio.first, input)
       }
@@ -104,8 +104,8 @@ object SignalEvaluator {
       }
     }
 
-    def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], s: I1): SignalVisitor[Ctx, Resp, E1, O1, I1, Req]#Result =
-      new SignalVisitor(wio, signalDef, req, s, lastSeenState).run
+    def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], in: I1, state: WCState[Ctx] = lastSeenState): SignalVisitor[Ctx, Resp, E1, O1, I1, Req]#Result =
+      new SignalVisitor(wio, signalDef, req, in, state).run
 
   }
 }

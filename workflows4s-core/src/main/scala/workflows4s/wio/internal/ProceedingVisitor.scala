@@ -14,7 +14,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
 
   def onNoop(wio: WIO.End[Ctx]): Result                              = None
   def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result = None
-  def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result           = None
+  def onDiscarded[In1](wio: WIO.Discarded[Ctx, In1]): Result           = None
 
   def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result =
     recurse(wio.base, input).map({
@@ -98,7 +98,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
         firstExecuted.output match {
           case Left(err)    => WFExecution.complete(wio, Left(err), input).some
           case Right(value) =>
-            recurse(wio.second, value).map({
+            recurse(wio.second, value, value).map({
               case WFExecution.Complete(newWio) => WFExecution.complete(WIO.AndThen(wio.first, newWio), newWio.output, input)
               case WFExecution.Partial(newWio)  => WFExecution.Partial(WIO.AndThen(firstExecuted, newWio))
             })
@@ -203,6 +203,5 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
     }
   }
 
-  // TODO not entirely correct, need to udpate lastSeenState ?
-  def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], s: I1): Option[WFExecution[Ctx, I1, E1, O1]]
+  def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], in: I1, state: WCState[Ctx] = lastSeenState): Option[WFExecution[Ctx, I1, E1, O1]]
 }

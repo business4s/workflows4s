@@ -44,7 +44,7 @@ object GetStateEvaluator {
         case Some(firstExecuted) =>
           firstExecuted.output match {
             case Left(_)      => None
-            case Right(value) => recurse(wio.second, value).getOrElse(value).some
+            case Right(value) => recurse(wio.second, value, value).getOrElse(value).some
           }
         case None                => recurse(wio.first, input)
       }
@@ -81,8 +81,8 @@ object GetStateEvaluator {
         .map(innerState => wio.embedding.convertState(innerState, input))
     }
 
-    def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, ?, ?, Ctx], input: I1): GetStateVisitor[Ctx, I1, E1, O1]#Result =
-      new GetStateVisitor(wio, input, lastSeenState).run
+    def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, ?, ?, Ctx], input: I1, state: WCState[Ctx] = lastSeenState): GetStateVisitor[Ctx, I1, E1, O1]#Result =
+      new GetStateVisitor(wio, input, state).run
 
   }
 }

@@ -58,8 +58,8 @@ object EventEvaluator {
         .map(convertEmbeddingResult2(wio, _, input))
     }
 
-    def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], s: I1): EventVisitor[Ctx, I1, E1, O1]#Result =
-      new EventVisitor(wio, event, s, lastSeenState).run
+    def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], in: I1, state: WCState[Ctx]): EventVisitor[Ctx, I1, E1, O1]#Result =
+      new EventVisitor(wio, event, in, state).run
 
   }
 }
