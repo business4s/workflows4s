@@ -16,14 +16,14 @@ object TestUtils {
 
   val jsonPrinter                                           = Printer.spaces2
   def renderModelToFile(wio: WIO[?, ?, ?, ?], path: String) = {
-    val model           = wio.toModel
+    val model           = wio.toProgress.toModel
     val modelJson: Json = model.asJson
     val outputPath      = basePath.resolve(s"workflows4s-example/src/test/resources/${path}")
     ensureFileContentMatchesOrUpdate(jsonPrinter.print(modelJson), outputPath)
   }
 
   def renderBpmnToFile(wio: WIO[?, ?, ?, ?], path: String) = {
-    val model       = wio.toModel
+    val model       = wio.toProgress.toModel
     val bpmnModel   = BPMNConverter.convert(model, "process")
     val outputPath  = basePath.resolve(s"workflows4s-example/src/test/resources/${path}")
     val bpmnContent = Bpmn.convertToString(bpmnModel)

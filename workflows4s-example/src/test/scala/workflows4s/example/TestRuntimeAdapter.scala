@@ -17,7 +17,7 @@ import workflows4s.runtime.pekko.{PekkoWorkflowInstance, WorkflowBehavior}
 import workflows4s.runtime.wakeup.NoOpKnockerUpper
 import workflows4s.runtime.{InMemoryRuntime, InMemorySyncRuntime, InMemorySyncWorkflowInstance, WorkflowInstance}
 import workflows4s.wio.*
-import workflows4s.wio.model.WIOModel
+import workflows4s.wio.model.WIOExecutionProgress
 
 import java.time.Clock
 import java.util.UUID
@@ -71,7 +71,7 @@ object TestRuntimeAdapter {
         inst
       }
 
-      override def getModel: Id[WIOModel]                                                                                                   = base.getModel
+      override def getProgress: Id[WIOExecutionProgress[WCState[Ctx]]]                                                                      = base.getProgress
       override def queryState(): Id[WCState[Ctx]]                                                                                           = base.queryState()
       override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): Id[Either[WorkflowInstance.UnexpectedSignal, Resp]] =
         base.deliverSignal(signalDef, req)
@@ -108,7 +108,7 @@ object TestRuntimeAdapter {
         inst
       }
 
-      override def getModel: Id[WIOModel]                                                                                                   = base.getModel.unsafeRunSync()
+      override def getProgress: Id[WIOExecutionProgress[WCState[Ctx]]]                                                                      = base.getProgress.unsafeRunSync()
       override def queryState(): Id[WCState[Ctx]]                                                                                           = base.queryState().unsafeRunSync()
       override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): Id[Either[WorkflowInstance.UnexpectedSignal, Resp]] =
         base.deliverSignal(signalDef, req).unsafeRunSync()
@@ -178,8 +178,8 @@ object TestRuntimeAdapter {
         resp
       }
 
-      override def getModel: Id[WIOModel] = base.getModel.await
-      override def wakeup(): Id[Unit]     = base.wakeup().await
+      override def getProgress: Id[WIOExecutionProgress[WCState[Ctx]]] = base.getProgress.await
+      override def wakeup(): Id[Unit]                                  = base.wakeup().await
 
       // TODO could at least use futureValue from scalatest
       extension [T](f: Future[T]) {
@@ -225,7 +225,7 @@ object TestRuntimeAdapter {
 
       override def wakeup(): Id[Unit] = base.flatMap(_.wakeup()).unsafeRunSync()
 
-      override def getModel: Id[WIOModel] = base.flatMap(_.getModel).unsafeRunSync()
+      override def getProgress: Id[WIOExecutionProgress[WCState[Ctx]]] = base.flatMap(_.getProgress).unsafeRunSync()
     }
 
   }

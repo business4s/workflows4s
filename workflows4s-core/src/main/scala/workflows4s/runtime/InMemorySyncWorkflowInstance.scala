@@ -1,16 +1,17 @@
 package workflows4s.runtime
 
-import java.time.Clock
-import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
 import cats.Id
 import cats.effect.unsafe.IORuntime
 import cats.implicits.catsSyntaxEitherId
 import com.typesafe.scalalogging.StrictLogging
 import workflows4s.runtime.WorkflowInstance.UnexpectedSignal
 import workflows4s.runtime.wakeup.KnockerUpper
-import workflows4s.wio.model.WIOModel
-import workflows4s.wio.{ActiveWorkflow, SignalDef, WCEvent, WCState, WorkflowContext}
+import workflows4s.wio.model.WIOExecutionProgress
+import workflows4s.wio.*
+
+import java.time.Clock
+import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 
 class InMemorySyncWorkflowInstance[Ctx <: WorkflowContext](
     initialState: ActiveWorkflow[Ctx],
@@ -25,7 +26,7 @@ class InMemorySyncWorkflowInstance[Ctx <: WorkflowContext](
   private val events: mutable.Buffer[WCEvent[Ctx]] = ListBuffer[WCEvent[Ctx]]()
   def getEvents: Seq[WCEvent[Ctx]]                 = events.toList
 
-  override def getModel: WIOModel = wf.wio.toModel
+  override def getProgress: WIOExecutionProgress[WCState[Ctx]] = wf.wio.toProgress
 
   override def queryState(): WCState[Ctx] = wf.liveState(clock.instant())
 

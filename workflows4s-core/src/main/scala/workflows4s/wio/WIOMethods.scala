@@ -1,7 +1,7 @@
 package workflows4s.wio
 
 import workflows4s.wio.internal.ExecutionProgressEvaluator
-import workflows4s.wio.model.{WIOExecutionProgress, WIOModel}
+import workflows4s.wio.model.WIOExecutionProgress
 
 import scala.annotation.targetName
 
@@ -50,7 +50,6 @@ trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self
   ): WIO.HandleInterruption[Ctx, In1, Err1, Out1] =
     WIO.HandleInterruption(this, interruption.handler, WIO.HandleInterruption.InterruptionStatus.Pending, interruption.tpe)
 
-  def toModel: WIOModel                              = ExecutionProgressEvaluator.run(this, None, None).toModel
   def toProgress: WIOExecutionProgress[WCState[Ctx]] = ExecutionProgressEvaluator.run(this, None, None)
 
 }

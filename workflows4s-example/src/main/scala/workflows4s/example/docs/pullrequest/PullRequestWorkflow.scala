@@ -110,7 +110,7 @@ object PullRequestWorkflow {
 
   def main(args: Array[String]): Unit = {
     // start_render
-    val bpmnModel = BPMNConverter.convert(workflow.toModel, "process")
+    val bpmnModel = BPMNConverter.convert(workflow.toProgress.toModel, "process")
     Bpmn.writeModelToFile(new File(s"pr.bpmn").getAbsoluteFile, bpmnModel)
     // end_render
 

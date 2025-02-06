@@ -1,7 +1,5 @@
 package workflows4s.runtime.pekko
 
-import java.time.{Clock, Instant}
-import scala.annotation.nowarn
 import cats.effect.IO
 import cats.effect.unsafe.IORuntime
 import cats.implicits.catsSyntaxOptionId
@@ -12,7 +10,10 @@ import org.apache.pekko.persistence.typed.scaladsl.{Effect, EventSourcedBehavior
 import org.apache.pekko.persistence.typed.{PersistenceId, RecoveryCompleted}
 import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.wio.*
-import workflows4s.wio.model.WIOModel
+import workflows4s.wio.model.WIOExecutionProgress
+
+import java.time.{Clock, Instant}
+import scala.annotation.nowarn
 
 object WorkflowBehavior {
 
@@ -32,9 +33,9 @@ object WorkflowBehavior {
         request: Req,
         replyTo: ActorRef[SignalResponse[Resp]],
     ) extends Command[Ctx]
-    case class QueryState[Ctx <: WorkflowContext](replyTo: ActorRef[WCState[Ctx]]) extends Command[Ctx]
-    case class Wakeup[Ctx <: WorkflowContext](replyTo: ActorRef[Unit])             extends Command[Ctx]
-    case class GetModel[Ctx <: WorkflowContext](replyTo: ActorRef[WIOModel])       extends Command[Ctx]
+    case class QueryState[Ctx <: WorkflowContext](replyTo: ActorRef[WCState[Ctx]])                        extends Command[Ctx]
+    case class Wakeup[Ctx <: WorkflowContext](replyTo: ActorRef[Unit])                                    extends Command[Ctx]
+    case class GetProgress[Ctx <: WorkflowContext](replyTo: ActorRef[WIOExecutionProgress[WCState[Ctx]]]) extends Command[Ctx]
 
     private[WorkflowBehavior] case class PersistEvent[Ctx <: WorkflowContext, T](event: WCEvent[Ctx], confirm: Option[(ActorRef[T], T)])
         extends Command[Ctx]
@@ -88,7 +89,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
           case cmd: Command.Wakeup[Ctx]                 => handleWakeup(cmd, state, context)
           case cmd: Command.PersistEvent[Ctx, ?]        => handlePersistEvent(cmd, state)
           case cmd: Command.UpdateWakeup                => handleUpdateWakeup(cmd)
-          case cmd: Command.GetModel[Ctx]               => Effect.reply(cmd.replyTo)(activeWorkflow.wio.toModel)
+          case cmd: Command.GetProgress[Ctx]            => Effect.reply(cmd.replyTo)(activeWorkflow.wio.toProgress)
 
         },
       eventHandler = handleEvent,

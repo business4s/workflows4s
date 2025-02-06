@@ -1,12 +1,13 @@
 package workflows4s.runtime
 
-import java.time.Clock
 import cats.effect.{IO, Ref}
 import cats.implicits.{catsSyntaxApplicativeId, catsSyntaxEitherId, toTraverseOps}
 import workflows4s.runtime.WorkflowInstance.UnexpectedSignal
 import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.wio.*
-import workflows4s.wio.model.WIOModel
+import workflows4s.wio.model.WIOExecutionProgress
+
+import java.time.Clock
 
 // TODO current implementation is not safe in concurrent scenario. State should be locked for the duration of side effects
 class InMemoryWorkflowInstance[Ctx <: WorkflowContext](
@@ -17,7 +18,7 @@ class InMemoryWorkflowInstance[Ctx <: WorkflowContext](
 ) extends WorkflowInstance[IO, WCState[Ctx]] {
 
   def getEvents: IO[Vector[WCEvent[Ctx]]] = eventsRef.get
-  override def getModel: IO[WIOModel]     = stateRef.get.map(_.wio.toModel)
+  override def getProgress: IO[WIOExecutionProgress[WCState[Ctx]]]     = stateRef.get.map(_.wio.toProgress)
 
   override def queryState(): IO[WCState[Ctx]] = for {
     state <- stateRef.get

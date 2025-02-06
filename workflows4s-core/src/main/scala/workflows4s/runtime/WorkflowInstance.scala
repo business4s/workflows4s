@@ -2,7 +2,7 @@ package workflows4s.runtime
 
 import workflows4s.runtime.WorkflowInstance.UnexpectedSignal
 import workflows4s.wio.SignalDef
-import workflows4s.wio.model.WIOModel
+import workflows4s.wio.model.WIOExecutionProgress
 
 trait WorkflowInstance[F[_], State] {
 
@@ -12,7 +12,7 @@ trait WorkflowInstance[F[_], State] {
 
   def wakeup(): F[Unit]
 
-  def getModel: F[WIOModel]
+  def getProgress: F[WIOExecutionProgress[State]]
 
 }
 

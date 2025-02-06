@@ -23,7 +23,7 @@ object MermaidRenderer {
 
   private def render(model: WIOExecutionProgress[?]): State[RenderState, Option[NodeId]] = {
     def addStep(label: String, shape: Option[String] = None): State[RenderState, NodeId] = {
-      addStepGeneral(id => Node(id, label, shape, clazz = if (model.result.isDefined) executedClass.some else None))
+      addStepGeneral(id => Node(id, label, shape, clazz = if (model.isExecuted) executedClass.some else None))
     }
     model match {
       case WIOExecutionProgress.Sequence(steps)                             =>
@@ -47,7 +47,7 @@ object MermaidRenderer {
                           id,
                           s"fa:fa-envelope ${meta.signalName}",
                           shape = eventShape.some,
-                          clazz = if (model.result.isDefined) executedClass.some else None,
+                          clazz = if (model.isExecuted) executedClass.some else None,
                         ),
                       )
           stepId   <- addStep(meta.operationName.getOrElse(s"Handle ${meta.signalName}"))
@@ -73,7 +73,7 @@ object MermaidRenderer {
           } yield stepId.some
         } else State.pure(None)
       case WIOExecutionProgress.Loop(base, onRestart, meta, history)        =>
-        // TODO shoudl render history if present
+        // TODO should render history if present
         for {
           baseStart     <- render(base.toEmptyProgress)
           conditionNode <- addStep(meta.conditionName.getOrElse(" "), shape = conditionShape.some)
@@ -115,7 +115,7 @@ object MermaidRenderer {
         for {
           stepId <-
             addStepGeneral(id =>
-              Node(id, s"fa:fa-clock ${label}", shape = eventShape.some, clazz = if (model.result.isDefined) executedClass.some else None),
+              Node(id, s"fa:fa-clock ${label}", shape = eventShape.some, clazz = if (model.isExecuted) executedClass.some else None),
             )
         } yield stepId.some
     }
