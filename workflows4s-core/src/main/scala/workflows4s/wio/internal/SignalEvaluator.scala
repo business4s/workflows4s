@@ -65,7 +65,10 @@ object SignalEvaluator {
         case None               => recurse(wio.base, input)
       }
     }
-    def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result                                   = recurse(wio.current, input)
+    def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result                                   = {
+      val lastState = wio.history.lastOption.flatMap(_.output.toOption).getOrElse(lastSeenState)
+      recurse(wio.current, input, lastState)
+    }
     def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                                                               =
       selectMatching(wio, input).flatMap(selected => recurse(selected.wio, selected.input))
 
@@ -104,7 +107,11 @@ object SignalEvaluator {
       }
     }
 
-    def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], in: I1, state: WCState[Ctx] = lastSeenState): SignalVisitor[Ctx, Resp, E1, O1, I1, Req]#Result =
+    def recurse[I1, E1, O1 <: WCState[Ctx]](
+        wio: WIO[I1, E1, O1, Ctx],
+        in: I1,
+        state: WCState[Ctx] = lastSeenState,
+    ): SignalVisitor[Ctx, Resp, E1, O1, I1, Req]#Result =
       new SignalVisitor(wio, signalDef, req, in, state).run
 
   }

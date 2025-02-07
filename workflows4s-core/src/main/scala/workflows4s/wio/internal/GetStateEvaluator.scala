@@ -35,7 +35,8 @@ object GetStateEvaluator {
     def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Result          =
       recurse(wio.base, wio.contramapInput(input))
     def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result                                   = {
-      recurse(wio.current, input).orElse(wio.history.lastOption.flatMap(recurse(_, ())))
+      val lastState = wio.history.lastOption.flatMap(_.output.toOption).getOrElse(lastSeenState)
+      recurse(wio.current, input, lastState).orElse(wio.history.lastOption.flatMap(recurse(_, ())))
     }
     def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result = recurse(wio.base, input)
 

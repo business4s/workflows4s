@@ -95,7 +95,7 @@ object WIO {
       onRestart: Option[WIO[LoopOut, Err, LoopOut, Ctx]],
       meta: Loop.Meta,
       isReturning: Boolean, // true if current is coming from onReturn
-      history: Vector[WIO[Any, Err, LoopOut, Ctx]],
+      history: Vector[WIO.Executed[Ctx, Err, LoopOut, ?]],
   ) extends WIO[In, Err, Out, Ctx]
 
   object Loop {
@@ -181,7 +181,7 @@ object WIO {
       condition: In => Option[BranchIn],
       wio: WIO[BranchIn, Err, Out, Ctx],
       name: Option[String],
-  ) 
+  )
   object Branch {
     def selected[Err, Out <: WCState[Ctx], Ctx <: WorkflowContext, BranchIn](
         branchIn: BranchIn,

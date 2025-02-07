@@ -82,9 +82,8 @@ object DebugEvaluator {
           case None              => x.branches.zipWithIndex.map((step, idx) => renderChild(s"branch $idx", step))
         }
       case x: WIOExecutionProgress.Interruptible[?] =>
-        // TODO discard handler and trigger if base passed
         Seq(renderChild("base", x.base)) ++ Option
-          .when(x.base.isExecuted)(Seq(renderChild("trigger", x.trigger)) ++ x.handler.map(x => renderChild("handler", x)))
+          .when(!x.base.isExecuted)(Seq(renderChild("trigger", x.trigger)) ++ x.handler.map(x => renderChild("handler", x)))
           .getOrElse(Seq())
       case x: WIOExecutionProgress.Timer[?]         => Seq()
     }

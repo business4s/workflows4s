@@ -62,13 +62,15 @@ object ExecutionProgressEvaluator {
     }
 
     def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                             = WIOExecutionProgress.Pure(WIOMeta.Pure(wio.meta.name, wio.meta.error.toModel), result)
-    def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result =
+    def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result = {
       WIOExecutionProgress.Loop(
         recurse(wio.loop, None).toModel,
         wio.onRestart.map(recurse(_, None).toModel),
         WIOMeta.Loop(wio.meta.conditionName, wio.meta.releaseBranchName, wio.meta.restartBranchName),
         wio.history.appended(wio.current).map(recurse(_, input)),
       )
+    }
+
     def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                             = {
       // TODO should we put branch meta inside fork meta?
       WIOExecutionProgress.Fork(
@@ -142,7 +144,17 @@ object ExecutionProgressEvaluator {
   def extractFirstInterruption[S](flow: WIOExecutionProgress[S]): Option[(WIOExecutionProgress.Interruption[S], Option[WIOExecutionProgress[S]])] = {
     flow match {
       case WIOExecutionProgress.Sequence(steps)                               =>
-        extractFirstInterruption(steps.head).map((first, rest) => (first, rest.map(x => WIOExecutionProgress.Sequence(steps.toList.updated(0, x)))))
+        extractFirstInterruption(steps.head).map((first, rest) =>
+          (
+            first,
+            rest match {
+              case Some(value) => WIOExecutionProgress.Sequence(steps.toList.updated(0, value)).some
+              case None        =>
+                if (steps.size > 3) WIOExecutionProgress.Sequence(steps.tail).some
+                else steps(1).some
+            },
+          ),
+        )
       case WIOExecutionProgress.Dynamic(_)                                    => None
       case WIOExecutionProgress.RunIO(_, _)                                   => None
       case x @ WIOExecutionProgress.HandleSignal(_, _)                        => Some((x, None))

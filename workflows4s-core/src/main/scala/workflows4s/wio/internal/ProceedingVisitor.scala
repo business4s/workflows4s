@@ -2,7 +2,7 @@ package workflows4s.wio.internal
 
 import cats.implicits.catsSyntaxOptionId
 import workflows4s.wio.WIO.HandleInterruption.{InterruptionStatus, InterruptionType}
-import workflows4s.wio.{Visitor, WCState, WFExecution, WIO, WorkflowContext}
+import workflows4s.wio.*
 
 abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](
     wio: WIO[In, Err, Out, Ctx],
@@ -111,7 +111,8 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
   def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result = {
     // TODO all the `.provideInput` here are not good, they enlarge the graph unnecessarly.
     //  alternatively we could maybe take the input from the last history entry
-    recurse(wio.current, input).map({
+    val lastState = wio.history.lastOption.flatMap(_.output.toOption).getOrElse(lastSeenState)
+    recurse(wio.current, input, lastState).map({
       case WFExecution.Complete(newWio) =>
         newWio.output match {
           case Left(err)    => WFExecution.complete(wio.copy(history = wio.history :+ newWio), Left(err), input)
@@ -172,29 +173,33 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
         case WFExecution.Complete(newWio) => WFExecution.complete(wio.copy(base = newWio), newWio.output, newWio.input)
         case WFExecution.Partial(newWio)  => WFExecution.Partial(wio.copy(base = newWio))
       })
-    val runInterruption: Result = recurse(wio.interruption, lastSeenState)
-      .map(interruptionResult => {
-        val newStatus: InterruptionStatus.Interrupted.type | InterruptionStatus.TimerStarted.type =
-          wio.status match {
-            case InterruptionStatus.Interrupted => InterruptionStatus.Interrupted
-            case InterruptionStatus.TimerStarted => InterruptionStatus.Interrupted
-            case InterruptionStatus.Pending =>
-              wio.interruptionType match {
-                case InterruptionType.Signal => InterruptionStatus.Interrupted
-                case InterruptionType.Timer => InterruptionStatus.TimerStarted
-              }
-          }
-        interruptionResult match {
-          case WFExecution.Complete(newInterruptionWio) =>
-            WFExecution.complete(wio.copy(interruption = newInterruptionWio, status = newStatus), newInterruptionWio.output, input)
-          case WFExecution.Partial(newInterruptionWio) =>
-            val newBase = newStatus match {
-              case InterruptionStatus.Interrupted => WIO.Discarded(wio.base, input)
-              case InterruptionStatus.TimerStarted => wio.base.provideInput(input)
+
+    def runInterruption: Result = {
+      val lastBaseState = GetStateEvaluator.extractLastState(wio.base, input, lastSeenState)
+      recurse(wio.interruption, lastBaseState.getOrElse(lastSeenState))
+        .map(interruptionResult => {
+          val newStatus: InterruptionStatus.Interrupted.type | InterruptionStatus.TimerStarted.type =
+            wio.status match {
+              case InterruptionStatus.Interrupted => InterruptionStatus.Interrupted
+              case InterruptionStatus.TimerStarted => InterruptionStatus.Interrupted
+              case InterruptionStatus.Pending =>
+                wio.interruptionType match {
+                  case InterruptionType.Signal => InterruptionStatus.Interrupted
+                  case InterruptionType.Timer => InterruptionStatus.TimerStarted
+                }
             }
-            WFExecution.Partial(wio.copy(base = newBase, newInterruptionWio, status = newStatus))
-        }
-      })
+          interruptionResult match {
+            case WFExecution.Complete(newInterruptionWio) =>
+              WFExecution.complete(wio.copy(interruption = newInterruptionWio, status = newStatus), newInterruptionWio.output, input)
+            case WFExecution.Partial(newInterruptionWio) =>
+              val newBase = newStatus match {
+                case InterruptionStatus.Interrupted => WIO.Discarded(wio.base, input)
+                case InterruptionStatus.TimerStarted => wio.base
+              }
+              WFExecution.Partial(wio.copy(base = newBase, newInterruptionWio, status = newStatus))
+          }
+        })
+    }
 
     wio.status match {
       case InterruptionStatus.Interrupted  => runInterruption
