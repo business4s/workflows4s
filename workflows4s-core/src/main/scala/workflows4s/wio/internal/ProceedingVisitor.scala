@@ -14,7 +14,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
 
   def onNoop(wio: WIO.End[Ctx]): Result                              = None
   def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result = None
-  def onDiscarded[In1](wio: WIO.Discarded[Ctx, In1]): Result           = None
+  def onDiscarded[In1](wio: WIO.Discarded[Ctx, In1]): Result         = None
 
   def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result =
     recurse(wio.base, input).map({
@@ -168,7 +168,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
 
   // proceed on interruption will be needed for timeouts
   def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result = {
-    def runBase: Result         = recurse(wio.base, input)
+    def runBase: Result = recurse(wio.base, input)
       .map({
         case WFExecution.Complete(newWio) => WFExecution.complete(wio.copy(base = newWio), newWio.output, newWio.input)
         case WFExecution.Partial(newWio)  => WFExecution.Partial(wio.copy(base = newWio))
@@ -180,20 +180,20 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
         .map(interruptionResult => {
           val newStatus: InterruptionStatus.Interrupted.type | InterruptionStatus.TimerStarted.type =
             wio.status match {
-              case InterruptionStatus.Interrupted => InterruptionStatus.Interrupted
+              case InterruptionStatus.Interrupted  => InterruptionStatus.Interrupted
               case InterruptionStatus.TimerStarted => InterruptionStatus.Interrupted
-              case InterruptionStatus.Pending =>
+              case InterruptionStatus.Pending      =>
                 wio.interruptionType match {
                   case InterruptionType.Signal => InterruptionStatus.Interrupted
-                  case InterruptionType.Timer => InterruptionStatus.TimerStarted
+                  case InterruptionType.Timer  => InterruptionStatus.TimerStarted
                 }
             }
           interruptionResult match {
             case WFExecution.Complete(newInterruptionWio) =>
               WFExecution.complete(wio.copy(interruption = newInterruptionWio, status = newStatus), newInterruptionWio.output, input)
-            case WFExecution.Partial(newInterruptionWio) =>
+            case WFExecution.Partial(newInterruptionWio)  =>
               val newBase = newStatus match {
-                case InterruptionStatus.Interrupted => WIO.Discarded(wio.base, input)
+                case InterruptionStatus.Interrupted  => WIO.Discarded(wio.base, input)
                 case InterruptionStatus.TimerStarted => wio.base
               }
               WFExecution.Partial(wio.copy(base = newBase, newInterruptionWio, status = newStatus))
@@ -208,5 +208,9 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
     }
   }
 
-  def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], in: I1, state: WCState[Ctx] = lastSeenState): Option[WFExecution[Ctx, I1, E1, O1]]
+  def recurse[I1, E1, O1 <: WCState[Ctx]](
+      wio: WIO[I1, E1, O1, Ctx],
+      in: I1,
+      state: WCState[Ctx] = lastSeenState,
+  ): Option[WFExecution[Ctx, I1, E1, O1]]
 }

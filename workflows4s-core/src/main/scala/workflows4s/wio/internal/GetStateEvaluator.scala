@@ -82,7 +82,11 @@ object GetStateEvaluator {
         .map(innerState => wio.embedding.convertState(innerState, input))
     }
 
-    def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, ?, ?, Ctx], input: I1, state: WCState[Ctx] = lastSeenState): GetStateVisitor[Ctx, I1, E1, O1]#Result =
+    def recurse[I1, E1, O1 <: WCState[Ctx]](
+        wio: WIO[I1, ?, ?, Ctx],
+        input: I1,
+        state: WCState[Ctx] = lastSeenState,
+    ): GetStateVisitor[Ctx, I1, E1, O1]#Result =
       new GetStateVisitor(wio, input, state).run
 
   }

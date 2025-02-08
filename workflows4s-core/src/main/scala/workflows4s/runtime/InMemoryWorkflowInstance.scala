@@ -17,8 +17,8 @@ class InMemoryWorkflowInstance[Ctx <: WorkflowContext](
     knockerUpper: KnockerUpper.Agent.Curried,
 ) extends WorkflowInstance[IO, WCState[Ctx]] {
 
-  def getEvents: IO[Vector[WCEvent[Ctx]]] = eventsRef.get
-  override def getProgress: IO[WIOExecutionProgress[WCState[Ctx]]]     = stateRef.get.map(_.wio.toProgress)
+  def getEvents: IO[Vector[WCEvent[Ctx]]]                          = eventsRef.get
+  override def getProgress: IO[WIOExecutionProgress[WCState[Ctx]]] = stateRef.get.map(_.wio.toProgress)
 
   override def queryState(): IO[WCState[Ctx]] = for {
     state <- stateRef.get

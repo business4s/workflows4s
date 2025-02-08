@@ -31,10 +31,10 @@ object ProceedEvaluator {
     def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result                               = None
     def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result                                         = None
     def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result                           = None
-    
+
     def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result =
       WFExecution.complete(wio, wio.value(input), input).some
-    
+
     def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_] <: WCState[Ctx]](
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
     ): Result = {

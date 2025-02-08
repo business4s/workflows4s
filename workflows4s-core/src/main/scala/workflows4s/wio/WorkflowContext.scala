@@ -19,8 +19,8 @@ trait WorkflowContext { ctx: WorkflowContext =>
 }
 
 object WorkflowContext {
-  type AuxS[_S]                    = WorkflowContext { type State = _S }
-  type AuxE[_E]                    = WorkflowContext { type Event = _E }
+  private type AuxS[_S]            = WorkflowContext { type State = _S }
+  private type AuxE[_E]            = WorkflowContext { type Event = _E }
   type State[T <: WorkflowContext] = T match {
     case AuxS[s] => s
   }
