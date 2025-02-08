@@ -61,14 +61,14 @@ object DebugEvaluator {
         val firstNonExecuted        = nonExecuted.headOption.map(step => renderChild(s"step ${executed.size}", step))
         val remainingDesc           = Option.when(nonExecuted.size > 1)(Description(s"${nonExecuted.size - 1} more steps", Seq()))
         executedDesc ++ firstNonExecuted ++ remainingDesc
-      case x: WIOExecutionProgress.Dynamic          => Seq()
-      case x: WIOExecutionProgress.RunIO[?]         => Seq()
+      case _: WIOExecutionProgress.Dynamic          => Seq()
+      case _: WIOExecutionProgress.RunIO[?]         => Seq()
       case x: WIOExecutionProgress.HandleError[?]   =>
         // TODO should render handler without its children unless handler was entered.
         renderChildren("base" -> x.base, "handler" -> x.handler)
-      case x: WIOExecutionProgress.HandleSignal[?]  => Seq()
-      case x: WIOExecutionProgress.End[?]           => Seq()
-      case x: WIOExecutionProgress.Pure[?]          => Seq()
+      case _: WIOExecutionProgress.HandleSignal[?]  => Seq()
+      case _: WIOExecutionProgress.End[?]           => Seq()
+      case _: WIOExecutionProgress.Pure[?]          => Seq()
       case x: WIOExecutionProgress.Loop[?]          =>
         // TODO label should change between "going forward" and "going backward"
         x.history.zipWithIndex.map((step, idx) => renderChild(s"loop $idx", step))
@@ -85,7 +85,7 @@ object DebugEvaluator {
         Seq(renderChild("base", x.base)) ++ Option
           .when(!x.base.isExecuted)(Seq(renderChild("trigger", x.trigger)) ++ x.handler.map(x => renderChild("handler", x)))
           .getOrElse(Seq())
-      case x: WIOExecutionProgress.Timer[?]         => Seq()
+      case _: WIOExecutionProgress.Timer[?]         => Seq()
     }
     val effectiveDescription = if (model.isExecuted) s"Executed: ${model.result.get.merge}" else description.getOrElse("")
     val effectiveChildren    = if (model.isExecuted) Seq() else children

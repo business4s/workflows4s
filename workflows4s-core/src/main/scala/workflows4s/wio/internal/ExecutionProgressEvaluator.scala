@@ -72,7 +72,6 @@ object ExecutionProgressEvaluator {
     }
 
     def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                             = {
-      // TODO should we put branch meta inside fork meta?
       WIOExecutionProgress.Fork(
         wio.branches.map(x => recurse(x.wio, input.flatMap(x.condition))),
         WIOMeta.Fork(wio.name, wio.branches.map(x => WIOMeta.Branch(x.name))),
@@ -117,8 +116,7 @@ object ExecutionProgressEvaluator {
       result,
     )
 
-    // TODO, shouldnt happen unitl we start capturing model of inflight workflows
-    def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]) =
+    def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result =
       WIOExecutionProgress.Timer(WIOMeta.Timer(None, None), result) // TODO persist duration and name
     def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result = recurse(wio.original, wio.input.some, wio.output.some)
     def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result           = recurse(wio.original, wio.input.some, None)

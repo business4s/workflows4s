@@ -60,7 +60,10 @@ object SignalEvaluator {
         case Some(baseExecuted) =>
           baseExecuted.output match {
             case Left(err) => recurse(wio.handleError, (lastSeenState, err))
-            case Right(_)  => ??? // TODO better error, we should never reach here
+            case Right(_)  =>
+              throw new IllegalStateException(
+                "Base was executed but surrounding HandleErrorWith was still entered during evaluation. This is a bug in the library. Please report it to the maintainers.",
+              )
           }
         case None               => recurse(wio.base, input)
       }
@@ -77,8 +80,9 @@ object SignalEvaluator {
         case Some(firstExecuted) =>
           firstExecuted.output match {
             case Left(_)      =>
-              // This should not happen, whole AndThen should be marked as executed and never entered
-              ??? // TODO better exception
+              throw new IllegalStateException(
+                "First step of AndThen was executed with an error but surrounding AndThen was still entered during evaluation. This is a bug in the library. Please report it to the maintainers.",
+              )
             case Right(value) => recurse(wio.second, value, value)
           }
         case None                => recurse(wio.first, input)

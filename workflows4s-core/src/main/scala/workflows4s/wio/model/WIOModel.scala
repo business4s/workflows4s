@@ -20,7 +20,6 @@ object WIOModel {
   case class Dynamic(meta: WIOMeta.Dynamic)                                                  extends WIOModel
   case class RunIO(meta: WIOMeta.RunIO)                                                      extends WIOModel
   case class HandleSignal(meta: WIOMeta.HandleSignal)                                        extends WIOModel with Interruption
-  // TODO error name?
   case class HandleError(base: WIOModel, handler: WIOModel, meta: WIOMeta.HandleError)       extends WIOModel
   case object End                                                                            extends WIOModel
   case class Pure(meta: WIOMeta.Pure)                                                        extends WIOModel

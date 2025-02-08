@@ -45,10 +45,9 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
           case Left(err) =>
             onHandleErrorWith(WIO.HandleErrorWith(baseExecuted, wio.handleError(lastSeenState, err), wio.handledErrorMeta, wio.newErrorMeta))
           case Right(_)  =>
-            // this should never happen,
-            // if base was successfuly executed, we should never again end up evaluating handle error
-            // TODO better exception
-            ???
+            throw new IllegalStateException(
+              "Base was successfully executed, but surrounding handle error was still evaluated. This is a bug.",
+            )
         }
       case None               =>
         recurse(wio.base, input).map({
@@ -109,7 +108,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
   }
 
   def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result = {
-    // TODO all the `.provideInput` here are not good, they enlarge the graph unnecessarly.
+    // TODO all the `.provideInput` here are not good, they enlarge the graph unnecessarily.
     //  alternatively we could maybe take the input from the last history entry
     val lastState = wio.history.lastOption.flatMap(_.output.toOption).getOrElse(lastSeenState)
     recurse(wio.current, input, lastState).map({
