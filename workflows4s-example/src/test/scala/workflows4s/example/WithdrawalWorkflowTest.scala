@@ -65,8 +65,10 @@ object WithdrawalWorkflowTest {
             WithdrawalData.Executed(txId, amount, recipient, fees, ChecksState.Decided(Map(), Decision.ApprovedBySystem()), externalId),
         )
 
+        persistProgress("happy-path-1")
         actor.confirmExecution(WithdrawalSignal.ExecutionCompleted.Succeeded)
         assert(actor.queryData() == WithdrawalData.Completed.Successfully())
+        persistProgress("happy-path-2")
 
         checkRecovery()
       }
@@ -75,6 +77,7 @@ object WithdrawalWorkflowTest {
         "in validation" in new Fixture {
           actor.init(CreateWithdrawal(txId, -100, recipient))
           assert(actor.queryData() == WithdrawalData.Completed.Failed("Amount must be positive"))
+          persistProgress("failed-validation")
 
           checkRecovery()
         }
@@ -85,6 +88,7 @@ object WithdrawalWorkflowTest {
 
           actor.init(CreateWithdrawal(txId, amount, recipient))
           assert(actor.queryData() == WithdrawalData.Completed.Failed("Not enough funds on the user's account"))
+          persistProgress("failed-funds-lock")
 
           checkRecovery()
         }
@@ -97,6 +101,7 @@ object WithdrawalWorkflowTest {
 
           actor.init(CreateWithdrawal(txId, amount, recipient))
           assert(actor.queryData() == WithdrawalData.Completed.Failed("Transaction rejected in checks"))
+          persistProgress("failed-checks")
 
           checkRecovery()
         }
@@ -110,6 +115,7 @@ object WithdrawalWorkflowTest {
 
           actor.init(CreateWithdrawal(txId, amount, recipient))
           assert(actor.queryData() == WithdrawalData.Completed.Failed("Rejected by execution engine"))
+          persistProgress("failed-execution-initiation")
 
           checkRecovery()
         }
@@ -124,6 +130,7 @@ object WithdrawalWorkflowTest {
           actor.init(CreateWithdrawal(txId, amount, recipient))
           actor.confirmExecution(WithdrawalSignal.ExecutionCompleted.Failed)
           assert(actor.queryData() == WithdrawalData.Completed.Failed("Execution failed"))
+          persistProgress("failed-execution")
 
           checkRecovery()
         }
@@ -142,6 +149,7 @@ object WithdrawalWorkflowTest {
           actor.init(CreateWithdrawal(txId, amount, recipient))
           actor.cancel(WithdrawalSignal.CancelWithdrawal("operator-1", "cancelled", acceptStartedExecution = true))
           assert(actor.queryData() == WithdrawalData.Completed.Failed("Cancelled by operator-1. Comment: cancelled"))
+          persistProgress("canceled-waiting-for-execution-confirmation")
 
           checkRecovery()
         }
@@ -159,6 +167,7 @@ object WithdrawalWorkflowTest {
           }
           actor.cancel(WithdrawalSignal.CancelWithdrawal("operator-1", "cancelled", acceptStartedExecution = true))
           assert(actor.queryData() == WithdrawalData.Completed.Failed("Cancelled by operator-1. Comment: cancelled"))
+          persistProgress("canceled-running-checks")
 
           checkRecovery()
         }
@@ -248,6 +257,10 @@ object WithdrawalWorkflowTest {
           }
 
           def queryData(): WithdrawalData = wf.queryState()
+        }
+
+        def persistProgress(name: String): Unit = {
+          TestUtils.renderMermaidToFile(actor.wf.getProgress, s"withdrawal/progress-$name.mermaid")
         }
 
       }

@@ -9,7 +9,10 @@ import java.time.Duration
 object MermaidRenderer {
 
   def renderWorkflow(model: WIOExecutionProgress[?]): MermaidFlowchart = {
-    (addNode(id => Node(id, "Start", shape = "circle".some, clazz = executedClass.some), active = true) *>
+    (addNode(
+      id => Node(id, "Start", shape = "circle".some, clazz = if (hasStarted(model)) executedClass.some else None),
+      active = true,
+    ) *>
       render(model))
       .run(RenderState.initial(0))
       .value
@@ -73,16 +76,22 @@ object MermaidRenderer {
           } yield stepId.some
         } else State.pure(None)
       case WIOExecutionProgress.Loop(base, onRestart, meta, history)        =>
-        // TODO should render history if present
-        for {
-          baseStart     <- render(base.toEmptyProgress)
-          conditionNode <- addStep(meta.conditionName.getOrElse(" "), shape = conditionShape.some)
-          _             <- setNextLinkLabel(meta.restartBranchName)
-          _             <- onRestart.flatTraverse(x => render(x.toEmptyProgress))
-          ends          <- cleanActiveNodes
-          _             <- addLinks(ends, baseStart.get)
-          _             <- setActiveNodes(Seq(conditionNode -> meta.exitBranchName))
-        } yield baseStart
+        if (history.isEmpty) {
+          // TODO should render history if present
+          for {
+            baseStart     <- render(base.toEmptyProgress)
+            conditionNode <- addStep(meta.conditionName.getOrElse(" "), shape = conditionShape.some)
+            _             <- setNextLinkLabel(meta.restartBranchName)
+            _             <- onRestart.flatTraverse(x => render(x.toEmptyProgress))
+            ends          <- cleanActiveNodes
+            _             <- addLinks(ends, baseStart.get)
+            _             <- setActiveNodes(Seq(conditionNode -> meta.exitBranchName))
+          } yield baseStart
+        } else {
+          for {
+            subSteps <- history.traverse(render)
+          } yield subSteps.flatten.headOption
+        }
       case WIOExecutionProgress.Fork(branches, meta, _)                     => {
         def renderBranch(
             branch: WIOExecutionProgress[?],
@@ -119,6 +128,20 @@ object MermaidRenderer {
             )
         } yield stepId.some
     }
+  }
+
+  private def hasStarted(model: WIOExecutionProgress[?]): Boolean = model match {
+    case WIOExecutionProgress.Sequence(steps)                               => hasStarted(steps.head)
+    case WIOExecutionProgress.Dynamic(meta)                                 => false
+    case WIOExecutionProgress.RunIO(meta, result)                           => result.isDefined
+    case WIOExecutionProgress.HandleSignal(meta, result)                    => result.isDefined
+    case WIOExecutionProgress.HandleError(base, handler, meta, result)      => hasStarted(base) || hasStarted(handler)
+    case WIOExecutionProgress.End(result)                                   => result.isDefined
+    case WIOExecutionProgress.Pure(meta, result)                            => result.isDefined
+    case WIOExecutionProgress.Loop(base, onRestart, meta, history)          => history.nonEmpty
+    case WIOExecutionProgress.Fork(branches, meta, selected)                => selected.isDefined
+    case WIOExecutionProgress.Interruptible(base, trigger, handler, result) => hasStarted(base) || hasStarted(trigger)
+    case WIOExecutionProgress.Timer(meta, result)                           => result.isDefined
   }
 
   private val eventShape     = "stadium"

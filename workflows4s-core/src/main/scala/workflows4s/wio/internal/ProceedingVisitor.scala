@@ -120,8 +120,14 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
               WFExecution.Partial(wio.copy(current = wio.loop.provideInput(value), isReturning = false, history = wio.history :+ newWio))
             } else {
               wio.stopCondition(value) match {
-                case Some(value) => WFExecution.complete(wio.copy(history = wio.history :+ newWio), Right(value), input)
-                case None        =>
+                case Some(value1) =>
+                  // TODO wio.current should be "emptied" somehow, current marking as executed feel like hack
+                  WFExecution.complete(
+                    wio.copy(history = wio.history :+ newWio, current = WIO.Executed(wio.current, Right(value), input)),
+                    Right(value1),
+                    input,
+                  )
+                case None         =>
                   wio.onRestart match {
                     case Some(onRestart) =>
                       WFExecution.Partial(wio.copy(current = onRestart.provideInput(value), isReturning = true, history = wio.history :+ newWio))

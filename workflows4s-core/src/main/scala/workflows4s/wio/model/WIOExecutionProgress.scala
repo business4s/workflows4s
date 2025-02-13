@@ -96,6 +96,7 @@ object WIOExecutionProgress {
       handler: Option[WIOExecutionProgress[State]],
       result: ExecutionResult[State],
   ) extends WIOExecutionProgress[State] {
+    assert(!(base.isExecuted && trigger.isExecuted), "only one of base and trigger should be executed")
     override lazy val toModel: WIOModel                                               = WIOModel.Interruptible(base.toModel, trigger.toModel, handler.map(_.toModel))
     override def map[NewState](f: State => Option[NewState]): Interruptible[NewState] =
       Interruptible(base.map(f), trigger.map(f), handler.map(_.map(f)), result.flatMap(_.traverse(f)))

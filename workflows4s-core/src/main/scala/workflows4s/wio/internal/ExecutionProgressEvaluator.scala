@@ -46,14 +46,14 @@ object ExecutionProgressEvaluator {
     }
     def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result                           = {
       WIOExecutionProgress.HandleError(
-        recurse(wio.base, input, None),
-        recurse(wio.handleError, None),
+        recurse(wio.base, input, result = None),
+        recurse(wio.handleError, None, result = None),
         WIOMeta.HandleError(wio.newErrorMeta.toModel, wio.handledErrorMeta.toModel),
         result,
       )
     }
     def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result                             = {
-      (recurse(wio.first, None), recurse(wio.second, None)) match {
+      (recurse(wio.first, None, result = None), recurse(wio.second, None, result = None)) match {
         case (WIOExecutionProgress.Sequence(steps1), WIOExecutionProgress.Sequence(steps2)) => WIOExecutionProgress.Sequence(steps1 ++ steps2)
         case (x, WIOExecutionProgress.Sequence(steps2))                                     => WIOExecutionProgress.Sequence(List(x) ++ steps2)
         case (WIOExecutionProgress.Sequence(steps1), x)                                     => WIOExecutionProgress.Sequence(steps1 ++ List(x))
@@ -64,16 +64,19 @@ object ExecutionProgressEvaluator {
     def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                             = WIOExecutionProgress.Pure(WIOMeta.Pure(wio.meta.name, wio.meta.error.toModel), result)
     def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result = {
       WIOExecutionProgress.Loop(
-        recurse(wio.loop, None).toModel,
-        wio.onRestart.map(recurse(_, None).toModel),
+        recurse(wio.loop, None, result = None).toModel,
+        wio.onRestart.map(recurse(_, None, result = None).toModel),
         WIOMeta.Loop(wio.meta.conditionName, wio.meta.releaseBranchName, wio.meta.restartBranchName),
-        wio.history.appended(wio.current).map(recurse(_, input)),
+        (
+          if (!wio.current.asExecuted.isDefined) wio.history.appended(wio.current)
+          else wio.history
+        ).map(recurse(_, input, result = None)),
       )
     }
 
     def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                             = {
       WIOExecutionProgress.Fork(
-        wio.branches.map(x => recurse(x.wio, input.flatMap(x.condition))),
+        wio.branches.map(x => recurse(x.wio, input.flatMap(x.condition), result = None)),
         WIOMeta.Fork(wio.name, wio.branches.map(x => WIOMeta.Branch(x.name))),
         wio.selected,
       )
@@ -95,9 +98,9 @@ object ExecutionProgressEvaluator {
     }
     def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result = {
       // TODO better error handling. meaningful exception would be a good start
-      val Some((trigger, rest)) = extractFirstInterruption(recurse(wio.interruption, lastSeenState)): @unchecked
+      val Some((trigger, rest)) = extractFirstInterruption(recurse(wio.interruption, lastSeenState, result = None)): @unchecked
       WIOExecutionProgress.Interruptible(
-        recurse(wio.base, input),
+        recurse(wio.base, input, result = None),
         trigger,
         rest,
         result,

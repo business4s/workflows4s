@@ -7,6 +7,7 @@ import org.scalatest.exceptions.TestFailedException
 import workflows4s.bpmn.BPMNConverter
 import workflows4s.mermaid.MermaidRenderer
 import workflows4s.wio.WIO
+import workflows4s.wio.model.WIOExecutionProgress
 
 import java.nio.file.{Files, Path}
 
@@ -39,6 +40,13 @@ object TestUtils {
     ensureFileContentMatchesOrUpdate(flowchart.render, outputPath)
   }
 
+  def renderMermaidToFile(model: WIOExecutionProgress[?], path: String) = {
+    val flowchart  = MermaidRenderer.renderWorkflow(model)
+    val outputPath = basePath.resolve(s"workflows4s-example/src/test/resources/${path}")
+
+    ensureFileContentMatchesOrUpdate(flowchart.render, outputPath)
+  }
+
   def renderDocsExample(wio: WIO[?, ?, ?, ?], name: String) = {
     renderModelToFile(wio, s"docs/${name}.json")
     renderBpmnToFile(wio, s"docs/${name}.bpmn")
@@ -47,6 +55,7 @@ object TestUtils {
 
   private def ensureFileContentMatchesOrUpdate(content: String, path: Path): Unit = {
     val absolutePath = path.toAbsolutePath
+    Files.createDirectories(absolutePath.getParent)
     def writeAndFail = {
       Files.writeString(absolutePath, content)
       new TestFailedException(

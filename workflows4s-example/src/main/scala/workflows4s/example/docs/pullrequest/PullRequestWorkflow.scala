@@ -100,7 +100,7 @@ object PullRequestWorkflow {
   val closePR: WIO[(PRState, PRError), Nothing, PRState.Closed] =
     WIO.pure.makeFrom[(PRState, PRError)].value((state, err) => PRState.Closed(state, err)).autoNamed
 
-  val workflow: WIO[Any, Nothing, PRState] = (
+  val workflow: WIO.Initial = (
     createPR >>>
       runPipeline >>>
       processReview >>>
