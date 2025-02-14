@@ -76,8 +76,14 @@ object MermaidRenderer {
           } yield stepId.some
         } else State.pure(None)
       case WIOExecutionProgress.Loop(base, onRestart, meta, history)        =>
-        if (history.isEmpty) {
-          // TODO should render history if present
+        // history contains `current` and this is prefilled on creation,
+        // hence empty nodes have history of 1 with not started node
+        if (history.size > 1 || history.lastOption.exists(hasStarted)) {
+          // TODO we could render conditions as well
+          for {
+            subSteps <- history.traverse(render)
+          } yield subSteps.flatten.headOption
+        } else {
           for {
             baseStart     <- render(base.toEmptyProgress)
             conditionNode <- addStep(meta.conditionName.getOrElse(" "), shape = conditionShape.some)
@@ -87,10 +93,6 @@ object MermaidRenderer {
             _             <- addLinks(ends, baseStart.get)
             _             <- setActiveNodes(Seq(conditionNode -> meta.exitBranchName))
           } yield baseStart
-        } else {
-          for {
-            subSteps <- history.traverse(render)
-          } yield subSteps.flatten.headOption
         }
       case WIOExecutionProgress.Fork(branches, meta, _)                     => {
         def renderBranch(

@@ -12,45 +12,50 @@ node4 --> node5
 subgraph node6 [" "]
 node7["Run Pending Checks"]
 node5 --> node7
+node8@{ shape: hex, label: "All checks completed?"}
+node7 --> node8
+node9@{ shape: stadium, label: "fa:fa-clock Await Retry (20s)"}
+node8 -->|"No"| node9
+node9 --> node7
 end
-node15@{ shape: stadium, label: "fa:fa-clock Execution Timeout (2m)"}
-node6 --> node15
-node16["Put In Review"]
-node15 --> node16
-node17@{ shape: hex, label: "Requires review?"}
-node16 --> node17
-node7 --> node17
-node18@{ shape: stadium, label: "fa:fa-envelope Review Decision"}
-node19["Handle Review Decision"]
+node17@{ shape: stadium, label: "fa:fa-clock Execution Timeout (2m)"}
+node6 --> node17
+node18["Put In Review"]
+node17 --> node18
+node19@{ shape: hex, label: "Requires review?"}
 node18 --> node19
-node17 -->|"Yes"| node18
-node20["System Decision"]
-node17 -->|"No"| node20
-node21["Act On Decision"]
-node19 --> node21
+node8 -->|"Yes"| node19
+node20@{ shape: stadium, label: "fa:fa-envelope Review Decision"}
+node21["Handle Review Decision"]
 node20 --> node21
-node22["Initiate Execution"]
-node21 --> node22
-node23@{ shape: stadium, label: "fa:fa-envelope Execution Completed"}
+node19 -->|"Yes"| node20
+node22["System Decision"]
+node19 -->|"No"| node22
+node23["Act On Decision"]
+node21 --> node23
 node22 --> node23
-node24["Handle Execution Completed"]
+node24["Initiate Execution"]
 node23 --> node24
+node25@{ shape: stadium, label: "fa:fa-envelope Execution Completed"}
+node24 --> node25
+node26["Handle Execution Completed"]
+node25 --> node26
 end
-node27@{ shape: stadium, label: "fa:fa-envelope Cancel Withdrawal"}
-node1 --> node27
-node28["Handle Cancel Withdrawal"]
-node27 --> node28
-node29["Release Funds"]
-node28 --> node29
-node24 --> node29
-node30["Cancel Funds If Needed"]:::executed
-node3 -.->|"fa:fa-bolt Invalid Input"| node30
-node5 -.->|"fa:fa-bolt Not Enough Funds"| node30
-node21 -.->|"fa:fa-bolt Rejected In Checks"| node30
-node22 -.->|"fa:fa-bolt Rejected By Execution Engine"| node30
-node24 -.->|"fa:fa-bolt Rejected By Execution Engine"| node30
-node28 -.->|"fa:fa-bolt Cancelled"| node30
-node31@{ shape: circle, label: "End"}
-node29 --> node31
+node29@{ shape: stadium, label: "fa:fa-envelope Cancel Withdrawal"}
+node1 --> node29
+node30["Handle Cancel Withdrawal"]
+node29 --> node30
+node31["Release Funds"]
 node30 --> node31
+node26 --> node31
+node32["Cancel Funds If Needed"]:::executed
+node3 -.->|"fa:fa-bolt Invalid Input"| node32
+node5 -.->|"fa:fa-bolt Not Enough Funds"| node32
+node23 -.->|"fa:fa-bolt Rejected In Checks"| node32
+node24 -.->|"fa:fa-bolt Rejected By Execution Engine"| node32
+node26 -.->|"fa:fa-bolt Rejected By Execution Engine"| node32
+node30 -.->|"fa:fa-bolt Cancelled"| node32
+node33@{ shape: circle, label: "End"}
+node31 --> node33
+node32 --> node33
 classDef executed fill:#0e0
