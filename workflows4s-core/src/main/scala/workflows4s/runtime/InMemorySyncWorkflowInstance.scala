@@ -52,9 +52,8 @@ class InMemorySyncWorkflowInstance[Ctx <: WorkflowContext](
         saveEvent(event)
         handleEvent(event)
       case None          =>
-        logger.debug(
-          s"""No IO to run. Wf:
-             |${wf.getDesc}""".stripMargin)
+        logger.debug(s"""No IO to run. Wf:
+                        |${wf.getDesc}""".stripMargin)
     }
   }
 
