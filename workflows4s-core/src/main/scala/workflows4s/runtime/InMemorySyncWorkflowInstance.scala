@@ -52,7 +52,9 @@ class InMemorySyncWorkflowInstance[Ctx <: WorkflowContext](
         saveEvent(event)
         handleEvent(event)
       case None          =>
-        logger.debug(s"No IO to run. Wf: ${wf.getDesc}")
+        logger.debug(
+          s"""No IO to run. Wf:
+             |${wf.getDesc}""".stripMargin)
     }
   }
 
@@ -83,8 +85,8 @@ class InMemorySyncWorkflowInstance[Ctx <: WorkflowContext](
     if (this.wf != newWf.wakeupAt) {
       knockerUpper.updateWakeup((), newWf.wakeupAt)
     }
-    logger.debug(s"""Updating workflow
-                    | New behaviour: ${newWf.getDesc}
+    logger.debug(s"""Updating workflow. New behaviour:
+                    | ${newWf.getDesc}
                     | New state: ${newWf.staticState}""".stripMargin)
     wf = newWf
   }
