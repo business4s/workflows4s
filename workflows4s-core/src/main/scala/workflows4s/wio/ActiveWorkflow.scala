@@ -8,13 +8,15 @@ import cats.effect.IO
 import workflows4s.wio.Interpreter.SignalResponse
 import workflows4s.wio.internal.*
 
-abstract class ActiveWorkflow[Ctx <: WorkflowContext] {
-  type CurrentState <: WCState[Ctx]
-  val staticState: CurrentState
-  def wio: WIO[CurrentState, Nothing, WCState[Ctx], Ctx]
-  def wakeupAt: Option[Instant]
+case class ActiveWorkflow[Ctx <: WorkflowContext](wio: WIO.Initial[Ctx], initialState: WCState[Ctx]) {
+  lazy val wakeupAt: Option[Instant] = GetWakeupEvaluator.extractNearestWakeup(wio)
 
-  def liveState(now: Instant): WCState[Ctx] = effectlessProceed(now).getOrElse(this).staticState
+  lazy val staticState: WCState[Ctx] = GetStateEvaluator.extractLastState(wio, (), initialState).getOrElse(initialState)
+
+  def liveState(now: Instant): WCState[Ctx] =
+    effectlessProceed(now)
+      .getOrElse(this)
+      .staticState
 
   def handleSignal[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req, now: Instant): Option[IO[(WCEvent[Ctx], Resp)]] = {
     effectlessProceed(now)
@@ -45,27 +47,5 @@ abstract class ActiveWorkflow[Ctx <: WorkflowContext] {
       .newFlow
       .map(x => x.effectlessProceed(now).getOrElse(x))
 
-  def getDesc: String = CurrentStateEvaluator.getCurrentStateDescription(wio)
-}
-
-object ActiveWorkflow {
-
-  def apply[Ctx <: WorkflowContext, In <: WCState[Ctx]](
-      wio0: WIO[In, Nothing, WCState[Ctx], Ctx],
-      value0: In,
-      wakeupAt0: Option[Instant],
-  ): ActiveWorkflow[Ctx] =
-    new ActiveWorkflow[Ctx] {
-      override type CurrentState = In
-      override val staticState: CurrentState                          = value0
-      override def wio: WIO[CurrentState, Nothing, WCState[Ctx], Ctx] = wio0
-      override def wakeupAt: Option[Instant]                          = wakeupAt0
-    }
-
-  sealed trait ProceedResponse[Ctx <: WorkflowContext]
-  object ProceedResponse {
-    case class Event[Ctx <: WorkflowContext](eventIO: IO[WCEvent[Ctx]]) extends ProceedResponse[Ctx]
-    case class Noop[Ctx <: WorkflowContext]()                           extends ProceedResponse[Ctx]
-  }
-
+  def getDesc: String = DebugEvaluator.getCurrentStateDescription(wio)
 }

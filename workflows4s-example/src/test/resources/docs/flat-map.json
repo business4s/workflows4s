@@ -1,13 +1,16 @@
 {
   "steps" : [
     {
-      "name" : "Step1",
-      "error" : null,
+      "meta" : {
+        "name" : "Step1",
+        "error" : null
+      },
       "_type" : "Pure"
     },
     {
-      "name" : null,
-      "error" : null,
+      "meta" : {
+        "error" : null
+      },
       "_type" : "Dynamic"
     }
   ],

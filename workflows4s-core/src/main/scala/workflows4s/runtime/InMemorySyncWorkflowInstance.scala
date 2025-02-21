@@ -1,17 +1,17 @@
 package workflows4s.runtime
 
-import java.time.Clock
-
-import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
-
 import cats.Id
 import cats.effect.unsafe.IORuntime
 import cats.implicits.catsSyntaxEitherId
 import com.typesafe.scalalogging.StrictLogging
 import workflows4s.runtime.WorkflowInstance.UnexpectedSignal
 import workflows4s.runtime.wakeup.KnockerUpper
-import workflows4s.wio.{ActiveWorkflow, SignalDef, WCEvent, WCState, WorkflowContext}
+import workflows4s.wio.model.WIOExecutionProgress
+import workflows4s.wio.*
+
+import java.time.Clock
+import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 
 class InMemorySyncWorkflowInstance[Ctx <: WorkflowContext](
     initialState: ActiveWorkflow[Ctx],
@@ -25,6 +25,8 @@ class InMemorySyncWorkflowInstance[Ctx <: WorkflowContext](
   private var wf: ActiveWorkflow[Ctx]              = initialState
   private val events: mutable.Buffer[WCEvent[Ctx]] = ListBuffer[WCEvent[Ctx]]()
   def getEvents: Seq[WCEvent[Ctx]]                 = events.toList
+
+  override def getProgress: WIOExecutionProgress[WCState[Ctx]] = wf.wio.toProgress
 
   override def queryState(): WCState[Ctx] = wf.liveState(clock.instant())
 
@@ -50,7 +52,8 @@ class InMemorySyncWorkflowInstance[Ctx <: WorkflowContext](
         saveEvent(event)
         handleEvent(event)
       case None          =>
-        logger.debug(s"No IO to run. Wf: ${wf.getDesc}")
+        logger.debug(s"""No IO to run. Wf:
+                        |${wf.getDesc}""".stripMargin)
     }
   }
 
@@ -81,8 +84,8 @@ class InMemorySyncWorkflowInstance[Ctx <: WorkflowContext](
     if (this.wf != newWf.wakeupAt) {
       knockerUpper.updateWakeup((), newWf.wakeupAt)
     }
-    logger.debug(s"""Updating workflow
-                    | New behaviour: ${newWf.getDesc}
+    logger.debug(s"""Updating workflow. New behaviour:
+                    | ${newWf.getDesc}
                     | New state: ${newWf.staticState}""".stripMargin)
     wf = newWf
   }

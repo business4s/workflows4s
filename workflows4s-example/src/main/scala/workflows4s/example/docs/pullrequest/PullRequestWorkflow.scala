@@ -100,7 +100,7 @@ object PullRequestWorkflow {
   val closePR: WIO[(PRState, PRError), Nothing, PRState.Closed] =
     WIO.pure.makeFrom[(PRState, PRError)].value((state, err) => PRState.Closed(state, err)).autoNamed
 
-  val workflow: WIO[Any, Nothing, PRState] = (
+  val workflow: WIO.Initial = (
     createPR >>>
       runPipeline >>>
       processReview >>>
@@ -110,7 +110,7 @@ object PullRequestWorkflow {
 
   def main(args: Array[String]): Unit = {
     // start_render
-    val bpmnModel = BPMNConverter.convert(workflow.getModel, "process")
+    val bpmnModel = BPMNConverter.convert(workflow.toProgress.toModel, "process")
     Bpmn.writeModelToFile(new File(s"pr.bpmn").getAbsoluteFile, bpmnModel)
     // end_render
 

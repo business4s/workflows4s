@@ -1,5 +1,7 @@
 {
-  "error" : null,
-  "name" : "Do Things",
+  "meta" : {
+    "name" : "Do Things",
+    "error" : null
+  },
   "_type" : "RunIO"
 }

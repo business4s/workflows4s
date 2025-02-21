@@ -18,7 +18,7 @@ class InMemorySyncRuntime[Ctx <: WorkflowContext, WorkflowId](
 
   override def createInstance(id: WorkflowId): InMemorySyncWorkflowInstance[Ctx] = {
     val atomicRef                     = new java.util.concurrent.atomic.AtomicReference[InMemorySyncWorkflowInstance[Ctx]](null)
-    val activeWf: ActiveWorkflow[Ctx] = ActiveWorkflow(workflow, initialState, None)
+    val activeWf: ActiveWorkflow[Ctx] = ActiveWorkflow(workflow, initialState)
     val instance                      = new InMemorySyncWorkflowInstance[Ctx](activeWf, clock, knockerUpperAgent.curried(id))
     atomicRef.set(instance)
     instance

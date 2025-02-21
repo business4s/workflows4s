@@ -1,18 +1,25 @@
 {
   "base" : {
-    "name" : "Do Things",
-    "error" : {
-      "name" : "My Error"
+    "meta" : {
+      "name" : "Do Things",
+      "error" : {
+        "name" : "My Error"
+      }
     },
     "_type" : "Pure"
   },
   "handler" : {
-    "name" : "Handle That Nasty Error",
-    "error" : null,
+    "meta" : {
+      "name" : "Handle That Nasty Error",
+      "error" : null
+    },
     "_type" : "Pure"
   },
-  "error" : {
-    "name" : "My Error"
+  "meta" : {
+    "newErrorMeta" : null,
+    "handledErrorMeta" : {
+      "name" : "My Error"
+    }
   },
   "_type" : "HandleError"
 }

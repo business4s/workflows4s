@@ -35,7 +35,7 @@ object LoopBuilder {
             restartBranchName = restartBranchName,
             conditionName = conditionName,
           )
-          WIO.Loop(repeatAction, releaseCondition, repeatAction, onRestart, meta, false)
+          WIO.Loop(repeatAction, releaseCondition, repeatAction, onRestart, meta, false, Vector.empty)
         }
 
       }

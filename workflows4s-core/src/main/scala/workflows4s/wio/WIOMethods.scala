@@ -1,7 +1,9 @@
 package workflows4s.wio
 
+import workflows4s.wio.internal.ExecutionProgressEvaluator
+import workflows4s.wio.model.WIOExecutionProgress
+
 import scala.annotation.targetName
-import workflows4s.wio.model.{ModelUtils, WIOModel, WIOModelInterpreter}
 
 trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self: WIO[In, Err, Out, Ctx] =>
   def flatMap[Err1 >: Err, Out1 <: WCState[Ctx]](f: Out => WIO[Out, Err1, Out1, Ctx])(using
@@ -38,27 +40,16 @@ trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self
     WIO.HandleErrorWith(this, wio, errMeta, newErrMeta)
   }
 
-  def named(name: String, description: Option[String] = None): WIO[In, Err, Out, Ctx] = {
-    WIO.Named(this, name, description, ErrorMeta.noError)
-  }
-
-  def autoNamed[Err1 >: Err](
-      description: Option[String] = None,
-  )(using name: sourcecode.Name, errorCt: ErrorMeta[Err1]): WIO[In, Err, Out, Ctx] = {
-    val polishedName = ModelUtils.prettifyName(name.value)
-    WIO.Named(this, polishedName, description, errorCt)
-  }
-
   def andThen[Err1 >: Err, Out1 <: WCState[Ctx]](next: WIO[Out, Err1, Out1, Ctx]): WIO[In, Err1, Out1, Ctx] = WIO.AndThen(this, next)
 
   @targetName("andThenOp")
   def >>>[Err1 >: Err, Out1 <: WCState[Ctx]](next: WIO[Out, Err1, Out1, Ctx]): WIO[In, Err1, Out1, Ctx] = andThen(next)
 
   def interruptWith[Out1 >: Out <: WCState[Ctx], Err1 >: Err, In1 <: In](
-      interruption: WIO.Interruption[Ctx, Err1, Out1, ?, ?],
+      interruption: WIO.Interruption[Ctx, Err1, Out1],
   ): WIO.HandleInterruption[Ctx, In1, Err1, Out1] =
-    WIO.HandleInterruption(this, interruption)
+    WIO.HandleInterruption(this, interruption.handler, WIO.HandleInterruption.InterruptionStatus.Pending, interruption.tpe)
 
-  def getModel: WIOModel = WIOModelInterpreter.run(this)
+  def toProgress: WIOExecutionProgress[WCState[Ctx]] = ExecutionProgressEvaluator.run(this, None, None)
 
 }

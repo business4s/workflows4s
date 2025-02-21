@@ -3,6 +3,7 @@ package workflows4s.example
 import cats.effect.IO
 import com.typesafe.scalalogging.StrictLogging
 import org.scalamock.scalatest.MockFactory
+import org.scalatest.EitherValues.*
 import org.scalatest.Inside.inside
 import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.freespec.{AnyFreeSpec, AnyFreeSpecLike}
@@ -12,7 +13,6 @@ import workflows4s.example.withdrawal.*
 import workflows4s.example.withdrawal.WithdrawalService.{ExecutionResponse, Fee, Iban}
 import workflows4s.example.withdrawal.WithdrawalSignal.CreateWithdrawal
 import workflows4s.example.withdrawal.checks.*
-import workflows4s.wio.model.{WIOModel, WIOModelInterpreter}
 
 import java.time.{Clock, Instant, ZoneId, ZoneOffset}
 import scala.concurrent.duration.FiniteDuration
@@ -65,8 +65,10 @@ object WithdrawalWorkflowTest {
             WithdrawalData.Executed(txId, amount, recipient, fees, ChecksState.Decided(Map(), Decision.ApprovedBySystem()), externalId),
         )
 
+        persistProgress("happy-path-1")
         actor.confirmExecution(WithdrawalSignal.ExecutionCompleted.Succeeded)
         assert(actor.queryData() == WithdrawalData.Completed.Successfully())
+        persistProgress("happy-path-2")
 
         checkRecovery()
       }
@@ -75,6 +77,7 @@ object WithdrawalWorkflowTest {
         "in validation" in new Fixture {
           actor.init(CreateWithdrawal(txId, -100, recipient))
           assert(actor.queryData() == WithdrawalData.Completed.Failed("Amount must be positive"))
+          persistProgress("failed-validation")
 
           checkRecovery()
         }
@@ -85,6 +88,7 @@ object WithdrawalWorkflowTest {
 
           actor.init(CreateWithdrawal(txId, amount, recipient))
           assert(actor.queryData() == WithdrawalData.Completed.Failed("Not enough funds on the user's account"))
+          persistProgress("failed-funds-lock")
 
           checkRecovery()
         }
@@ -97,6 +101,7 @@ object WithdrawalWorkflowTest {
 
           actor.init(CreateWithdrawal(txId, amount, recipient))
           assert(actor.queryData() == WithdrawalData.Completed.Failed("Transaction rejected in checks"))
+          persistProgress("failed-checks")
 
           checkRecovery()
         }
@@ -110,6 +115,7 @@ object WithdrawalWorkflowTest {
 
           actor.init(CreateWithdrawal(txId, amount, recipient))
           assert(actor.queryData() == WithdrawalData.Completed.Failed("Rejected by execution engine"))
+          persistProgress("failed-execution-initiation")
 
           checkRecovery()
         }
@@ -124,6 +130,7 @@ object WithdrawalWorkflowTest {
           actor.init(CreateWithdrawal(txId, amount, recipient))
           actor.confirmExecution(WithdrawalSignal.ExecutionCompleted.Failed)
           assert(actor.queryData() == WithdrawalData.Completed.Failed("Execution failed"))
+          persistProgress("failed-execution")
 
           checkRecovery()
         }
@@ -142,6 +149,7 @@ object WithdrawalWorkflowTest {
           actor.init(CreateWithdrawal(txId, amount, recipient))
           actor.cancel(WithdrawalSignal.CancelWithdrawal("operator-1", "cancelled", acceptStartedExecution = true))
           assert(actor.queryData() == WithdrawalData.Completed.Failed("Cancelled by operator-1. Comment: cancelled"))
+          persistProgress("canceled-waiting-for-execution-confirmation")
 
           checkRecovery()
         }
@@ -159,6 +167,7 @@ object WithdrawalWorkflowTest {
           }
           actor.cancel(WithdrawalSignal.CancelWithdrawal("operator-1", "cancelled", acceptStartedExecution = true))
           assert(actor.queryData() == WithdrawalData.Completed.Failed("Cancelled by operator-1. Comment: cancelled"))
+          persistProgress("canceled-running-checks")
 
           checkRecovery()
         }
@@ -169,7 +178,7 @@ object WithdrawalWorkflowTest {
         val runtime = getRuntime
         val txId    = "abc"
         val clock   = new TestClock
-        val actor   = createActor(List())
+        val actor   = createActor()
 
         def checkRecovery() = {
           logger.debug("Checking recovery")
@@ -182,7 +191,7 @@ object WithdrawalWorkflowTest {
           assert(recoveredState == originalState)
         }
 
-        def createActor(events: Seq[WithdrawalEvent]) = {
+        def createActor() = {
           val wf    = runtime
             .runWorkflow(
               workflow,
@@ -235,23 +244,23 @@ object WithdrawalWorkflowTest {
 
         class WithdrawalActor(val wf: runtime.Actor) {
           def init(req: CreateWithdrawal): Unit = {
-            wf.deliverSignal(WithdrawalWorkflow.Signals.createWithdrawal, req)
+            wf.deliverSignal(WithdrawalWorkflow.Signals.createWithdrawal, req).value
             wf.wakeup()
           }
 
           def confirmExecution(req: WithdrawalSignal.ExecutionCompleted): Unit = {
-            wf.deliverSignal(WithdrawalWorkflow.Signals.executionCompleted, req)
+            wf.deliverSignal(WithdrawalWorkflow.Signals.executionCompleted, req).value
           }
 
           def cancel(req: WithdrawalSignal.CancelWithdrawal): Unit = {
-            wf.deliverSignal(WithdrawalWorkflow.Signals.cancel, req)
+            wf.deliverSignal(WithdrawalWorkflow.Signals.cancel, req).value
           }
 
           def queryData(): WithdrawalData = wf.queryState()
         }
 
-        def getModel(wio: WithdrawalWorkflow.Context.WIO[?, ?, ?]): WIOModel = {
-          WIOModelInterpreter.run(wio)
+        def persistProgress(name: String): Unit = {
+          TestUtils.renderMermaidToFile(actor.wf.getProgress, s"withdrawal/progress-$name.mermaid")
         }
 
       }

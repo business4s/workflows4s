@@ -1,7 +1,5 @@
 package workflows4s.example.checks
 
-import scala.reflect.Selectable.reflectiveSelectable
-
 import cats.Id
 import cats.effect.IO
 import com.typesafe.scalalogging.StrictLogging
@@ -11,7 +9,8 @@ import workflows4s.example.withdrawal.checks.*
 import workflows4s.example.{TestClock, TestRuntimeAdapter, TestUtils}
 import workflows4s.runtime.WorkflowInstance
 import workflows4s.wio.WCState
-import workflows4s.wio.model.{WIOModel, WIOModelInterpreter}
+
+import scala.reflect.Selectable.reflectiveSelectable
 
 class ChecksEngineTest extends AnyFreeSpec with ChecksEngineTest.Suite {
 
@@ -182,10 +181,6 @@ object ChecksEngineTest {
       import workflows4s.example.testuitls.TestUtils.*
       wf.deliverSignal(ChecksEngine.Signals.review, decision).extract
     }
-  }
-
-  def getModel(wio: ChecksEngine.Context.WIO[?, ?, ?]): WIOModel = {
-    WIOModelInterpreter.run(wio)
   }
 
 }
