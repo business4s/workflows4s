@@ -27,7 +27,7 @@ class PostgresRuntime[Ctx <: WorkflowContext](
         IO {
           val base = new DbWorkflowInstance(
             id,
-            ActiveWorkflow(workflow, initialState, None),
+            ActiveWorkflow(workflow, initialState),
             PostgresWorkflowStorage,
             liftIo,
             eventCodec,

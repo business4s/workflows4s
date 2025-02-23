@@ -102,7 +102,7 @@ object ChecksEngine extends ChecksEngine {
     .voidResponse
     .done
 
-  private def executionTimeout: WIO.Interruption[Nothing, ChecksState.Executed] =
+  private def executionTimeout =
     WIO.interruption
       .throughTimeout(timeoutThreshold)
       .persistStartThrough(started => ChecksEvent.AwaitingTimeout(started.at))(_.started)

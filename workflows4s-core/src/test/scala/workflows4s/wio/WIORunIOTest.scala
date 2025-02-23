@@ -25,7 +25,7 @@ class WIORunIOTest extends AnyFreeSpec with Matchers {
 
       assert(resultOpt.isDefined)
       val newEvent = resultOpt.get.unsafeRunSync()
-      assert(newEvent == "ProcessedEvent(initialState)")
+      assert(newEvent == SimpleEvent("ProcessedEvent(initialState)"))
     }
 
     "error in IO" in {
@@ -50,7 +50,7 @@ class WIORunIOTest extends AnyFreeSpec with Matchers {
 
       val Some(result) = wf.handleEvent("my-event", Instant.now): @unchecked
 
-      assert(result.staticState == "SuccessHandled(initialState, my-event)")
+      assert(result.staticState == "SuccessHandled(initialState, SimpleEvent(my-event))")
     }
     "handle signal " in {
       val wf = WIO

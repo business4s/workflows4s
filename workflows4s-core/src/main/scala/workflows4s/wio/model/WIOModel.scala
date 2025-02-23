@@ -1,11 +1,11 @@
 package workflows4s.wio.model
 
-import java.time.Duration
-
 import io.circe.derivation.{Configuration, ConfiguredCodec}
 import io.circe.{Codec, Decoder, Encoder}
 
-sealed trait WIOModel
+sealed trait WIOModel {
+  def toEmptyProgress: WIOExecutionProgress[Nothing] = WIOExecutionProgress.fromModel(this)
+}
 
 object WIOModel {
   given Configuration            = Configuration.default.withDiscriminator("_type")
@@ -14,31 +14,23 @@ object WIOModel {
   given Codec.AsObject[Interruption] = Codec.AsObject.derivedConfigured
   sealed trait Interruption extends WIOModel
 
-  case class Sequence(steps: Seq[WIOModel])                                                        extends WIOModel {
+  case class Sequence(steps: Seq[WIOModel])                                                  extends WIOModel {
     assert(steps.size >= 2) // TODO could be safer
   }
-  case class Dynamic(name: Option[String], error: Option[Error])                                   extends WIOModel
-  case class RunIO(error: Option[Error], name: Option[String])                                     extends WIOModel
-  case class HandleSignal(signalName: String, error: Option[Error], operationName: Option[String]) extends WIOModel with Interruption
-  // TODO error name?
-  case class HandleError(base: WIOModel, handler: WIOModel, error: Option[Error])                  extends WIOModel
-  case object End                                                                                  extends WIOModel
-  case class Pure(name: Option[String], error: Option[Error])                                      extends WIOModel
+  case class Dynamic(meta: WIOMeta.Dynamic)                                                  extends WIOModel
+  case class RunIO(meta: WIOMeta.RunIO)                                                      extends WIOModel
+  case class HandleSignal(meta: WIOMeta.HandleSignal)                                        extends WIOModel with Interruption
+  case class HandleError(base: WIOModel, handler: WIOModel, meta: WIOMeta.HandleError)       extends WIOModel
+  case object End                                                                            extends WIOModel
+  case class Pure(meta: WIOMeta.Pure)                                                        extends WIOModel
   case class Loop(
       base: WIOModel,
-      conditionName: Option[String],
-      exitBranchName: Option[String],
-      restartBranchName: Option[String],
       onRestart: Option[WIOModel],
+      meta: WIOMeta.Loop,
   ) extends WIOModel
-  case class Fork(branches: Vector[Branch], name: Option[String])                                  extends WIOModel
+  case class Fork(branches: Vector[WIOModel], meta: WIOMeta.Fork)                            extends WIOModel
   // handle flow is optional because handling might end on single step(the trigger)
-  case class Interruptible(base: WIOModel, trigger: Interruption, handleFlow: Option[WIOModel])    extends WIOModel
-  case class Timer(duration: Option[Duration], name: Option[String])                               extends WIOModel with Interruption
-
-  // as of now we always capture error name. It can change in the future
-  case class Error(name: String) derives ConfiguredCodec
-
-  case class Branch(logic: WIOModel, label: Option[String]) derives ConfiguredCodec
+  case class Interruptible(base: WIOModel, trigger: Interruption, handler: Option[WIOModel]) extends WIOModel
+  case class Timer(meta: WIOMeta.Timer)                                                      extends WIOModel with Interruption
 
 }

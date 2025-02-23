@@ -37,7 +37,11 @@ class WIOFlatMapTest extends AnyFreeSpec with Matchers {
 
         val Some(eventIO) = wf.handleSignal(mySignalDef)(42, Instant.now): @unchecked
 
-        assert(eventIO.unsafeRunSync() == ("input: initialState, request: 42", "response(initialState, input: initialState, request: 42)"))
+        assert(
+          eventIO.unsafeRunSync() == (SimpleEvent(
+            "input: initialState, request: 42",
+          ), "response(initialState, SimpleEvent(input: initialState, request: 42))"),
+        )
       }
       "handle on second" in {
         val mySignalDef  = SignalDef[Int, String]()
@@ -54,7 +58,7 @@ class WIOFlatMapTest extends AnyFreeSpec with Matchers {
 
         val Some(eventIO) = wf.handleSignal(mySignalDef)(42, Instant.now): @unchecked
 
-        assert(eventIO.unsafeRunSync() == ("input: A, request: 42", "response(A, input: A, request: 42)"))
+        assert(eventIO.unsafeRunSync() == (SimpleEvent("input: A, request: 42"), "response(A, SimpleEvent(input: A, request: 42))"))
       }
     }
     "proceed" - {
@@ -68,7 +72,7 @@ class WIOFlatMapTest extends AnyFreeSpec with Matchers {
 
         val Some(eventIO) = wf.proceed(Instant.now): @unchecked
 
-        assert(eventIO.unsafeRunSync() == "ProcessedEvent(initialState)")
+        assert(eventIO.unsafeRunSync() == SimpleEvent("ProcessedEvent(initialState)"))
       }
       "handle on second" in {
         val runIO = WIO
@@ -80,7 +84,7 @@ class WIOFlatMapTest extends AnyFreeSpec with Matchers {
 
         val Some(eventIO) = wf.proceed(Instant.now): @unchecked
 
-        assert(eventIO.unsafeRunSync() == "ProcessedEvent(A)")
+        assert(eventIO.unsafeRunSync() == SimpleEvent("ProcessedEvent(A)"))
       }
     }
     "handle event" - {
@@ -94,7 +98,7 @@ class WIOFlatMapTest extends AnyFreeSpec with Matchers {
 
         val Some(result) = wf.handleEvent("my-event", Instant.now): @unchecked
 
-        assert(result.staticState == "SuccessHandled(initialState, my-event)")
+        assert(result.staticState == "SuccessHandled(initialState, SimpleEvent(my-event))")
       }
       "handle on second" in {
         val runIO = WIO
@@ -106,7 +110,7 @@ class WIOFlatMapTest extends AnyFreeSpec with Matchers {
 
         val Some(result) = wf.handleEvent("my-event", Instant.now): @unchecked
 
-        assert(result.staticState == "SuccessHandled(A, my-event)")
+        assert(result.staticState == "SuccessHandled(A, SimpleEvent(my-event))")
       }
     }
 

@@ -4,10 +4,17 @@ sealed trait MermaidElement {
   def render: String
 }
 
-case class Node(id: String, label: String, shape: Option[String] = None) extends MermaidElement {
-  def render: String = shape match {
-    case Some(s) => s"""$id@{ shape: $s, label: "$label"}"""
-    case None    => s"""$id["$label"]"""
+case class ClassDef(name: String, style: String) extends MermaidElement {
+  def render: String = s"classDef $name $style"
+}
+
+case class Node(id: String, label: String, shape: Option[String] = None, clazz: Option[String] = None) extends MermaidElement {
+  def render: String = {
+    val classSuffix = clazz.map(c => s":::${c}").getOrElse("")
+    shape match {
+      case Some(s) => s"""$id$classSuffix@{ shape: $s, label: "$label"}"""
+      case None    => s"""$id["$label"]$classSuffix"""
+    }
   }
 }
 

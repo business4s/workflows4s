@@ -1,9 +1,5 @@
 package workflows4s.doobie
 
-import java.time.{Clock, Instant}
-
-import scala.annotation.tailrec
-
 import cats.Applicative
 import cats.effect.{IO, LiftIO, Sync}
 import cats.syntax.all.*
@@ -13,6 +9,10 @@ import workflows4s.runtime.WorkflowInstance
 import workflows4s.runtime.WorkflowInstance.UnexpectedSignal
 import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.wio.*
+import workflows4s.wio.model.WIOExecutionProgress
+
+import java.time.{Clock, Instant}
+import scala.annotation.tailrec
 
 class DbWorkflowInstance[Ctx <: WorkflowContext, Id](
     id: Id,
@@ -23,6 +23,8 @@ class DbWorkflowInstance[Ctx <: WorkflowContext, Id](
     clock: Clock,
     knockerUpper: KnockerUpper.Agent[Id],
 ) extends WorkflowInstance[ConnectionIO, WCState[Ctx]] {
+
+  override def getProgress: ConnectionIO[WIOExecutionProgress[WCState[Ctx]]] = restoreWorkflow.map(_.wio.toProgress)
 
   def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): ConnectionIO[Either[UnexpectedSignal, Resp]] = {
     storage

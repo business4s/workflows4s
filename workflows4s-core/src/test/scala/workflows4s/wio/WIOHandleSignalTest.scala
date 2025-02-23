@@ -30,7 +30,11 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers {
 
       // Assert
       signalResult should not be empty
-      assert(signalResult.get.unsafeRunSync() === ("input: initialState, request: 42", "response(initialState, input: initialState, request: 42)"))
+      assert(
+        signalResult.get.unsafeRunSync() === (SimpleEvent(
+          "input: initialState, request: 42",
+        ), "response(initialState, SimpleEvent(input: initialState, request: 42))"),
+      )
     }
 
     "handle unexpected signals gracefully" in {
@@ -65,7 +69,7 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers {
       val newWorkflowOpt = wf.handleEvent(event, Instant.now)
 
       assert(newWorkflowOpt.isDefined)
-      assert(newWorkflowOpt.get.staticState == "eventHandled(initialState, test-event)")
+      assert(newWorkflowOpt.get.staticState == "eventHandled(initialState, SimpleEvent(test-event))")
     }
 
     // TODO event with error case

@@ -9,8 +9,8 @@ trait WorkflowContext { ctx: WorkflowContext =>
 
   type WIO[-In, +Err, +Out <: State] = workflows4s.wio.WIO[In, Err, Out, Ctx]
   object WIO extends AllBuilders[Ctx] {
-    type Branch[-In, +Err, +Out <: State]  = workflows4s.wio.WIO.Branch[In, Err, Out, Ctx]
-    type Interruption[+Err, +Out <: State] = workflows4s.wio.WIO.Interruption[Ctx, Err, Out, ?, ?]
+    type Branch[-In, +Err, +Out <: State]  = workflows4s.wio.WIO.Branch[In, Err, Out, Ctx, ?]
+    type Interruption[+Err, +Out <: State] = workflows4s.wio.WIO.Interruption[Ctx, Err, Out]
     type Draft                             = WIO[Any, Nothing, Nothing]
     type Initial                           = workflows4s.wio.WIO.Initial[Ctx]
 
@@ -19,8 +19,8 @@ trait WorkflowContext { ctx: WorkflowContext =>
 }
 
 object WorkflowContext {
-  type AuxS[_S]                    = WorkflowContext { type State = _S }
-  type AuxE[_E]                    = WorkflowContext { type Event = _E }
+  private type AuxS[_S]            = WorkflowContext { type State = _S }
+  private type AuxE[_E]            = WorkflowContext { type Event = _E }
   type State[T <: WorkflowContext] = T match {
     case AuxS[s] => s
   }

@@ -1,12 +1,11 @@
 package workflows4s.wio.builders
 
 import java.time.Instant
-
 import scala.jdk.DurationConverters.ScalaDurationOps
 import scala.reflect.ClassTag
-
 import cats.effect.IO
 import workflows4s.wio.*
+import workflows4s.wio.WIO.HandleInterruption.InterruptionType
 import workflows4s.wio.WIO.{InterruptionSource, Timer}
 import workflows4s.wio.internal.{EventHandler, SignalHandler}
 import workflows4s.wio.model.ModelUtils
@@ -35,8 +34,7 @@ object InterruptionBuilder {
 
         def handleEventWithError[Err, Out <: WCState[Ctx]](f: (Input, Evt) => Either[Err, Out])(using
             errorMeta: ErrorMeta[Err],
-        ): Step3[Err, Out] =
-          Step3(f, errorMeta)
+        ): Step3[Err, Out] = Step3(f, errorMeta)
 
         class Step3[Err, Out <: WCState[Ctx]](
             eventHandler: (Input, Evt) => Either[Err, Out],
@@ -63,6 +61,7 @@ object InterruptionBuilder {
               handleSignal
             }
 
+            override def tpe: InterruptionType = InterruptionType.Signal
           }
 
         }
@@ -108,6 +107,8 @@ object InterruptionBuilder {
 
           lazy val source: WIO.InterruptionSource[Input, Nothing, WCState[Ctx], Ctx] =
             WIO.Timer(durationSource, startedEventHandler, name, releasedEventHandler)
+
+          override def tpe: InterruptionType = InterruptionType.Timer
         }
       }
 
@@ -116,17 +117,16 @@ object InterruptionBuilder {
     trait ContinuationBuilder[Err, Out <: WCState[Ctx]] {
 
       def source: InterruptionSource[Input, Err, Out, Ctx]
+      def tpe: InterruptionType
 
+      // TODO this could be a method on interruption, doesnt have to prevent builder from completing
       def andThen[FinalErr, FinalOut <: WCState[Ctx]](
           f: WIO[Input, Err, Out, Ctx] => WIO[Input, FinalErr, FinalOut, Ctx],
-      ): WIO.Interruption[Ctx, FinalErr, FinalOut, Out, Err] = {
-        WIO.Interruption(
-          source,
-          f,
-        )
+      ): WIO.Interruption[Ctx, FinalErr, FinalOut] = {
+        WIO.Interruption(f(source), tpe)
       }
 
-      def noFollowupSteps: WIO.Interruption[Ctx, Err, Out, Out, Err] = andThen(identity)
+      def noFollowupSteps: WIO.Interruption[Ctx, Err, Out] = andThen(identity)
 
     }
 

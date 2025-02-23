@@ -127,6 +127,12 @@ const config: Config = {
         customFields: {
             workflows4sVersion: "unreleased",
         },
+        algolia: {
+            appId: 'IMCN9UXKWU',
+            apiKey: '6abd8b572e53e72a85a9283c552438b7',
+            indexName: 'business4s',
+            searchPagePath: 'search',
+        },
     } satisfies Preset.ThemeConfig,
 };
 
