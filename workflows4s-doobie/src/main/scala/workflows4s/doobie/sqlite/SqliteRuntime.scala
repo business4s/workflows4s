@@ -28,8 +28,8 @@ class SqliteRuntime[WorkflowId <: String, Ctx <: WorkflowContext](
         IO {
           val base = new DbWorkflowInstance(
             id,
-            ActiveWorkflow(workflow, initialState, None),
-            SqliteWorkflowStorage,
+            ActiveWorkflow(workflow, initialState),
+            SqliteWorkflowStorage[WorkflowId],
             liftIo,
             eventCodec,
             clock,
