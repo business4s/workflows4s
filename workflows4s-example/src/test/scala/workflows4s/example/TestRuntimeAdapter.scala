@@ -13,7 +13,6 @@ import org.apache.pekko.util.Timeout
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import workflows4s.doobie.EventCodec
 import workflows4s.doobie.postgres.{PostgresRuntime, WorkflowId}
-import workflows4s.doobie.sqlite.SqliteRuntime
 import workflows4s.runtime.pekko.{PekkoWorkflowInstance, WorkflowBehavior}
 import workflows4s.runtime.wakeup.NoOpKnockerUpper
 import workflows4s.runtime.{InMemoryRuntime, InMemorySyncRuntime, InMemorySyncWorkflowInstance, WorkflowInstance}
@@ -229,27 +228,6 @@ object TestRuntimeAdapter {
       override def getProgress: Id[WIOExecutionProgress[WCState[Ctx]]] = base.flatMap(_.getProgress).unsafeRunSync()
     }
 
-  }
-
-  class Sqlite[Ctx <: WorkflowContext](xa: Transactor[IO], eventCodec: EventCodec[WCEvent[Ctx]]) extends TestRuntimeAdapter[Ctx] {
-    import _root_.doobie.implicits.*
-    override def runWorkflow(workflow: WIO[Any, Nothing, State[Ctx], Ctx], state: State[Ctx], clock: Clock): Actor = {
-      val runtime = SqliteRuntime.default[Ctx, Unit](workflow, state, eventCodec, xa, NoOpKnockerUpper.Agent, clock)
-      Actor(runtime.createInstance(_root_.workflows4s.doobie.sqlite.WorkflowId(Random.nextLong())))
-    }
-
-    override def recover(first: Actor): Actor = first
-
-    case class Actor(base: IO[WorkflowInstance[IO, WCState[Ctx]]]) extends WorkflowInstance[Id, WCState[Ctx]] {
-      import cats.effect.unsafe.implicits.global
-
-      override def queryState(): WCState[Ctx] = base.flatMap(_.queryState()).unsafeRunSync()
-
-      override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): Either[WorkflowInstance.UnexpectedSignal, Resp] =
-        base.flatMap(_.deliverSignal(signalDef, req)).unsafeRunSync()
-
-      override def wakeup(): Id[Unit] = base.flatMap(_.wakeup()).unsafeRunSync()
-    }
   }
 
 }
