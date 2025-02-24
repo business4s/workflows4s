@@ -1,6 +1,7 @@
 package workflows4s.doobie.sqlite
 
 import java.time.Clock
+import java.util.Properties
 
 import cats.effect.IO
 import doobie.util.transactor.Transactor
@@ -25,9 +26,12 @@ class SqliteRuntime[WorkflowId <: String: PathCodec, Ctx <: WorkflowContext](
 
   override def createInstance(id: WorkflowId): IO[WorkflowInstance[IO, WCState[Ctx]]] = {
     // FIXME: find a way to create JDBC driver with transanction and path
+    val properties         = new Properties
+    properties.put("transanction_mode", "IMMEDIATE")
     val xa: Transactor[IO] = Transactor.fromDriverManager[IO](
       driver = "org.sqlite.JDBC",
       url = "jdbc:sqlite:sample.db",
+      info = properties,
       logHandler = None,
     )
     WeakAsync
