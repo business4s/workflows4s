@@ -11,14 +11,17 @@ import workflows4s.runtime.{MappedWorkflowInstance, WorkflowInstance, WorkflowRu
 import workflows4s.wio.WIO.Initial
 import workflows4s.wio.{ActiveWorkflow, WCEvent, WCState, WorkflowContext}
 
-class SqliteRuntime[WorkflowId <: String, Ctx <: WorkflowContext](
+trait PathCodec[Id] {
+  def encode(id: Id): String
+}
+
+class SqliteRuntime[WorkflowId <: String: PathCodec, Ctx <: WorkflowContext](
     workflow: Initial[Ctx],
     initialState: WCState[Ctx],
     clock: Clock,
     knockerUpper: KnockerUpper.Agent[WorkflowId],
     eventCodec: EventCodec[WCEvent[Ctx]],
     xa: Transactor[IO],
-    // WorkflowId - should be path dependent and extracted from path
 ) extends WorkflowRuntime[IO, Ctx, WorkflowId] {
 
   override def createInstance(id: WorkflowId): IO[WorkflowInstance[IO, WCState[Ctx]]] = {
@@ -42,7 +45,7 @@ class SqliteRuntime[WorkflowId <: String, Ctx <: WorkflowContext](
 }
 
 object SqliteRuntime {
-  def default[Ctx <: WorkflowContext, WorkflowId <: String, Input](
+  def default[Ctx <: WorkflowContext, WorkflowId <: String: PathCodec, Input](
       workflow: Initial[Ctx],
       initialState: WCState[Ctx],
       eventCodec: EventCodec[WCEvent[Ctx]],
