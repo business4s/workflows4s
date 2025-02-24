@@ -21,10 +21,15 @@ class SqliteRuntime[WorkflowId <: String: PathCodec, Ctx <: WorkflowContext](
     clock: Clock,
     knockerUpper: KnockerUpper.Agent[WorkflowId],
     eventCodec: EventCodec[WCEvent[Ctx]],
-    xa: Transactor[IO],
 ) extends WorkflowRuntime[IO, Ctx, WorkflowId] {
 
   override def createInstance(id: WorkflowId): IO[WorkflowInstance[IO, WCState[Ctx]]] = {
+    // FIXME: find a way to create JDBC driver with transanction and path
+    val xa: Transactor[IO] = Transactor.fromDriverManager[IO](
+      driver = "org.sqlite.JDBC",
+      url = "jdbc:sqlite:sample.db",
+      logHandler = None,
+    )
     WeakAsync
       .liftIO[ConnectionIO]
       .use(liftIo =>
@@ -49,9 +54,8 @@ object SqliteRuntime {
       workflow: Initial[Ctx],
       initialState: WCState[Ctx],
       eventCodec: EventCodec[WCEvent[Ctx]],
-      xa: Transactor[IO],
       knockerUpper: KnockerUpper.Agent[WorkflowId],
       clock: Clock = Clock.systemUTC(),
   ) =
-    new SqliteRuntime(workflow = workflow, initialState = initialState, eventCodec = eventCodec, knockerUpper = knockerUpper, clock = clock, xa = xa)
+    new SqliteRuntime(workflow = workflow, initialState = initialState, eventCodec = eventCodec, knockerUpper = knockerUpper, clock = clock)
 }
