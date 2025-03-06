@@ -161,6 +161,23 @@ object BPMNConverter {
           .intermediateCatchEvent()
           .timerWithDuration(label)
           .name(label)
+      case WIOModel.Parallel(elems)                                   =>
+        val base                           = builder.parallelGateway()
+        val gwId                           = base.getElement.getId
+        val (resultBuilder, Some(endGwId)) = {
+          elems.foldLeft[(Builder, Option[String])](base -> None)({ case ((builder1, endGw), branch) =>
+            val b2              = builder1.moveToNode(gwId)
+            val result: Builder = handle(branch, b2)
+            endGw match {
+              case Some(value) =>
+                (result.connectTo(value), endGw)
+              case None        =>
+                val gwId = result.parallelGateway().getElement.getId
+                (result, Some(gwId))
+            }
+          })
+        }: @unchecked
+        resultBuilder.moveToNode(endGwId)
     }
   }
 

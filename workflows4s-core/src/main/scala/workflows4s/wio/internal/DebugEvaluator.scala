@@ -27,6 +27,7 @@ object DebugEvaluator {
       case _: WIOExecutionProgress.Fork[?]          => "Fork"
       case _: WIOExecutionProgress.Interruptible[?] => "Interruptible"
       case _: WIOExecutionProgress.Timer[?]         => "Timer"
+      case _: WIOExecutionProgress.Parallel[?]      => "Parallel"
     }
     val name                 = model match {
       case x: WIOExecutionProgress.Sequence[?]      => None
@@ -40,6 +41,7 @@ object DebugEvaluator {
       case x: WIOExecutionProgress.Fork[?]          => x.meta.name
       case x: WIOExecutionProgress.Interruptible[?] => None
       case x: WIOExecutionProgress.Timer[?]         => x.meta.name
+      case _: WIOExecutionProgress.Parallel[?]      => None
     }
     val description          = model match {
       case x: WIOExecutionProgress.Sequence[?]      => None
@@ -53,6 +55,7 @@ object DebugEvaluator {
       case x: WIOExecutionProgress.Fork[?]          => None
       case x: WIOExecutionProgress.Interruptible[?] => None
       case x: WIOExecutionProgress.Timer[?]         => x.meta.duration.map(_.toString)
+      case _: WIOExecutionProgress.Parallel[?]      => None
     }
     val children             = model match {
       case x: WIOExecutionProgress.Sequence[?]      =>
@@ -86,6 +89,7 @@ object DebugEvaluator {
           .when(!x.base.isExecuted)(Seq(renderChild("trigger", x.trigger)) ++ x.handler.map(x => renderChild("handler", x)))
           .getOrElse(Seq())
       case _: WIOExecutionProgress.Timer[?]         => Seq()
+      case x: WIOExecutionProgress.Parallel[?]      => x.elements.zipWithIndex.map((elem, idx) => renderChild(s"branch ${idx}", elem))
     }
     val effectiveDescription = if (model.isExecuted) s"Executed: ${model.result.get.merge}" else description.getOrElse("")
     val effectiveChildren    = if (model.isExecuted) Seq() else children

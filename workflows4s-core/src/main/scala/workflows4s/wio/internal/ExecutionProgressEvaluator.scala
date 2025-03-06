@@ -11,10 +11,10 @@ object ExecutionProgressEvaluator {
       input: Option[In],
       lastSeenState: Option[WCState[Ctx]],
   ): WIOExecutionProgress[WCState[Ctx]] = {
-    new ModelVisitor(wio, None, lastSeenState, input).run
+    new ExecProgressVisitor(wio, None, lastSeenState, input).run
   }
 
-  private class ModelVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](
+  private class ExecProgressVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](
       wio: WIO[In, Err, Out, Ctx],
       result: WIOExecutionProgress.ExecutionResult[WCState[Ctx]],
       lastSeenState: Option[WCState[Ctx]],
@@ -86,7 +86,7 @@ object ExecutionProgressEvaluator {
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
     ): Result = {
       // TODO should express embedding in model?
-      val visitor = new ModelVisitor(
+      val visitor = new ExecProgressVisitor(
         wio.inner,
         this.result.flatMap(_.traverse(wio.embedding.unconvertState)),
         lastSeenState.flatMap(wio.embedding.unconvertState),
@@ -124,13 +124,17 @@ object ExecutionProgressEvaluator {
     def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result = recurse(wio.original, wio.input.some, wio.output.some)
     def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result           = recurse(wio.original, wio.input.some, None)
 
+    def onParallel[InterimState <: workflows4s.wio.WorkflowContext.State[Ctx]](wio: WIO.Parallel[Ctx, In, Err, Out, InterimState]): Result = {
+      WIOExecutionProgress.Parallel(wio.elements.map(elem => recurse(elem.wio, input, result = None)), result)
+    }
+
     def recurse[I1, E1, O1 <: WCState[Ctx]](
         wio: WIO[I1, E1, O1, Ctx],
         input: Option[I1],
         result: WIOExecutionProgress.ExecutionResult[WCState[Ctx]] = this.result,
     ): WIOExecutionProgress[WCState[Ctx]] = {
       val state = result.flatMap(_.toOption).orElse(lastSeenState)
-      new ModelVisitor(wio, result, state, input).run
+      new ExecProgressVisitor(wio, result, state, input).run
     }
 
     extension (m: ErrorMeta[?]) {
@@ -142,6 +146,8 @@ object ExecutionProgressEvaluator {
 
   }
 
+  // TODO this whole method should be stricter, it makes assumptions (e.g. interruption cant be wrapped in parallel)
+  //  and should fail if those assumptions don't hold
   def extractFirstInterruption[S](flow: WIOExecutionProgress[S]): Option[(WIOExecutionProgress.Interruption[S], Option[WIOExecutionProgress[S]])] = {
     flow match {
       case WIOExecutionProgress.Sequence(steps)                               =>
@@ -169,6 +175,7 @@ object ExecutionProgressEvaluator {
       case _ @WIOExecutionProgress.Fork(_, _, _)                              => None
       case x @ WIOExecutionProgress.Timer(_, _)                               => (x, None).some
       case WIOExecutionProgress.Interruptible(_, _, _, _)                     => None
+      case _: WIOExecutionProgress.Parallel[?]                                   => None
     }
   }
 

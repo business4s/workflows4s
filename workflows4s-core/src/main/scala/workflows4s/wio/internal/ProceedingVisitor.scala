@@ -1,6 +1,6 @@
 package workflows4s.wio.internal
 
-import cats.implicits.catsSyntaxOptionId
+import cats.implicits.{catsSyntaxOptionId, toTraverseOps}
 import workflows4s.wio.WIO.HandleInterruption.{InterruptionStatus, InterruptionType}
 import workflows4s.wio.*
 
@@ -210,6 +210,46 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
       case InterruptionStatus.Interrupted  => runInterruption
       case InterruptionStatus.TimerStarted => runInterruption.orElse(runBase)
       case InterruptionStatus.Pending      => runInterruption.orElse(runBase)
+    }
+  }
+
+  override def onParallel[InterimState <: WCState[Ctx]](
+      wio: WIO.Parallel[Ctx, In, Err, Out, InterimState],
+  ): Option[NewWf] = {
+    // Try to handle the event in one branch – the first branch that accepts it.
+    // We update that branch and leave the others unchanged.
+    var branchHandled: Option[(Int, WIO[In, Err, WCState[Ctx], Ctx])] = None
+
+    val updatedElements = wio.elements.zipWithIndex.map { case (elem, idx) =>
+      if (branchHandled.isEmpty) {
+        // Try to process the event on this branch using our recurse helper.
+        recurse(elem.wio, input, lastSeenState) match {
+          case Some(newBranch) =>
+            branchHandled = Some((idx, newBranch.wio))
+            // Replace the branch with the updated branch.
+            elem.copy(wio = newBranch.wio)
+          case None            =>
+            // This branch does not accept the event.
+            elem
+        }
+      } else {
+        // A branch has already handled the event; leave this branch unchanged.
+        elem
+      }
+    }
+    if (branchHandled.isEmpty) return None
+
+    val maybeStates: Either[Err, Seq[Option[WCState[Ctx]]]] = updatedElements.traverse(elem => elem.wio.asExecuted.traverse(_.output))
+    val newWio                                              = wio.copy(elements = updatedElements)
+    maybeStates match {
+      case Left(err)   => Some(WFExecution.complete(newWio, Left(err), input))
+      case Right(opts) =>
+        opts.sequence match {
+          case Some(states) =>
+            Some(WFExecution.complete(wio.copy(elements = updatedElements), Right(wio.formResult(states)), input))
+          case None         =>
+            Some(WFExecution.Partial(wio.copy(elements = updatedElements)))
+        }
     }
   }
 

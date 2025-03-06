@@ -79,6 +79,8 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
   def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result
   def onDiscarded[In1](wio: WIO.Discarded[Ctx, In1]): Result
 
+  def onParallel[InterimState <: WCState[Ctx]](wio: WIO.Parallel[Ctx, In, Err, Out, InterimState]): Result
+
   def run: Result = {
     wio match {
       case x: WIO.HandleSignal[?, ?, ?, ?, ?, ?, ?]                  => onSignal(x)
@@ -111,6 +113,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
       case x: WIO.AwaitingTime[?, ?, ?, ?]                           => onAwaitingTime(x)
       case x: WIO.Executed[?, ?, ?, ?]                               => onExecuted(x)
       case x: WIO.Discarded[?, ?]                                    => onDiscarded(x)
+      case x: WIO.Parallel[?, ?, ?, ? <: State, ? <: State]          => onParallel(x)
     }
   }
 

@@ -1,6 +1,7 @@
 package workflows4s.wio.internal
 
 import cats.effect.IO
+import cats.implicits.toFoldableOps
 import workflows4s.wio.*
 import workflows4s.wio.Interpreter.SignalResponse
 import workflows4s.wio.WIO.HandleInterruption.InterruptionStatus
@@ -109,6 +110,18 @@ object SignalEvaluator {
           recurse(wio.interruption, lastSeenState)
             .orElse(recurse(wio.base, input))
       }
+    }
+
+    def onParallel[InterimState <: workflows4s.wio.WorkflowContext.State[Ctx]](
+        wio: workflows4s.wio.WIO.Parallel[Ctx, In, Err, Out, InterimState],
+    ): Result = {
+      // We have multiple paths that could handle a signal.
+      // We have a lot of options:
+      // 1. We could say "only one signal handler for particular signal type can be expected at any point in time" (through linter).
+      // 2. Or we could allow for multiple signals of the same type but process only one.
+      // 3. Or we change the signature and process all of them.
+      // For now we go with 2) but we might need a special EventSignal[Req, Unit] that would be delivered everywhere
+      wio.elements.collectFirstSome(elem => recurse(elem.wio, input))
     }
 
     def recurse[I1, E1, O1 <: WCState[Ctx]](

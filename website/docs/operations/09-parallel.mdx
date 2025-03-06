@@ -1,0 +1,14 @@
+import OperationOutputs from '@site/src/components/OperationOutputs';
+
+# Parallel
+
+`WIO.Parallel` allows running multiple branches simultaneously, enabling scenarios such as waiting for a mix of signals and timers without enforcing a particular order.
+
+All paths must incorporate their internal states into a global state (referred to as `InterimState`).
+
+The final result is constructed from the outcomes of all paths.
+
+```scala file=./main/scala/workflows4s/example/docs/ParallelExample.scala start=start_doc end=end_doc
+```
+
+<OperationOutputs name="parallel"/>
