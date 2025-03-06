@@ -32,5 +32,6 @@ object WIOModel {
   // handle flow is optional because handling might end on single step(the trigger)
   case class Interruptible(base: WIOModel, trigger: Interruption, handler: Option[WIOModel]) extends WIOModel
   case class Timer(meta: WIOMeta.Timer)                                                      extends WIOModel with Interruption
+  case class Parallel(elements: Seq[WIOModel])                                                    extends WIOModel
 
 }

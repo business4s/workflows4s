@@ -48,6 +48,12 @@ object GetWakeupEvaluator {
       }
     }
 
+    def onParallel[InterimState <: workflows4s.wio.WorkflowContext.State[Ctx]](
+        wio: workflows4s.wio.WIO.Parallel[Ctx, In, Err, Out, InterimState],
+    ): Result = {
+      wio.elements.flatMap(elem => recurse(elem.wio)).minOption
+    }
+
     def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_] <: WCState[Ctx]](
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
     ): Result = recurse(wio.inner)

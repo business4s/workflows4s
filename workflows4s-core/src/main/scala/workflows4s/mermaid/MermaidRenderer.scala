@@ -129,6 +129,20 @@ object MermaidRenderer {
               Node(id, s"fa:fa-clock ${label}", shape = eventShape.some, clazz = if (model.isExecuted) executedClass.some else None),
             )
         } yield stepId.some
+      case WIOExecutionProgress.Parallel(elems, _)                          =>
+        for {
+          forkId <- addStepGeneral(id => Node(id, "", shape = forkShape.some, clazz = if (hasStarted(model)) executedClass.some else None))
+          ends   <- elems.toList.flatTraverse(element =>
+                      for {
+                        _    <- setActiveNodes(Seq((forkId, None)))
+                        _    <- render(element)
+                        ends <- cleanActiveNodes
+                      } yield ends.toList,
+                    )
+          _      <- setActiveNodes(ends)
+          endId  <- addStepGeneral(id => Node(id, "", shape = forkShape.some, clazz = if (model.isExecuted) executedClass.some else None))
+        } yield forkId.some
+
     }
   }
 
@@ -144,10 +158,12 @@ object MermaidRenderer {
     case WIOExecutionProgress.Fork(branches, meta, selected)                => selected.isDefined
     case WIOExecutionProgress.Interruptible(base, trigger, handler, result) => hasStarted(base) || hasStarted(trigger)
     case WIOExecutionProgress.Timer(meta, result)                           => result.isDefined
+    case WIOExecutionProgress.Parallel(elems, _)                            => elems.exists(hasStarted)
   }
 
   private val eventShape     = "stadium"
   private val conditionShape = "hex"
+  private val forkShape      = "fork"
 
   private def cleanActiveNodes: State[RenderState, Seq[ActiveNode]]            = State { s => s.copy(activeNodes = Seq()) -> s.activeNodes }
   private def cleanPendingErrors: State[RenderState, Seq[PendingError]]        = State { s => s.copy(pendingErrors = Seq()) -> s.pendingErrors }

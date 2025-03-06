@@ -17,6 +17,7 @@ class ExamplesTest extends AnyFreeSpec {
     TestUtils.renderDocsExample(LoopExample.Simple.loop, "simple-loop")
     TestUtils.renderDocsExample(LoopExample.loop, "loop")
     TestUtils.renderDocsExample(ForkExample.fork, "fork")
+    TestUtils.renderDocsExample(ParallelExample.parallel, "parallel")
     TestUtils.renderDocsExample(InterruptionExample.interruptedThroughSignal, "interruption-signal")
     TestUtils.renderDocsExample(PullRequestWorkflowDraft.workflow, "pull-request-draft")
     TestUtils.renderDocsExample(PullRequestWorkflow.workflow, "pull-request")
