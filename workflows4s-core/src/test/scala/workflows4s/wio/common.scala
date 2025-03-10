@@ -21,7 +21,7 @@ object StepId {
 
 case class TestState(executed: List[StepId], errors: List[String]) {
   def addExecuted(id: StepId): TestState = this.copy(executed = this.executed.appended(id))
-  def addError(err: String): TestState = this.copy(errors = this.errors.appended(err))
+  def addError(err: String): TestState   = this.copy(errors = this.errors.appended(err))
 
   def ++(other: TestState): TestState = TestState(this.executed ++ other.executed, this.errors ++ other.errors)
 }

@@ -22,7 +22,7 @@ class WIOFlatMapTest extends AnyFreeSpec with Matchers with EitherValues {
     "handle signal" - {
       "handle on first" in {
         val (signalDef, stepId1, step1) = TestUtils.signal
-        val (step2Id, step2) = TestUtils.pure
+        val (step2Id, step2)            = TestUtils.pure
 
         val (_, wf) = TestUtils.createInstance2(step1.flatMap(_ => step2))
 
@@ -34,7 +34,7 @@ class WIOFlatMapTest extends AnyFreeSpec with Matchers with EitherValues {
         assert(wf.queryState().executed == List(stepId1, step2Id))
       }
       "handle on second" in {
-        val (step1Id, step1) = TestUtils.pure
+        val (step1Id, step1)            = TestUtils.pure
         val (signalDef, stepId2, step2) = TestUtils.signal
 
         val (_, wf) = TestUtils.createInstance2(step1.flatMap(_ => step2))
