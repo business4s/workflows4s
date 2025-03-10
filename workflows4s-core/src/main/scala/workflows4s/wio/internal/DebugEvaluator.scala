@@ -54,7 +54,7 @@ object DebugEvaluator {
       case x: WIOExecutionProgress.Loop[?]          => None
       case x: WIOExecutionProgress.Fork[?]          => None
       case x: WIOExecutionProgress.Interruptible[?] => None
-      case x: WIOExecutionProgress.Timer[?]         => x.meta.duration.map(_.toString)
+      case x: WIOExecutionProgress.Timer[?]         => x.meta.duration.map(_.toString).orElse(x.meta.releaseAt.map(_.toString))
       case _: WIOExecutionProgress.Parallel[?]      => None
     }
     val children             = model match {

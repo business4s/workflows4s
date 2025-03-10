@@ -23,7 +23,7 @@ object ParallelBuilder {
         ) {
 
           def withElement[Out <: WCState[Ctx], NewErr >: Err](
-              logic: WIO[In, Err, Out, Ctx],
+              logic: WIO[In, NewErr, Out, Ctx],
               incorporatedWith: (InterimState, WCState[Ctx]) => InterimState,
           ): Step3[NewErr, InterimState, Out *: OutAcc] = this.copy(elems = elems.appended(WIO.Parallel.Element(logic, incorporatedWith)))
 

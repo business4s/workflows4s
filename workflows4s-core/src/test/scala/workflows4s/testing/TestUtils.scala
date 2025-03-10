@@ -2,7 +2,12 @@ package workflows4s.testing
 
 import workflows4s.runtime.wakeup.NoOpKnockerUpper
 import workflows4s.runtime.{InMemorySyncRuntime, InMemorySyncWorkflowInstance}
-import workflows4s.wio.{TestCtx, *}
+import workflows4s.wio.{TestCtx, TestCtx2, *}
+
+import java.time.Instant
+import java.util.UUID
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.util.Random
 
 object TestUtils {
 
@@ -12,6 +17,56 @@ object TestUtils {
     val instance: InMemorySyncWorkflowInstance[TestCtx.Ctx] =
       new InMemorySyncRuntime(wio, "initialState", clock, NoOpKnockerUpper.Agent).createInstance(())
     (clock, instance)
+  }
+
+  def createInstance2(wio: WIO.Initial[TestCtx2.Ctx]): (TestClock, InMemorySyncWorkflowInstance[TestCtx2.Ctx]) = {
+    val clock                                                = new TestClock()
+    import cats.effect.unsafe.implicits.global
+    val instance: InMemorySyncWorkflowInstance[TestCtx2.Ctx] =
+      new InMemorySyncRuntime(wio, TestState.empty, clock, NoOpKnockerUpper.Agent).createInstance(())
+    (clock, instance)
+  }
+
+  def pure: (StepId, WIO[TestState, Nothing, TestState, TestCtx2.Ctx])         = {
+    import TestCtx2.*
+    val stepId = StepId.random
+    (stepId, WIO.pure.makeFrom[TestState].value(_.addExecuted(stepId)).done)
+  }
+  def error: (String, WIO[Any, String, Nothing, TestCtx2.Ctx])                 = {
+    import TestCtx2.*
+    val error = s"error-${UUID.randomUUID()}"
+    (error, WIO.pure.error(error).done)
+  }
+  def errorHandler: WIO[(TestState, String), Nothing, TestState, TestCtx2.Ctx] = {
+    import TestCtx2.*
+    WIO.pure.makeFrom[(TestState, String)].value((st, err) => st.addError(err)).done
+  }
+
+  def signal: (SignalDef[Int, Int], StepId, WIO[TestState, Nothing, TestState, TestCtx2.Ctx]) = {
+    import TestCtx2.*
+    val signalDef = SignalDef[Int, Int](id = UUID.randomUUID().toString)
+    case class SigEvent(req: Int) extends TestCtx2.Event
+    val stepId = StepId.random
+    val wio = WIO
+      .handleSignal(signalDef)
+      .using[TestState]
+      .purely((_, req) => SigEvent(req))
+      .handleEvent((st, _) => st.addExecuted(stepId))
+      .produceResponse((_, evt) => evt.req)
+      .done
+    (signalDef, stepId, wio)
+  }
+
+  def timer(secs: Int = Random.nextInt()): (FiniteDuration, WIO[TestState, Nothing, TestState, TestCtx2.Ctx]) = {
+    import TestCtx2.*
+    case class Started(instant: Instant) extends Event
+    case class Released(instant: Instant) extends Event
+    val duration = secs.seconds
+    val wio = WIO.await[TestState](duration)
+      .persistStartThrough(x => Started(x.at))(_.instant)
+      .persistReleaseThrough(x => Released(x.at))(_.instant)
+      .done
+    (duration.plus(1.milli), wio)
   }
 
 }
