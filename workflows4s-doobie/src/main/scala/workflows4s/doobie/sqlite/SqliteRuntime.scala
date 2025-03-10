@@ -14,6 +14,14 @@ import workflows4s.wio.{ActiveWorkflow, WCEvent, WCState, WorkflowContext}
 
 trait PathCodec[Id] {
   def encode(id: Id): String
+  def decode(path: String): Id
+}
+
+object PathCodec {
+  implicit val stringPathCodec: PathCodec[String] = new PathCodec[String] {
+    def encode(id: String): String   = id
+    def decode(path: String): String = path
+  }
 }
 
 class SqliteRuntime[WorkflowId <: String: PathCodec, Ctx <: WorkflowContext](
@@ -22,34 +30,35 @@ class SqliteRuntime[WorkflowId <: String: PathCodec, Ctx <: WorkflowContext](
     clock: Clock,
     knockerUpper: KnockerUpper.Agent[WorkflowId],
     eventCodec: EventCodec[WCEvent[Ctx]],
+    path: String,
 ) extends WorkflowRuntime[IO, Ctx, WorkflowId] {
 
+  private val workflowId: WorkflowId = implicitly[PathCodec[WorkflowId]].decode(path)
+  private val dbUrl: String          = s"jdbc:sqlite:$path"
+
   override def createInstance(id: WorkflowId): IO[WorkflowInstance[IO, WCState[Ctx]]] = {
-    // FIXME: find a way to create JDBC driver with transanction and path
     val properties         = new Properties
-    properties.put("transanction_mode", "IMMEDIATE")
+    properties.put("transaction_mode", "IMMEDIATE")
     val xa: Transactor[IO] = Transactor.fromDriverManager[IO](
       driver = "org.sqlite.JDBC",
-      url = "jdbc:sqlite:sample.db",
+      url = dbUrl,
       info = properties,
       logHandler = None,
     )
     WeakAsync
       .liftIO[ConnectionIO]
-      .use(liftIo =>
-        IO {
-          val base = new DbWorkflowInstance(
-            id,
-            ActiveWorkflow(workflow, initialState),
-            SqliteWorkflowStorage[WorkflowId],
-            liftIo,
-            eventCodec,
-            clock,
-            knockerUpper,
-          )
-          new MappedWorkflowInstance(base, xa.trans)
-        },
-      )
+      .use { liftIo =>
+        val base = new DbWorkflowInstance(
+          id,
+          ActiveWorkflow(workflow, initialState),
+          SqliteWorkflowStorage[WorkflowId],
+          liftIo,
+          eventCodec,
+          clock,
+          knockerUpper,
+        )
+        IO(new MappedWorkflowInstance(base, xa.trans))
+      }
   }
 }
 
@@ -59,7 +68,15 @@ object SqliteRuntime {
       initialState: WCState[Ctx],
       eventCodec: EventCodec[WCEvent[Ctx]],
       knockerUpper: KnockerUpper.Agent[WorkflowId],
+      path: String,
       clock: Clock = Clock.systemUTC(),
   ) =
-    new SqliteRuntime(workflow = workflow, initialState = initialState, eventCodec = eventCodec, knockerUpper = knockerUpper, clock = clock)
+    new SqliteRuntime(
+      workflow = workflow,
+      initialState = initialState,
+      eventCodec = eventCodec,
+      knockerUpper = knockerUpper,
+      path = path,
+      clock = clock,
+    )
 }
