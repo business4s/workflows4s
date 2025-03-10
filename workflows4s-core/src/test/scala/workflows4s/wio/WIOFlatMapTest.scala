@@ -1,118 +1,72 @@
 package workflows4s.wio
 
-import cats.effect.IO
+import org.scalatest.EitherValues
 import org.scalatest.freespec.AnyFreeSpec
-import cats.effect.unsafe.implicits.global
 import org.scalatest.matchers.should.Matchers
-import java.time.Instant
+import workflows4s.testing.TestUtils
 
-class WIOFlatMapTest extends AnyFreeSpec with Matchers {
+class WIOFlatMapTest extends AnyFreeSpec with Matchers with EitherValues {
 
   import TestCtx.*
 
   "WIO.FlatMap" - {
 
     "simple" in {
-      val a     = WIO.pure.makeFrom[String].value(_ + "A").done
-      val b     = WIO.pure.makeFrom[String].value(_ + "B").done
-      val wf    = a
-        .flatMap(_ => b)
-        .toWorkflow("0")
-      val state = wf.liveState(Instant.now)
-      assert(state == "0AB")
+      val (step1Id, step1) = TestUtils.pure
+      val (step2Id, step2) = TestUtils.pure
+
+      val (_, wf) = TestUtils.createInstance2(step1.flatMap(_ => step2))
+      assert(wf.queryState().executed == List(step1Id, step2Id))
     }
 
     "handle signal" - {
       "handle on first" in {
-        val mySignalDef  = SignalDef[Int, String]()
-        val handleSignal = WIO
-          .handleSignal(mySignalDef)
-          .using[String]
-          .withSideEffects((input, request) => IO(s"input: $input, request: $request"))
-          .handleEvent((input, request) => s"eventProcessed($input, $request)")
-          .produceResponse((input, request) => s"response($input, $request)")
-          .done
+        val (signalDef, stepId1, step1) = TestUtils.signal
+        val (step2Id, step2) = TestUtils.pure
 
-        val wf = handleSignal.flatMap(_ => WIO.end).toWorkflow("initialState")
+        val (_, wf) = TestUtils.createInstance2(step1.flatMap(_ => step2))
 
-        val Some(eventIO) = wf.handleSignal(mySignalDef)(42, Instant.now): @unchecked
+        assert(wf.queryState().executed == List())
 
-        assert(
-          eventIO.unsafeRunSync() == (SimpleEvent(
-            "input: initialState, request: 42",
-          ), "response(initialState, SimpleEvent(input: initialState, request: 42))"),
-        )
+        val resp = wf.deliverSignal(signalDef, 1).value
+        assert(resp == 1)
+
+        assert(wf.queryState().executed == List(stepId1, step2Id))
       }
       "handle on second" in {
-        val mySignalDef  = SignalDef[Int, String]()
-        val handleSignal = WIO
-          .handleSignal(mySignalDef)
-          .using[String]
-          .withSideEffects((input, request) => IO(s"input: $input, request: $request"))
-          .handleEvent((input, request) => s"eventProcessed($input, $request)")
-          .produceResponse((input, request) => s"response($input, $request)")
-          .done
-        val pure         = WIO.pure("A").done
+        val (step1Id, step1) = TestUtils.pure
+        val (signalDef, stepId2, step2) = TestUtils.signal
 
-        val wf = pure.flatMap(_ => handleSignal).toWorkflow("initialState")
+        val (_, wf) = TestUtils.createInstance2(step1.flatMap(_ => step2))
+        assert(wf.queryState().executed == List(step1Id))
 
-        val Some(eventIO) = wf.handleSignal(mySignalDef)(42, Instant.now): @unchecked
+        val resp = wf.deliverSignal(signalDef, 1).value
+        assert(resp == 1)
 
-        assert(eventIO.unsafeRunSync() == (SimpleEvent("input: A, request: 42"), "response(A, SimpleEvent(input: A, request: 42))"))
+        assert(wf.queryState().executed == List(step1Id, stepId2))
       }
     }
     "proceed" - {
       "handle on first" in {
-        val runIO = WIO
-          .runIO[String](input => IO.pure(s"ProcessedEvent($input)"))
-          .handleEvent(ignore)
-          .done
+        val (step1Id, runIO) = TestUtils.runIO
+        val (step2Id, step2) = TestUtils.pure
 
-        val wf = runIO.flatMap(_ => WIO.end).toWorkflow("initialState")
+        val (_, wf) = TestUtils.createInstance2(runIO.flatMap(_ => step2))
+        assert(wf.queryState().executed == List())
 
-        val Some(eventIO) = wf.proceed(Instant.now): @unchecked
-
-        assert(eventIO.unsafeRunSync() == SimpleEvent("ProcessedEvent(initialState)"))
+        wf.wakeup()
+        assert(wf.queryState().executed == List(step1Id, step2Id))
       }
-      "handle on second" in {
-        val runIO = WIO
-          .runIO[String](input => IO.pure(s"ProcessedEvent($input)"))
-          .handleEvent(ignore)
-          .done
+      "handle in sequence" in {
+        val (step1Id, runIO1) = TestUtils.runIO
+        val (step2Id, runIO2) = TestUtils.runIO
 
-        val wf = WIO.pure("A").done.flatMap(_ => runIO).toWorkflow("")
+        val (_, wf) = TestUtils.createInstance2(runIO1.flatMap(_ => runIO2))
+        assert(wf.queryState().executed == List())
 
-        val Some(eventIO) = wf.proceed(Instant.now): @unchecked
-
-        assert(eventIO.unsafeRunSync() == SimpleEvent("ProcessedEvent(A)"))
+        wf.wakeup()
+        assert(wf.queryState().executed == List(step1Id, step2Id))
       }
     }
-    "handle event" - {
-      "handle on first" in {
-        val runIO = WIO
-          .runIO[String](_ => ???)
-          .handleEvent((input, evt) => s"SuccessHandled($input, $evt)")
-          .done
-
-        val wf = runIO.flatMap(_ => WIO.end).toWorkflow("initialState")
-
-        val Some(result) = wf.handleEvent("my-event", Instant.now): @unchecked
-
-        assert(result.staticState == "SuccessHandled(initialState, SimpleEvent(my-event))")
-      }
-      "handle on second" in {
-        val runIO = WIO
-          .runIO[String](_ => ???)
-          .handleEvent((input, evt) => s"SuccessHandled($input, $evt)")
-          .done
-
-        val wf = WIO.pure("A").done.flatMap(_ => runIO).toWorkflow("")
-
-        val Some(result) = wf.handleEvent("my-event", Instant.now): @unchecked
-
-        assert(result.staticState == "SuccessHandled(A, SimpleEvent(my-event))")
-      }
-    }
-
   }
 }

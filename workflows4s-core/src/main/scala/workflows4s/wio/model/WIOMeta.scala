@@ -5,9 +5,9 @@ import io.circe.{Codec, Decoder, Encoder}
 import java.time.{Duration, Instant}
 
 object WIOMeta {
-  
+
   given Codec[Instant] = Codec.from(Decoder.decodeInstant, Encoder.encodeInstant)
-  
+
   case class Dynamic(error: Option[Error]) derives Codec
   case class Pure(name: Option[String], error: Option[WIOMeta.Error]) derives Codec
   // TODO, probably need better model to express started or not timer

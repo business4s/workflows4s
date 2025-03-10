@@ -1,5 +1,6 @@
 package workflows4s.testing
 
+import cats.effect.IO
 import workflows4s.runtime.wakeup.NoOpKnockerUpper
 import workflows4s.runtime.{InMemorySyncRuntime, InMemorySyncWorkflowInstance}
 import workflows4s.wio.{TestCtx, TestCtx2, *}
@@ -19,11 +20,12 @@ object TestUtils {
     (clock, instance)
   }
 
-  def createInstance2(wio: WIO.Initial[TestCtx2.Ctx]): (TestClock, InMemorySyncWorkflowInstance[TestCtx2.Ctx]) = {
+  def createInstance2(wio: WIO[TestState, Nothing, TestState, TestCtx2.Ctx]): (TestClock, InMemorySyncWorkflowInstance[TestCtx2.Ctx]) = {
     val clock                                                = new TestClock()
     import cats.effect.unsafe.implicits.global
     val instance: InMemorySyncWorkflowInstance[TestCtx2.Ctx] =
-      new InMemorySyncRuntime(wio, TestState.empty, clock, NoOpKnockerUpper.Agent).createInstance(())
+      new InMemorySyncRuntime[TestCtx2.Ctx, Unit](wio.provideInput(TestState.empty), TestState.empty, clock, NoOpKnockerUpper.Agent)
+        .createInstance(())
     (clock, instance)
   }
 
@@ -47,7 +49,7 @@ object TestUtils {
     val signalDef = SignalDef[Int, Int](id = UUID.randomUUID().toString)
     case class SigEvent(req: Int) extends TestCtx2.Event
     val stepId = StepId.random
-    val wio = WIO
+    val wio    = WIO
       .handleSignal(signalDef)
       .using[TestState]
       .purely((_, req) => SigEvent(req))
@@ -59,14 +61,26 @@ object TestUtils {
 
   def timer(secs: Int = Random.nextInt()): (FiniteDuration, WIO[TestState, Nothing, TestState, TestCtx2.Ctx]) = {
     import TestCtx2.*
-    case class Started(instant: Instant) extends Event
+    case class Started(instant: Instant)  extends Event
     case class Released(instant: Instant) extends Event
     val duration = secs.seconds
-    val wio = WIO.await[TestState](duration)
+    val wio      = WIO
+      .await[TestState](duration)
       .persistStartThrough(x => Started(x.at))(_.instant)
       .persistReleaseThrough(x => Released(x.at))(_.instant)
       .done
     (duration.plus(1.milli), wio)
+  }
+
+  def runIO: (StepId, WIO[TestState, Nothing, TestState, TestCtx2.Ctx]) = {
+    import TestCtx2.*
+    case class RunIODone(stepId: StepId) extends TestCtx2.Event
+    val stepId = StepId.random
+    val wio    = WIO
+      .runIO[TestState](input => IO.pure(RunIODone(stepId)))
+      .handleEvent((st, evt) => st.addExecuted(evt.stepId))
+      .done
+    (stepId, wio)
   }
 
 }

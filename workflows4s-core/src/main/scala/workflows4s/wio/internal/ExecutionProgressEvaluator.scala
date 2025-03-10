@@ -121,7 +121,7 @@ object ExecutionProgressEvaluator {
     )
 
     def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result =
-      WIOExecutionProgress.Timer(WIOMeta.Timer(None,  wio.resumeAt.some, None), result) // TODO persist duration and name
+      WIOExecutionProgress.Timer(WIOMeta.Timer(None, wio.resumeAt.some, None), result) // TODO persist duration and name
     def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result = recurse(wio.original, wio.input.some, wio.output.some)
     def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result           = recurse(wio.original, wio.input.some, None)
 
@@ -176,7 +176,7 @@ object ExecutionProgressEvaluator {
       case _ @WIOExecutionProgress.Fork(_, _, _)                              => None
       case x @ WIOExecutionProgress.Timer(_, _)                               => (x, None).some
       case WIOExecutionProgress.Interruptible(_, _, _, _)                     => None
-      case _: WIOExecutionProgress.Parallel[?]                                   => None
+      case _: WIOExecutionProgress.Parallel[?]                                => None
     }
   }
 
