@@ -6,16 +6,16 @@ import doobie.*
 import doobie.implicits.*
 import workflows4s.doobie.WorkflowStorage
 
-class SqliteWorkflowStorage[WorkflowId <: String] extends WorkflowStorage[WorkflowId] {
-  override def getEvents(id: WorkflowId): ConnectionIO[List[IArray[Byte]]] = {
+class SqliteWorkflowStorage extends WorkflowStorage[String] {
+  override def getEvents(id: String): ConnectionIO[List[IArray[Byte]]] = {
     sql"SELECT event_data FROM workflow_journal".query[Array[Byte]].map(IArray.unsafeFromArray).to[List]
   }
 
-  override def saveEvent(id: WorkflowId, event: IArray[Byte]): ConnectionIO[Unit] = {
+  override def saveEvent(id: String, event: IArray[Byte]): ConnectionIO[Unit] = {
     sql"INSERT INTO workflow_journal (event_data) VALUES (${event.toArray})".update.run.void
   }
 
-  override def lockWorkflow(id: WorkflowId): Resource[ConnectionIO, Unit] = {
+  override def lockWorkflow(id: String): Resource[ConnectionIO, Unit] = {
     Resource.pure[ConnectionIO, Unit](())
   }
 }
