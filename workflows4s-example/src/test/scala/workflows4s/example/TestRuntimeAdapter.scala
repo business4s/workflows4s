@@ -1,5 +1,6 @@
 package workflows4s.example
 
+import java.nio.file.Path
 import _root_.doobie.util.transactor.Transactor
 import cats.Id
 import cats.effect.IO
@@ -13,10 +14,12 @@ import org.apache.pekko.util.Timeout
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import workflows4s.doobie.EventCodec
 import workflows4s.doobie.postgres.{PostgresRuntime, WorkflowId}
+import workflows4s.doobie.sqlite.SqliteRuntime
 import workflows4s.runtime.pekko.{PekkoWorkflowInstance, WorkflowBehavior}
 import workflows4s.runtime.wakeup.NoOpKnockerUpper
 import workflows4s.runtime.{InMemoryRuntime, InMemorySyncRuntime, InMemorySyncWorkflowInstance, WorkflowInstance}
 import workflows4s.wio.*
+import workflows4s.wio.WorkflowContext.State
 import workflows4s.wio.model.WIOExecutionProgress
 
 import java.time.Clock
@@ -228,6 +231,35 @@ object TestRuntimeAdapter {
       override def getProgress: Id[WIOExecutionProgress[WCState[Ctx]]] = base.flatMap(_.getProgress).unsafeRunSync()
     }
 
+  }
+
+  class Sqlite[Ctx <: WorkflowContext](dbPath: Path, eventCodec: EventCodec[WCEvent[Ctx]]) extends TestRuntimeAdapter[Ctx] {
+    override def runWorkflow(workflow: WIO[Any, Nothing, State[Ctx], Ctx], state: State[Ctx], clock: Clock): Actor = {
+      val runtime = SqliteRuntime.default[Ctx](
+        workflow = workflow,
+        initialState = state,
+        eventCodec = eventCodec,
+        dbFile = dbPath,
+        clock = clock,
+        knockerUpper = NoOpKnockerUpper.Agent,
+      )
+      Actor(runtime.createInstance(UUID.randomUUID().toString))
+    }
+
+    override def recover(first: Actor): Actor = first
+
+    case class Actor(base: IO[WorkflowInstance[IO, WCState[Ctx]]]) extends WorkflowInstance[Id, WCState[Ctx]] {
+      import cats.effect.unsafe.implicits.global
+
+      override def queryState(): WCState[Ctx] = base.flatMap(_.queryState()).unsafeRunSync()
+
+      override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): Either[WorkflowInstance.UnexpectedSignal, Resp] =
+        base.flatMap(_.deliverSignal(signalDef, req)).unsafeRunSync()
+
+      override def wakeup(): Id[Unit] = base.flatMap(_.wakeup()).unsafeRunSync()
+
+      override def getProgress: Id[WIOExecutionProgress[WCState[Ctx]]] = base.flatMap(_.getProgress).unsafeRunSync()
+    }
   }
 
 }
