@@ -65,12 +65,4 @@ While Workflows4s shares some conceptual similarities with data orchestration to
 | **Human Interaction** | Limited native support for human tasks | Can incorporate human approval steps through signals |
 | **Deployment Model** | Separate orchestration server | Self-contained within your application |
 
-### When to Choose Workflows4s over Airflow
-
-- When you need business workflows rather than data pipelines
-- When your workflows must react to external events in real-time
-- When workflows need to maintain state during long-running processes
-- When human interaction is a core part of your workflow
-- When you want to avoid deploying and maintaining separate orchestration infrastructure
-
 Workflows4s is designed to integrate directly with your application code, providing workflow capabilities without the operational overhead of standalone orchestration systems.
