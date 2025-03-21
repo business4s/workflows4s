@@ -119,7 +119,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
 
   case class Matching[BranchIn](idx: Int, input: BranchIn, wio: WIO[BranchIn, Err, Out, Ctx])
   def selectMatching(wio: WIO.Fork[Ctx, In, Err, Out], in: In): Option[Matching[?]] = {
-    wio.branches.zipWithIndex.collectFirstSome((branch, idx) => branch.condition(in).map(interm => Matching(idx, interm, branch.wio)))
+    wio.branches.zipWithIndex.collectFirstSome((branch, idx) => branch.condition(in).map(interm => Matching(idx, interm, branch.wio())))
   }
 
   def convertEmbeddingResult2[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], O1[_ <: WCState[InnerCtx]] <: WCState[Ctx]](

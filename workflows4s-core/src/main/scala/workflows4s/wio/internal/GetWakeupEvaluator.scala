@@ -37,7 +37,7 @@ object GetWakeupEvaluator {
 
     def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result   = recurse(wio.second).orElse(recurse(wio.first))
     def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result = recurse(wio.handleError).orElse(recurse(wio.base))
-    def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                                     = wio.selected.flatMap(idx => recurse(wio.branches(idx).wio))
+    def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                                     = wio.selected.flatMap(idx => recurse(wio.branches(idx).wio()))
 
     def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result = {
       val fromInterruption = recurse(wio.interruption)

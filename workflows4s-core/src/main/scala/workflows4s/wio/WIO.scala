@@ -192,17 +192,17 @@ object WIO {
 
   case class Branch[-In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext, BranchIn](
       condition: In => Option[BranchIn],
-      wio: WIO[BranchIn, Err, Out, Ctx],
+      wio: () => WIO[BranchIn, Err, Out, Ctx],
       name: Option[String],
   )
 
   object Branch {
     def selected[Err, Out <: WCState[Ctx], Ctx <: WorkflowContext, BranchIn](
         branchIn: BranchIn,
-        wio: WIO[BranchIn, Err, Out, Ctx],
+        wio: => WIO[BranchIn, Err, Out, Ctx],
         name: Option[String],
     ): Branch[Any, Err, Out, Ctx, BranchIn] =
-      Branch(_ => Some(branchIn), wio, name)
+      Branch(_ => Some(branchIn), () => wio, name)
   }
 
   case class Executed[Ctx <: WorkflowContext, +Err, +Out <: WCState[Ctx], In](original: WIO[In, ?, ?, Ctx], output: Either[Err, Out], input: In)

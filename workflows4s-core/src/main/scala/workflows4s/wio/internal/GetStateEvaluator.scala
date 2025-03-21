@@ -66,7 +66,7 @@ object GetStateEvaluator {
       wio.selected match {
         case Some(selectedIdx) =>
           val branch = wio.branches(selectedIdx)
-          recurse(branch.wio, branch.condition(input).get)
+          recurse(branch.wio(), branch.condition(input).get)
         case None              => None
       }
     }

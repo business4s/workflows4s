@@ -156,7 +156,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
       case Some(selectedIdx) =>
         val branch    = wio.branches(selectedIdx)
         val branchOut = branch.condition(input).get
-        recurse(branch.wio, branchOut).map({
+        recurse(branch.wio(), branchOut).map({
           case WFExecution.Complete(wio) => WFExecution.complete(updateSelectedBranch(Matching(selectedIdx, branchOut, wio)), wio.output, input)
           case WFExecution.Partial(wio)  => WFExecution.Partial(updateSelectedBranch(Matching(selectedIdx, branchOut, wio)))
         })

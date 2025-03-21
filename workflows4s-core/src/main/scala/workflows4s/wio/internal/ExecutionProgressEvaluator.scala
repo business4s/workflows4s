@@ -77,7 +77,7 @@ object ExecutionProgressEvaluator {
 
     def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                             = {
       WIOExecutionProgress.Fork(
-        wio.branches.map(x => recurse(x.wio, input.flatMap(x.condition), result = None)),
+        wio.branches.map(x => recurse(x.wio(), input.flatMap(x.condition), result = None)),
         WIOMeta.Fork(wio.name, wio.branches.map(x => WIOMeta.Branch(x.name))),
         wio.selected,
       )

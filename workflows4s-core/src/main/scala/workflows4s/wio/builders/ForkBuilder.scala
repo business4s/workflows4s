@@ -14,9 +14,9 @@ object ForkBuilder {
 
     case class ForkBuilder[-In, +Err, +Out <: WCState[Ctx]](branches: Vector[WIO.Branch[In, Err, Out, Ctx, ?]], name: Option[String]) {
       def onSome[T, Err1 >: Err, Out1 >: Out <: WCState[Ctx], In1 <: In](cond: In1 => Option[T])(
-          wio: WIO[T, Err1, Out1, Ctx],
+          wio: => WIO[T, Err1, Out1, Ctx],
           name: String = null,
-      ): ForkBuilder[In1, Err1, Out1] = addBranch(WIO.Branch(cond, wio, Option(name)))
+      ): ForkBuilder[In1, Err1, Out1] = addBranch(WIO.Branch(cond, () => wio, Option(name)))
 
       // here we can add some APIs for exhaustive handling of Booleans or Eithers.
 
