@@ -3,6 +3,7 @@ lazy val `workflows4s` = (project in file("."))
   .aggregate(
     `workflows4s-core`,
     `workflows4s-bpmn`,
+    `workflows4s-pekko`,
     `workflows4s-example`,
     `workflows4s-doobie`,
     `workflows4s-filesystem`,
@@ -90,6 +91,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "org.postgresql"        % "postgresql"                      % "42.7.4" % Test,
     ),
     Test / parallelExecution := false, // otherwise akka clusters clash
+    publish / skip := true,
   )
   .dependsOn(`workflows4s-core`, `workflows4s-bpmn`, `workflows4s-pekko`, `workflows4s-doobie`, `workflows4s-filesystem`, `workflows4s-quartz`)
 
@@ -105,6 +107,18 @@ lazy val commonSettings = Seq(
     "-Wunused:imports",
     "-Wconf:id=E198:error", // unused imports
   ),
+  organization := "org.business4s",
+  homepage := Some(url("https://business4s.github.io/workflows4s/")),
+  licenses := List(License.MIT),
+  developers := List(
+    Developer(
+      "Krever",
+      "Voytek Pituła",
+      "w.pitula@gmail.com",
+      url("https://v.pitula.me")
+    )
+  ),
+  versionScheme := Some("semver-spec")
 )
 
 lazy val pekkoVersion               = "1.1.2"
@@ -112,3 +126,10 @@ lazy val pekkoHttpVersion           = "1.0.1"
 lazy val testcontainersScalaVersion = "0.41.4"
 
 addCommandAlias("prePR", List("compile", "Test / compile", "test", "scalafmtCheckAll").mkString(";", ";", ""))
+
+lazy val stableVersion = taskKey[String]("stableVersion")
+
+stableVersion := {
+  if (isVersionStable.value && !isSnapshot.value) version.value
+  else previousStableVersion.value.getOrElse("unreleased")
+}
