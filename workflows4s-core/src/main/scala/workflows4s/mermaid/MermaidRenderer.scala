@@ -21,8 +21,8 @@ object MermaidRenderer {
       .addElement(styles)
   }
 
-  val executedClass = "executed"
-  val styles        = ClassDef(executedClass, "fill:#0e0")
+  private val executedClass = "executed"
+  private val styles        = ClassDef(executedClass, "fill:#0e0")
 
   private def render(model: WIOExecutionProgress[?]): State[RenderState, Option[NodeId]] = {
     def addStep(label: String, shape: Option[String] = None): State[RenderState, NodeId] = {
@@ -217,6 +217,6 @@ object MermaidRenderer {
   }
 
   // TODO commonize with bpmn renderer
-  def humanReadableDuration(duration: Duration): String = duration.toString.substring(2).replaceAll("(\\d[HMS])(?!$)", "$1 ").toLowerCase
+  private def humanReadableDuration(duration: Duration): String = duration.toString.substring(2).replaceAll("(\\d[HMS])(?!$)", "$1 ").toLowerCase
 
 }
