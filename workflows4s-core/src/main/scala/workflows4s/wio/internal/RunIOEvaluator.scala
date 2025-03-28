@@ -109,6 +109,12 @@ object RunIOEvaluator {
       )
     }
 
+    def onParallel[InterimState <: workflows4s.wio.WorkflowContext.State[Ctx]](
+        wio: workflows4s.wio.WIO.Parallel[Ctx, In, Err, Out, InterimState],
+    ): Result = {
+      wio.elements.collectFirstSome(elem => recurse(elem.wio, input))
+    }
+
     private def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], s: I1): Option[IO[WCEvent[Ctx]]] =
       new RunIOVisitor(wio, s, lastSeenState, now).run
   }
