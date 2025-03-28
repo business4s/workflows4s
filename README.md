@@ -7,5 +7,4 @@
 to merge Temporal's execution model, BMPN rendering and native event-sourcing while removing the most of the magic from the
 solution.
 
-See the [**Website**](https://business4s.github.io/workflows4s/) for details and join our [**Discord
-**](https://bit.ly/business4s-discord) for discussions.
+See the [**Website**](https://business4s.github.io/workflows4s/) for details and join our [**Discord**](https://bit.ly/business4s-discord) for discussions.
