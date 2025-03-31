@@ -245,10 +245,8 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
       case Left(err)   => Some(WFExecution.complete(newWio, Left(err), input))
       case Right(opts) =>
         opts.sequence match {
-          case Some(states) =>
-            Some(WFExecution.complete(wio.copy(elements = updatedElements), Right(wio.formResult(states)), input))
-          case None         =>
-            Some(WFExecution.Partial(wio.copy(elements = updatedElements)))
+          case Some(states) => Some(WFExecution.complete(newWio, Right(wio.formResult(states)), input))
+          case None         => Some(WFExecution.Partial(newWio))
         }
     }
   }
