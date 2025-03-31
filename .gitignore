@@ -3,3 +3,4 @@
 target
 /pr.bpmn
 node_modules
+.aider*

@@ -173,6 +173,19 @@ object WIO {
     }
   }
 
+  case class Parallel[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx], InterimState <: WCState[Ctx]](
+      elements: Seq[Parallel.Element[Ctx, In, Err, WCState[Ctx], InterimState]],
+      formResult: Seq[WCState[Ctx]] => Out,
+      initialInterimState: In => InterimState,
+  ) extends WIO[In, Err, Out, Ctx]
+
+  object Parallel {
+    case class Element[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx], InterimState](
+        wio: WIO[In, Err, Out, Ctx],
+        incorporateState: (InterimState, WCState[Ctx]) => InterimState,
+    )
+  }
+
   // -----
 
   def build[Ctx <: WorkflowContext]: AllBuilders[Ctx] = new AllBuilders[Ctx] {}

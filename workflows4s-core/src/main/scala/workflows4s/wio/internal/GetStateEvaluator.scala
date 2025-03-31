@@ -1,6 +1,6 @@
 package workflows4s.wio.internal
 
-import cats.implicits.catsSyntaxOptionId
+import cats.implicits.{catsSyntaxOptionId, toFunctorOps}
 import workflows4s.wio.*
 
 object GetStateEvaluator {
@@ -80,6 +80,19 @@ object GetStateEvaluator {
       val lastStateAsInner = wio.embedding.unconvertState(lastSeenState).getOrElse(wio.initialState(input))
       GetStateVisitor(wio.inner, input, lastStateAsInner).run
         .map(innerState => wio.embedding.convertState(innerState, input))
+    }
+
+    def onParallel[InterimState <: workflows4s.wio.WorkflowContext.State[Ctx]](
+        wio: workflows4s.wio.WIO.Parallel[Ctx, In, Err, Out, InterimState],
+    ): Result = {
+      val subStates = wio.elements.flatMap(elem => recurse(elem.wio, input).tupleLeft(elem))
+      if (subStates.isEmpty) None
+      else {
+        val initialInterim = wio.initialInterimState(input)
+        subStates
+          .foldLeft(initialInterim)({ case (interim, (elem, partial)) => elem.incorporateState(interim, partial) })
+          .some
+      }
     }
 
     def recurse[I1, E1, O1 <: WCState[Ctx]](

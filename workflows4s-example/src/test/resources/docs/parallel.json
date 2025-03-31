@@ -1,0 +1,19 @@
+{
+  "elements" : [
+    {
+      "meta" : {
+        "name" : "Do A",
+        "error" : null
+      },
+      "_type" : "Pure"
+    },
+    {
+      "meta" : {
+        "name" : "Do B",
+        "error" : null
+      },
+      "_type" : "Pure"
+    }
+  ],
+  "_type" : "Parallel"
+}

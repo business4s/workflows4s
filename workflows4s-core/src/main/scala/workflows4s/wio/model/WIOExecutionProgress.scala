@@ -107,6 +107,12 @@ object WIOExecutionProgress {
     override def map[NewState](f: State => Option[NewState]): Timer[NewState] = Timer(meta, result.flatMap(_.traverse(f)))
   }
 
+  case class Parallel[State](elements: Seq[WIOExecutionProgress[State]], result: ExecutionResult[State]) extends WIOExecutionProgress[State] {
+    override lazy val toModel: WIOModel.Parallel                                 = WIOModel.Parallel(elements.map(_.toModel))
+    override def map[NewState](f: State => Option[NewState]): Parallel[NewState] =
+      Parallel(elements.map(_.map(f)), result.flatMap(_.traverse(f)))
+  }
+
   def fromModel(model: WIOModel): WIOExecutionProgress[Nothing]                                               = model match {
     case x: WIOModel.Interruption                       => fromModelInterruption(x)
     case WIOModel.Sequence(steps)                       => Sequence(steps.map(fromModel))
@@ -117,6 +123,7 @@ object WIOExecutionProgress {
     case WIOModel.Pure(meta)                            => Pure(meta, None)
     case WIOModel.Loop(base, onRestart, meta)           => Loop(base, onRestart, meta, Seq.empty)
     case WIOModel.Fork(branches, meta)                  => Fork(branches.map(fromModel), meta, None)
+    case WIOModel.Parallel(elems)                       => Parallel(elems.map(fromModel), None)
     case WIOModel.Interruptible(base, trigger, handler) =>
       Interruptible(fromModel(base), fromModelInterruption(trigger), handler.map(fromModel), None)
   }
