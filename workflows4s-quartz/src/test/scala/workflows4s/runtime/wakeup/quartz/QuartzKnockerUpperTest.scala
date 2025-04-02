@@ -14,8 +14,9 @@ import org.scalatest.matchers.should.Matchers
 import workflows4s.runtime.wakeup.quartz.QuartzKnockerUpper.RuntimeId
 import org.scalatest.concurrent.Eventually.PatienceConfig
 import org.scalatest.time.{Millis, Seconds, Span}
+import com.typesafe.scalalogging.StrictLogging
 
-class QuartzKnockerUpperTest extends AnyFreeSpec with Matchers with BeforeAndAfterAll {
+class QuartzKnockerUpperTest extends AnyFreeSpec with Matchers with BeforeAndAfterAll with StrictLogging {
 
   val (dispatcher, releaseDispatcher) = Dispatcher.parallel[IO].allocated.unsafeRunSync()
 
@@ -29,18 +30,17 @@ class QuartzKnockerUpperTest extends AnyFreeSpec with Matchers with BeforeAndAft
           IO {
             if (id == testId) {
               wokenUpAt = Instant.now()
-              println(s"Woken up at $wokenUpAt") // Add debug logging
+              logger.info(s"Woken up at $wokenUpAt")
             }
           },
         )
         .unsafeRunSync()
-      val wakeupAt           = Instant.now().plusMillis(500) // Increased delay to 500ms
-      println(s"Scheduling wakeup at $wakeupAt") // Add debug logging
+      val wakeupAt           = Instant.now().plusMillis(100) // Using a shorter delay since tests show it's sufficient
+      logger.info(s"Scheduling wakeup at $wakeupAt")
       knockerUpper.updateWakeup(testId, Some(wakeupAt)).unsafeRunSync()
-      // Patience config is already imported at the top of the file
       implicit val patience: PatienceConfig = PatienceConfig(
-        timeout = Span(10, Seconds), // Increased timeout
-        interval = Span(100, Millis),
+        timeout = Span(2, Seconds), // Reduced timeout but still sufficient
+        interval = Span(50, Millis),
       )
       eventually {
         assert(wokenUpAt != null, "wokenUpAt is still null")
@@ -86,7 +86,6 @@ class QuartzKnockerUpperTest extends AnyFreeSpec with Matchers with BeforeAndAft
       val secondAttempt = knockerUpper.initialize(_ => IO.unit).attempt.unsafeRunSync()
       assert(secondAttempt.isLeft)
     }
-
   }
 
   def withDispatcher(testCode: Dispatcher[IO] => Any) = {
