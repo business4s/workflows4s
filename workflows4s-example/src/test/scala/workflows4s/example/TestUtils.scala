@@ -4,7 +4,7 @@ import io.circe.syntax.*
 import io.circe.{Json, Printer}
 import org.camunda.bpm.model.bpmn.Bpmn
 import org.scalatest.exceptions.TestFailedException
-import workflows4s.bpmn.BPMNConverter
+import workflows4s.bpmn.BpmnRenderer
 import workflows4s.mermaid.MermaidRenderer
 import workflows4s.wio.WIO
 import workflows4s.wio.model.WIOExecutionProgress
@@ -25,7 +25,7 @@ object TestUtils {
 
   def renderBpmnToFile(wio: WIO[?, ?, ?, ?], path: String) = {
     val model       = wio.toProgress.toModel
-    val bpmnModel   = BPMNConverter.convert(model, "process")
+    val bpmnModel   = BpmnRenderer.renderWorkflow(model, "process")
     val outputPath  = basePath.resolve(s"workflows4s-example/src/test/resources/${path}")
     val bpmnContent = Bpmn.convertToString(bpmnModel)
 
