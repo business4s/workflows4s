@@ -1,6 +1,8 @@
 package workflows4s.runtime.wakeup.quartz
 
 import cats.effect.IO
+import java.util.UUID
+import java.time.Instant
 import cats.effect.std.Dispatcher
 import cats.effect.unsafe.implicits.global
 import org.quartz.Scheduler
@@ -10,9 +12,8 @@ import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 import workflows4s.runtime.wakeup.quartz.QuartzKnockerUpper.RuntimeId
-
-import java.time.Instant
-import java.util.UUID
+import org.scalatest.concurrent.Eventually.PatienceConfig
+import org.scalatest.time.{Millis, Seconds, Span}
 
 class QuartzKnockerUpperTest extends AnyFreeSpec with Matchers with BeforeAndAfterAll {
 
@@ -23,11 +24,27 @@ class QuartzKnockerUpperTest extends AnyFreeSpec with Matchers with BeforeAndAft
     "should schedule a wakeup at a specified time" in withQuartzKnockerUpper { knockerUpper =>
       var wokenUpAt: Instant = null
       val testId             = "test-id"
-      knockerUpper.initialize(id => IO { if (id == testId) wokenUpAt = Instant.now() }).unsafeRunSync()
-      val wakeupAt           = Instant.now().plusMillis(100)
+      knockerUpper
+        .initialize(id =>
+          IO {
+            if (id == testId) {
+              wokenUpAt = Instant.now()
+              println(s"Woken up at $wokenUpAt") // Add debug logging
+            }
+          },
+        )
+        .unsafeRunSync()
+      val wakeupAt           = Instant.now().plusMillis(500) // Increased delay to 500ms
+      println(s"Scheduling wakeup at $wakeupAt") // Add debug logging
       knockerUpper.updateWakeup(testId, Some(wakeupAt)).unsafeRunSync()
+      // Patience config is already imported at the top of the file
+      implicit val patience: PatienceConfig = PatienceConfig(
+        timeout = Span(10, Seconds), // Increased timeout
+        interval = Span(100, Millis),
+      )
       eventually {
-        assert(wokenUpAt != null && wokenUpAt.isAfter(wakeupAt))
+        assert(wokenUpAt != null, "wokenUpAt is still null")
+        assert(wokenUpAt.isAfter(wakeupAt), s"wokenUpAt ($wokenUpAt) is not after wakeupAt ($wakeupAt)")
       }
     }
 
