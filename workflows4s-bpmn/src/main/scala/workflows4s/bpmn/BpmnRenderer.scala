@@ -96,20 +96,21 @@ object BpmnRenderer {
           .connectTo(loopStartGwId)
           .moveToNode(nextTaskTempNodeId)
       case WIOModel.Fork(branches, meta)                              =>
-        val startGwId = Random.alphanumeric.filter(_.isLetter).take(10).mkString
-        val endGwId   = Random.alphanumeric.filter(_.isLetter).take(10).mkString
-        val newBuilder = builder
-          .exclusiveGateway(startGwId)
-          .name(meta.name.getOrElse(""))
-
-        val resultBuilder = branches.zipWithIndex.foldLeft(newBuilder) { case (builder, (branch, idx)) =>
-          val branchName = meta.branches.lift(idx).flatMap(_.name).orNull
-          val branchBuilder = builder
-            .condition(branchName, "")
-          val branchEndBuilder = handle(branch, branchBuilder)
-          branchEndBuilder.connectTo(endGwId)
-          builder
-        }
+        val base                           = builder.exclusiveGateway().name(meta.name.orNull)
+        val gwId                           = base.getElement.getId
+        val (resultBuilder, Some(endGwId)) = {
+          branches.zipWithIndex.foldLeft[(Builder, Option[String])](base -> None)({ case ((builder1, endGw), (branch, idx)) =>
+            val b2              = builder1.moveToNode(gwId).condition(meta.branches.lift(idx).flatMap(_.name).getOrElse(s"Branch ${idx}"), "")
+            val result: Builder = handle(branch, b2)
+            endGw match {
+              case Some(value) =>
+                (result.connectTo(value), endGw)
+              case None        =>
+                val gwId = result.exclusiveGateway().getElement.getId
+                (result, Some(gwId))
+            }
+          })
+        }: @unchecked
         resultBuilder.moveToNode(endGwId)
       case WIOModel.Interruptible(base, trigger, interruptionFlowOpt) =>
         val subProcessStartEventId = Random.alphanumeric.filter(_.isLetter).take(10).mkString
@@ -144,17 +145,23 @@ object BpmnRenderer {
           .intermediateCatchEvent()
           .timerWithDuration(durationStr)
           .name(meta.name.orNull)
-      case WIOModel.Parallel(elements)                                =>
-        val parallelGwId      = Random.alphanumeric.filter(_.isLetter).take(10).mkString
-        val parallelEndGwId   = Random.alphanumeric.filter(_.isLetter).take(10).mkString
-        val parallelGwBuilder = builder.parallelGateway(parallelGwId)
-        val resultBuilder     = elements.foldLeft(parallelGwBuilder) { case (builder, element) =>
-          val branchBuilder    = builder.moveToNode(parallelGwId)
-          val branchEndBuilder = handle(element, branchBuilder)
-          branchEndBuilder.connectTo(parallelEndGwId)
-          builder
-        }
-        resultBuilder.moveToNode(parallelEndGwId).parallelGateway()
+      case WIOModel.Parallel(elems)                                   =>
+        val base                           = builder.parallelGateway()
+        val gwId                           = base.getElement.getId
+        val (resultBuilder, Some(endGwId)) = {
+          elems.foldLeft[(Builder, Option[String])](base -> None)({ case ((builder1, endGw), branch) =>
+            val b2              = builder1.moveToNode(gwId)
+            val result: Builder = handle(branch, b2)
+            endGw match {
+              case Some(value) =>
+                (result.connectTo(value), endGw)
+              case None        =>
+                val gwId = result.parallelGateway().getElement.getId
+                (result, Some(gwId))
+            }
+          })
+        }: @unchecked
+        resultBuilder.moveToNode(endGwId)
     }
   }
 
