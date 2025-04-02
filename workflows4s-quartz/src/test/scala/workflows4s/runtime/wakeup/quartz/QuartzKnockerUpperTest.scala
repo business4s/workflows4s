@@ -23,8 +23,8 @@ class QuartzKnockerUpperTest extends AnyFreeSpec with Matchers with BeforeAndAft
   "QuartzKnockerUpper" - {
 
     "should schedule a wakeup at a specified time" in withQuartzKnockerUpper { knockerUpper =>
-      var wokenUpAt: Instant = null
-      val testId             = "test-id"
+      var wokenUpAt: Instant                = null
+      val testId                            = "test-id"
       knockerUpper
         .initialize(id =>
           IO {
@@ -35,7 +35,7 @@ class QuartzKnockerUpperTest extends AnyFreeSpec with Matchers with BeforeAndAft
           },
         )
         .unsafeRunSync()
-      val wakeupAt           = Instant.now().plusMillis(100) // Using a shorter delay since tests show it's sufficient
+      val wakeupAt                          = Instant.now().plusMillis(100) // Using a shorter delay since tests show it's sufficient
       logger.info(s"Scheduling wakeup at $wakeupAt")
       knockerUpper.updateWakeup(testId, Some(wakeupAt)).unsafeRunSync()
       implicit val patience: PatienceConfig = PatienceConfig(
