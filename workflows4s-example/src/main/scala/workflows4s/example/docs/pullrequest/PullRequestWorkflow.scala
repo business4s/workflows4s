@@ -4,7 +4,7 @@ import java.io.File
 
 import cats.effect.IO
 import org.camunda.bpm.model.bpmn.Bpmn
-import workflows4s.bpmn.BPMNConverter
+import workflows4s.bpmn.BpmnRenderer
 import workflows4s.runtime.InMemorySyncRuntime
 import workflows4s.wio.{SignalDef, WorkflowContext}
 
@@ -110,7 +110,7 @@ object PullRequestWorkflow {
 
   def main(args: Array[String]): Unit = {
     // start_render
-    val bpmnModel = BPMNConverter.convert(workflow.toProgress.toModel, "process")
+    val bpmnModel = BpmnRenderer.renderWorkflow(workflow.toProgress.toModel, "process")
     Bpmn.writeModelToFile(new File(s"pr.bpmn").getAbsoluteFile, bpmnModel)
     // end_render
 

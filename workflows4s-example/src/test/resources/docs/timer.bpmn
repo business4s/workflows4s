@@ -4,11 +4,11 @@
     <startEvent id="startEvent_6">
       <outgoing>sequenceFlow_3</outgoing>
     </startEvent>
-    <intermediateCatchEvent id="intermediateCatchEvent_0" name="Wait For Input (24h)">
+    <intermediateCatchEvent id="intermediateCatchEvent_0" name="Wait For Input">
       <incoming>sequenceFlow_3</incoming>
       <outgoing>sequenceFlow_4</outgoing>
       <timerEventDefinition id="timerEventDefinition_2">
-        <timeDuration id="timeDuration_5">Wait For Input (24h)</timeDuration>
+        <timeDuration id="timeDuration_5">24h</timeDuration>
       </timerEventDefinition>
     </intermediateCatchEvent>
     <sequenceFlow id="sequenceFlow_3" sourceRef="startEvent_6" targetRef="intermediateCatchEvent_0"/>
