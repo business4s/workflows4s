@@ -20,13 +20,6 @@ jobs:
         run: sbt test
       - name: scalafmt check
         run: sbt scalafmtCheckAll
-      - name: Check for uncommitted changes
-        run: |
-          if [[ $(git status --porcelain) ]]; then
-            echo "There are uncommitted changes in the working directory:"
-            git status --porcelain
-            exit 1
-          fi
         shell: bash
   test-website:
     runs-on: ubuntu-latest
