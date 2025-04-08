@@ -1,0 +1,56 @@
+flowchart TD
+node0:::executed@{ shape: circle, label: "Start"}
+subgraph node1 [" "]
+node2:::executed@{ shape: stadium, label: "fa:fa-envelope Create Withdrawal"}
+node0 --> node2
+node3["Validate"]:::executed
+node2 --> node3
+node4["Calculate Fees"]:::executed
+node3 --> node4
+node5["Put Funds On Hold"]:::executed
+node4 --> node5
+subgraph node6 [" "]
+node7["Run Pending Checks"]:::executed
+node5 --> node7
+end
+node15@{ shape: stadium, label: "fa:fa-clock  (dynamic)"}
+node6 --> node15
+node16["Put In Review"]
+node15 --> node16
+node17:::executed@{ shape: hex, label: "Requires review?"}
+node16 --> node17
+node7 --> node17
+node18@{ shape: stadium, label: "fa:fa-envelope Review Decision"}
+node19["Handle Review Decision"]
+node18 --> node19
+node17 -->|"Yes"| node18
+node20["System Decision"]:::executed
+node17 -->|"No"| node20
+node21["Act On Decision"]:::executed
+node19 --> node21
+node20 --> node21
+node22["Initiate Execution"]:::executed
+node21 --> node22
+node23:::executed@{ shape: stadium, label: "fa:fa-envelope Execution Completed"}
+node22 --> node23
+node24["Handle Execution Completed"]:::executed
+node23 --> node24
+end
+node27@{ shape: stadium, label: "fa:fa-envelope Cancel Withdrawal"}
+node1 --> node27
+node28["Handle Cancel Withdrawal"]
+node27 --> node28
+node29["Release Funds"]:::executed
+node28 --> node29
+node24 --> node29
+node30["Cancel Funds If Needed"]
+node3 -.->|"fa:fa-bolt Invalid Input"| node30
+node5 -.->|"fa:fa-bolt Not Enough Funds"| node30
+node21 -.->|"fa:fa-bolt Rejected In Checks"| node30
+node22 -.->|"fa:fa-bolt Rejected By Execution Engine"| node30
+node24 -.->|"fa:fa-bolt Rejected By Execution Engine"| node30
+node28 -.->|"fa:fa-bolt Cancelled"| node30
+node31@{ shape: circle, label: "End"}
+node29 --> node31
+node30 --> node31
+classDef executed fill:#0e0

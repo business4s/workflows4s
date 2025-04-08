@@ -1,0 +1,30 @@
+{
+  "branches" : [
+    {
+      "meta" : {
+        "name" : "Do A",
+        "error" : null
+      },
+      "_type" : "Pure"
+    },
+    {
+      "meta" : {
+        "name" : "Do B",
+        "error" : null
+      },
+      "_type" : "Pure"
+    }
+  ],
+  "meta" : {
+    "name" : "Is counter positive?",
+    "branches" : [
+      {
+        "name" : "Yes"
+      },
+      {
+        "name" : "No"
+      }
+    ]
+  },
+  "_type" : "Fork"
+}

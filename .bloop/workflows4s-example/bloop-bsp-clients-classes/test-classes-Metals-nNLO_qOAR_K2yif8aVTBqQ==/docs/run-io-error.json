@@ -1,0 +1,9 @@
+{
+  "meta" : {
+    "name" : "Do Things With Error",
+    "error" : {
+      "name" : "My Error"
+    }
+  },
+  "_type" : "RunIO"
+}

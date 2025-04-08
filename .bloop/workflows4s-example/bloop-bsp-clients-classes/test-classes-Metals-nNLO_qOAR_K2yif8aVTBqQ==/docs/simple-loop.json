@@ -1,0 +1,16 @@
+{
+  "base" : {
+    "meta" : {
+      "name" : "Step1",
+      "error" : null
+    },
+    "_type" : "Pure"
+  },
+  "onRestart" : null,
+  "meta" : {
+    "conditionName" : null,
+    "exitBranchName" : null,
+    "restartBranchName" : null
+  },
+  "_type" : "Loop"
+}

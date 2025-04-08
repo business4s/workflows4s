@@ -1,0 +1,18 @@
+{
+  "steps" : [
+    {
+      "meta" : {
+        "name" : "Step1",
+        "error" : null
+      },
+      "_type" : "Pure"
+    },
+    {
+      "meta" : {
+        "error" : null
+      },
+      "_type" : "Dynamic"
+    }
+  ],
+  "_type" : "Sequence"
+}
