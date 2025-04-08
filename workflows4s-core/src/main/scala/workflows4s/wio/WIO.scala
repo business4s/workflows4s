@@ -46,29 +46,35 @@ object WIO {
   object RunIO {
     case class Meta(error: ErrorMeta[?], name: Option[String])
   }
- /**
- * A WIO node that immediately returns a value without side effects.
- *
- * @param value Transformation function from input to Either[Err, Out]
- * @param meta Metadata for error reporting and debugging
- * @tparam Ctx Workflow context type
- * @tparam In Input type
- * @tparam Err Error type
- * @tparam Out Output state type
- *
- * Example:
- * {{{
- * val alwaysSuccess = WIO.Pure[MyContext, Int, Nothing, String](
- *   value = _ => Right("success"),
- *   meta = Pure.Meta(null, None)
- * )
- * }}}
- */
 
-case class Pure[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]](
-    value: In => Either[Err, Out],
-    meta: Pure.Meta,
-) extends WIO[In, Err, Out, Ctx]
+  /** A WIO node that immediately returns a value without side effects.
+    *
+    * @param value
+    *   Transformation function from input to Either[Err, Out]
+    * @param meta
+    *   Metadata for error reporting and debugging
+    * @tparam Ctx
+    *   Workflow context type
+    * @tparam In
+    *   Input type
+    * @tparam Err
+    *   Error type
+    * @tparam Out
+    *   Output state type
+    *
+    * Example:
+    * {{{
+    * val alwaysSuccess = WIO.Pure[MyContext, Int, Nothing, String](
+    *   value = _ => Right("success"),
+    *   meta = Pure.Meta(null, None)
+    * )
+    * }}}
+    */
+
+  case class Pure[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]](
+      value: In => Either[Err, Out],
+      meta: Pure.Meta,
+  ) extends WIO[In, Err, Out, Ctx]
 
   object Pure {
     case class Meta(error: ErrorMeta[?], name: Option[String])
@@ -205,14 +211,14 @@ case class Pure[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]](
   }
 
   // -----
-   
+
   def build[Ctx <: WorkflowContext]: AllBuilders[Ctx] = new AllBuilders[Ctx] {}
 
   case class Branch[-In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext, BranchIn](
       condition: In => Option[BranchIn],
       wio: WIO[BranchIn, Err, Out, Ctx],
       name: Option[String],
-  ) 
+  )
   object Branch {
     def selected[Err, Out <: WCState[Ctx], Ctx <: WorkflowContext, BranchIn](
         branchIn: BranchIn,
@@ -229,6 +235,6 @@ case class Pure[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]](
 
   case class Interruption[Ctx <: WorkflowContext, +Err, +Out <: WCState[Ctx]](
       handler: WIO[WCState[Ctx], Err, Out, Ctx],
-      tpe: HandleInterruption.InterruptionType, 
-  ) 
+      tpe: HandleInterruption.InterruptionType,
+  )
 }
