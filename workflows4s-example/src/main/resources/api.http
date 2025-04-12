@@ -1,8 +1,0 @@
-### Get list of running withdrawals
-GET http://localhost:8989/withdrawals
-
-### Create a withdrawal
-POST http://localhost:8989/withdrawals/1234
-
-### Get withdrawal state
-GET http://localhost:8989/withdrawals/1234

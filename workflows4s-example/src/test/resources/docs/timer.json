@@ -1,8 +1,0 @@
-{
-  "meta" : {
-    "duration" : "PT24H",
-    "releaseAt" : null,
-    "name" : "Wait For Input"
-  },
-  "_type" : "Timer"
-}

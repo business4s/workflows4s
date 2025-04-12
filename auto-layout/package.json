@@ -1,6 +1,0 @@
-{
-  "dependencies": {
-    "bpmn-auto-layout": "^1.0.0",
-    "bpmn-to-image": "^0.9.0"
-  }
-}
