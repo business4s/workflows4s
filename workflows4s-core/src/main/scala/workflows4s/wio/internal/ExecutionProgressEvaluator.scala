@@ -4,6 +4,7 @@ import cats.syntax.all.*
 import workflows4s.wio.WIO.Timer.DurationSource
 import workflows4s.wio.model.{WIOExecutionProgress, WIOMeta}
 import workflows4s.wio.*
+import workflows4s.wio.model.WIOExecutionProgress.Dynamic
 object ExecutionProgressEvaluator {
 
   def run[Ctx <: WorkflowContext, In](
@@ -129,6 +130,10 @@ object ExecutionProgressEvaluator {
       WIOExecutionProgress.Parallel(wio.elements.map(elem => recurse(elem.wio, input, result = None)), result)
     }
 
+    override def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): WIOExecutionProgress[WCState[Ctx]] = {
+      WIOExecutionProgress.Checkpoint(recurse(wio.base, input, result = None), result)
+    }
+
     def recurse[I1, E1, O1 <: WCState[Ctx]](
         wio: WIO[I1, E1, O1, Ctx],
         input: Option[I1],
@@ -177,6 +182,7 @@ object ExecutionProgressEvaluator {
       case x @ WIOExecutionProgress.Timer(_, _)                               => (x, None).some
       case WIOExecutionProgress.Interruptible(_, _, _, _)                     => None
       case _: WIOExecutionProgress.Parallel[?]                                => None
+      case _: WIOExecutionProgress.Checkpoint[?]                              => None
     }
   }
 

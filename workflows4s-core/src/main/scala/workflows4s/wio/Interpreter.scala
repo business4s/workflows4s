@@ -9,7 +9,7 @@ object Interpreter {
   sealed trait EventResponse[Ctx <: WorkflowContext] {
     def newWorkflow: Option[ActiveWorkflow[Ctx]] = this match {
       case EventResponse.Ok(newFlow)       => newFlow.some
-      case EventResponse.UnexpectedEvent() => None
+      case EventResponse.UnexpectedEvent() => None // TODO event is silently ignored. We should add logging at least
     }
   }
 
@@ -80,6 +80,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
   def onDiscarded[In1](wio: WIO.Discarded[Ctx, In1]): Result
 
   def onParallel[InterimState <: WCState[Ctx]](wio: WIO.Parallel[Ctx, In, Err, Out, InterimState]): Result
+  def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): Result
 
   def run: Result = {
     wio match {
@@ -114,6 +115,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
       case x: WIO.Executed[?, ?, ?, ?]                               => onExecuted(x)
       case x: WIO.Discarded[?, ?]                                    => onDiscarded(x)
       case x: WIO.Parallel[?, ?, ?, ? <: State, ? <: State]          => onParallel(x)
+      case x: WIO.Checkpoint[?, ?, ?, ? <: State, ?]                 => onCheckpoint(x)
     }
   }
 

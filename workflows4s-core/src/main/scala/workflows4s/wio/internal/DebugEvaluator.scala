@@ -15,7 +15,7 @@ object DebugEvaluator {
   }
 
   def renderModel(model: WIOExecutionProgress[?]): Description = {
-    val tpe                  = model match {
+    val tpe         = model match {
       case _: WIOExecutionProgress.Sequence[?]      => "Sequence"
       case _: WIOExecutionProgress.Dynamic          => "Dynamic"
       case _: WIOExecutionProgress.RunIO[?]         => "RunIO"
@@ -28,8 +28,9 @@ object DebugEvaluator {
       case _: WIOExecutionProgress.Interruptible[?] => "Interruptible"
       case _: WIOExecutionProgress.Timer[?]         => "Timer"
       case _: WIOExecutionProgress.Parallel[?]      => "Parallel"
+      case _: WIOExecutionProgress.Checkpoint[?]    => "Checkpoint"
     }
-    val name                 = model match {
+    val name        = model match {
       case x: WIOExecutionProgress.Sequence[?]      => None
       case x: WIOExecutionProgress.Dynamic          => None
       case x: WIOExecutionProgress.RunIO[?]         => x.meta.name
@@ -42,8 +43,9 @@ object DebugEvaluator {
       case x: WIOExecutionProgress.Interruptible[?] => None
       case x: WIOExecutionProgress.Timer[?]         => x.meta.name
       case _: WIOExecutionProgress.Parallel[?]      => None
+      case _: WIOExecutionProgress.Checkpoint[?]    => None
     }
-    val description          = model match {
+    val description = model match {
       case x: WIOExecutionProgress.Sequence[?]      => None
       case x: WIOExecutionProgress.Dynamic          => None
       case x: WIOExecutionProgress.RunIO[?]         => None
@@ -56,8 +58,9 @@ object DebugEvaluator {
       case x: WIOExecutionProgress.Interruptible[?] => None
       case x: WIOExecutionProgress.Timer[?]         => x.meta.duration.map(_.toString).orElse(x.meta.releaseAt.map(_.toString))
       case _: WIOExecutionProgress.Parallel[?]      => None
+      case _: WIOExecutionProgress.Checkpoint[?]    => None
     }
-    val children             = model match {
+    val children    = model match {
       case x: WIOExecutionProgress.Sequence[?]      =>
         val (executed, nonExecuted) = x.steps.partition(_.isExecuted)
         val executedDesc            = executed.zipWithIndex.map((step, idx) => renderChild(s"step $idx", step))
@@ -90,6 +93,7 @@ object DebugEvaluator {
           .getOrElse(Seq())
       case _: WIOExecutionProgress.Timer[?]         => Seq()
       case x: WIOExecutionProgress.Parallel[?]      => x.elements.zipWithIndex.map((elem, idx) => renderChild(s"branch ${idx}", elem))
+      case x: WIOExecutionProgress.Checkpoint[?]    => renderChildren("base" -> x.base)
     }
     val effectiveDescription = if (model.isExecuted) s"Executed: ${model.result.get.merge}" else description.getOrElse("")
     val effectiveChildren    = if (model.isExecuted) Seq() else children

@@ -1,9 +1,12 @@
 package workflows4s.wio
 
-import workflows4s.wio.internal.ExecutionProgressEvaluator
+import cats.effect.IO
+import cats.implicits.catsSyntaxApplicativeId
+import workflows4s.wio.internal.{EventHandler, ExecutionProgressEvaluator}
 import workflows4s.wio.model.WIOExecutionProgress
 
 import scala.annotation.targetName
+import scala.reflect.ClassTag
 
 trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self: WIO[In, Err, Out, Ctx] =>
   def flatMap[Err1 >: Err, Out1 <: WCState[Ctx]](f: Out => WIO[Out, Err1, Out1, Ctx])(using
@@ -15,10 +18,6 @@ trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self
     identity[In],
     (_: In, out: Either[Err, Out]) => out.map(f),
   )
-
-//    def checkpointed[Evt, O1, StIn1 <: StIn, StOut1 >: StOut](genEvent: (StOut, Out) => Evt)(
-//        handleEvent: (StIn1, Evt) => (StOut1, O1),
-//    ): WIO[Err, O1, StIn, StOut] = ???
 
   def transform[NewIn, NewOut <: WCState[Ctx]](f: NewIn => In, g: (NewIn, Out) => NewOut): WIO[NewIn, Err, NewOut, Ctx] =
     WIO.Transform(this, f, (in: NewIn, out: Either[Err, Out]) => out.map(g(in, _)))
@@ -49,6 +48,16 @@ trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self
       interruption: WIO.Interruption[Ctx, Err1, Out1],
   ): WIO.HandleInterruption[Ctx, In1, Err1, Out1] =
     WIO.HandleInterruption(this, interruption.handler, WIO.HandleInterruption.InterruptionStatus.Pending, interruption.tpe)
+
+  def checkpointed[Evt <: WCEvent[Ctx], In1 <: In, Out1 >: Out <: WCState[Ctx]](
+      genEvent: (In1, Out1) => Evt,
+      handleEvent: (In1, Evt) => Out1,
+  )(using evtCt: ClassTag[Evt]): WIO[In1, Err, Out1, Ctx] =
+    WIO.Checkpoint(
+      this,
+      EventHandler[WCEvent[Ctx], In1, Out1, Evt](evtCt.unapply, identity, handleEvent),
+      (a, b) => genEvent(a, b).pure[IO]
+    )
 
   def toProgress: WIOExecutionProgress[WCState[Ctx]] = ExecutionProgressEvaluator.run(this, None, None)
 

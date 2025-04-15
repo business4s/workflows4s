@@ -48,8 +48,13 @@ object ProceedEvaluator {
         .map(convertEmbeddingResult2(wio, _, input))
     }
 
+    override def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): Option[NewWf] = {
+      handleCheckpointBase(wio)
+    }
+
     def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], in: I1, state: WCState[Ctx]): Option[WFExecution[Ctx, I1, E1, O1]] =
       new ProceedVisitor(wio, in, state, now).run
+
   }
 
 }

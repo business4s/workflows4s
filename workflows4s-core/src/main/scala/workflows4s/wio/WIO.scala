@@ -32,6 +32,7 @@ object WIO {
     // TODO this could be useful, just need to prove In >: WCState[Ctx]
     // def toInterruption: Interruption[Ctx, Err, Out] = WIO.Interruption(this, InterruptionType.Signal)
   }
+
   object HandleSignal {
     // TODO, should the signal name be on handler level or in SignalDef?
     case class Meta(error: ErrorMeta[?], signalName: String, operationName: Option[String])
@@ -55,6 +56,7 @@ object WIO {
   object Pure {
     case class Meta(error: ErrorMeta[?], name: Option[String])
   }
+
   case class Transform[Ctx <: WorkflowContext, In1, Err1, Out1 <: WCState[Ctx], -In2, +Out2 <: WCState[Ctx], +Err2](
       base: WIO[In1, Err1, Out1, Ctx],
       contramapInput: In2 => In1,
@@ -131,9 +133,10 @@ object WIO {
   ) extends WIO[In, Err, Out, Ctx]
 
   object HandleInterruption {
-    enum InterruptionType   {
+    enum InterruptionType {
       case Signal, Timer
     }
+
     enum InterruptionStatus {
       case Pending, TimerStarted, Interrupted
     }
@@ -195,6 +198,7 @@ object WIO {
       wio: WIO[BranchIn, Err, Out, Ctx],
       name: Option[String],
   )
+
   object Branch {
     def selected[Err, Out <: WCState[Ctx], Ctx <: WorkflowContext, BranchIn](
         branchIn: BranchIn,
@@ -213,4 +217,11 @@ object WIO {
       handler: WIO[WCState[Ctx], Err, Out, Ctx],
       tpe: HandleInterruption.InterruptionType,
   )
+
+  case class Checkpoint[Ctx <: WorkflowContext, -In, +Err, Out <: WCState[Ctx], Evt](
+      base: WIO[In, Err, Out, Ctx],
+      eventHandler: EventHandler[In, Out, WCEvent[Ctx], Evt],
+      genEvent: (In, Out) => IO[Evt],
+  ) extends WIO[In, Err, Out, Ctx]
+
 }

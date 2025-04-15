@@ -251,6 +251,18 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
     }
   }
 
+  def handleCheckpointBase[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): Option[NewWf] = {
+    recurse(wio.base, input, lastSeenState)
+      .map({
+        case WFExecution.Complete(newWio) =>
+          newWio.output match {
+            case Left(err) => WFExecution.complete(wio.copy(base = newWio), Left(err), input)
+            case Right(_)  => WFExecution.Partial(wio.copy(base = newWio))
+          }
+        case WFExecution.Partial(newWio)  => WFExecution.Partial(wio.copy(base = newWio))
+      })
+  }
+
   def recurse[I1, E1, O1 <: WCState[Ctx]](
       wio: WIO[I1, E1, O1, Ctx],
       in: I1,
