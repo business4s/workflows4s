@@ -8,30 +8,33 @@ import java.time.Duration
 
 object MermaidRenderer {
 
-  def renderWorkflow(model: WIOExecutionProgress[?]): MermaidFlowchart = {
+  def renderWorkflow(model: WIOExecutionProgress[?], showTechnical: Boolean = false): MermaidFlowchart = {
     (addNode(
       id => Node(id, "Start", shape = "circle".some, clazz = if (hasStarted(model)) executedClass.some else None),
       active = true,
     ) *>
-      render(model))
+      render(model, showTechnical))
       .run(RenderState.initial(0))
       .value
       ._1
       .chart
       .addElement(styles)
+      .addElement(checkpointStyles)
   }
 
   private val executedClass = "executed"
+  private val checkpointClass = "checkpoint"
   private val styles        = ClassDef(executedClass, "fill:#0e0")
+  private val checkpointStyles = ClassDef(checkpointClass, "fill:transparent,stroke-dasharray:5 5,stroke:black")
 
-  private def render(model: WIOExecutionProgress[?]): State[RenderState, Option[NodeId]] = {
+  private def render(model: WIOExecutionProgress[?], showTechnical: Boolean = false): State[RenderState, Option[NodeId]] = {
     def addStep(label: String, shape: Option[String] = None): State[RenderState, NodeId] = {
       addStepGeneral(id => Node(id, label, shape, clazz = if (model.isExecuted) executedClass.some else None))
     }
     model match {
       case WIOExecutionProgress.Sequence(steps)                             =>
         for {
-          subSteps <- steps.traverse(render)
+          subSteps <- steps.traverse(s => render(s, showTechnical))
         } yield subSteps.flatten.headOption
       case WIOExecutionProgress.Dynamic(meta)                               =>
         for {
@@ -59,10 +62,10 @@ object MermaidRenderer {
       case WIOExecutionProgress.HandleError(base, handler, error, _)        =>
         // generalized error label is unused as we connect specific errors directly to the handler
         for {
-          baseStart    <- render(base)
+          baseStart    <- render(base, showTechnical)
           baseEnds     <- cleanActiveNodes
           errors       <- cleanPendingErrors
-          handlerStart <- render(handler)
+          handlerStart <- render(handler, showTechnical)
           _            <- handleErrors(errors, handlerStart.get) // TODO better error handling or more typesafety?
           _            <- State.modify[RenderState] { s => s.copy(activeNodes = baseEnds ++ s.activeNodes) }
         } yield baseStart
@@ -81,14 +84,14 @@ object MermaidRenderer {
         if (history.size > 1 || history.lastOption.exists(hasStarted)) {
           // TODO we could render conditions as well
           for {
-            subSteps <- history.traverse(render)
+            subSteps <- history.traverse(h => render(h, showTechnical))
           } yield subSteps.flatten.headOption
         } else {
           for {
-            baseStart     <- render(base.toEmptyProgress)
+            baseStart     <- render(base.toEmptyProgress, showTechnical)
             conditionNode <- addStep(meta.conditionName.getOrElse(" "), shape = conditionShape.some)
             _             <- setNextLinkLabel(meta.restartBranchName)
-            _             <- onRestart.flatTraverse(x => render(x.toEmptyProgress))
+            _             <- onRestart.flatTraverse(x => render(x.toEmptyProgress, showTechnical))
             ends          <- cleanActiveNodes
             _             <- addLinks(ends, baseStart.get)
             _             <- setActiveNodes(Seq(conditionNode -> meta.exitBranchName))
@@ -102,7 +105,7 @@ object MermaidRenderer {
         ): State[RenderState, Vector[(NodeId, NextLinkLabel)]] = {
           for {
             _           <- cleanActiveNodes
-            branchStart <- render(branch)
+            branchStart <- render(branch, showTechnical)
             _           <- branchStart.traverse(addLink(conditionNode, _, label = meta.name))
             branchEnds  <- cleanActiveNodes
           } yield branchEnds.toVector
@@ -115,9 +118,9 @@ object MermaidRenderer {
       }
       case WIOExecutionProgress.Interruptible(base, trigger, handleFlow, _) =>
         for {
-          (baseEnds, baseStart) <- addSubgraph(render(base))
-          _                     <- render(trigger)
-          _                     <- handleFlow.traverse(render)
+          (baseEnds, baseStart) <- addSubgraph(render(base, showTechnical))
+          _                     <- render(trigger, showTechnical)
+          _                     <- handleFlow.traverse(h => render(h, showTechnical))
           _                     <- State.modify[RenderState](s => s.copy(activeNodes = s.activeNodes ++ baseEnds))
         } yield baseStart
       case WIOExecutionProgress.Timer(meta, _)                              =>
@@ -135,14 +138,19 @@ object MermaidRenderer {
           ends   <- elems.toList.flatTraverse(element =>
                       for {
                         _    <- setActiveNodes(Seq((forkId, None)))
-                        _    <- render(element)
+                        _    <- render(element, showTechnical)
                         ends <- cleanActiveNodes
                       } yield ends.toList,
                     )
           _      <- setActiveNodes(ends)
           endId  <- addStepGeneral(id => Node(id, "", shape = forkShape.some, clazz = if (model.isExecuted) executedClass.some else None))
         } yield forkId.some
-
+      case WIOExecutionProgress.Checkpoint(base, _) if showTechnical        =>
+        for {
+          (baseEnds, baseStart) <- addSubgraph(render(base, showTechnical), "Checkpoint", checkpointClass.some)
+          _                     <- State.modify[RenderState](s => s.copy(activeNodes = baseEnds))
+        } yield baseStart
+      case WIOExecutionProgress.Checkpoint(base, _)                         => render(base, showTechnical)
     }
   }
 
@@ -159,6 +167,7 @@ object MermaidRenderer {
     case WIOExecutionProgress.Interruptible(base, trigger, handler, result) => hasStarted(base) || hasStarted(trigger)
     case WIOExecutionProgress.Timer(meta, result)                           => result.isDefined
     case WIOExecutionProgress.Parallel(elems, _)                            => elems.exists(hasStarted)
+    case WIOExecutionProgress.Checkpoint(base, result)                      => result.isDefined || hasStarted(base)
   }
 
   private val eventShape     = "stadium"
@@ -200,12 +209,12 @@ object MermaidRenderer {
   private def addLinks(from: Seq[(NodeId, NextLinkLabel)], to: NodeId): State[RenderState, Unit]        =
     State.modify(_.addElements(from.map(f => Link(f._1, to, f._2))))
 
-  private def addSubgraph[T](subgraph: State[RenderState, T]): State[RenderState, (Seq[ActiveNode], T)] = State { state =>
+  private def addSubgraph[T](subgraph: State[RenderState, T], title: String = " ", clazz: Option[String] = None): State[RenderState, (Seq[ActiveNode], T)] = State { state =>
     val id                  = s"node${state.idIdx}"
     val (subState, subProc) = subgraph.run(RenderState.initial(state.idIdx + 1).copy(activeNodes = state.activeNodes)).value
     (
       state.copy(
-        chart = state.chart.addElement(Subgraph(id, " ", subState.chart.elements)),
+        chart = state.chart.addElement(Subgraph(id, title, subState.chart.elements, clazz)),
         idIdx = state.idIdx + subState.idIdx + 1,
         activeNodes = Seq((id, None)),
         pendingErrors = state.pendingErrors ++ subState.pendingErrors,

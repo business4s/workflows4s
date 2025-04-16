@@ -162,6 +162,7 @@ object BpmnRenderer {
           })
         }: @unchecked
         resultBuilder.moveToNode(endGwId)
+      case WIOModel.Checkpoint(base)                                  => handle(base, builder)
     }
   }
 

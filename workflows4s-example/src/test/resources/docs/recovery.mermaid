@@ -1,10 +1,9 @@
 flowchart TD
 node0@{ shape: circle, label: "Start"}
-node1["Step1"]
-node0 --> node1
-node2["Step2"]
-node1 --> node2
-node3["Step3"]
-node2 --> node3
+node1:::checkpoint
+subgraph node1 ["Checkpoint"]
+node2@{ shape: circle, label: "End"}
+node0 --> node2
+end
 classDef executed fill:#0e0
 classDef checkpoint fill:transparent,stroke-dasharray:5 5,stroke:black

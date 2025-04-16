@@ -9,7 +9,7 @@ object ReviewDecision {
   case object Reject  extends ReviewDecision
 }
 
-sealed trait Decision
+sealed trait Decision derives Codec.AsObject
 object Decision {
   case class RejectedBySystem()   extends Decision
   case class ApprovedBySystem()   extends Decision
@@ -19,7 +19,7 @@ object Decision {
 
 sealed trait CheckResult derives Codec.AsObject
 object CheckResult {
-  sealed trait Finished       extends CheckResult
+  sealed trait Finished       extends CheckResult derives Codec.AsObject
   sealed trait Final          extends Finished
   case class Pending()        extends CheckResult
   case class Approved()       extends Final

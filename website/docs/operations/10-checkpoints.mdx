@@ -1,0 +1,25 @@
+import OperationOutputs from '@site/src/components/OperationOutputs';
+
+# Checkpointing and Recovery
+
+Elements described below are used primarily for evolving workflow, see the [dedicated docs](/docs/other/evolving-workflows/) for details.
+
+## Checkpointing
+
+Checkpointing allows
+emitting a state-capturing event that during recovery marks as complete the wrapped part of the workflow.
+
+```scala file=./main/scala/workflows4s/example/docs/CheckpointExample.scala start=start_checkpoint end=end_checkpoint
+```
+
+<OperationOutputs name="checkpoint" showBpmn={false}/>
+
+## Recovery
+
+Recovery allows processing an event.
+The event has to be inserted into the journal outside the current workflow, e.g., by previous checkpointing or manual operations.
+
+```scala file=./main/scala/workflows4s/example/docs/CheckpointExample.scala start=start_recovery end=end_recovery
+```
+
+<OperationOutputs name="recovery" showBpmn={false}/>
