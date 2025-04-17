@@ -56,7 +56,7 @@ trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self
     WIO.Checkpoint(
       this,
       EventHandler[WCEvent[Ctx], In1, Out1, Evt](evtCt.unapply, identity, handleEvent),
-      (a, b) => genEvent(a, b).pure[IO]
+      (a, b) => genEvent(a, b).pure[IO],
     )
 
   def toProgress: WIOExecutionProgress[WCState[Ctx]] = ExecutionProgressEvaluator.run(this, None, None)

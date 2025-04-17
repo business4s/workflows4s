@@ -79,7 +79,7 @@ class WIOCheckpointTest extends AnyFreeSpec with Matchers {
       val errHandler     = TestUtils.errorHandler
 
       case class MyCheckpoint(state: TestState) extends TestCtx2.Event
-      val wio1     = step1
+      val wio1 = step1
         .checkpointed(
           (_, state) => MyCheckpoint(state),
           (_, ckp) => ckp.state,
@@ -96,7 +96,7 @@ class WIOCheckpointTest extends AnyFreeSpec with Matchers {
       val errHandler     = TestUtils.errorHandler
 
       case class MyCheckpoint(state: TestState) extends TestCtx2.Event
-      val wio1     = step1
+      val wio1 = step1
         .checkpointed(
           (_, state) => MyCheckpoint(state),
           (_, ckp) => ckp.state,

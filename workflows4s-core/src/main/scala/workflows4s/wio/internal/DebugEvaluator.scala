@@ -15,7 +15,7 @@ object DebugEvaluator {
   }
 
   def renderModel(model: WIOExecutionProgress[?]): Description = {
-    val tpe         = model match {
+    val tpe                  = model match {
       case _: WIOExecutionProgress.Sequence[?]      => "Sequence"
       case _: WIOExecutionProgress.Dynamic          => "Dynamic"
       case _: WIOExecutionProgress.RunIO[?]         => "RunIO"
@@ -30,7 +30,7 @@ object DebugEvaluator {
       case _: WIOExecutionProgress.Parallel[?]      => "Parallel"
       case _: WIOExecutionProgress.Checkpoint[?]    => "Checkpoint"
     }
-    val name        = model match {
+    val name                 = model match {
       case x: WIOExecutionProgress.Sequence[?]      => None
       case x: WIOExecutionProgress.Dynamic          => None
       case x: WIOExecutionProgress.RunIO[?]         => x.meta.name
@@ -45,7 +45,7 @@ object DebugEvaluator {
       case _: WIOExecutionProgress.Parallel[?]      => None
       case _: WIOExecutionProgress.Checkpoint[?]    => None
     }
-    val description = model match {
+    val description          = model match {
       case x: WIOExecutionProgress.Sequence[?]      => None
       case x: WIOExecutionProgress.Dynamic          => None
       case x: WIOExecutionProgress.RunIO[?]         => None
@@ -60,7 +60,7 @@ object DebugEvaluator {
       case _: WIOExecutionProgress.Parallel[?]      => None
       case _: WIOExecutionProgress.Checkpoint[?]    => None
     }
-    val children    = model match {
+    val children             = model match {
       case x: WIOExecutionProgress.Sequence[?]      =>
         val (executed, nonExecuted) = x.steps.partition(_.isExecuted)
         val executedDesc            = executed.zipWithIndex.map((step, idx) => renderChild(s"step $idx", step))

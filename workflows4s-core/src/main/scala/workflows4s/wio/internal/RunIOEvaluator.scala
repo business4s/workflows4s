@@ -117,10 +117,11 @@ object RunIOEvaluator {
 
     override def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): Option[IO[WCEvent[Ctx]]] = {
       wio.base.asExecuted match {
-        case Some(executedBase) => executedBase.output match {
-          case Left(_) => None
-          case Right(baseOut) => wio.genEvent(input, baseOut).map(wio.eventHandler.convert).some
-        }
+        case Some(executedBase) =>
+          executedBase.output match {
+            case Left(_)        => None
+            case Right(baseOut) => wio.genEvent(input, baseOut).map(wio.eventHandler.convert).some
+          }
         case None               => recurse(wio.base, input)
       }
     }

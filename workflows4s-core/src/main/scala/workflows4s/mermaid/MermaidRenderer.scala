@@ -22,9 +22,9 @@ object MermaidRenderer {
       .addElement(checkpointStyles)
   }
 
-  private val executedClass = "executed"
-  private val checkpointClass = "checkpoint"
-  private val styles        = ClassDef(executedClass, "fill:#0e0")
+  private val executedClass    = "executed"
+  private val checkpointClass  = "checkpoint"
+  private val styles           = ClassDef(executedClass, "fill:#0e0")
   private val checkpointStyles = ClassDef(checkpointClass, "fill:transparent,stroke-dasharray:5 5,stroke:black")
 
   private def render(model: WIOExecutionProgress[?], showTechnical: Boolean = false): State[RenderState, Option[NodeId]] = {
@@ -209,7 +209,11 @@ object MermaidRenderer {
   private def addLinks(from: Seq[(NodeId, NextLinkLabel)], to: NodeId): State[RenderState, Unit]        =
     State.modify(_.addElements(from.map(f => Link(f._1, to, f._2))))
 
-  private def addSubgraph[T](subgraph: State[RenderState, T], title: String = " ", clazz: Option[String] = None): State[RenderState, (Seq[ActiveNode], T)] = State { state =>
+  private def addSubgraph[T](
+      subgraph: State[RenderState, T],
+      title: String = " ",
+      clazz: Option[String] = None,
+  ): State[RenderState, (Seq[ActiveNode], T)] = State { state =>
     val id                  = s"node${state.idIdx}"
     val (subState, subProc) = subgraph.run(RenderState.initial(state.idIdx + 1).copy(activeNodes = state.activeNodes)).value
     (
