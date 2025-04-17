@@ -24,6 +24,7 @@ class MermaidRendererTest extends AnyFreeSpec with Matchers {
                              |node0 --> node1
                              |classDef executed fill:#0e0
                              |classDef checkpoint fill:transparent,stroke-dasharray:5 5,stroke:black
+                             |classDef checkpoint-executed fill:transparent,stroke-dasharray:5 5,stroke:#0e0
                              |""".stripMargin)
       }
 
@@ -43,6 +44,39 @@ class MermaidRendererTest extends AnyFreeSpec with Matchers {
                              |end
                              |classDef executed fill:#0e0
                              |classDef checkpoint fill:transparent,stroke-dasharray:5 5,stroke:black
+                             |classDef checkpoint-executed fill:transparent,stroke-dasharray:5 5,stroke:#0e0
+                             |""".stripMargin)
+      }
+    }
+
+    "should render recovery-only checkpoint" - {
+      "without showing technical details when showTechnical=false" in {
+        val wio = WIO.recover[TestState, SimpleEvent, TestState]((_, _) => ???)
+
+        val flowchart = MermaidRenderer.renderWorkflow(wio.toProgress, showTechnical = false)
+        val rendered  = flowchart.render
+
+        assert(rendered == """flowchart TD
+                             |node0@{ shape: circle, label: "Start"}
+                             |classDef executed fill:#0e0
+                             |classDef checkpoint fill:transparent,stroke-dasharray:5 5,stroke:black
+                             |classDef checkpoint-executed fill:transparent,stroke-dasharray:5 5,stroke:#0e0
+                             |""".stripMargin)
+      }
+
+      "with technical details when showTechnical=true" in {
+        val wio = WIO.recover[TestState, SimpleEvent, TestState]((_, _) => ???)
+
+        val flowchart = MermaidRenderer.renderWorkflow(wio.toProgress, showTechnical = true)
+        val rendered  = flowchart.render
+
+        assert(rendered == """flowchart TD
+                             |node0@{ shape: circle, label: "Start"}
+                             |node1@{ shape: hexagon, label: "fa:fa-wrench State Recovery"}
+                             |node0 --> node1
+                             |classDef executed fill:#0e0
+                             |classDef checkpoint fill:transparent,stroke-dasharray:5 5,stroke:black
+                             |classDef checkpoint-executed fill:transparent,stroke-dasharray:5 5,stroke:#0e0
                              |""".stripMargin)
       }
     }

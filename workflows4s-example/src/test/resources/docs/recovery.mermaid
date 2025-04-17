@@ -1,9 +1,7 @@
 flowchart TD
 node0@{ shape: circle, label: "Start"}
-node1:::checkpoint
-subgraph node1 ["Checkpoint"]
-node2@{ shape: circle, label: "End"}
-node0 --> node2
-end
+node1@{ shape: hexagon, label: "fa:fa-wrench State Recovery"}
+node0 --> node1
 classDef executed fill:#0e0
 classDef checkpoint fill:transparent,stroke-dasharray:5 5,stroke:black
+classDef checkpoint-executed fill:transparent,stroke-dasharray:5 5,stroke:#0e0

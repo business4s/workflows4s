@@ -218,10 +218,20 @@ object WIO {
       tpe: HandleInterruption.InterruptionType,
   )
 
+  sealed trait CheckpointConfig[Ctx <: WorkflowContext, -In, +Err, Out <: WCState[Ctx], Evt]
+
+  object CheckpointConfig {
+    case class Full[Ctx <: WorkflowContext, -In, +Err, Out <: WCState[Ctx], Evt](
+        base: WIO[In, Err, Out, Ctx],
+        genEvent: (In, Out) => IO[Evt],
+    ) extends CheckpointConfig[Ctx, In, Err, Out, Evt]
+
+    case class RecoveryOnly[Ctx <: WorkflowContext, -In, +Err, Out <: WCState[Ctx], Evt]() extends CheckpointConfig[Ctx, In, Err, Out, Evt]
+  }
+
   case class Checkpoint[Ctx <: WorkflowContext, -In, +Err, Out <: WCState[Ctx], Evt](
-      base: WIO[In, Err, Out, Ctx],
+      config: CheckpointConfig[Ctx, In, Err, Out, Evt],
       eventHandler: EventHandler[In, Out, WCEvent[Ctx], Evt],
-      genEvent: (In, Out) => IO[Evt],
   ) extends WIO[In, Err, Out, Ctx]
 
 }

@@ -124,7 +124,13 @@ object SignalEvaluator {
       wio.elements.collectFirstSome(elem => recurse(elem.wio, input))
     }
 
-    override def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): Result = recurse(wio.base, input)
+    override def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): Result =
+      wio.config match {
+        case config: WIO.CheckpointConfig.Full[Ctx, In, Err, Out1, Evt]    =>
+          recurse(config.base, input)
+        case _: WIO.CheckpointConfig.RecoveryOnly[Ctx, In, Err, Out1, Evt] =>
+          None
+      }
 
     def recurse[I1, E1, O1 <: WCState[Ctx]](
         wio: WIO[I1, E1, O1, Ctx],

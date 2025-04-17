@@ -4,6 +4,11 @@ import OperationOutputs from '@site/src/components/OperationOutputs';
 
 Elements described below are used primarily for evolving workflows, see the [dedicated docs](/docs/other/evolving-workflows/) for details.
 
+:::info
+The elements below are technical in nature and behave differently during rendering.
+`BpmnRenderer` will not render them at all, while `MermaidRenderer` will render them only with `showTechnical=true`.
+:::
+
 ## Checkpointing
 
 Checkpointing allows you to emit a state-capturing event that, during recovery, marks the wrapped part of the workflow as complete. This is particularly useful for:

@@ -28,7 +28,11 @@ object DebugEvaluator {
       case _: WIOExecutionProgress.Interruptible[?] => "Interruptible"
       case _: WIOExecutionProgress.Timer[?]         => "Timer"
       case _: WIOExecutionProgress.Parallel[?]      => "Parallel"
-      case _: WIOExecutionProgress.Checkpoint[?]    => "Checkpoint"
+      case x: WIOExecutionProgress.Checkpoint[?]    =>
+        x.base match {
+          case Some(_) => "Checkpoint"
+          case None    => "Recovery"
+        }
     }
     val name                 = model match {
       case x: WIOExecutionProgress.Sequence[?]      => None
@@ -93,7 +97,11 @@ object DebugEvaluator {
           .getOrElse(Seq())
       case _: WIOExecutionProgress.Timer[?]         => Seq()
       case x: WIOExecutionProgress.Parallel[?]      => x.elements.zipWithIndex.map((elem, idx) => renderChild(s"branch ${idx}", elem))
-      case x: WIOExecutionProgress.Checkpoint[?]    => renderChildren("base" -> x.base)
+      case x: WIOExecutionProgress.Checkpoint[?]    =>
+        x.base match {
+          case Some(base) => renderChildren("base" -> base)
+          case None       => Seq()
+        }
     }
     val effectiveDescription = if (model.isExecuted) s"Executed: ${model.result.get.merge}" else description.getOrElse("")
     val effectiveChildren    = if (model.isExecuted) Seq() else children

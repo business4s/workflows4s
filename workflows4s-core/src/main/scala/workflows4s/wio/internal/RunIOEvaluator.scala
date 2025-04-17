@@ -116,13 +116,18 @@ object RunIOEvaluator {
     }
 
     override def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): Option[IO[WCEvent[Ctx]]] = {
-      wio.base.asExecuted match {
-        case Some(executedBase) =>
-          executedBase.output match {
-            case Left(_)        => None
-            case Right(baseOut) => wio.genEvent(input, baseOut).map(wio.eventHandler.convert).some
+      wio.config match {
+        case config: WIO.CheckpointConfig.Full[Ctx, In, Err, Out1, Evt]    =>
+          config.base.asExecuted match {
+            case Some(executedBase) =>
+              executedBase.output match {
+                case Left(_)        => None
+                case Right(baseOut) => config.genEvent(input, baseOut).map(wio.eventHandler.convert).some
+              }
+            case None               => recurse(config.base, input)
           }
-        case None               => recurse(wio.base, input)
+        case _: WIO.CheckpointConfig.RecoveryOnly[Ctx, In, Err, Out1, Evt] =>
+          None // Recovery-only checkpoint
       }
     }
 

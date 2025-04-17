@@ -1,6 +1,4 @@
 {
-  "base" : {
-    "_type" : "End"
-  },
+  "base" : null,
   "_type" : "Checkpoint"
 }

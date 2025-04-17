@@ -52,12 +52,15 @@ trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self
   def checkpointed[Evt <: WCEvent[Ctx], In1 <: In, Out1 >: Out <: WCState[Ctx]](
       genEvent: (In1, Out1) => Evt,
       handleEvent: (In1, Evt) => Out1,
-  )(using evtCt: ClassTag[Evt]): WIO[In1, Err, Out1, Ctx] =
+  )(using evtCt: ClassTag[Evt]): WIO[In1, Err, Out1, Ctx] = {
     WIO.Checkpoint(
-      this,
+      WIO.CheckpointConfig.Full(
+        this.asInstanceOf[WIO[In1, Err, Out1, Ctx]],
+        (a: In1, b: Out1) => genEvent(a, b).pure[IO],
+      ),
       EventHandler[WCEvent[Ctx], In1, Out1, Evt](evtCt.unapply, identity, handleEvent),
-      (a, b) => genEvent(a, b).pure[IO],
     )
+  }
 
   def toProgress: WIOExecutionProgress[WCState[Ctx]] = ExecutionProgressEvaluator.run(this, None, None)
 
