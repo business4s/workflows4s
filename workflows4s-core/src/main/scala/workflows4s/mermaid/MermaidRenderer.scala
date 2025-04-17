@@ -31,127 +31,132 @@ object MermaidRenderer {
     def addStep(label: String, shape: Option[String] = None): State[RenderState, NodeId] = {
       addStepGeneral(id => Node(id, label, shape, clazz = if (model.isExecuted) executedClass.some else None))
     }
-    model match {
-      case WIOExecutionProgress.Sequence(steps)                             =>
-        for {
-          subSteps <- steps.traverse(s => render(s, showTechnical))
-        } yield subSteps.flatten.headOption
-      case WIOExecutionProgress.Dynamic(meta)                               =>
-        for {
-          stepId <- addStep("@dynamic")
-          _      <- meta.error.traverse(addPendingError(stepId, _))
-        } yield stepId.some
-      case WIOExecutionProgress.RunIO(meta, _)                              =>
-        for {
-          stepId <- addStep(meta.name.getOrElse("@computation"))
-          _      <- meta.error.traverse(addPendingError(stepId, _))
-        } yield stepId.some
-      case WIOExecutionProgress.HandleSignal(meta, _)                       =>
-        for {
-          signalId <- addStepGeneral(id =>
-                        Node(
-                          id,
-                          s"fa:fa-envelope ${meta.signalName}",
-                          shape = eventShape.some,
-                          clazz = if (model.isExecuted) executedClass.some else None,
-                        ),
-                      )
-          stepId   <- addStep(meta.operationName.getOrElse(s"Handle ${meta.signalName}"))
-          _        <- meta.error.traverse(addPendingError(stepId, _))
-        } yield signalId.some
-      case WIOExecutionProgress.HandleError(base, handler, error, _)        =>
-        // generalized error label is unused as we connect specific errors directly to the handler
-        for {
-          baseStart    <- render(base, showTechnical)
-          baseEnds     <- cleanActiveNodes
-          errors       <- cleanPendingErrors
-          handlerStart <- render(handler, showTechnical)
-          _            <- handleErrors(errors, handlerStart.get) // TODO better error handling or more typesafety?
-          _            <- State.modify[RenderState] { s => s.copy(activeNodes = baseEnds ++ s.activeNodes) }
-        } yield baseStart
-      case WIOExecutionProgress.End(_)                                      =>
-        addStep("End", shape = "circle".some).map(_.some)
-      case WIOExecutionProgress.Pure(meta, _)                               =>
-        if (meta.name.isDefined || meta.error.isDefined) {
+
+    def go(model: WIOExecutionProgress[?]): State[RenderState, Option[NodeId]] = {
+      model match {
+        case WIOExecutionProgress.Sequence(steps)                             =>
+          for {
+            subSteps <- steps.traverse(s => go(s))
+          } yield subSteps.flatten.headOption
+        case WIOExecutionProgress.Dynamic(meta)                               =>
+          for {
+            stepId <- addStep("@dynamic")
+            _      <- meta.error.traverse(addPendingError(stepId, _))
+          } yield stepId.some
+        case WIOExecutionProgress.RunIO(meta, _)                              =>
           for {
             stepId <- addStep(meta.name.getOrElse("@computation"))
             _      <- meta.error.traverse(addPendingError(stepId, _))
           } yield stepId.some
-        } else State.pure(None)
-      case WIOExecutionProgress.Loop(base, onRestart, meta, history)        =>
-        // history contains `current` and this is prefilled on creation,
-        // hence empty nodes have history of 1 with not started node
-        if (history.size > 1 || history.lastOption.exists(hasStarted)) {
-          // TODO we could render conditions as well
+        case WIOExecutionProgress.HandleSignal(meta, _)                       =>
           for {
-            subSteps <- history.traverse(h => render(h, showTechnical))
-          } yield subSteps.flatten.headOption
-        } else {
+            signalId <- addStepGeneral(id =>
+                          Node(
+                            id,
+                            s"fa:fa-envelope ${meta.signalName}",
+                            shape = eventShape.some,
+                            clazz = if (model.isExecuted) executedClass.some else None,
+                          ),
+                        )
+            stepId   <- addStep(meta.operationName.getOrElse(s"Handle ${meta.signalName}"))
+            _        <- meta.error.traverse(addPendingError(stepId, _))
+          } yield signalId.some
+        case WIOExecutionProgress.HandleError(base, handler, error, _)        =>
+          // generalized error label is unused as we connect specific errors directly to the handler
           for {
-            baseStart     <- render(base.toEmptyProgress, showTechnical)
-            conditionNode <- addStep(meta.conditionName.getOrElse(" "), shape = conditionShape.some)
-            _             <- setNextLinkLabel(meta.restartBranchName)
-            _             <- onRestart.flatTraverse(x => render(x.toEmptyProgress, showTechnical))
-            ends          <- cleanActiveNodes
-            _             <- addLinks(ends, baseStart.get)
-            _             <- setActiveNodes(Seq(conditionNode -> meta.exitBranchName))
+            baseStart    <- go(base)
+            baseEnds     <- cleanActiveNodes
+            errors       <- cleanPendingErrors
+            handlerStart <- go(handler)
+            _            <- handleErrors(errors, handlerStart.get) // TODO better error handling or more typesafety?
+            _            <- State.modify[RenderState] { s => s.copy(activeNodes = baseEnds ++ s.activeNodes) }
           } yield baseStart
-        }
-      case WIOExecutionProgress.Fork(branches, meta, _)                     => {
-        def renderBranch(
-            branch: WIOExecutionProgress[?],
-            meta: WIOMeta.Branch,
-            conditionNode: NodeId,
-        ): State[RenderState, Vector[(NodeId, NextLinkLabel)]] = {
+        case WIOExecutionProgress.End(_)                                      =>
+          addStep("End", shape = "circle".some).map(_.some)
+        case WIOExecutionProgress.Pure(meta, _)                               =>
+          if (meta.name.isDefined || meta.error.isDefined) {
+            for {
+              stepId <- addStep(meta.name.getOrElse("@computation"))
+              _      <- meta.error.traverse(addPendingError(stepId, _))
+            } yield stepId.some
+          } else State.pure(None)
+        case WIOExecutionProgress.Loop(base, onRestart, meta, history)        =>
+          // history contains `current` and this is prefilled on creation,
+          // hence empty nodes have history of 1 with not started node
+          if (history.size > 1 || history.lastOption.exists(hasStarted)) {
+            // TODO we could render conditions as well
+            for {
+              subSteps <- history.traverse(h => go(h))
+            } yield subSteps.flatten.headOption
+          } else {
+            for {
+              baseStart     <- go(base.toEmptyProgress)
+              conditionNode <- addStep(meta.conditionName.getOrElse(" "), shape = conditionShape.some)
+              _             <- setNextLinkLabel(meta.restartBranchName)
+              _             <- onRestart.flatTraverse(x => go(x.toEmptyProgress))
+              ends          <- cleanActiveNodes
+              _             <- addLinks(ends, baseStart.get)
+              _             <- setActiveNodes(Seq(conditionNode -> meta.exitBranchName))
+            } yield baseStart
+          }
+        case WIOExecutionProgress.Fork(branches, meta, _)                     => {
+          def renderBranch(
+              branch: WIOExecutionProgress[?],
+              meta: WIOMeta.Branch,
+              conditionNode: NodeId,
+          ): State[RenderState, Vector[(NodeId, NextLinkLabel)]] = {
+            for {
+              _           <- cleanActiveNodes
+              branchStart <- go(branch)
+              _           <- branchStart.traverse(addLink(conditionNode, _, label = meta.name))
+              branchEnds  <- cleanActiveNodes
+            } yield branchEnds.toVector
+          }
           for {
-            _           <- cleanActiveNodes
-            branchStart <- render(branch, showTechnical)
-            _           <- branchStart.traverse(addLink(conditionNode, _, label = meta.name))
-            branchEnds  <- cleanActiveNodes
-          } yield branchEnds.toVector
+            conditionNode <- addStep(meta.name.getOrElse(" "), shape = conditionShape.some)
+            ends          <- branches.zipWithIndex.flatTraverse((b, idx) => renderBranch(b, meta.branches(idx), conditionNode))
+            _             <- setActiveNodes(ends)
+          } yield conditionNode.some
         }
-        for {
-          conditionNode <- addStep(meta.name.getOrElse(" "), shape = conditionShape.some)
-          ends          <- branches.zipWithIndex.flatTraverse((b, idx) => renderBranch(b, meta.branches(idx), conditionNode))
-          _             <- setActiveNodes(ends)
-        } yield conditionNode.some
+        case WIOExecutionProgress.Interruptible(base, trigger, handleFlow, _) =>
+          for {
+            (baseEnds, baseStart) <- addSubgraph(go(base))
+            _                     <- go(trigger)
+            _                     <- handleFlow.traverse(h => go(h))
+            _                     <- State.modify[RenderState](s => s.copy(activeNodes = s.activeNodes ++ baseEnds))
+          } yield baseStart
+        case WIOExecutionProgress.Timer(meta, _)                              =>
+          val durationStr = meta.duration.map(humanReadableDuration).getOrElse("dynamic")
+          val label       = s"${meta.name.getOrElse("")} ($durationStr)"
+          for {
+            stepId <-
+              addStepGeneral(id =>
+                Node(id, s"fa:fa-clock ${label}", shape = eventShape.some, clazz = if (model.isExecuted) executedClass.some else None),
+              )
+          } yield stepId.some
+        case WIOExecutionProgress.Parallel(elems, _)                          =>
+          for {
+            forkId <- addStepGeneral(id => Node(id, "", shape = forkShape.some, clazz = if (hasStarted(model)) executedClass.some else None))
+            ends   <- elems.toList.flatTraverse(element =>
+                        for {
+                          _    <- setActiveNodes(Seq((forkId, None)))
+                          _    <- go(element)
+                          ends <- cleanActiveNodes
+                        } yield ends.toList,
+                      )
+            _      <- setActiveNodes(ends)
+            endId  <- addStepGeneral(id => Node(id, "", shape = forkShape.some, clazz = if (model.isExecuted) executedClass.some else None))
+          } yield forkId.some
+        case WIOExecutionProgress.Checkpoint(base, _) if showTechnical        =>
+          for {
+            (baseEnds, baseStart) <- addSubgraph(go(base), "Checkpoint", checkpointClass.some)
+            _                     <- State.modify[RenderState](s => s.copy(activeNodes = baseEnds))
+          } yield baseStart
+        case WIOExecutionProgress.Checkpoint(base, _)                         => go(base)
       }
-      case WIOExecutionProgress.Interruptible(base, trigger, handleFlow, _) =>
-        for {
-          (baseEnds, baseStart) <- addSubgraph(render(base, showTechnical))
-          _                     <- render(trigger, showTechnical)
-          _                     <- handleFlow.traverse(h => render(h, showTechnical))
-          _                     <- State.modify[RenderState](s => s.copy(activeNodes = s.activeNodes ++ baseEnds))
-        } yield baseStart
-      case WIOExecutionProgress.Timer(meta, _)                              =>
-        val durationStr = meta.duration.map(humanReadableDuration).getOrElse("dynamic")
-        val label       = s"${meta.name.getOrElse("")} ($durationStr)"
-        for {
-          stepId <-
-            addStepGeneral(id =>
-              Node(id, s"fa:fa-clock ${label}", shape = eventShape.some, clazz = if (model.isExecuted) executedClass.some else None),
-            )
-        } yield stepId.some
-      case WIOExecutionProgress.Parallel(elems, _)                          =>
-        for {
-          forkId <- addStepGeneral(id => Node(id, "", shape = forkShape.some, clazz = if (hasStarted(model)) executedClass.some else None))
-          ends   <- elems.toList.flatTraverse(element =>
-                      for {
-                        _    <- setActiveNodes(Seq((forkId, None)))
-                        _    <- render(element, showTechnical)
-                        ends <- cleanActiveNodes
-                      } yield ends.toList,
-                    )
-          _      <- setActiveNodes(ends)
-          endId  <- addStepGeneral(id => Node(id, "", shape = forkShape.some, clazz = if (model.isExecuted) executedClass.some else None))
-        } yield forkId.some
-      case WIOExecutionProgress.Checkpoint(base, _) if showTechnical        =>
-        for {
-          (baseEnds, baseStart) <- addSubgraph(render(base, showTechnical), "Checkpoint", checkpointClass.some)
-          _                     <- State.modify[RenderState](s => s.copy(activeNodes = baseEnds))
-        } yield baseStart
-      case WIOExecutionProgress.Checkpoint(base, _)                         => render(base, showTechnical)
     }
+
+    go(model)
   }
 
   private def hasStarted(model: WIOExecutionProgress[?]): Boolean = model match {
