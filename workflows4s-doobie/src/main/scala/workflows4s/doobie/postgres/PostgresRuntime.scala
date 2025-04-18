@@ -1,15 +1,16 @@
 package workflows4s.doobie.postgres
 
-import java.time.Clock
-
 import cats.effect.IO
+import cats.effect.kernel.Resource
+import doobie.ConnectionIO
 import doobie.util.transactor.Transactor
-import doobie.{ConnectionIO, WeakAsync}
 import workflows4s.doobie.{DbWorkflowInstance, EventCodec}
 import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.runtime.{MappedWorkflowInstance, WorkflowInstance, WorkflowRuntime}
 import workflows4s.wio.WIO.Initial
 import workflows4s.wio.{ActiveWorkflow, WCEvent, WCState, WorkflowContext}
+
+import java.time.Clock
 
 class PostgresRuntime[Ctx <: WorkflowContext](
     workflow: Initial[Ctx],
@@ -21,22 +22,17 @@ class PostgresRuntime[Ctx <: WorkflowContext](
 ) extends WorkflowRuntime[IO, Ctx, WorkflowId] {
 
   override def createInstance(id: WorkflowId): IO[WorkflowInstance[IO, WCState[Ctx]]] = {
-    WeakAsync
-      .liftIO[ConnectionIO]
-      .use(liftIo =>
-        IO {
-          val base = new DbWorkflowInstance(
-            id,
-            ActiveWorkflow(workflow, initialState),
-            PostgresWorkflowStorage,
-            liftIo,
-            eventCodec,
-            clock,
-            knockerUpper,
-          )
-          new MappedWorkflowInstance(base, xa.trans)
-        },
+    IO {
+      val base = new DbWorkflowInstance(
+        id,
+        ActiveWorkflow(workflow, initialState),
+        PostgresWorkflowStorage,
+        eventCodec,
+        clock,
+        knockerUpper,
       )
+      new MappedWorkflowInstance(base, [t] => (resource: Resource[IO, ConnectionIO[t]]) => resource.use(connIo => xa.trans.apply(connIo)))
+    }
 
   }
 
