@@ -54,10 +54,8 @@ trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self
       handleEvent: (In1, Evt) => Out1,
   )(using evtCt: ClassTag[Evt]): WIO[In1, Err, Out1, Ctx] = {
     WIO.Checkpoint(
-      WIO.CheckpointConfig.Full(
-        this.asInstanceOf[WIO[In1, Err, Out1, Ctx]],
-        (a: In1, b: Out1) => genEvent(a, b).pure[IO],
-      ),
+      this,
+      (a: In1, b: Out1) => genEvent(a, b).pure[IO],
       EventHandler[WCEvent[Ctx], In1, Out1, Evt](evtCt.unapply, identity, handleEvent),
     )
   }

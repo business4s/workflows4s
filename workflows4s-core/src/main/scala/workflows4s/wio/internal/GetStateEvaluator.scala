@@ -95,13 +95,8 @@ object GetStateEvaluator {
       }
     }
 
-    override def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): Result =
-      wio.config match {
-        case config: WIO.CheckpointConfig.Full[Ctx, In, Err, Out1, Evt]    =>
-          recurse(config.base, input)
-        case _: WIO.CheckpointConfig.RecoveryOnly[Ctx, In, Err, Out1, Evt] =>
-          None
-      }
+    override def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): Result = recurse(wio.base, input)
+    override def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): Result                   = None
 
     def recurse[I1, E1, O1 <: WCState[Ctx]](
         wio: WIO[I1, ?, ?, Ctx],

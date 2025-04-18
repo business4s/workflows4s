@@ -218,19 +218,15 @@ object WIO {
       tpe: HandleInterruption.InterruptionType,
   )
 
-  sealed trait CheckpointConfig[Ctx <: WorkflowContext, -In, +Err, Out <: WCState[Ctx], Evt]
-
-  object CheckpointConfig {
-    case class Full[Ctx <: WorkflowContext, -In, +Err, Out <: WCState[Ctx], Evt](
-        base: WIO[In, Err, Out, Ctx],
-        genEvent: (In, Out) => IO[Evt],
-    ) extends CheckpointConfig[Ctx, In, Err, Out, Evt]
-
-    case class RecoveryOnly[Ctx <: WorkflowContext, -In, +Err, Out <: WCState[Ctx], Evt]() extends CheckpointConfig[Ctx, In, Err, Out, Evt]
-  }
-
   case class Checkpoint[Ctx <: WorkflowContext, -In, +Err, Out <: WCState[Ctx], Evt](
-      config: CheckpointConfig[Ctx, In, Err, Out, Evt],
+      base: WIO[In, Err, Out, Ctx],
+      genEvent: (In, Out) => IO[Evt],
+      eventHandler: EventHandler[In, Out, WCEvent[Ctx], Evt],
+  ) extends WIO[In, Err, Out, Ctx]
+
+  // This could also allow for optionality (do X if event is present,
+  // do Y otherwise), but the implementation might be a bit convoluted, hence left for later.
+  case class Recovery[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx], Evt](
       eventHandler: EventHandler[In, Out, WCEvent[Ctx], Evt],
   ) extends WIO[In, Err, Out, Ctx]
 

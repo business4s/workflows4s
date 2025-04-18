@@ -252,20 +252,15 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
   }
 
   def handleCheckpointBase[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): Option[NewWf] = {
-    wio.config match {
-      case config: WIO.CheckpointConfig.Full[Ctx, In, Err, Out1, Evt]    =>
-        recurse(config.base, input, lastSeenState)
-          .map({
-            case WFExecution.Complete(newWio) =>
-              newWio.output match {
-                case Left(err) => WFExecution.complete(wio.copy(config = WIO.CheckpointConfig.Full(newWio, config.genEvent)), Left(err), input)
-                case Right(_)  => WFExecution.Partial(wio.copy(config = WIO.CheckpointConfig.Full(newWio, config.genEvent)))
-              }
-            case WFExecution.Partial(newWio)  => WFExecution.Partial(wio.copy(config = WIO.CheckpointConfig.Full(newWio, config.genEvent)))
-          })
-      case _: WIO.CheckpointConfig.RecoveryOnly[Ctx, In, Err, Out1, Evt] =>
-        None
-    }
+    recurse(wio.base, input, lastSeenState)
+      .map({
+        case WFExecution.Complete(newWio) =>
+          newWio.output match {
+            case Left(err) => WFExecution.complete(wio.copy(base = newWio), Left(err), input)
+            case Right(_)  => WFExecution.Partial(wio.copy(base = newWio))
+          }
+        case WFExecution.Partial(newWio)  => WFExecution.Partial(wio.copy(base = newWio))
+      })
   }
 
   def recurse[I1, E1, O1 <: WCState[Ctx]](

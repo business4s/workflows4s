@@ -131,12 +131,11 @@ object ExecutionProgressEvaluator {
     }
 
     override def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): WIOExecutionProgress[WCState[Ctx]] = {
-      val baseProgress = wio.config match {
-        case config: WIO.CheckpointConfig.Full[Ctx, In, Err, Out1, Evt]    => recurse(config.base, input, result = None).some
-        case _: WIO.CheckpointConfig.RecoveryOnly[Ctx, In, Err, Out1, Evt] => None
-      }
-      WIOExecutionProgress.Checkpoint(baseProgress, result)
+      WIOExecutionProgress.Checkpoint(recurse(wio.base, input, result = None), result)
     }
+
+    override def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): WIOExecutionProgress[WCState[Ctx]] =
+      WIOExecutionProgress.Recovery(result)
 
     def recurse[I1, E1, O1 <: WCState[Ctx]](
         wio: WIO[I1, E1, O1, Ctx],
@@ -187,6 +186,7 @@ object ExecutionProgressEvaluator {
       case WIOExecutionProgress.Interruptible(_, _, _, _)                     => None
       case _: WIOExecutionProgress.Parallel[?]                                => None
       case _: WIOExecutionProgress.Checkpoint[?]                              => None
+      case _: WIOExecutionProgress.Recovery[?]                                => None
     }
   }
 

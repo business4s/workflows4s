@@ -33,9 +33,7 @@ object EventEvaluator {
     def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result = doHandle(wio.evtHandler.map(_._1))
     def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result                               = doHandle(wio.evtHandler)
     def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result                           = doHandle(wio.releasedEventHandler)
-    def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): Result       = {
-      doHandle(wio.eventHandler.map(_.asRight)).orElse(handleCheckpointBase(wio))
-    }
+    override def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): Result                = doHandle(wio.eventHandler.map(_.asRight))
 
     def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result   = None
     def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result = {
@@ -61,6 +59,10 @@ object EventEvaluator {
         .unconvertEvent(event)
         .flatMap(convertedEvent => new EventVisitor(wio.inner, convertedEvent, input, newState).run)
         .map(convertEmbeddingResult2(wio, _, input))
+    }
+
+    def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): Result = {
+      doHandle(wio.eventHandler.map(_.asRight)).orElse(handleCheckpointBase(wio))
     }
 
     def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], in: I1, state: WCState[Ctx]): EventVisitor[Ctx, I1, E1, O1]#Result =

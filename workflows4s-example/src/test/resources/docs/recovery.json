@@ -1,4 +1,3 @@
 {
-  "base" : null,
-  "_type" : "Checkpoint"
+  "_type" : "Recovery"
 }

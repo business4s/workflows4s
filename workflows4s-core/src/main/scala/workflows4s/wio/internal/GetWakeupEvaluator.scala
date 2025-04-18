@@ -54,13 +54,8 @@ object GetWakeupEvaluator {
       wio.elements.flatMap(elem => recurse(elem.wio)).minOption
     }
 
-    def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): Result =
-      wio.config match {
-        case config: WIO.CheckpointConfig.Full[Ctx, In, Err, Out1, Evt]    =>
-          recurse(config.base)
-        case _: WIO.CheckpointConfig.RecoveryOnly[Ctx, In, Err, Out1, Evt] =>
-          None
-      }
+    override def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): Result = recurse(wio.base)
+    override def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): Result                   = None
 
     def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_] <: WCState[Ctx]](
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],

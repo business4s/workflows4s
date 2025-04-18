@@ -28,11 +28,8 @@ object DebugEvaluator {
       case _: WIOExecutionProgress.Interruptible[?] => "Interruptible"
       case _: WIOExecutionProgress.Timer[?]         => "Timer"
       case _: WIOExecutionProgress.Parallel[?]      => "Parallel"
-      case x: WIOExecutionProgress.Checkpoint[?]    =>
-        x.base match {
-          case Some(_) => "Checkpoint"
-          case None    => "Recovery"
-        }
+      case x: WIOExecutionProgress.Checkpoint[?]    => "Checkpoint"
+      case x: WIOExecutionProgress.Recovery[?]      => "Recovery"
     }
     val name                 = model match {
       case x: WIOExecutionProgress.Sequence[?]      => None
@@ -48,6 +45,7 @@ object DebugEvaluator {
       case x: WIOExecutionProgress.Timer[?]         => x.meta.name
       case _: WIOExecutionProgress.Parallel[?]      => None
       case _: WIOExecutionProgress.Checkpoint[?]    => None
+      case _: WIOExecutionProgress.Recovery[?]      => None
     }
     val description          = model match {
       case x: WIOExecutionProgress.Sequence[?]      => None
@@ -63,6 +61,7 @@ object DebugEvaluator {
       case x: WIOExecutionProgress.Timer[?]         => x.meta.duration.map(_.toString).orElse(x.meta.releaseAt.map(_.toString))
       case _: WIOExecutionProgress.Parallel[?]      => None
       case _: WIOExecutionProgress.Checkpoint[?]    => None
+      case _: WIOExecutionProgress.Recovery[?]      => None
     }
     val children             = model match {
       case x: WIOExecutionProgress.Sequence[?]      =>
@@ -97,11 +96,8 @@ object DebugEvaluator {
           .getOrElse(Seq())
       case _: WIOExecutionProgress.Timer[?]         => Seq()
       case x: WIOExecutionProgress.Parallel[?]      => x.elements.zipWithIndex.map((elem, idx) => renderChild(s"branch ${idx}", elem))
-      case x: WIOExecutionProgress.Checkpoint[?]    =>
-        x.base match {
-          case Some(base) => renderChildren("base" -> base)
-          case None       => Seq()
-        }
+      case x: WIOExecutionProgress.Checkpoint[?]    => renderChildren("base" -> x.base)
+      case x: WIOExecutionProgress.Recovery[?]      => Seq()
     }
     val effectiveDescription = if (model.isExecuted) s"Executed: ${model.result.get.merge}" else description.getOrElse("")
     val effectiveChildren    = if (model.isExecuted) Seq() else children

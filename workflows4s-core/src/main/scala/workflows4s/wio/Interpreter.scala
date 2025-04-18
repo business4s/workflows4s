@@ -81,6 +81,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
 
   def onParallel[InterimState <: WCState[Ctx]](wio: WIO.Parallel[Ctx, In, Err, Out, InterimState]): Result
   def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): Result
+  def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): Result
 
   def run: Result = {
     wio match {
@@ -116,6 +117,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
       case x: WIO.Discarded[?, ?]                                    => onDiscarded(x)
       case x: WIO.Parallel[?, ?, ?, ? <: State, ? <: State]          => onParallel(x)
       case x: WIO.Checkpoint[?, ?, ?, ? <: State, ?]                 => onCheckpoint(x)
+      case x: WIO.Recovery[?, ?, ?, ?, ?]                            => onRecovery(x)
     }
   }
 

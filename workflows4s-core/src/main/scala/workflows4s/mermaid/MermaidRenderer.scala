@@ -150,24 +150,23 @@ object MermaidRenderer {
             _      <- setActiveNodes(ends)
             endId  <- addStepGeneral(id => Node(id, "", shape = forkShape.some, clazz = if (model.isExecuted) executedClass.some else None))
           } yield forkId.some
-        case WIOExecutionProgress.Checkpoint(base, result)                    =>
-          base match {
-            case Some(base) =>
-              if (showTechnical) {
-                for {
-                  (baseEnds, baseStart) <-
-                    addSubgraph(go(base), "Checkpoint", Some(if (model.isExecuted) checkpointExecutedClass else checkpointClass))
-                  _                     <- State.modify[RenderState](s => s.copy(activeNodes = baseEnds))
-                } yield baseStart
-              } else {
-                go(base)
-              }
-            case None       =>
-              // This is a recovery-only checkpoint (created with WIO.recover)
-              if (showTechnical) addStepGeneral(id => Node(id, "fa:fa-wrench State Recovery", shape = "hexagon".some)).map(_.some)
-              else State.pure(None)
 
-          }
+        case WIOExecutionProgress.Checkpoint(base, result) =>
+          if (showTechnical) {
+            for {
+              (baseEnds, baseStart) <-
+                addSubgraph(go(base), "Checkpoint", Some(if (model.isExecuted) checkpointExecutedClass else checkpointClass))
+              _                     <- State.modify[RenderState](s => s.copy(activeNodes = baseEnds))
+            } yield baseStart
+          } else go(base)
+
+        case WIOExecutionProgress.Recovery(result) =>
+          // This is a recovery-only checkpoint (created with WIO.recover)
+          if (showTechnical)
+            addStepGeneral(id =>
+              Node(id, "fa:fa-wrench State Recovery", shape = "hexagon".some, clazz = if (model.isExecuted) executedClass.some else None),
+            ).map(_.some)
+          else State.pure(None)
       }
     }
 
@@ -187,7 +186,8 @@ object MermaidRenderer {
     case WIOExecutionProgress.Interruptible(base, trigger, handler, result) => hasStarted(base) || hasStarted(trigger)
     case WIOExecutionProgress.Timer(meta, result)                           => result.isDefined
     case WIOExecutionProgress.Parallel(elems, _)                            => elems.exists(hasStarted)
-    case WIOExecutionProgress.Checkpoint(base, result)                      => result.isDefined || base.exists(hasStarted)
+    case WIOExecutionProgress.Checkpoint(base, result)                      => result.isDefined || hasStarted(base)
+    case WIOExecutionProgress.Recovery(result)                              => result.isDefined
   }
 
   private val eventShape     = "stadium"

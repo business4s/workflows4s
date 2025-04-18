@@ -113,10 +113,15 @@ object WIOExecutionProgress {
       Parallel(elements.map(_.map(f)), result.flatMap(_.traverse(f)))
   }
 
-  case class Checkpoint[State](base: Option[WIOExecutionProgress[State]], result: ExecutionResult[State]) extends WIOExecutionProgress[State] {
-    override lazy val toModel: WIOModel.Checkpoint                                 = WIOModel.Checkpoint(base.map(_.toModel))
+  case class Checkpoint[State](base: WIOExecutionProgress[State], result: ExecutionResult[State]) extends WIOExecutionProgress[State] {
+    override lazy val toModel: WIOModel.Checkpoint                                 = WIOModel.Checkpoint(base.toModel)
     override def map[NewState](f: State => Option[NewState]): Checkpoint[NewState] =
-      Checkpoint(base.map(_.map(f)), result.flatMap(_.traverse(f)))
+      Checkpoint(base.map(f), result.flatMap(_.traverse(f)))
+  }
+  case class Recovery[State](result: ExecutionResult[State])                                      extends WIOExecutionProgress[State] {
+    override lazy val toModel: WIOModel.Recovery                                 = WIOModel.Recovery()
+    override def map[NewState](f: State => Option[NewState]): Recovery[NewState] =
+      Recovery(result.flatMap(_.traverse(f)))
   }
 
   def fromModel(model: WIOModel): WIOExecutionProgress[Nothing]                                               = model match {
@@ -130,7 +135,8 @@ object WIOExecutionProgress {
     case WIOModel.Loop(base, onRestart, meta)           => Loop(base, onRestart, meta, Seq.empty)
     case WIOModel.Fork(branches, meta)                  => Fork(branches.map(fromModel), meta, None)
     case WIOModel.Parallel(elems)                       => Parallel(elems.map(fromModel), None)
-    case WIOModel.Checkpoint(base)                      => Checkpoint(base.map(fromModel), None)
+    case WIOModel.Checkpoint(base)                      => Checkpoint(fromModel(base), None)
+    case WIOModel.Recovery()                            => Recovery(None)
     case WIOModel.Interruptible(base, trigger, handler) =>
       Interruptible(fromModel(base), fromModelInterruption(trigger), handler.map(fromModel), None)
   }
