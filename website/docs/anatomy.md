@@ -21,6 +21,47 @@ capable of:
 - Persisting events in a journal
 - Reading events from the journal
 
+```mermaid
+flowchart LR
+node0@{ shape: "rect", label: "Your logic"}
+node1@{ shape: "rect", label: "WIO (Workflow Definition)"}
+node1_1@{ shape: "rect", label: "Runtime Dependencies"}
+node2@{ shape: "rect", label: "WorkflowRuntime"}
+node3@{ shape: "rect", label: "WorkflowInstance"}
+node4@{ shape: "stadium", label: "createInstance"}
+node4_1@{ shape: "rect", label: "Workflow Instance ID"}
+node4_2@{ shape: "rect", label: "Events"}
+node5@{ shape: "stadium", label: "queryState"}
+node6@{ shape: "stadium", label: "wakeup"}
+node7@{ shape: "stadium", label: "deliverSignal"}
+node8@{ shape: "rect", label: "Renderer"}
+node9@{ shape: "rect", label: "Static Visualization"}
+node10@{ shape: "rect", label: "Progress Visualization"}
+
+
+node0 --> node1
+node1 --> node2
+node1_1 --> node2
+node2 --> node4
+node4_1 --> node4
+node4 --> node3
+node4_2 -.-> node3
+node3 --> node5
+node3 --> node6
+node3 --> node7
+
+node6 -.-> node4_2
+node7 -.-> node4_2
+
+node3 --> node10
+node8 --> node10
+
+node1 --> node9
+node8 --> node9
+
+
+```
+
 ## How Does It Work?
 
 ### First Run
