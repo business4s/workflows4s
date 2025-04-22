@@ -2,9 +2,9 @@
 
 Workflow evolution is crucial for long-lived systems, especially when workflows are expected to run continuously over extended periods. Workflows4s aims to handle workflow evolution through a combination of strategies:
 
-1. **Checkpointing**: Allows segments of workflows to be marked as stable checkpoints, preventing the need for replaying those parts and enabling easier modifications.
-2. **Journal Rewrites**: Enables modifications of the persisted event journal to accommodate workflow changes.
-3. **Versioning**: Supports running different workflow versions simultaneously to smoothly handle evolving workflows.
+1. **Checkpointing**: Marking segments of workflows as checkpointed, preventing the need for replaying those parts and enabling easier modifications.
+2. **Journal Rewrites**: Modifying the persisted event journal.
+3. **Versioning**: Running different workflow versions simultaneously.
 
 ---
 
@@ -41,19 +41,14 @@ node7 --> node5
 
 ---
 
-## Checkpointing and Recovery
-
-For detailed instructions on checkpointing mechanisms and recovery procedures, visit the [Checkpointing documentation](/docs/operations/checkpoints/).
-
----
-
 ## Impact of Workflow Changes
 
 Below is a detailed explanation of how workflow modifications impact historical (already executed) workflows:
 
 1. **Adding a Step:**
    - The newly added step will execute upon workflow wakeup, and its event will be appended to the end of the journal.
-   - Currently, this might lead to incorrect recovery, as events will replay out of the intended order. Future enhancements to persistence/recovery mechanisms might address this issue.
+   - Currently, this might lead to incorrect recovery, as the event will be appended to the end of the journal. 
+     Future enhancements to persistence/recovery mechanisms might address this issue.
 
 2. **Removing a Step:**
    - Events previously recorded for the removed step will be ignored during recovery.
@@ -65,7 +60,9 @@ Below is a detailed explanation of how workflow modifications impact historical 
 4. **Modifying Behavior:**
    - Functions within workflows (logic execution, state rebuilding, etc.) can safely be altered without backward compatibility concerns, provided the modifications remain logically consistent.
 
----
+## Checkpointing and Recovery
+
+For detailed instructions on checkpointing mechanisms and recovery procedures, visit the [Checkpointing documentation](/docs/operations/checkpoints/).
 
 ## Journal Rewrites
 

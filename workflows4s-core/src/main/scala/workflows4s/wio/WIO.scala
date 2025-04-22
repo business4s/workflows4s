@@ -218,6 +218,7 @@ object WIO {
       tpe: HandleInterruption.InterruptionType,
   )
 
+  // This could also allow for raising errors.
   case class Checkpoint[Ctx <: WorkflowContext, -In, +Err, Out <: WCState[Ctx], Evt](
       base: WIO[In, Err, Out, Ctx],
       genEvent: (In, Out) => IO[Evt],
@@ -226,6 +227,7 @@ object WIO {
 
   // This could also allow for optionality (do X if event is present,
   // do Y otherwise), but the implementation might be a bit convoluted, hence left for later.
+  // This could also allow for raising errors.
   case class Recovery[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx], Evt](
       eventHandler: EventHandler[In, Out, WCEvent[Ctx], Evt],
   ) extends WIO[In, Err, Out, Ctx]
