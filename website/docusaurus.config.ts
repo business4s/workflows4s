@@ -36,7 +36,7 @@ const config: Config = {
             {
                 docs: {
                     sidebarPath: './sidebars.ts',
-                    editUrl: 'https://github.com/business4s/workflows4s/website',
+                    editUrl: 'https://github.com/business4s/workflows4s/tree/main/website',
                     beforeDefaultRemarkPlugins: [
                         [
                             require('remark-code-snippets'),
