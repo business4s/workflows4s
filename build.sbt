@@ -48,7 +48,12 @@ lazy val `workflows4s-pekko` = (project in file("workflows4s-pekko"))
 lazy val `workflows4s-doobie` = (project in file("workflows4s-doobie"))
   .settings(commonSettings)
   .settings(
-    libraryDependencies += "org.tpolecat" %% "doobie-core" % "1.0.0-RC6",
+    libraryDependencies ++= Seq(
+      "org.tpolecat"  %% "doobie-core"                     % "1.0.0-RC9",
+      "com.dimafeng"  %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
+      "com.dimafeng"  %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
+      "org.postgresql" % "postgresql"                      % "42.7.4"                   % Test,
+    ),
   )
   .dependsOn(`workflows4s-core`)
 
@@ -91,7 +96,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "org.postgresql"        % "postgresql"                      % "42.7.4" % Test,
     ),
     Test / parallelExecution := false, // otherwise akka clusters clash
-    publish / skip := true,
+    publish / skip           := true,
   )
   .dependsOn(`workflows4s-core`, `workflows4s-bpmn`, `workflows4s-pekko`, `workflows4s-doobie`, `workflows4s-filesystem`, `workflows4s-quartz`)
 
@@ -107,18 +112,18 @@ lazy val commonSettings = Seq(
     "-Wunused:imports",
     "-Wconf:id=E198:error", // unused imports
   ),
-  organization := "org.business4s",
-  homepage := Some(url("https://business4s.github.io/workflows4s/")),
-  licenses := List(License.MIT),
-  developers := List(
+  organization      := "org.business4s",
+  homepage          := Some(url("https://business4s.github.io/workflows4s/")),
+  licenses          := List(License.MIT),
+  developers        := List(
     Developer(
       "Krever",
       "Voytek Pituła",
       "w.pitula@gmail.com",
-      url("https://v.pitula.me")
-    )
+      url("https://v.pitula.me"),
+    ),
   ),
-  versionScheme := Some("semver-spec")
+  versionScheme     := Some("semver-spec"),
 )
 
 lazy val pekkoVersion               = "1.1.2"

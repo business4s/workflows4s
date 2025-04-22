@@ -1,9 +1,10 @@
 package workflows4s.doobie
 
 import cats.Applicative
+import cats.effect.kernel.Resource
 import cats.effect.{IO, LiftIO, Sync}
 import cats.syntax.all.*
-import doobie.ConnectionIO
+import doobie.{ConnectionIO, WeakAsync}
 import doobie.implicits.*
 import workflows4s.runtime.WorkflowInstance
 import workflows4s.runtime.WorkflowInstance.UnexpectedSignal
@@ -18,55 +19,62 @@ class DbWorkflowInstance[Ctx <: WorkflowContext, Id](
     id: Id,
     baseWorkflow: ActiveWorkflow[Ctx],
     storage: WorkflowStorage[Id],
-    liftIO: LiftIO[ConnectionIO],
     eventCodec: EventCodec[WCEvent[Ctx]],
     clock: Clock,
     knockerUpper: KnockerUpper.Agent[Id],
-) extends WorkflowInstance[ConnectionIO, WCState[Ctx]] {
+) extends WorkflowInstance[[t] =>> Resource[IO, ConnectionIO[t]], WCState[Ctx]] {
 
-  override def getProgress: ConnectionIO[WIOExecutionProgress[WCState[Ctx]]] = restoreWorkflow.map(_.wio.toProgress)
+  private def withLiftIO[T](thunk: LiftIO[ConnectionIO] => ConnectionIO[T]): Resource[IO, ConnectionIO[T]] =
+    WeakAsync.liftIO[ConnectionIO].map(thunk)
 
-  def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): ConnectionIO[Either[UnexpectedSignal, Resp]] = {
-    storage
-      .lockWorkflow(id)
-      .use(_ =>
-        for {
-          wf     <- restoreWorkflow
-          now    <- Sync[ConnectionIO].delay(clock.instant())
-          result <- wf.handleSignal(signalDef)(req, now) match {
-                      case Some(eventIO) =>
-                        for {
-                          (event, resp) <- liftIO.liftIO(eventIO)
-                          _             <- storage.saveEvent(id, eventCodec.write(event))
-                          newWf          = handleEvents(wf, List(event), now)
-                          _             <- proceed(newWf, now)
-                        } yield resp.asRight
-                      case None          => Sync[ConnectionIO].pure(UnexpectedSignal(signalDef).asLeft)
-                    }
-        } yield result,
-      )
+  override def getProgress: Resource[IO, ConnectionIO[WIOExecutionProgress[WCState[Ctx]]]] = Resource.pure {
+    restoreWorkflow.map(_.wio.toProgress)
   }
 
-  def queryState(): ConnectionIO[WCState[Ctx]] = {
-    for {
-      wf  <- restoreWorkflow
-      now <- Sync[ConnectionIO].delay(clock.instant())
-    } yield wf.liveState(now)
+  def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): Resource[IO, ConnectionIO[Either[UnexpectedSignal, Resp]]] = withLiftIO {
+    liftIO =>
+      storage
+        .lockWorkflow(id)
+        .use(_ =>
+          for {
+            wf     <- restoreWorkflow
+            now    <- Sync[ConnectionIO].delay(clock.instant())
+            result <- wf.handleSignal(signalDef)(req, now) match {
+                        case Some(eventIO) =>
+                          for {
+                            (event, resp) <- liftIO.liftIO(eventIO)
+                            _             <- storage.saveEvent(id, eventCodec.write(event))
+                            newWf          = handleEvents(wf, List(event), now)
+                            _             <- proceed(newWf, now, liftIO)
+                          } yield resp.asRight
+                        case None          => Sync[ConnectionIO].pure(UnexpectedSignal(signalDef).asLeft)
+                      }
+          } yield result,
+        )
   }
 
-  def wakeup(): ConnectionIO[Unit] = {
+  def queryState(): Resource[IO, ConnectionIO[WCState[Ctx]]] = {
+    Resource.pure {
+      for {
+        wf  <- restoreWorkflow
+        now <- Sync[ConnectionIO].delay(clock.instant())
+      } yield wf.liveState(now)
+    }
+  }
+
+  def wakeup(): Resource[IO, ConnectionIO[Unit]] = withLiftIO { liftIO =>
     storage
       .lockWorkflow(id)
       .use(_ =>
         for {
           wf  <- restoreWorkflow
           now <- Sync[ConnectionIO].delay(clock.instant())
-          _   <- proceed(wf, now)
+          _   <- proceed(wf, now, liftIO)
         } yield (),
       )
   }
 
-  private def proceed(wf: ActiveWorkflow[Ctx], now: Instant): ConnectionIO[Unit] = {
+  private def proceed(wf: ActiveWorkflow[Ctx], now: Instant, liftIO: LiftIO[ConnectionIO]): ConnectionIO[Unit] = {
     wf.proceed(now) match {
       case Some(eventIO) =>
         for {
@@ -76,7 +84,7 @@ class DbWorkflowInstance[Ctx <: WorkflowContext, Id](
           _     <- if (newWf.wakeupAt != wf.wakeupAt)
                      liftIO.liftIO(knockerUpper.updateWakeup(id, newWf.wakeupAt)) // TODO should we really rollback tx is this fails?
                    else Sync[ConnectionIO].unit
-          _     <- proceed(newWf, now)
+          _     <- proceed(newWf, now, liftIO)
         } yield ()
       case None          => Applicative[ConnectionIO].pure(())
     }
