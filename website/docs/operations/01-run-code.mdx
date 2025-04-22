@@ -1,0 +1,58 @@
+import OperationOutputs from '@site/src/components/OperationOutputs';
+
+# Executing Logic
+
+Workflows4s supports two esyd of embedding custom logic within a workflow:
+1. **Deterministic (Pure) Operations** - operations that always produce the same output for the same input, without any side effects
+2. **Nondeterministic Operations** - operations that may produce different outputs for the same input, typically involving side effects
+
+Deterministic operations are executed with each workflow recovery,
+while nondeterministic ones are memoized through event persistance.
+
+## Deterministic (Pure) Operations
+
+### Without Error
+
+```scala file=./main/scala/workflows4s/example/docs/PureExample.scala start=start_withoutError end=end_withoutError
+```
+
+<OperationOutputs name="pure"/>
+
+### With Error
+
+```scala file=./main/scala/workflows4s/example/docs/PureExample.scala start=start_withError end=end_withError
+```
+
+<OperationOutputs name="pure-error"/>
+
+::::note
+
+Unnamed pure elements are considered technical in nature and are not rendered in diagrams.
+To make them visible, use `.named("Name")` or `.autoNamed`.
+
+::::
+
+## Nondeterministic Operations (Side Effects)
+
+Nondeterministic operations involve side effects like API calls, database operations, or other external interactions.
+These operations need special handling because they shouldn't be re-executed during workflow recovery.
+
+### Without Error
+
+```scala file=./main/scala/workflows4s/example/docs/RunIOExample.scala start=start_withoutError end=end_withoutError
+```
+
+<OperationOutputs name="run-io"/>
+
+### With Error
+
+```scala file=./main/scala/workflows4s/example/docs/RunIOExample.scala start=start_withError end=end_withError
+```
+
+<OperationOutputs name="run-io-error"/>
+
+::::note
+
+Errors render in flowchart only when they are handled
+
+::::

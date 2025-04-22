@@ -21,6 +21,8 @@ class ExamplesTest extends AnyFreeSpec {
     TestUtils.renderDocsExample(InterruptionExample.interruptedThroughSignal, "interruption-signal")
     TestUtils.renderDocsExample(PullRequestWorkflowDraft.workflow, "pull-request-draft")
     TestUtils.renderDocsExample(PullRequestWorkflow.workflow, "pull-request")
+    TestUtils.renderDocsExample(PureExample.doThings, "pure")
+    TestUtils.renderDocsExample(PureExample.doThingsWithError, "pure-error")
   }
 
 }

@@ -14,17 +14,22 @@ const OperationOutputs: React.FC<OperationOutputsProps> = ({name}) => {
     const svgPath = require(`../../../workflows4s-example/src/test/resources/docs/${name}.svg`).default;
 
     return (
-        <Tabs groupId={`output-${name}`} queryString>
-            <TabItem value="flowchart" label="Flowchart" default>
-                <Mermaid value={mermaidSource} />
-            </TabItem>
-            <TabItem value="bpmn" label="BPMN">
-                <img src={svgPath} alt={`${name} diagram`} />
-            </TabItem>
-            <TabItem value="model" label="Model">
-                <CodeBlock language="json">{jsonSource}</CodeBlock>
-            </TabItem>
-        </Tabs>
+        <details>
+            <summary style={{ cursor: 'pointer', marginBottom: '0.5em' }}>
+                Rendering Outputs
+            </summary>
+            <Tabs groupId={`output-${name}`} queryString>
+                <TabItem value="flowchart" label="Flowchart" default>
+                    <Mermaid value={mermaidSource}/>
+                </TabItem>
+                <TabItem value="bpmn" label="BPMN">
+                    <img src={svgPath} alt={`${name} diagram`}/>
+                </TabItem>
+                <TabItem value="model" label="Model">
+                    <CodeBlock language="json">{jsonSource}</CodeBlock>
+                </TabItem>
+            </Tabs>
+        </details>
     );
 };
 
