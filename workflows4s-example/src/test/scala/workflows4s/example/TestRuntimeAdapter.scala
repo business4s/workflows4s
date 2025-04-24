@@ -181,9 +181,8 @@ object TestRuntimeAdapter {
       override def getProgress: Id[WIOExecutionProgress[WCState[Ctx]]] = base.getProgress.await
       override def wakeup(): Id[Unit]                                  = base.wakeup().await
 
-      // TODO could at least use futureValue from scalatest
       extension [T](f: Future[T]) {
-        def await: T = Await.result(f, 5.seconds)
+        def await: T = Await.result(f, 2.seconds)
       }
     }
 

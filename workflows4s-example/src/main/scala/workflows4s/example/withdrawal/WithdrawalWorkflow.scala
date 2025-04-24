@@ -139,10 +139,11 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
     doRunChecks >>> actOnDecision
   }
 
-  // TODO can fail with provider fatal failure, need retries, needs cancellation
+
   private def execute: WIO[WithdrawalData.Checked, WithdrawalRejection.RejectedByExecutionEngine, WithdrawalData.Executed] =
     initiateExecution >>> awaitExecutionCompletion
-
+    
+  // This could use retries once we have them
   private def initiateExecution: WIO[WithdrawalData.Checked, WithdrawalRejection.RejectedByExecutionEngine, WithdrawalData.Executed] =
     WIO
       .runIO[WithdrawalData.Checked](s =>
@@ -217,7 +218,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
       })
       .handleEventWithError((_, evt) => WithdrawalRejection.Cancelled(evt.operatorId, evt.comment).asLeft)
       .voidResponse
-      .noFollowupSteps
+      .done
   }
 
 }

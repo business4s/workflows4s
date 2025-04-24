@@ -6,6 +6,8 @@ import org.apache.pekko.persistence.query.scaladsl.{CurrentPersistenceIdsQuery, 
 import org.apache.pekko.stream.scaladsl.Sink
 import workflows4s.example.withdrawal.WithdrawalSignal.CreateWithdrawal
 import workflows4s.example.withdrawal.{WithdrawalData, WithdrawalSignal, WithdrawalWorkflow}
+import workflows4s.runtime.WorkflowInstance
+import workflows4s.runtime.WorkflowInstance.UnexpectedSignal
 import workflows4s.runtime.pekko.PekkoRuntime
 
 trait WithdrawalWorkflowService {
@@ -32,8 +34,8 @@ object WithdrawalWorkflowService {
       val workflow = wdRuntime.createInstance_(id)
       IO.fromFuture(IO(workflow.deliverSignal(WithdrawalWorkflow.Signals.createWithdrawal, input)))
         .map({
-          case Right(response) => response
-          case Left(_)         => ??? // TODO error handling
+          case Right(response)        => response
+          case Left(UnexpectedSignal) => throw new Exception(s"Unexpected creation signal for instance ${id}")
         })
     }
 

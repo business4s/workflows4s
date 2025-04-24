@@ -212,5 +212,11 @@ object WIO {
   case class Interruption[Ctx <: WorkflowContext, +Err, +Out <: WCState[Ctx]](
       handler: WIO[WCState[Ctx], Err, Out, Ctx],
       tpe: HandleInterruption.InterruptionType,
-  )
+  ) {
+    def andThen[FinalErr, FinalOut <: WCState[Ctx]](
+        f: WIO[WCState[Ctx], Err, Out, Ctx] => WIO[WCState[Ctx], FinalErr, FinalOut, Ctx],
+    ): WIO.Interruption[Ctx, FinalErr, FinalOut] = {
+      WIO.Interruption(f(handler), tpe)
+    }
+  }
 }

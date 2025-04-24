@@ -16,7 +16,7 @@ object InterruptionExample {
       .handleSync((state, request) => MyEvent())
       .handleEvent((state, event) => MyState(0))
       .produceResponse((state, event) => MyResponse())
-      .autoNamed()
+      .autoNamed
       .andThen(_ >>> doB)
 
   val interruptedThroughSignal = doA.interruptWith(interruption)
