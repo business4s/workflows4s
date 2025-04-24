@@ -33,5 +33,7 @@ object WIOModel {
   case class Interruptible(base: WIOModel, trigger: Interruption, handler: Option[WIOModel]) extends WIOModel
   case class Timer(meta: WIOMeta.Timer)                                                      extends WIOModel with Interruption
   case class Parallel(elements: Seq[WIOModel])                                               extends WIOModel
+  case class Checkpoint(base: WIOModel)                                                      extends WIOModel
+  case class Recovery()                                                                      extends WIOModel
 
 }

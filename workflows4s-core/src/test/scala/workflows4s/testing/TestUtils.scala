@@ -39,6 +39,16 @@ object TestUtils {
     val error = s"error-${UUID.randomUUID()}"
     (error, WIO.pure.error(error).done)
   }
+  def errorIO: (String, WIO[Any, String, Nothing, TestCtx2.Ctx])               = {
+    import TestCtx2.*
+    val error = s"error-${UUID.randomUUID()}"
+    case class RunIOErrored(error: String) extends TestCtx2.Event
+    val wio = WIO
+      .runIO[Any](_ => IO.pure(RunIOErrored(error)))
+      .handleEventWithError((_, evt) => Left(evt.error))
+      .done
+    (error, wio)
+  }
   def errorHandler: WIO[(TestState, String), Nothing, TestState, TestCtx2.Ctx] = {
     import TestCtx2.*
     WIO.pure.makeFrom[(TestState, String)].value((st, err) => st.addError(err)).done

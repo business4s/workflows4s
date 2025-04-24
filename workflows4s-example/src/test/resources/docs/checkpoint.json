@@ -1,0 +1,10 @@
+{
+  "base" : {
+    "meta" : {
+      "name" : "My Workflow",
+      "error" : null
+    },
+    "_type" : "Pure"
+  },
+  "_type" : "Checkpoint"
+}
