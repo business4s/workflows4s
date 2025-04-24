@@ -53,7 +53,6 @@ class PekkoRuntimeImpl[Ctx <: WorkflowContext](
 
 object PekkoRuntime {
 
-  // TODO opaque type?
   type WorkflowId = String
 
   def create[Ctx <: WorkflowContext](

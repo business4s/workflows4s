@@ -6,8 +6,9 @@ import com.typesafe.scalalogging.StrictLogging
 import org.scalatest.Inside.inside
 import org.scalatest.freespec.{AnyFreeSpec, AnyFreeSpecLike}
 import workflows4s.example.withdrawal.checks.*
-import workflows4s.example.{TestClock, TestRuntimeAdapter, TestUtils}
+import workflows4s.example.{TestRuntimeAdapter, TestUtils}
 import workflows4s.runtime.WorkflowInstance
+import workflows4s.testing.TestClock
 import workflows4s.wio.WCState
 
 import scala.reflect.Selectable.reflectiveSelectable

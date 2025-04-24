@@ -138,8 +138,7 @@ object TestRuntimeAdapter {
       // with single shard region its tricky to inject input into behavior creation
       val typeKey = EntityTypeKey[Cmd](entityKeyPrefix + "-" + UUID.randomUUID().toString)
 
-      // we dont use PekkoRuntime because its tricky to test recover there.
-      // TODO maybe we could use persistance test kit?
+      // we dont use PekkoRuntime because it's tricky to test recovery there.
       val shardRegion   = sharding.init(
         Entity(typeKey)(createBehavior = entityContext => {
           val persistenceId = PersistenceId(entityContext.entityTypeKey.name, entityContext.entityId)

@@ -11,6 +11,15 @@ trait WorkflowEmbedding[Inner <: WorkflowContext, Outer <: WorkflowContext, -Inp
   // TODO can we help with assuring symetry on user side?
   def unconvertState(outerState: WCState[Outer]): Option[WCState[Inner]]
 
+  def unconvertStateUnsafe(outerState: WCState[Outer]) = unconvertState(outerState)
+    .getOrElse(
+      throw new Exception(
+        "Cannot convert the state of the embedding workflow into the state of the embedded one. " +
+          "This means that outer workflow produced a state not handled in the embedding logic.\n" +
+          s"Outer state: ${outerState}",
+      ),
+    )
+
   def contramap[NewInput](f: NewInput => Input): WorkflowEmbedding.Aux[Inner, Outer, OutputState, NewInput] =
     new WorkflowEmbedding[Inner, Outer, NewInput] {
       def convertEvent(e: WCEvent[Inner]): WCEvent[Outer]           = self.convertEvent(e)

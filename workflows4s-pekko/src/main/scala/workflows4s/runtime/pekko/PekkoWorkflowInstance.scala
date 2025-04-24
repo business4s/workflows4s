@@ -29,9 +29,10 @@ class PekkoWorkflowInstance[Ctx <: WorkflowContext](
     given ExecutionContext = system.executionContext
     actorRef
       .ask[SignalResponse[Resp]](replyTo => WorkflowBehavior.Command.DeliverSignal(signalDef, req, replyTo))
-      .map({
-        case SignalResponse.Success(response) => response.asRight
-        case SignalResponse.Unexpected        => WorkflowInstance.UnexpectedSignal(signalDef).asLeft
+      .flatMap({
+        case SignalResponse.Success(response) => Future.successful(response.asRight)
+        case SignalResponse.Unexpected        => Future.successful(WorkflowInstance.UnexpectedSignal(signalDef).asLeft)
+        case SignalResponse.Failed(err)       => Future.failed(err)
       })
   }
 

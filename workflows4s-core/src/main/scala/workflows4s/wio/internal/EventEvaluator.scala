@@ -49,12 +49,7 @@ object EventEvaluator {
     def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_] <: WCState[Ctx]](
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
     ): Result = {
-      val newState: WCState[InnerCtx] =
-        wio.embedding
-          .unconvertState(lastSeenState)
-          .getOrElse(
-            wio.initialState(input),
-          ) // TODO, this is not safe, we will use initial state if the state mapping is incorrect (not symetrical). This will be very hard for the user to diagnose.
+      val newState: WCState[InnerCtx] = wio.embedding.unconvertStateUnsafe(lastSeenState)
       wio.embedding
         .unconvertEvent(event)
         .flatMap(convertedEvent => new EventVisitor(wio.inner, convertedEvent, input, newState).run)

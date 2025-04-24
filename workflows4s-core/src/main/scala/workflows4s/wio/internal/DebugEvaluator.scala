@@ -1,7 +1,7 @@
 package workflows4s.wio.internal
 
 import cats.implicits.catsSyntaxOptionId
-import workflows4s.wio
+import workflows4s.{RenderUtils, wio}
 import workflows4s.wio.*
 import workflows4s.wio.model.WIOExecutionProgress
 
@@ -58,7 +58,7 @@ object DebugEvaluator {
       case x: WIOExecutionProgress.Loop[?]          => None
       case x: WIOExecutionProgress.Fork[?]          => None
       case x: WIOExecutionProgress.Interruptible[?] => None
-      case x: WIOExecutionProgress.Timer[?]         => x.meta.duration.map(_.toString).orElse(x.meta.releaseAt.map(_.toString))
+      case x: WIOExecutionProgress.Timer[?]         => x.meta.duration.map(RenderUtils.humanReadableDuration).orElse(x.meta.releaseAt.map(_.toString))
       case _: WIOExecutionProgress.Parallel[?]      => None
       case _: WIOExecutionProgress.Checkpoint[?]    => None
       case _: WIOExecutionProgress.Recovery[?]      => None

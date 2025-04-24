@@ -44,22 +44,13 @@ object WorkflowBehavior {
 
   final private case class State[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx], awaitingCommandResult: Boolean)
 
-  // alternatively we could ask client for embedding of CommandAccepted into `Event`
-  // TODO make private
-  // maybe we can fix serialization by making it a new class inside behavior, so `Event` is statically captured in that new class?
-  // or maybe union type could work?
-//  sealed trait EventEnvelope[+Event]
   case object CommandAccepted
-//  object EventEnvelope {
-//    case class WorkflowEvent[+Event](event: Event) extends EventEnvelope[Event]
-//    case object CommandAccepted                    extends EventEnvelope[Nothing]
-//  }
 
   sealed trait SignalResponse[+Resp]
   object SignalResponse {
     case class Success[+Resp](response: Resp) extends SignalResponse[Resp]
     case object Unexpected                    extends SignalResponse[Nothing]
-//    case object Failed extends SignalResponse[Nothing]
+    case class Failed(error: Throwable)       extends SignalResponse[Nothing]
   }
 }
 
@@ -111,14 +102,15 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
           Effect
             .persist(CommandAccepted)
             .thenRun((_: St) => {
+              // has to be spawned from actor thread
+              val ignore = context.spawnAnonymous(Behaviors.ignore)
               resultIO
                 .map((event, resp) => {
                   context.self ! Command.PersistEvent(event, (cmd.replyTo, SignalResponse.Success(resp)).some)
-                  val ignore = context.spawnAnonymous(Behaviors.ignore)
                   context.self ! Command.Wakeup(ignore)
                 })
+                .handleError(err => cmd.replyTo ! SignalResponse.Failed(err))
                 .unsafeToFuture()
-              // TODO error handling
               ()
             })
         case None                                     =>
@@ -140,10 +132,14 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
           Effect
             .persist(CommandAccepted)
             .thenRun((_: St) => {
-              val event = eventIO.unsafeRunSync() // TODO shouldnt block actor thread
-              logger.debug(s"New event evaluated to ${event}. Persisting. ")
-              context.self ! Command.PersistEvent(event, None)
-              context.self ! Command.Wakeup(cmd.replyTo)
+              eventIO
+                .map(event => {
+                  logger.debug(s"New event evaluated to ${event}. Persisting. ")
+                  context.self ! Command.PersistEvent(event, None)
+                  context.self ! Command.Wakeup(cmd.replyTo)
+                })
+                .handleError(err => logger.error("Failed to execute workflow", err))
+                .unsafeToFuture()
             })
         case None          =>
           logger.debug("No new state during wakeup.")
@@ -161,8 +157,9 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
       case wfEvent: WCEvent[Ctx] =>
         state.workflow.handleEvent(wfEvent, clock.instant()) match {
           case Some(newWf) => State(newWf, awaitingCommandResult = false)
-          // TODO think about good behaviour here. Ignore or fail?
-          case None        => ???
+          case None        =>
+            logger.warn(s"Unhandled and ignored event for workflow $id. Event: $event")
+            state
         }
     }
   }
@@ -187,7 +184,11 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
 
   private def handleUpdateWakeup(cmd: Command.UpdateWakeup): Effect[Event, St] = {
     logger.debug(s"Updating wakeup to ${cmd.wakeup}")
-    knockerUpper.updateWakeup((), cmd.wakeup).unsafeToFuture() // TODO error handling?
+    knockerUpper.updateWakeup((), cmd.wakeup)
+      .handleError(err => {
+        logger.error(s"Error when updating wakeup for workflow $id", err)
+      })
+      .unsafeToFuture()
     Effect.none
   }
 

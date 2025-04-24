@@ -35,7 +35,7 @@ object WithdrawalWorkflowService {
       IO.fromFuture(IO(workflow.deliverSignal(WithdrawalWorkflow.Signals.createWithdrawal, input)))
         .map({
           case Right(response)        => response
-          case Left(UnexpectedSignal) => throw new Exception(s"Unexpected creation signal for instance ${id}")
+          case Left(UnexpectedSignal(sig)) => throw new Exception(s"Unexpected creation signal $sig for instance ${id}")
         })
     }
 

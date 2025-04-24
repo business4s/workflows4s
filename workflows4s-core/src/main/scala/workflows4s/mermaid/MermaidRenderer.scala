@@ -2,6 +2,7 @@ package workflows4s.mermaid
 
 import cats.data.State
 import cats.syntax.all.*
+import workflows4s.RenderUtils
 import workflows4s.wio.model.{WIOExecutionProgress, WIOMeta}
 
 import java.time.Duration
@@ -129,7 +130,7 @@ object MermaidRenderer {
             _                     <- State.modify[RenderState](s => s.copy(activeNodes = s.activeNodes ++ baseEnds))
           } yield baseStart
         case WIOExecutionProgress.Timer(meta, _)                              =>
-          val durationStr = meta.duration.map(humanReadableDuration).getOrElse("dynamic")
+          val durationStr = meta.duration.map(RenderUtils.humanReadableDuration).getOrElse("dynamic")
           val label       = s"${meta.name.getOrElse("")} ($durationStr)"
           for {
             stepId <-
@@ -264,8 +265,5 @@ object MermaidRenderer {
   private object RenderState {
     def initial(idIdx: Int): RenderState = RenderState(MermaidFlowchart(), idIdx, Seq(), Seq())
   }
-
-  // TODO commonize with bpmn renderer
-  private def humanReadableDuration(duration: Duration): String = duration.toString.substring(2).replaceAll("(\\d[HMS])(?!$)", "$1 ").toLowerCase
-
+  
 }

@@ -17,9 +17,8 @@ trait WIOBuilderMethods[Ctx <: WorkflowContext] {
       wio: WIO[In, Err, Out, InnerCtx],
   )(
       embedding: WorkflowEmbedding.Aux[InnerCtx, Ctx, OS, In],
-      initialState: In => WCState[InnerCtx],
   ): WIO[In, Err, OS[Out], Ctx] = {
-    WIO.Embedded(wio, embedding, initialState)
+    WIO.Embedded(wio, embedding)
   }
 
   def noop(): WIO[Any, Nothing, Nothing, Ctx] = WIO.End[Ctx]()

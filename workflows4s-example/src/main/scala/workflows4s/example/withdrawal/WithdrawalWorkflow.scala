@@ -43,9 +43,10 @@ object WithdrawalWorkflow {
     }
 
     override def unconvertState(outerState: WithdrawalData): Option[ChecksState] = outerState match {
-      case x: WithdrawalData.Checking => Some(x.checkResults)
-      case x: WithdrawalData.Checked  => Some(x.checkResults)
-      case _                          => None
+      case _: WithdrawalData.Validated => Some(ChecksState.Empty)
+      case x: WithdrawalData.Checking  => Some(x.checkResults)
+      case x: WithdrawalData.Checked   => Some(x.checkResults)
+      case _                           => None
     }
   }
 
@@ -123,8 +124,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
       WIO.embed[WithdrawalData.Validated, Nothing, ChecksState.Decided, ChecksEngine.Context.Ctx, checksEmbedding.OutputState](
         checksEngine.runChecks
           .transformInput((x: WithdrawalData.Validated) => ChecksInput(x, service.getChecks())),
-          //          .transformOutput((validated, checkState) => validated.checked(checkState)),
-      )(checksEmbedding, _ => ChecksState.Empty) // TODO
+      )(checksEmbedding)
 
     val actOnDecision = WIO.pure
       .makeFrom[WithdrawalData.Checked]
@@ -139,10 +139,9 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
     doRunChecks >>> actOnDecision
   }
 
-
   private def execute: WIO[WithdrawalData.Checked, WithdrawalRejection.RejectedByExecutionEngine, WithdrawalData.Executed] =
     initiateExecution >>> awaitExecutionCompletion
-    
+
   // This could use retries once we have them
   private def initiateExecution: WIO[WithdrawalData.Checked, WithdrawalRejection.RejectedByExecutionEngine, WithdrawalData.Executed] =
     WIO

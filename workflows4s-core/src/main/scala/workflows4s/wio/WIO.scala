@@ -121,7 +121,6 @@ object WIO {
   ]] <: WCState[Ctx]](
       inner: WIO[In, Err, InnerOut, InnerCtx],
       embedding: WorkflowEmbedding.Aux[InnerCtx, Ctx, MappingOutput, In],
-      initialState: In => WCState[InnerCtx], // should we move this into embedding?
   ) extends WIO[In, Err, MappingOutput[InnerOut], Ctx]
 
   // do we need imperative variant?
