@@ -30,7 +30,7 @@ object InMemorySyncRuntime {
   def default[Ctx <: WorkflowContext](
       workflow: Initial[Ctx],
       initialState: WCState[Ctx],
-      knockerUpperAgent: KnockerUpper.Agent[Unit] = NoOpKnockerUpper.Agent
+      knockerUpperAgent: KnockerUpper.Agent[Unit] = NoOpKnockerUpper.Agent,
   ): InMemorySyncRuntime[Ctx, Unit] =
     new InMemorySyncRuntime[Ctx, Unit](workflow, initialState, Clock.systemUTC(), knockerUpperAgent)(using IORuntime.global)
 }

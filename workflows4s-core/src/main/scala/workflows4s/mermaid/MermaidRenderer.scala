@@ -265,5 +265,5 @@ object MermaidRenderer {
   private object RenderState {
     def initial(idIdx: Int): RenderState = RenderState(MermaidFlowchart(), idIdx, Seq(), Seq())
   }
-  
+
 }

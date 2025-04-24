@@ -71,7 +71,7 @@ class FilesystemKnockerUpperTest extends AnyFreeSpec {
         .unsafeRunSync()
     })
   }
-  
+
   def withTemporaryDirectory[A](block: fs2.io.file.Path => A): A = {
     val tempDir = Files.createTempDirectory("tempDir")
     try {

@@ -85,9 +85,9 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers {
         .handleEventWithError((_, evt) => Left(evt.err))
         .produceResponse((_, _) => "")
         .done
-      val eventHandler = TestUtils.errorHandler
-      val wio = signalHandler.handleErrorWith(eventHandler)
-      val (_, wf) = TestUtils.createInstance2(wio)
+      val eventHandler                               = TestUtils.errorHandler
+      val wio                                        = signalHandler.handleErrorWith(eventHandler)
+      val (_, wf)                                    = TestUtils.createInstance2(wio)
 
       wf.deliverSignal(mySignalDef, 1)
       assert(wf.queryState() == TestState(List(), List(error)))

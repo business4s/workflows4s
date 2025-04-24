@@ -52,7 +52,7 @@ object InterruptionBuilder {
               WIO.Interruption(source(Option(operationName), Option(signalName)), tpe)
             def autoNamed(using name: sourcecode.Name): WIO.Interruption[Ctx, Err, Out]                         =
               named(operationName = ModelUtils.prettifyName(name.value))
-            def done: WIO.Interruption[Ctx, Err, Out]                                                         =
+            def done: WIO.Interruption[Ctx, Err, Out]                                                           =
               WIO.Interruption(source(None, None), tpe)
 
             private def source(operationName: Option[String], signalName: Option[String]): WIO.InterruptionSource[Input, Err, Out, Ctx] = {
@@ -105,7 +105,7 @@ object InterruptionBuilder {
 
           def named(timerName: String): WIO.Interruption[Ctx, Nothing, WCState[Ctx]]               = WIO.Interruption(source(timerName.some), tpe)
           def autoNamed(using name: sourcecode.Name): WIO.Interruption[Ctx, Nothing, WCState[Ctx]] = named(ModelUtils.prettifyName(name.value))
-          def done: WIO.Interruption[Ctx, Nothing, WCState[Ctx]]                                 = WIO.Interruption(source(None), tpe)
+          def done: WIO.Interruption[Ctx, Nothing, WCState[Ctx]]                                   = WIO.Interruption(source(None), tpe)
 
           private def source(name: Option[String]): WIO.InterruptionSource[Input, Nothing, WCState[Ctx], Ctx] =
             WIO.Timer(durationSource, startedEventHandler, name, releasedEventHandler)

@@ -44,13 +44,13 @@ class WIOPureTest extends AnyFreeSpec with Matchers {
       val resultOpt = wf.handleSignal(SignalDef[String, String]())("", Instant.now)
       assert(resultOpt.isEmpty)
     }
-    
+
     "error raising" in {
       import TestCtx2.*
-      val error = Random.alphanumeric.take(10).mkString
-      val pure = WIO.pure.makeFrom[TestState].error(_ => error).done
+      val error   = Random.alphanumeric.take(10).mkString
+      val pure    = WIO.pure.makeFrom[TestState].error(_ => error).done
       val handler = TestUtils.errorHandler
-      val wio = pure.handleErrorWith(handler)
+      val wio     = pure.handleErrorWith(handler)
       val (_, wf) = TestUtils.createInstance2(wio)
       assert(wf.queryState() == TestState(List(), List(error)))
     }

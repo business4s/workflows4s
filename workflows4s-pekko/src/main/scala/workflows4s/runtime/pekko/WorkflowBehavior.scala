@@ -184,7 +184,8 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
 
   private def handleUpdateWakeup(cmd: Command.UpdateWakeup): Effect[Event, St] = {
     logger.debug(s"Updating wakeup to ${cmd.wakeup}")
-    knockerUpper.updateWakeup((), cmd.wakeup)
+    knockerUpper
+      .updateWakeup((), cmd.wakeup)
       .handleError(err => {
         logger.error(s"Error when updating wakeup for workflow $id", err)
       })
