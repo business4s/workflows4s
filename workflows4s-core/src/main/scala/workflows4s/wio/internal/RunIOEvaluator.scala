@@ -32,6 +32,7 @@ object RunIOEvaluator {
     def onNoop(wio: WIO.End[Ctx]): Result                                                          = None
     def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                                           = None
     def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result                                       = None
+    override def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): Result                = None
 
     def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result = wio.buildIO(input).map(wio.evtHandler.convert).some
 
@@ -113,6 +114,17 @@ object RunIOEvaluator {
         wio: workflows4s.wio.WIO.Parallel[Ctx, In, Err, Out, InterimState],
     ): Result = {
       wio.elements.collectFirstSome(elem => recurse(elem.wio, input))
+    }
+
+    override def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): Result = {
+      wio.base.asExecuted match {
+        case Some(executedBase) =>
+          executedBase.output match {
+            case Left(_)        => None
+            case Right(baseOut) => wio.genEvent(input, baseOut).map(wio.eventHandler.convert).some
+          }
+        case None               => recurse(wio.base, input)
+      }
     }
 
     private def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], s: I1): Option[IO[WCEvent[Ctx]]] =

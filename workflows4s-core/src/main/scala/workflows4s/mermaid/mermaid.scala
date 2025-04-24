@@ -26,11 +26,13 @@ case class Link(from: String, to: String, label: Option[String] = None, prefix: 
   }
 }
 
-case class Subgraph(id: String, name: String, elements: Seq[MermaidElement]) extends MermaidElement {
-  def render: String =
-    s"""subgraph $id ["$name"]
+case class Subgraph(id: String, name: String, elements: Seq[MermaidElement], clazz: Option[String] = None) extends MermaidElement {
+  def render: String = {
+    val classPrefix = clazz.map(c => s"$id:::${c}\n").getOrElse("")
+    s"""${classPrefix}subgraph $id ["$name"]
        |${elements.map(_.render).mkString("\n")}
        |end""".stripMargin
+  }
 }
 
 case class MermaidFlowchart(elements: Seq[MermaidElement]) {

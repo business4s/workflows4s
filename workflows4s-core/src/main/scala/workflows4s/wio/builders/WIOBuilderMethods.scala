@@ -3,7 +3,9 @@ package workflows4s.wio.builders
 import cats.implicits.catsSyntaxEitherId
 import workflows4s.wio.*
 import workflows4s.wio.ErrorMeta.NoError
-import workflows4s.wio.internal.WorkflowEmbedding
+import workflows4s.wio.internal.{EventHandler, WorkflowEmbedding}
+
+import scala.reflect.ClassTag
 
 trait WIOBuilderMethods[Ctx <: WorkflowContext] {
 
@@ -21,5 +23,11 @@ trait WIOBuilderMethods[Ctx <: WorkflowContext] {
   }
 
   def noop(): WIO[Any, Nothing, Nothing, Ctx] = WIO.End[Ctx]()
+
+  def recover[In, Evt <: WCEvent[Ctx], Out <: WCState[Ctx]](handleEvent: (In, Evt) => Out)(using evtCt: ClassTag[Evt]): WIO[In, Nothing, Out, Ctx] = {
+    WIO.Recovery(
+      EventHandler[WCEvent[Ctx], In, Out, Evt](evtCt.unapply, identity, handleEvent),
+    )
+  }
 
 }

@@ -25,8 +25,11 @@ object ChecksEngine extends ChecksEngine {
   import Context.WIO
 
   def runChecks: WIO[ChecksInput, Nothing, ChecksState.Decided] =
-    refreshChecksUntilAllComplete >>> getDecision
-  //      .checkpointed((s, decision) => ChecksEvent.CheckCompleted(s.results, decision))((s, e) => (s, e.decision))
+    (refreshChecksUntilAllComplete >>> getDecision)
+      .checkpointed(
+        (_, state) => ChecksEvent.CheckCompleted(state.results, state.decision),
+        (_, evt) => ChecksState.Decided(evt.results, evt.decision),
+      )
 
   private def getDecision: WIO[ChecksState.Executed, Nothing, ChecksState.Decided] = {
     WIO
