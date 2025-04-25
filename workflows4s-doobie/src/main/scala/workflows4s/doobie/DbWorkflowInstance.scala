@@ -98,7 +98,7 @@ class DbWorkflowInstance[Ctx <: WorkflowContext, Id](
           .handleError(err => {
             // We swallow the error to not rollback transaction and not stop the workflow from progressing.
             // TODO this should be ensured across runtimes with a shared test suite
-            logger.error(s"Failed to update the wakup for workflow: ${id}", err)
+            logger.error(s"Failed to update the wakeup for workflow: ${id}", err)
             ()
           }),
       )

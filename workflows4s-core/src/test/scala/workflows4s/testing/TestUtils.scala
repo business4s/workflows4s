@@ -54,7 +54,7 @@ object TestUtils {
     WIO.pure.makeFrom[(TestState, String)].value((st, err) => st.addError(err)).done
   }
 
-  def signal: (SignalDef[Int, Int], StepId, WIO[TestState, Nothing, TestState, TestCtx2.Ctx]) = {
+  def signal: (SignalDef[Int, Int], StepId, WIO.IHandleSignal[TestState, Nothing, TestState, TestCtx2.Ctx]) = {
     import TestCtx2.*
     val signalDef = SignalDef[Int, Int](id = UUID.randomUUID().toString)
     case class SigEvent(req: Int) extends TestCtx2.Event

@@ -7,7 +7,8 @@ import workflows4s.wio.model.WIOExecutionProgress
 
 /** Renders WIO as a debugging string, that contains information about executed steps and minimal information about future ones
   */
-object DebugEvaluator {
+// TODO add to the docs
+object DebugRenderer {
   def getCurrentStateDescription(
       wio: WIO[?, ?, ?, ?],
   ): String = {

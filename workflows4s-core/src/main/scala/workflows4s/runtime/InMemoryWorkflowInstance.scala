@@ -9,7 +9,8 @@ import workflows4s.wio.model.WIOExecutionProgress
 
 import java.time.Clock
 
-// TODO current implementation is not safe in concurrent scenario. State should be locked for the duration of side effects
+// WARNING: current implementation is not safe in concurrent scenario.
+// See https://github.com/business4s/workflows4s/issues/60 for details.
 class InMemoryWorkflowInstance[Ctx <: WorkflowContext](
     stateRef: Ref[IO, ActiveWorkflow[Ctx]],
     eventsRef: Ref[IO, Vector[WCEvent[Ctx]]],

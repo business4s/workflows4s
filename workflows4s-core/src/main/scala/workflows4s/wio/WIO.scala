@@ -16,14 +16,17 @@ object WIO {
   type Initial[Ctx <: WorkflowContext] = WIO[Any, Nothing, WCState[Ctx], Ctx]
   type Draft[Ctx <: WorkflowContext]   = WIO[Any, Nothing, Nothing, Ctx]
 
-  sealed trait InterruptionSource[-In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext] extends WIO[In, Err, Out, Ctx]
+  // Experimental approach top exposing concrete subtypes.
+  // We dont want to expose concrete impls because they have way too much type params.
+  // Alternatively, this could be a sealed trait extending WIO
+  type IHandleSignal[-In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext] = HandleSignal[Ctx, In, Out, Err, ?, ?, ?]
 
   case class HandleSignal[Ctx <: WorkflowContext, -In, +Out <: WCState[Ctx], +Err, Sig, Resp, Evt](
       sigDef: SignalDef[Sig, Resp],
       sigHandler: SignalHandler[Sig, Evt, In],
       evtHandler: EventHandler[In, (Either[Err, Out], Resp), WCEvent[Ctx], Evt],
       meta: HandleSignal.Meta, // TODO here and everywhere else, we could use WIOMeta directly
-  ) extends InterruptionSource[In, Err, Out, Ctx] {
+  ) extends WIO[In, Err, Out, Ctx] {
 
     def toInterruption(using ev: WCState[Ctx] <:< In): Interruption[Ctx, Err, Out] =
       WIO.Interruption(ev.substituteContra[[t] =>> WIO[t, Err, Out, Ctx]](this), InterruptionType.Signal)
@@ -141,7 +144,7 @@ object WIO {
       startedEventHandler: EventHandler[In, Unit, WCEvent[Ctx], Timer.Started],
       name: Option[String],
       releasedEventHandler: EventHandler[In, Either[Err, Out], WCEvent[Ctx], Timer.Released],
-  ) extends InterruptionSource[In, Err, Out, Ctx] {
+  ) extends WIO[In, Err, Out, Ctx] {
     def getReleaseTime(started: Timer.Started, in: In): Instant = {
       val awaitDuration = duration match {
         case DurationSource.Static(duration)     => duration
@@ -155,7 +158,7 @@ object WIO {
   case class AwaitingTime[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]](
       resumeAt: Instant,
       releasedEventHandler: EventHandler[In, Either[Err, Out], WCEvent[Ctx], Timer.Released],
-  ) extends InterruptionSource[In, Err, Out, Ctx]
+  ) extends WIO[In, Err, Out, Ctx]
 
   object Timer {
 

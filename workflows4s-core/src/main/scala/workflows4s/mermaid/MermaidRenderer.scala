@@ -31,6 +31,7 @@ object MermaidRenderer {
   private val checkpointStyles         = ClassDef(checkpointClass, "fill:transparent,stroke-dasharray:5 5,stroke:black")
   private val checkpointExecutedStyles = ClassDef(checkpointExecutedClass, "fill:transparent,stroke-dasharray:5 5,stroke:#0e0")
 
+  // returns id of the first element rendered
   private def render(model: WIOExecutionProgress[?], showTechnical: Boolean = false): State[RenderState, Option[NodeId]] = {
     def go(model: WIOExecutionProgress[?]): State[RenderState, Option[NodeId]] = {
       def addStep(label: String, shape: Option[String] = None): State[RenderState, NodeId] = {
@@ -67,12 +68,16 @@ object MermaidRenderer {
         case WIOExecutionProgress.HandleError(base, handler, error, _)        =>
           // generalized error label is unused as we connect specific errors directly to the handler
           for {
-            baseStart    <- go(base)
-            baseEnds     <- cleanActiveNodes
-            errors       <- cleanPendingErrors
-            handlerStart <- go(handler)
-            _            <- handleErrors(errors, handlerStart.get) // TODO better error handling or more typesafety?
-            _            <- State.modify[RenderState] { s => s.copy(activeNodes = baseEnds ++ s.activeNodes) }
+            baseStart       <- go(base)
+            baseEnds        <- cleanActiveNodes
+            errors          <- cleanPendingErrors
+            handlerStartOpt <- go(handler)
+            handlerStart     = handlerStartOpt.getOrElse(
+                                 throw new Exception(s"""Rendering error handler didn't produce a node. This is unexpected, please report as a bug.
+                                                    |Handler: ${handler}""".stripMargin),
+                               )
+            _               <- handleErrors(errors, handlerStart)
+            _               <- State.modify[RenderState] { s => s.copy(activeNodes = baseEnds ++ s.activeNodes) }
           } yield baseStart
         case WIOExecutionProgress.End(_)                                      =>
           addStep("End", shape = "circle".some).map(_.some)

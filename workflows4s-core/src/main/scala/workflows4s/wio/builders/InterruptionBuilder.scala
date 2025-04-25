@@ -55,7 +55,7 @@ object InterruptionBuilder {
             def done: WIO.Interruption[Ctx, Err, Out]                                                           =
               WIO.Interruption(source(None, None), tpe)
 
-            private def source(operationName: Option[String], signalName: Option[String]): WIO.InterruptionSource[Input, Err, Out, Ctx] = {
+            private def source(operationName: Option[String], signalName: Option[String]): WIO[Input, Err, Out, Ctx] = {
               val combined: (Input, Evt) => (Either[Err, Out], Resp)                   = (s: Input, e: Evt) => (eventHandler(s, e), responseBuilder(s, e))
               val eh: EventHandler[Input, (Either[Err, Out], Resp), WCEvent[Ctx], Evt] = EventHandler(evtCt.unapply, identity, combined)
               val sh: SignalHandler[Req, Evt, Input]                                   = SignalHandler(signalHandler)
@@ -107,9 +107,9 @@ object InterruptionBuilder {
           def autoNamed(using name: sourcecode.Name): WIO.Interruption[Ctx, Nothing, WCState[Ctx]] = named(ModelUtils.prettifyName(name.value))
           def done: WIO.Interruption[Ctx, Nothing, WCState[Ctx]]                                   = WIO.Interruption(source(None), tpe)
 
-          private def source(name: Option[String]): WIO.InterruptionSource[Input, Nothing, WCState[Ctx], Ctx] =
+          private def source(name: Option[String]): WIO[Input, Nothing, WCState[Ctx], Ctx] =
             WIO.Timer(durationSource, startedEventHandler, name, releasedEventHandler)
-          private def tpe: InterruptionType                                                                   = InterruptionType.Timer
+          private def tpe: InterruptionType                                                = InterruptionType.Timer
         }
       }
 
