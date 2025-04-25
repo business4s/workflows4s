@@ -1,14 +1,16 @@
 package workflows4s.wio.builders
 
+import cats.effect.IO
+import cats.implicits.catsSyntaxOptionId
+import workflows4s.wio.*
+import workflows4s.wio.WIO.HandleInterruption.InterruptionType
+import workflows4s.wio.WIO.Timer
+import workflows4s.wio.internal.{EventHandler, SignalHandler}
+import workflows4s.wio.model.ModelUtils
+
 import java.time.Instant
 import scala.jdk.DurationConverters.ScalaDurationOps
 import scala.reflect.ClassTag
-import cats.effect.IO
-import workflows4s.wio.*
-import workflows4s.wio.WIO.HandleInterruption.InterruptionType
-import workflows4s.wio.WIO.{InterruptionSource, Timer}
-import workflows4s.wio.internal.{EventHandler, SignalHandler}
-import workflows4s.wio.model.ModelUtils
 
 object InterruptionBuilder {
 
@@ -41,27 +43,28 @@ object InterruptionBuilder {
             errorMeta: ErrorMeta[Err],
         ) {
 
-          def produceResponse(f: (Input, Evt) => Resp): Step4 = Step4(f, None, None)
-          def voidResponse(using ev: Unit =:= Resp): Step4    = Step4((x, y) => (), None, None)
+          def produceResponse(f: (Input, Evt) => Resp): Step4 = Step4(f)
+          def voidResponse(using ev: Unit =:= Resp): Step4    = Step4((x, y) => ())
 
-          class Step4(responseBuilder: (Input, Evt) => Resp, operationName: Option[String], signalName: Option[String])
-              extends ContinuationBuilder[Err, Out] {
+          class Step4(responseBuilder: (Input, Evt) => Resp) {
 
-            def named(operationName: String = null, signalName: String = null): Step4 =
-              Step4(responseBuilder, Option(operationName).orElse(this.operationName), Option(signalName).orElse(this.signalName))
+            def named(operationName: String = null, signalName: String = null): WIO.Interruption[Ctx, Err, Out] =
+              WIO.Interruption(source(Option(operationName), Option(signalName)), tpe)
+            def autoNamed(using name: sourcecode.Name): WIO.Interruption[Ctx, Err, Out]                         =
+              named(operationName = ModelUtils.prettifyName(name.value))
+            def done: WIO.Interruption[Ctx, Err, Out]                                                           =
+              WIO.Interruption(source(None, None), tpe)
 
-            def autoNamed()(using n: sourcecode.Name): Step4 = named(operationName = ModelUtils.prettifyName(n.value))
-
-            lazy val source: WIO.InterruptionSource[Input, Err, Out, Ctx] = {
+            private def source(operationName: Option[String], signalName: Option[String]): WIO[Input, Err, Out, Ctx] = {
               val combined: (Input, Evt) => (Either[Err, Out], Resp)                   = (s: Input, e: Evt) => (eventHandler(s, e), responseBuilder(s, e))
               val eh: EventHandler[Input, (Either[Err, Out], Resp), WCEvent[Ctx], Evt] = EventHandler(evtCt.unapply, identity, combined)
-              val sh: SignalHandler[Req, Evt, Input]                                   = SignalHandler(signalHandler)(using signalDef.reqCt)
+              val sh: SignalHandler[Req, Evt, Input]                                   = SignalHandler(signalHandler)
               val meta                                                                 = WIO.HandleSignal.Meta(errorMeta, signalName.getOrElse(ModelUtils.getPrettyNameForClass(signalDef.reqCt)), operationName)
               val handleSignal: WIO.HandleSignal[Ctx, Input, Out, Err, Req, Resp, Evt] = WIO.HandleSignal(signalDef, sh, eh, meta)
               handleSignal
             }
 
-            override def tpe: InterruptionType = InterruptionType.Signal
+            private def tpe: InterruptionType = InterruptionType.Signal
           }
 
         }
@@ -98,35 +101,17 @@ object InterruptionBuilder {
 
         case class Step3(
             private val releasedEventHandler: EventHandler[WCState[Ctx], Either[Nothing, WCState[Ctx]], WCEvent[Ctx], Timer.Released],
-            private val name: Option[String] = None,
-        ) extends ContinuationBuilder[Nothing, Input] {
+        ) {
 
-          def named(timerName: String): Step3 = this.copy(name = Some(timerName))
+          def named(timerName: String): WIO.Interruption[Ctx, Nothing, WCState[Ctx]]               = WIO.Interruption(source(timerName.some), tpe)
+          def autoNamed(using name: sourcecode.Name): WIO.Interruption[Ctx, Nothing, WCState[Ctx]] = named(ModelUtils.prettifyName(name.value))
+          def done: WIO.Interruption[Ctx, Nothing, WCState[Ctx]]                                   = WIO.Interruption(source(None), tpe)
 
-          def autoNamed(using name: sourcecode.Name): Step3 = this.copy(name = Some(ModelUtils.prettifyName(name.value)))
-
-          lazy val source: WIO.InterruptionSource[Input, Nothing, WCState[Ctx], Ctx] =
+          private def source(name: Option[String]): WIO[Input, Nothing, WCState[Ctx], Ctx] =
             WIO.Timer(durationSource, startedEventHandler, name, releasedEventHandler)
-
-          override def tpe: InterruptionType = InterruptionType.Timer
+          private def tpe: InterruptionType                                                = InterruptionType.Timer
         }
       }
-
-    }
-
-    trait ContinuationBuilder[Err, Out <: WCState[Ctx]] {
-
-      def source: InterruptionSource[Input, Err, Out, Ctx]
-      def tpe: InterruptionType
-
-      // TODO this could be a method on interruption, doesnt have to prevent builder from completing
-      def andThen[FinalErr, FinalOut <: WCState[Ctx]](
-          f: WIO[Input, Err, Out, Ctx] => WIO[Input, FinalErr, FinalOut, Ctx],
-      ): WIO.Interruption[Ctx, FinalErr, FinalOut] = {
-        WIO.Interruption(f(source), tpe)
-      }
-
-      def noFollowupSteps: WIO.Interruption[Ctx, Err, Out] = andThen(identity)
 
     }
 

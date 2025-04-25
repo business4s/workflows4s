@@ -2,9 +2,11 @@ package workflows4s.wio
 
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
+import workflows4s.testing.TestUtils
 import workflows4s.wio.WIO.Pure
 
 import java.time.Instant
+import scala.util.Random
 
 class WIOPureTest extends AnyFreeSpec with Matchers {
 
@@ -19,8 +21,6 @@ class WIOPureTest extends AnyFreeSpec with Matchers {
 
       assert(state == "myValue")
     }
-
-    // TODO error case
 
     "proceed no-op" in {
       val wf: ActiveWorkflow[Ctx] = WIO.pure("myValue").done.toWorkflow("initialState")
@@ -43,6 +43,16 @@ class WIOPureTest extends AnyFreeSpec with Matchers {
 
       val resultOpt = wf.handleSignal(SignalDef[String, String]())("", Instant.now)
       assert(resultOpt.isEmpty)
+    }
+
+    "error raising" in {
+      import TestCtx2.*
+      val error   = Random.alphanumeric.take(10).mkString
+      val pure    = WIO.pure.makeFrom[TestState].error(_ => error).done
+      val handler = TestUtils.errorHandler
+      val wio     = pure.handleErrorWith(handler)
+      val (_, wf) = TestUtils.createInstance2(wio)
+      assert(wf.queryState() == TestState(List(), List(error)))
     }
 
     "metadata attachment" - {

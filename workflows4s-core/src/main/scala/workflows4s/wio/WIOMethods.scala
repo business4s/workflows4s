@@ -25,13 +25,7 @@ trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self
   def transformInput[NewIn](f: NewIn => In): WIO[NewIn, Err, Out, Ctx] = transform(f, (_, x) => x)
   def provideInput(value: In): WIO[Any, Err, Out, Ctx]                 = transformInput[Any](_ => value)
 
-  // TODO isnt that just map?
   def transformOutput[NewOut <: WCState[Ctx], In1 <: In](f: (In1, Out) => NewOut): WIO[In1, Err, NewOut, Ctx] = transform(identity, f)
-
-  //  def handleError[Err1, StIn1 <: StIn, Out1 >: Out, StOut1 >: StOut, ErrIn >: Err](
-  //      f: ErrIn => WIO[Err1, Out1, StIn1, StOut1],
-  //  )(using errCt: ClassTag[ErrIn], newErrCt: ClassTag[Err1]): WIO[Err1, Out1, StIn1, StOut1] =
-  //    WIO.HandleError(this, f, errCt, newErrCt)
 
   def handleErrorWith[Err1, Out1 >: Out <: WCState[Ctx], ErrIn >: Err](
       wio: WIO[(WCState[Ctx], ErrIn), Err1, Out1, Ctx],

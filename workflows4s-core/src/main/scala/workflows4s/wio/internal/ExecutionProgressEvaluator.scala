@@ -86,7 +86,7 @@ object ExecutionProgressEvaluator {
     def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_] <: WCState[Ctx]](
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
     ): Result = {
-      // TODO should express embedding in model?
+      // We could express embedding in model but need a use case for it.
       val visitor = new ExecProgressVisitor(
         wio.inner,
         this.result.flatMap(_.traverse(wio.embedding.unconvertState)),
@@ -98,8 +98,9 @@ object ExecutionProgressEvaluator {
       // if we got state inside, also the last seen state should be correct
     }
     def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result = {
-      // TODO better error handling. meaningful exception would be a good start
-      val Some((trigger, rest)) = extractFirstInterruption(recurse(wio.interruption, lastSeenState, result = None)): @unchecked
+      val (trigger, rest) = extractFirstInterruption(recurse(wio.interruption, lastSeenState, result = None))
+        .getOrElse(throw new Exception(s"""Couldn't extract interruption from the interruption path. This is a bug, please report it.
+                                          |Workflow: $wio""".stripMargin))
       WIOExecutionProgress.Interruptible(
         recurse(wio.base, input, result = None),
         trigger,
@@ -175,7 +176,7 @@ object ExecutionProgressEvaluator {
       case WIOExecutionProgress.RunIO(_, _)                                   => None
       case x @ WIOExecutionProgress.HandleSignal(_, _)                        => Some((x, None))
       case WIOExecutionProgress.HandleError(base, handler, errorName, result) =>
-        // TODO this is not a correct model, in cae of signal handler with error handler,
+        // TODO this is not a correct model, in case of signal handler with error handler,
         //  it will not express it correctly
         extractFirstInterruption(base).map((first, rest) => first -> rest.map(x => WIOExecutionProgress.HandleError(x, handler, errorName, result)))
       case _ @WIOExecutionProgress.End(_)                                     => None

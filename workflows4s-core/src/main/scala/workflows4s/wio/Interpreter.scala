@@ -9,7 +9,9 @@ object Interpreter {
   sealed trait EventResponse[Ctx <: WorkflowContext] {
     def newWorkflow: Option[ActiveWorkflow[Ctx]] = this match {
       case EventResponse.Ok(newFlow)       => newFlow.some
-      case EventResponse.UnexpectedEvent() => None // TODO event is silently ignored. We should add logging at least
+      // TODO event is silently ignored here and runtimes have to log it.
+      //   Would be good to commonize this behavior
+      case EventResponse.UnexpectedEvent() => None
     }
   }
 
@@ -137,14 +139,14 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
       case WFExecution.Complete(newWio) =>
         convert(
           WFExecution.complete(
-            WIO.Embedded(newWio, wio.embedding, wio.initialState),
+            wio.copy(inner = newWio),
             newWio.output.map(wio.embedding.convertState(_, input)),
             input,
           ),
         )
       case WFExecution.Partial(newWio)  =>
         val embedding: WorkflowEmbedding.Aux[InnerCtx, Ctx, O1, Any] = wio.embedding.contramap(_ => input)
-        convert(WFExecution.Partial(WIO.Embedded(newWio, embedding, _ => wio.initialState(input))))
+        convert(WFExecution.Partial(WIO.Embedded(newWio, embedding)))
     }
   }
 

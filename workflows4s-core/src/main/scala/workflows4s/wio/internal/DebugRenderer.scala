@@ -1,13 +1,14 @@
 package workflows4s.wio.internal
 
 import cats.implicits.catsSyntaxOptionId
-import workflows4s.wio
+import workflows4s.{RenderUtils, wio}
 import workflows4s.wio.*
 import workflows4s.wio.model.WIOExecutionProgress
 
 /** Renders WIO as a debugging string, that contains information about executed steps and minimal information about future ones
   */
-object DebugEvaluator {
+// TODO add to the docs
+object DebugRenderer {
   def getCurrentStateDescription(
       wio: WIO[?, ?, ?, ?],
   ): String = {
@@ -58,7 +59,7 @@ object DebugEvaluator {
       case x: WIOExecutionProgress.Loop[?]          => None
       case x: WIOExecutionProgress.Fork[?]          => None
       case x: WIOExecutionProgress.Interruptible[?] => None
-      case x: WIOExecutionProgress.Timer[?]         => x.meta.duration.map(_.toString).orElse(x.meta.releaseAt.map(_.toString))
+      case x: WIOExecutionProgress.Timer[?]         => x.meta.duration.map(RenderUtils.humanReadableDuration).orElse(x.meta.releaseAt.map(_.toString))
       case _: WIOExecutionProgress.Parallel[?]      => None
       case _: WIOExecutionProgress.Checkpoint[?]    => None
       case _: WIOExecutionProgress.Recovery[?]      => None
@@ -73,8 +74,8 @@ object DebugEvaluator {
       case _: WIOExecutionProgress.Dynamic          => Seq()
       case _: WIOExecutionProgress.RunIO[?]         => Seq()
       case x: WIOExecutionProgress.HandleError[?]   =>
-        // TODO should render handler without its children unless handler was entered.
-        renderChildren("base" -> x.base, "handler" -> x.handler)
+        Seq(renderChild("base", x.base)) ++
+          Option.when(RenderUtils.hasStarted(x.handler))(renderChild("handler", x.handler))
       case _: WIOExecutionProgress.HandleSignal[?]  => Seq()
       case _: WIOExecutionProgress.End[?]           => Seq()
       case _: WIOExecutionProgress.Pure[?]          => Seq()

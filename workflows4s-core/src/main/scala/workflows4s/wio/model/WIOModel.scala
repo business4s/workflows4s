@@ -15,7 +15,7 @@ object WIOModel {
   sealed trait Interruption extends WIOModel
 
   case class Sequence(steps: Seq[WIOModel])                                                  extends WIOModel {
-    assert(steps.size >= 2) // TODO could be safer
+    assert(steps.size >= 2, "Sequence should contain at least two steps")
   }
   case class Dynamic(meta: WIOMeta.Dynamic)                                                  extends WIOModel
   case class RunIO(meta: WIOMeta.RunIO)                                                      extends WIOModel

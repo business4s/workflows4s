@@ -20,8 +20,7 @@ object PostgresWorkflowStorage extends WorkflowStorage[WorkflowId] {
     val acquire = sql"select pg_try_advisory_xact_lock(${id})"
       .query[Boolean]
       .unique
-      .flatMap(lockAcquired => Sync[ConnectionIO].raiseWhen(!lockAcquired)(new Exception("Couldn't acquire lock")), // TODO better error
-      )
+      .flatMap(lockAcquired => Sync[ConnectionIO].raiseWhen(!lockAcquired)(new Exception(s"Couldn't acquire lock for ${id}")))
     Resource.eval(acquire)
   }
 }

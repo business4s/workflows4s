@@ -1,10 +1,8 @@
 package workflows4s.wio.internal
 
-import scala.reflect.ClassTag
-import scala.util.chaining.scalaUtilChainingOps
-
 import cats.effect.IO
-import workflows4s.wio.SignalDef
+
+import scala.util.chaining.scalaUtilChainingOps
 
 trait EventHandler[-In, +Out, EventBase, Evt] { parent =>
 
@@ -33,12 +31,6 @@ object EventHandler {
   }
 }
 
-case class SignalHandler[-Sig, +Evt, -In](handle: (In, Sig) => IO[Evt])(using sigCt: ClassTag[Sig]) {
-  def run[Req, Resp](signal: SignalDef[Req, Resp])(req: Req, in: In): Option[IO[Evt]] = {
-    sigCt.unapply(req).map(handle(in, _)) // TODO, something fishy here, Sig and Req should be a single thing
-  }
-
+case class SignalHandler[-Sig, +Evt, -In](handle: (In, Sig) => IO[Evt]) {
   def map[E1](f: Evt => E1): SignalHandler[Sig, E1, In] = SignalHandler((in, sig) => handle(in, sig).map(f))
-
-  def ct: ClassTag[?] = sigCt
 }

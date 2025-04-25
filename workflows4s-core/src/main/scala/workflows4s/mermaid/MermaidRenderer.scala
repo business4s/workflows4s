@@ -2,6 +2,7 @@ package workflows4s.mermaid
 
 import cats.data.State
 import cats.syntax.all.*
+import workflows4s.RenderUtils
 import workflows4s.wio.model.{WIOExecutionProgress, WIOMeta}
 
 import java.time.Duration
@@ -10,7 +11,7 @@ object MermaidRenderer {
 
   def renderWorkflow(model: WIOExecutionProgress[?], showTechnical: Boolean = false): MermaidFlowchart = {
     (addNode(
-      id => Node(id, "Start", shape = "circle".some, clazz = if (hasStarted(model)) executedClass.some else None),
+      id => Node(id, "Start", shape = "circle".some, clazz = if (RenderUtils.hasStarted(model)) executedClass.some else None),
       active = true,
     ) *>
       render(model, showTechnical))
@@ -30,6 +31,7 @@ object MermaidRenderer {
   private val checkpointStyles         = ClassDef(checkpointClass, "fill:transparent,stroke-dasharray:5 5,stroke:black")
   private val checkpointExecutedStyles = ClassDef(checkpointExecutedClass, "fill:transparent,stroke-dasharray:5 5,stroke:#0e0")
 
+  // returns id of the first element rendered
   private def render(model: WIOExecutionProgress[?], showTechnical: Boolean = false): State[RenderState, Option[NodeId]] = {
     def go(model: WIOExecutionProgress[?]): State[RenderState, Option[NodeId]] = {
       def addStep(label: String, shape: Option[String] = None): State[RenderState, NodeId] = {
@@ -66,12 +68,16 @@ object MermaidRenderer {
         case WIOExecutionProgress.HandleError(base, handler, error, _)        =>
           // generalized error label is unused as we connect specific errors directly to the handler
           for {
-            baseStart    <- go(base)
-            baseEnds     <- cleanActiveNodes
-            errors       <- cleanPendingErrors
-            handlerStart <- go(handler)
-            _            <- handleErrors(errors, handlerStart.get) // TODO better error handling or more typesafety?
-            _            <- State.modify[RenderState] { s => s.copy(activeNodes = baseEnds ++ s.activeNodes) }
+            baseStart       <- go(base)
+            baseEnds        <- cleanActiveNodes
+            errors          <- cleanPendingErrors
+            handlerStartOpt <- go(handler)
+            handlerStart     = handlerStartOpt.getOrElse(
+                                 throw new Exception(s"""Rendering error handler didn't produce a node. This is unexpected, please report as a bug.
+                                                    |Handler: ${handler}""".stripMargin),
+                               )
+            _               <- handleErrors(errors, handlerStart)
+            _               <- State.modify[RenderState] { s => s.copy(activeNodes = baseEnds ++ s.activeNodes) }
           } yield baseStart
         case WIOExecutionProgress.End(_)                                      =>
           addStep("End", shape = "circle".some).map(_.some)
@@ -85,7 +91,7 @@ object MermaidRenderer {
         case WIOExecutionProgress.Loop(base, onRestart, meta, history)        =>
           // history contains `current` and this is prefilled on creation,
           // hence empty nodes have history of 1 with not started node
-          if (history.size > 1 || history.lastOption.exists(hasStarted)) {
+          if (history.size > 1 || history.lastOption.exists(RenderUtils.hasStarted)) {
             // TODO we could render conditions as well
             for {
               subSteps <- history.traverse(h => go(h))
@@ -129,7 +135,7 @@ object MermaidRenderer {
             _                     <- State.modify[RenderState](s => s.copy(activeNodes = s.activeNodes ++ baseEnds))
           } yield baseStart
         case WIOExecutionProgress.Timer(meta, _)                              =>
-          val durationStr = meta.duration.map(humanReadableDuration).getOrElse("dynamic")
+          val durationStr = meta.duration.map(RenderUtils.humanReadableDuration).getOrElse("dynamic")
           val label       = s"${meta.name.getOrElse("")} ($durationStr)"
           for {
             stepId <-
@@ -139,7 +145,8 @@ object MermaidRenderer {
           } yield stepId.some
         case WIOExecutionProgress.Parallel(elems, _)                          =>
           for {
-            forkId <- addStepGeneral(id => Node(id, "", shape = forkShape.some, clazz = if (hasStarted(model)) executedClass.some else None))
+            forkId <-
+              addStepGeneral(id => Node(id, "", shape = forkShape.some, clazz = if (RenderUtils.hasStarted(model)) executedClass.some else None))
             ends   <- elems.toList.flatTraverse(element =>
                         for {
                           _    <- setActiveNodes(Seq((forkId, None)))
@@ -171,23 +178,6 @@ object MermaidRenderer {
     }
 
     go(model)
-  }
-
-  private def hasStarted(model: WIOExecutionProgress[?]): Boolean = model match {
-    case WIOExecutionProgress.Sequence(steps)                               => hasStarted(steps.head)
-    case WIOExecutionProgress.Dynamic(meta)                                 => false
-    case WIOExecutionProgress.RunIO(meta, result)                           => result.isDefined
-    case WIOExecutionProgress.HandleSignal(meta, result)                    => result.isDefined
-    case WIOExecutionProgress.HandleError(base, handler, meta, result)      => hasStarted(base) || hasStarted(handler)
-    case WIOExecutionProgress.End(result)                                   => result.isDefined
-    case WIOExecutionProgress.Pure(meta, result)                            => result.isDefined
-    case WIOExecutionProgress.Loop(base, onRestart, meta, history)          => history.nonEmpty
-    case WIOExecutionProgress.Fork(branches, meta, selected)                => selected.isDefined
-    case WIOExecutionProgress.Interruptible(base, trigger, handler, result) => hasStarted(base) || hasStarted(trigger)
-    case WIOExecutionProgress.Timer(meta, result)                           => result.isDefined
-    case WIOExecutionProgress.Parallel(elems, _)                            => elems.exists(hasStarted)
-    case WIOExecutionProgress.Checkpoint(base, result)                      => result.isDefined || hasStarted(base)
-    case WIOExecutionProgress.Recovery(result)                              => result.isDefined
   }
 
   private val eventShape     = "stadium"
@@ -264,8 +254,5 @@ object MermaidRenderer {
   private object RenderState {
     def initial(idIdx: Int): RenderState = RenderState(MermaidFlowchart(), idIdx, Seq(), Seq())
   }
-
-  // TODO commonize with bpmn renderer
-  private def humanReadableDuration(duration: Duration): String = duration.toString.substring(2).replaceAll("(\\d[HMS])(?!$)", "$1 ").toLowerCase
 
 }

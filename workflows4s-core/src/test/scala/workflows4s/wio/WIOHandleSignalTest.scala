@@ -5,9 +5,11 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxOptionId
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
+import workflows4s.testing.TestUtils
 import workflows4s.wio.WIO.HandleSignal
 
 import java.time.Instant
+import scala.util.Random
 
 class WIOHandleSignalTest extends AnyFreeSpec with Matchers {
 
@@ -72,7 +74,24 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers {
       assert(newWorkflowOpt.get.staticState == "eventHandled(initialState, SimpleEvent(test-event))")
     }
 
-    // TODO event with error case
+    "handle event with error" in {
+      import TestCtx2.*
+      val error = Random.alphanumeric.take(10).mkString
+      case class MyEvent(err: String) extends Event
+      val signalHandler: WIO[Any, String, TestState] = WIO
+        .handleSignal(mySignalDef)
+        .using[Any]
+        .purely((_, _) => MyEvent(error))
+        .handleEventWithError((_, evt) => Left(evt.err))
+        .produceResponse((_, _) => "")
+        .done
+      val eventHandler                               = TestUtils.errorHandler
+      val wio                                        = signalHandler.handleErrorWith(eventHandler)
+      val (_, wf)                                    = TestUtils.createInstance2(wio)
+
+      wf.deliverSignal(mySignalDef, 1)
+      assert(wf.queryState() == TestState(List(), List(error)))
+    }
 
     "proceed should be a no-op" in {
       val wf: ActiveWorkflow[Ctx] = WIO
@@ -164,6 +183,12 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers {
         val meta = wio.extractMeta
         assert(meta.error == errMeta)
       }
+    }
+
+    "convert to interruption" in {
+      import TestCtx2.*
+      val (_, _, wio: workflows4s.wio.WIO.IHandleSignal[TestState, Nothing, TestState, Ctx]) = TestUtils.signal
+      val interruption: WIO.Interruption[Nothing, TestState]                                 = wio.toInterruption
     }
 
   }

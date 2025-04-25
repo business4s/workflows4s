@@ -1,6 +1,7 @@
 package workflows4s.example.withdrawal.checks
 
 import cats.syntax.all.*
+import com.typesafe.scalalogging.StrictLogging
 import workflows4s.wio.{SignalDef, WorkflowContext}
 
 import scala.concurrent.duration.DurationInt
@@ -9,7 +10,7 @@ trait ChecksEngine {
   def runChecks: ChecksEngine.Context.WIO[ChecksInput, Nothing, ChecksState.Decided]
 }
 
-object ChecksEngine extends ChecksEngine {
+object ChecksEngine extends ChecksEngine with StrictLogging {
   val retryBackoff     = 20.seconds
   val timeoutThreshold = 2.minutes
 
@@ -72,7 +73,10 @@ object ChecksEngine extends ChecksEngine {
           .traverse(check =>
             check
               .run(state.input.data)
-              .handleError(_ => CheckResult.RequiresReview()) // TODO logging
+              .handleError(_ => {
+                logger.error("Error when running a check, falling back to manual review.")
+                CheckResult.RequiresReview()
+              })
               .tupleLeft(check.key),
           )
           .map(results => ChecksEvent.ChecksRun(results.toMap))

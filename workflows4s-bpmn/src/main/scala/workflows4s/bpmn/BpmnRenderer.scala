@@ -5,6 +5,7 @@ import org.camunda.bpm.model.bpmn.instance.bpmndi.BpmnDiagram
 import org.camunda.bpm.model.bpmn.instance.di.DiagramElement
 import org.camunda.bpm.model.bpmn.instance.{Activity, BaseElement, Definitions, FlowNode}
 import org.camunda.bpm.model.bpmn.{Bpmn, BpmnModelInstance}
+import workflows4s.RenderUtils
 import workflows4s.wio.model.{WIOMeta, WIOModel}
 
 import java.time.Duration
@@ -140,7 +141,7 @@ object BpmnRenderer {
           )
         interruptionFlowOpt.map(handle(_, interruptionPath)).getOrElse(interruptionPath)
       case WIOModel.Timer(meta)                                       =>
-        val durationStr = meta.duration.map(humanReadableDuration).getOrElse("dynamic")
+        val durationStr = meta.duration.map(RenderUtils.humanReadableDuration).getOrElse("dynamic")
         builder
           .intermediateCatchEvent()
           .timerWithDuration(durationStr)

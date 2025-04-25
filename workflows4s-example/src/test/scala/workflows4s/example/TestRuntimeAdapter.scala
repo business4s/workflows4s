@@ -138,8 +138,7 @@ object TestRuntimeAdapter {
       // with single shard region its tricky to inject input into behavior creation
       val typeKey = EntityTypeKey[Cmd](entityKeyPrefix + "-" + UUID.randomUUID().toString)
 
-      // we dont use PekkoRuntime because its tricky to test recover there.
-      // TODO maybe we could use persistance test kit?
+      // we dont use PekkoRuntime because it's tricky to test recovery there.
       val shardRegion   = sharding.init(
         Entity(typeKey)(createBehavior = entityContext => {
           val persistenceId = PersistenceId(entityContext.entityTypeKey.name, entityContext.entityId)
@@ -181,9 +180,8 @@ object TestRuntimeAdapter {
       override def getProgress: Id[WIOExecutionProgress[WCState[Ctx]]] = base.getProgress.await
       override def wakeup(): Id[Unit]                                  = base.wakeup().await
 
-      // TODO could at least use futureValue from scalatest
       extension [T](f: Future[T]) {
-        def await: T = Await.result(f, 5.seconds)
+        def await: T = Await.result(f, 2.seconds)
       }
     }
 

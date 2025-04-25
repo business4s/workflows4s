@@ -11,7 +11,6 @@ case class SignalDef[Req, Resp](id: String, explicitName: Option[String])(using 
 
 object SignalDef {
   def apply[Req: ClassTag, Resp: ClassTag](name: String = null, id: String = null): SignalDef[Req, Resp] = {
-    // TODO should we make it RT and wrap uuid generation?
     new SignalDef(Option(id).getOrElse(UUID.randomUUID().toString), Option(name))
   }
 }

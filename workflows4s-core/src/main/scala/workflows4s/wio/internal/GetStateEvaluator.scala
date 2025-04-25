@@ -77,7 +77,7 @@ object GetStateEvaluator {
     def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_] <: WCState[Ctx]](
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
     ): Result = {
-      val lastStateAsInner = wio.embedding.unconvertState(lastSeenState).getOrElse(wio.initialState(input))
+      val lastStateAsInner = wio.embedding.unconvertStateUnsafe(lastSeenState)
       GetStateVisitor(wio.inner, input, lastStateAsInner).run
         .map(innerState => wio.embedding.convertState(innerState, input))
     }

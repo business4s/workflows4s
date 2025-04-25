@@ -3,15 +3,13 @@ package workflows4s.runtime.wakeup.filesystem
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxOptionId
-import com.typesafe.scalalogging.StrictLogging
 import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.freespec.AnyFreeSpec
 import workflows4s.runtime.wakeup.filesystem.FilesystemKnockerUpper.StringCodec
+import workflows4s.testing.TestClock
 
 import java.nio.file.{Files, Path}
-import java.time.{Clock, Instant, ZoneId, ZoneOffset}
 import scala.concurrent.duration.*
-import scala.jdk.DurationConverters.ScalaDurationOps
 
 class FilesystemKnockerUpperTest extends AnyFreeSpec {
 
@@ -72,21 +70,6 @@ class FilesystemKnockerUpperTest extends AnyFreeSpec {
         )
         .unsafeRunSync()
     })
-  }
-
-  // TODO move somewhere to reuse between modules
-  class TestClock extends Clock with StrictLogging {
-    var instant_ : Instant = Instant.now
-
-    def setInstant(instant: Instant): Unit       = this.instant_ = instant
-    def instant: Instant                         = instant_
-    def getZone: ZoneId                          = ZoneOffset.UTC
-    override def withZone(zoneId: ZoneId): Clock = ???
-
-    def advanceBy(duration: FiniteDuration): Unit = {
-      instant_ = this.instant_.plus(duration.toJava)
-      logger.debug(s"Advancing time by ${duration} to ${instant_}")
-    }
   }
 
   def withTemporaryDirectory[A](block: fs2.io.file.Path => A): A = {
