@@ -2,6 +2,7 @@ package workflows4s.wio.internal
 
 import cats.effect.IO
 import cats.implicits.toFoldableOps
+import com.typesafe.scalalogging.StrictLogging
 import workflows4s.wio.*
 import workflows4s.wio.Interpreter.SignalResponse
 import workflows4s.wio.WIO.HandleInterruption.InterruptionStatus
@@ -26,19 +27,38 @@ object SignalEvaluator {
       req: Req,
       input: In,
       lastSeenState: WCState[Ctx],
-  ) extends Visitor[Ctx, In, Err, Out](wio) {
+  ) extends Visitor[Ctx, In, Err, Out](wio)
+      with StrictLogging {
     override type Result = Option[IO[(WCEvent[Ctx], Resp)]]
 
     def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result = {
       if (signalDef.id == wio.sigDef.id) {
-        wio.sigHandler
-          .run(signalDef)(req, input)
-          .map(ioOpt =>
-            for {
-              evt   <- ioOpt
-              result = wio.evtHandler.handle(input, evt)
-            } yield wio.evtHandler.convert(evt) -> signalDef.respCt.unapply(result._2).get, // TODO .get is unsafe
+        val expectedReqOpt = wio.sigDef.reqCt.unapply(req)
+        if (expectedReqOpt.isEmpty) {
+          logger.warn(
+            s"""Request passed to signal handler doesn't have the type expected by the handler. This should not happen, please report it as a bug.
+               |Request: ${req}
+               |Expected type: ${wio.sigDef.reqCt}
+               |""".stripMargin,
           )
+        }
+        val responseOpt = expectedReqOpt
+          .map(wio.sigHandler.handle(input, _))
+          .map(evtIo =>
+            for {
+              evt   <- evtIo
+              result = wio.evtHandler.handle(input, evt)
+            } yield wio.evtHandler.convert(evt) -> signalDef.respCt
+              .unapply(result._2)
+              .getOrElse(
+                throw new Exception(
+                  s"""The signal response type was different from the one expected based on SignalDef. This is probably a bug, please report it.
+                     |Response: ${result._2}
+                     |Expected: ${signalDef.respCt}""".stripMargin,
+                ),
+              ),
+          )
+        responseOpt
       } else None
     }
     def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result                               = None

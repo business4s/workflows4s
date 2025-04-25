@@ -58,7 +58,7 @@ object HandleSignalBuilder {
               def done: WIO[Input, Err, Out, Ctx] = {
                 val combined: (Input, Evt) => (Either[Err, Out], Resp)                   = (s: Input, e: Evt) => (eventHandler(s, e), responseBuilder(s, e))
                 val eh: EventHandler[Input, (Either[Err, Out], Resp), WCEvent[Ctx], Evt] = EventHandler(evtCt.unapply, identity, combined)
-                val sh: SignalHandler[Req, Evt, Input]                                   = SignalHandler(signalHandler)(using signalDef.reqCt)
+                val sh: SignalHandler[Req, Evt, Input]                                   = SignalHandler(signalHandler)
                 val meta                                                                 = HandleSignal.Meta(errorMeta, signalName.getOrElse(signalDef.name), operationName)
                 WIO.HandleSignal(signalDef, sh, eh, meta)
               }

@@ -8,10 +8,11 @@ trait WorkflowEmbedding[Inner <: WorkflowContext, Outer <: WorkflowContext, -Inp
 
   type OutputState[In <: WCState[Inner]] <: WCState[Outer]
   def convertState[In <: WCState[Inner]](innerState: In, input: Input): OutputState[In]
-  // TODO can we help with assuring symetry on user side?
+
+  // This is asymmetric because currently there is no way to ensure the upper bound of state within a workflow
   def unconvertState(outerState: WCState[Outer]): Option[WCState[Inner]]
 
-  def unconvertStateUnsafe(outerState: WCState[Outer]) = unconvertState(outerState)
+  def unconvertStateUnsafe(outerState: WCState[Outer]): WCState[Inner] = unconvertState(outerState)
     .getOrElse(
       throw new Exception(
         "Cannot convert the state of the embedding workflow into the state of the embedded one. " +

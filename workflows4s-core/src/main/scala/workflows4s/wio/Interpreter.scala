@@ -9,7 +9,9 @@ object Interpreter {
   sealed trait EventResponse[Ctx <: WorkflowContext] {
     def newWorkflow: Option[ActiveWorkflow[Ctx]] = this match {
       case EventResponse.Ok(newFlow)       => newFlow.some
-      case EventResponse.UnexpectedEvent() => None // TODO event is silently ignored. We should add logging at least
+      // TODO event is silently ignored here and runtimes have to log it.
+      //   Would be good to commonize this behavior
+      case EventResponse.UnexpectedEvent() => None
     }
   }
 

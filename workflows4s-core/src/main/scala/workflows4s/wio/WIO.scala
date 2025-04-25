@@ -7,7 +7,6 @@ import workflows4s.wio.builders.AllBuilders
 import workflows4s.wio.internal.{EventHandler, SignalHandler, WorkflowEmbedding}
 
 import java.time.{Duration, Instant}
-import scala.annotation.unused
 import scala.language.implicitConversions
 
 sealed trait WIO[-In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext] extends WIOMethods[Ctx, In, Err, Out]
@@ -23,18 +22,14 @@ object WIO {
       sigDef: SignalDef[Sig, Resp],
       sigHandler: SignalHandler[Sig, Evt, In],
       evtHandler: EventHandler[In, (Either[Err, Out], Resp), WCEvent[Ctx], Evt],
-      meta: HandleSignal.Meta,
+      meta: HandleSignal.Meta, // TODO here and everywhere else, we could use WIOMeta directly
   ) extends InterruptionSource[In, Err, Out, Ctx] {
-    def expects[Req1, Resp1](@unused signalDef: SignalDef[Req1, Resp1]): Option[HandleSignal[Ctx, In, Out, Err, Req1, Resp1, Evt]] = {
-      Some(this.asInstanceOf[HandleSignal[Ctx, In, Out, Err, Req1, Resp1, Evt]]) // TODO
-    }
 
-    // TODO this could be useful, just need to prove In >: WCState[Ctx]
-    // def toInterruption: Interruption[Ctx, Err, Out] = WIO.Interruption(this, InterruptionType.Signal)
+    def toInterruption(using ev: WCState[Ctx] <:< In): Interruption[Ctx, Err, Out] =
+      WIO.Interruption(ev.substituteContra[[t] =>> WIO[t, Err, Out, Ctx]](this), InterruptionType.Signal)
   }
 
   object HandleSignal {
-    // TODO, should the signal name be on handler level or in SignalDef?
     case class Meta(error: ErrorMeta[?], signalName: String, operationName: Option[String])
   }
 

@@ -11,7 +11,7 @@ object MermaidRenderer {
 
   def renderWorkflow(model: WIOExecutionProgress[?], showTechnical: Boolean = false): MermaidFlowchart = {
     (addNode(
-      id => Node(id, "Start", shape = "circle".some, clazz = if (hasStarted(model)) executedClass.some else None),
+      id => Node(id, "Start", shape = "circle".some, clazz = if (RenderUtils.hasStarted(model)) executedClass.some else None),
       active = true,
     ) *>
       render(model, showTechnical))
@@ -86,7 +86,7 @@ object MermaidRenderer {
         case WIOExecutionProgress.Loop(base, onRestart, meta, history)        =>
           // history contains `current` and this is prefilled on creation,
           // hence empty nodes have history of 1 with not started node
-          if (history.size > 1 || history.lastOption.exists(hasStarted)) {
+          if (history.size > 1 || history.lastOption.exists(RenderUtils.hasStarted)) {
             // TODO we could render conditions as well
             for {
               subSteps <- history.traverse(h => go(h))
@@ -140,7 +140,7 @@ object MermaidRenderer {
           } yield stepId.some
         case WIOExecutionProgress.Parallel(elems, _)                          =>
           for {
-            forkId <- addStepGeneral(id => Node(id, "", shape = forkShape.some, clazz = if (hasStarted(model)) executedClass.some else None))
+            forkId <- addStepGeneral(id => Node(id, "", shape = forkShape.some, clazz = if (RenderUtils.hasStarted(model)) executedClass.some else None))
             ends   <- elems.toList.flatTraverse(element =>
                         for {
                           _    <- setActiveNodes(Seq((forkId, None)))
@@ -172,23 +172,6 @@ object MermaidRenderer {
     }
 
     go(model)
-  }
-
-  private def hasStarted(model: WIOExecutionProgress[?]): Boolean = model match {
-    case WIOExecutionProgress.Sequence(steps)                               => hasStarted(steps.head)
-    case WIOExecutionProgress.Dynamic(meta)                                 => false
-    case WIOExecutionProgress.RunIO(meta, result)                           => result.isDefined
-    case WIOExecutionProgress.HandleSignal(meta, result)                    => result.isDefined
-    case WIOExecutionProgress.HandleError(base, handler, meta, result)      => hasStarted(base) || hasStarted(handler)
-    case WIOExecutionProgress.End(result)                                   => result.isDefined
-    case WIOExecutionProgress.Pure(meta, result)                            => result.isDefined
-    case WIOExecutionProgress.Loop(base, onRestart, meta, history)          => history.nonEmpty
-    case WIOExecutionProgress.Fork(branches, meta, selected)                => selected.isDefined
-    case WIOExecutionProgress.Interruptible(base, trigger, handler, result) => hasStarted(base) || hasStarted(trigger)
-    case WIOExecutionProgress.Timer(meta, result)                           => result.isDefined
-    case WIOExecutionProgress.Parallel(elems, _)                            => elems.exists(hasStarted)
-    case WIOExecutionProgress.Checkpoint(base, result)                      => result.isDefined || hasStarted(base)
-    case WIOExecutionProgress.Recovery(result)                              => result.isDefined
   }
 
   private val eventShape     = "stadium"

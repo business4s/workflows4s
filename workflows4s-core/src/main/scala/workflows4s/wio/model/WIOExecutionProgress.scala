@@ -21,7 +21,7 @@ object WIOExecutionProgress {
   }
 
   case class Sequence[State](steps: Seq[WIOExecutionProgress[State]]) extends WIOExecutionProgress[State] {
-    assert(steps.size >= 2) // TODO could be safer
+    assert(steps.size >= 2, "Sequence should contain at least two steps")
     def result: ExecutionResult[State] = steps.lastOption.flatMap(_.result)
 
     override lazy val toModel: WIOModel                                                      = WIOModel.Sequence(steps.map(_.toModel))

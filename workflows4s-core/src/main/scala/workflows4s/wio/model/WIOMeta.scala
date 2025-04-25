@@ -10,7 +10,6 @@ object WIOMeta {
 
   case class Dynamic(error: Option[Error]) derives Codec
   case class Pure(name: Option[String], error: Option[WIOMeta.Error]) derives Codec
-  // TODO, probably need better model to express started or not timer
   case class Timer(duration: Option[Duration], releaseAt: Option[Instant], name: Option[String]) derives Codec
   case class RunIO(name: Option[String], error: Option[WIOMeta.Error]) derives Codec
   case class HandleSignal(signalName: String, operationName: Option[String], error: Option[WIOMeta.Error]) derives Codec
