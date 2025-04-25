@@ -99,9 +99,8 @@ object ExecutionProgressEvaluator {
     }
     def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result = {
       val (trigger, rest) = extractFirstInterruption(recurse(wio.interruption, lastSeenState, result = None))
-        .getOrElse(throw new Exception(
-          s"""Couldn't extract interruption from the interruption path. This is a bug, please report it.
-            |Workflow: $wio""".stripMargin))
+        .getOrElse(throw new Exception(s"""Couldn't extract interruption from the interruption path. This is a bug, please report it.
+                                          |Workflow: $wio""".stripMargin))
       WIOExecutionProgress.Interruptible(
         recurse(wio.base, input, result = None),
         trigger,

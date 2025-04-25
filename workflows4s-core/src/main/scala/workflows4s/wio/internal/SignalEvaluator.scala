@@ -42,7 +42,7 @@ object SignalEvaluator {
                |""".stripMargin,
           )
         }
-        val responseOpt = expectedReqOpt
+        val responseOpt    = expectedReqOpt
           .map(wio.sigHandler.handle(input, _))
           .map(evtIo =>
             for {

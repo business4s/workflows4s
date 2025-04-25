@@ -140,7 +140,8 @@ object MermaidRenderer {
           } yield stepId.some
         case WIOExecutionProgress.Parallel(elems, _)                          =>
           for {
-            forkId <- addStepGeneral(id => Node(id, "", shape = forkShape.some, clazz = if (RenderUtils.hasStarted(model)) executedClass.some else None))
+            forkId <-
+              addStepGeneral(id => Node(id, "", shape = forkShape.some, clazz = if (RenderUtils.hasStarted(model)) executedClass.some else None))
             ends   <- elems.toList.flatTraverse(element =>
                         for {
                           _    <- setActiveNodes(Seq((forkId, None)))
