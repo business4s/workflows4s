@@ -8,9 +8,9 @@ import workflows4s.wio.model.{WIOMeta, WIOModel}
 
 class WIODraftTest extends AnyFreeSpec with Matchers with OptionValues with EitherValues {
 
-import TestCtx2.*
+  import TestCtx2.*
 
-"WIO.draft" - {
+  "WIO.draft" - {
     "should create a sequence of steps with correct names" in {
       val step1: Draft[Ctx] = WIO.draft.step("readCSVFile")
       val step2             = WIO.draft.step("parseCSVFile")
@@ -34,16 +34,14 @@ import TestCtx2.*
       val wio               = step1 >>> step2
       val model             = wio.toProgress.toModel
 
-      model match {
-        case WIOModel.Sequence(steps) =>
-          steps.foreach {
-            case WIOModel.RunIO(meta) =>
-              meta.name shouldBe defined
-              meta.error shouldBe None
-            case _ => fail("Expected RunIO steps")
-          }
-        case _ => fail("Expected Sequence model")
-      }
+      assert(
+        model == WIOModel.Sequence(
+          List(
+            WIOModel.RunIO(WIOMeta.RunIO(Some("Step1"), None)),
+            WIOModel.RunIO(WIOMeta.RunIO(Some("Step2"), None)),
+          ),
+        ),
+      )
     }
 
     "should create a sequence of steps with error messages when provided" in {
@@ -70,7 +68,7 @@ import TestCtx2.*
         case WIOModel.HandleSignal(meta) =>
           meta.signalName shouldBe "CR Approved"
           meta.error shouldBe None
-        case _ => fail("Expected HandleSignal model")
+        case _                           => fail("Expected HandleSignal model")
       }
     }
 
@@ -87,7 +85,7 @@ import TestCtx2.*
           steps.head.asInstanceOf[WIOModel.RunIO].meta.name shouldBe Some("TransformData")
           steps(1) shouldBe a[WIOModel.HandleSignal]
           steps(1).asInstanceOf[WIOModel.HandleSignal].meta.signalName shouldBe "run migration"
-        case _ => fail("Expected Sequence model")
+        case _                        => fail("Expected Sequence model")
       }
     }
   }
