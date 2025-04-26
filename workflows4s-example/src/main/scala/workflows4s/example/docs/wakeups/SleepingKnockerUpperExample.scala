@@ -4,6 +4,10 @@ import cats.effect.{IO, ResourceIO}
 import workflows4s.example.docs.wakeups.common.*
 import workflows4s.runtime.WorkflowRuntime
 
+import scala.annotation.nowarn
+
+@nowarn("msg=unused value")
+@nowarn("msg=unused local definition")
 object SleepingKnockerUpperExample {
 
   // docs_start

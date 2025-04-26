@@ -63,7 +63,7 @@ object WIO {
 
   case class End[Ctx <: WorkflowContext]() extends WIO[Any, Nothing, Nothing, Ctx]
 
-  case class FlatMap[Ctx <: WorkflowContext, Err1 <: Err2, Err2, Out1 <: WCState[Ctx], +Out2 <: WCState[Ctx], -In](
+  case class FlatMap[Ctx <: WorkflowContext, Err1 <: Err2, +Err2, Out1 <: WCState[Ctx], +Out2 <: WCState[Ctx], -In](
       base: WIO[In, Err1, Out1, Ctx],
       getNext: Out1 => WIO[Out1, Err2, Out2, Ctx],
       errorMeta: ErrorMeta[?],

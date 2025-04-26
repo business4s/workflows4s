@@ -69,10 +69,10 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
   private type St    = State[Ctx]
 
   val behavior: Behavior[Cmd] = Behaviors.setup { context =>
-    val activeWorkflow: ActiveWorkflow[Ctx] = ActiveWorkflow(workflow.provideInput(()), initialState)
+    val initialWf: ActiveWorkflow[Ctx] = ActiveWorkflow(workflow.provideInput(()), initialState)
     EventSourcedBehavior[Cmd, Event, St](
       persistenceId = id,
-      emptyState = State(activeWorkflow, awaitingCommandResult = false),
+      emptyState = State(initialWf, awaitingCommandResult = false),
       commandHandler = (state, cmd) =>
         cmd match {
           case cmd: Command.DeliverSignal[?, resp, Ctx] => handleSignalDelivery(cmd, state, context)
@@ -80,7 +80,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
           case cmd: Command.Wakeup[Ctx]                 => handleWakeup(cmd, state, context)
           case cmd: Command.PersistEvent[Ctx, ?]        => handlePersistEvent(cmd, state)
           case cmd: Command.UpdateWakeup                => handleUpdateWakeup(cmd)
-          case cmd: Command.GetProgress[Ctx]            => Effect.reply(cmd.replyTo)(activeWorkflow.wio.toProgress)
+          case cmd: Command.GetProgress[Ctx]            => Effect.reply(cmd.replyTo)(state.workflow.wio.toProgress)
 
         },
       eventHandler = handleEvent,
@@ -104,14 +104,13 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
             .thenRun((_: St) => {
               // has to be spawned from actor thread
               val ignore = context.spawnAnonymous(Behaviors.ignore)
-              resultIO
+              val _      = resultIO
                 .map((event, resp) => {
                   context.self ! Command.PersistEvent(event, (cmd.replyTo, SignalResponse.Success(resp)).some)
                   context.self ! Command.Wakeup(ignore)
                 })
                 .handleError(err => cmd.replyTo ! SignalResponse.Failed(err))
                 .unsafeToFuture()
-              ()
             })
         case None                                     =>
           Effect.none
@@ -132,7 +131,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
           Effect
             .persist(CommandAccepted)
             .thenRun((_: St) => {
-              eventIO
+              val _ = eventIO
                 .map(event => {
                   logger.debug(s"New event evaluated to ${event}. Persisting. ")
                   context.self ! Command.PersistEvent(event, None)
@@ -176,7 +175,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
           case None                      => ()
         }
         if (state.workflow.wakeupAt != newState.workflow.wakeupAt) {
-          knockerUpper.updateWakeup((), newState.workflow.wakeupAt)
+          val _ = knockerUpper.updateWakeup((), newState.workflow.wakeupAt).unsafeToFuture()
         }
       })
       .thenUnstashAll()
@@ -184,7 +183,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
 
   private def handleUpdateWakeup(cmd: Command.UpdateWakeup): Effect[Event, St] = {
     logger.debug(s"Updating wakeup to ${cmd.wakeup}")
-    knockerUpper
+    val _ = knockerUpper
       .updateWakeup((), cmd.wakeup)
       .handleError(err => {
         logger.error(s"Error when updating wakeup for workflow $id", err)

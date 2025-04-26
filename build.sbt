@@ -1,3 +1,5 @@
+import org.typelevel.scalacoptions.ScalacOptions
+
 lazy val `workflows4s` = (project in file("."))
   .settings(commonSettings)
   .aggregate(
@@ -115,10 +117,6 @@ lazy val commonSettings = Seq(
   ),
   // scalafix settings
   semanticdbEnabled := true, // enable SemanticDB
-  scalacOptions ++= Seq(
-    "-Wunused:imports",
-    "-Wconf:id=E198:error", // unused imports
-  ),
   organization      := "org.business4s",
   homepage          := Some(url("https://business4s.github.io/workflows4s/")),
   licenses          := List(License.MIT),
@@ -131,6 +129,7 @@ lazy val commonSettings = Seq(
     ),
   ),
   versionScheme     := Some("semver-spec"),
+  Test / tpolecatExcludeOptions += ScalacOptions.warnNonUnitStatement
 )
 
 lazy val pekkoVersion               = "1.1.3"

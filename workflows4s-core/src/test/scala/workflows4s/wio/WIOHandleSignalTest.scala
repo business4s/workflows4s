@@ -188,7 +188,7 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers {
     "convert to interruption" in {
       import TestCtx2.*
       val (_, _, wio: workflows4s.wio.WIO.IHandleSignal[TestState, Nothing, TestState, Ctx]) = TestUtils.signal
-      val interruption: WIO.Interruption[Nothing, TestState]                                 = wio.toInterruption
+      val _: WIO.Interruption[Nothing, TestState]                                            = wio.toInterruption
     }
 
   }

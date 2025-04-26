@@ -12,7 +12,8 @@ object PostgresWorkflowStorage extends WorkflowStorage[WorkflowId] {
   }
 
   override def saveEvent(id: WorkflowId, event: IArray[Byte]): ConnectionIO[Unit] = {
-    sql"insert into workflow_journal (workflow_id, event_data) values (${id}, ${event.toArray})".update.run.void
+    val bytes = IArray.genericWrapArray(event).toArray
+    sql"insert into workflow_journal (workflow_id, event_data) values ($id, $bytes)".update.run.void
   }
 
   override def lockWorkflow(id: WorkflowId): Resource[ConnectionIO, Unit] = {

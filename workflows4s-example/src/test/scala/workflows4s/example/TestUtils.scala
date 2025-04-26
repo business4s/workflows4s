@@ -59,22 +59,22 @@ object TestUtils {
   }
 
   private def ensureFileContentMatchesOrUpdate(content: String, path: Path): Unit = {
-    val absolutePath = path.toAbsolutePath
+    val absolutePath         = path.toAbsolutePath
     Files.createDirectories(absolutePath.getParent)
-    def writeAndFail = {
+    def writeAndFail(): Unit = {
       Files.writeString(absolutePath, content)
-      new TestFailedException(
+      throw new TestFailedException(
         s"File content mismatch at $absolutePath. Expected content has been written to the file. Please verify and commit the changes.",
         0,
       )
     }
 
     if (!Files.exists(absolutePath)) {
-      writeAndFail
+      writeAndFail()
     }
     val existingContent = Files.readString(absolutePath)
     if (existingContent != content) {
-      writeAndFail
+      writeAndFail()
     }
   }
 }

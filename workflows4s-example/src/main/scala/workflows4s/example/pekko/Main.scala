@@ -32,7 +32,7 @@ object Main extends IOApp {
               knockerUpper,
             )
           withdrawalWorkflowService = WithdrawalWorkflowService.Impl(journal, runtime)
-          routes                    = HttpRoutes(system, withdrawalWorkflowService)
+          routes                    = HttpRoutes(withdrawalWorkflowService)
           _                        <- runHttpServer(routes)
           _                        <- IO.fromFuture(IO(system.whenTerminated))
         } yield ExitCode.Success,

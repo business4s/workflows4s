@@ -1,12 +1,13 @@
 package workflows4s.example.docs.pullrequest
 
 import java.io.File
-
 import cats.effect.IO
 import org.camunda.bpm.model.bpmn.Bpmn
 import workflows4s.bpmn.BpmnRenderer
 import workflows4s.runtime.InMemorySyncRuntime
 import workflows4s.wio.{SignalDef, WorkflowContext}
+
+import scala.annotation.nowarn
 
 object PullRequestWorkflow {
 
@@ -108,6 +109,7 @@ object PullRequestWorkflow {
   ).handleErrorWith(closePR)
   // end_steps_3
 
+  @nowarn("msg=unused value")
   def main(args: Array[String]): Unit = {
     // start_render
     val bpmnModel = BpmnRenderer.renderWorkflow(workflow.toProgress.toModel, "process")
@@ -128,7 +130,7 @@ object PullRequestWorkflow {
     // end_execution
 
     // start_recovery
-    val recoveredInstance = runtime.createInstance((), PRState.Empty)
+    val recoveredInstance = runtime.createInstance(())
     recoveredInstance.recover(wfInstance.getEvents)
     assert(wfInstance.queryState() == recoveredInstance.queryState())
     // end_recovery
