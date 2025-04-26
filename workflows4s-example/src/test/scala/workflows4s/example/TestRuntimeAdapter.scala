@@ -139,7 +139,7 @@ object TestRuntimeAdapter {
       val typeKey = EntityTypeKey[Cmd](entityKeyPrefix + "-" + UUID.randomUUID().toString)
 
       // we dont use PekkoRuntime because it's tricky to test recovery there.
-      val shardRegion   = sharding.init(
+      val _             = sharding.init(
         Entity(typeKey)(createBehavior = entityContext => {
           val persistenceId = PersistenceId(entityContext.entityTypeKey.name, entityContext.entityId)
           val base          = WorkflowBehavior(persistenceId, workflow, state, clock, NoOpKnockerUpper.Agent)

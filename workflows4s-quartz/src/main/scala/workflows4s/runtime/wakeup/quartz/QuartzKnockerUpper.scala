@@ -25,6 +25,7 @@ class QuartzKnockerUpper[Id](runtimeId: RuntimeId, scheduler: Scheduler, dispatc
 
         if (scheduler.checkExists(jobKey)) {
           scheduler.rescheduleJob(trigger.getKey, trigger)
+          ()
         } else {
           val jobDetail = JobBuilder
             .newJob(classOf[WakeupJob])
@@ -32,9 +33,11 @@ class QuartzKnockerUpper[Id](runtimeId: RuntimeId, scheduler: Scheduler, dispatc
             .usingJobData(WakeupJob.workflowIdKey, idCodec.encode(id))
             .usingJobData(WakeupJob.runtimeIdKey, runtimeId)
             .build()
-          scheduler.scheduleJob(jobDetail, trigger)
+          scheduler.scheduleJob(jobDetail, java.util.Set.of(trigger), true)
         }
-      case None          => scheduler.deleteJob(jobKey)
+      case None          =>
+        scheduler.deleteJob(jobKey)
+        ()
     }
   }
 

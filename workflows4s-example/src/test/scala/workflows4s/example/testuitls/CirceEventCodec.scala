@@ -12,7 +12,7 @@ object CirceEventCodec {
     import java.nio.charset.StandardCharsets.UTF_8
 
     override def read(bytes: IArray[Byte]): Try[T] = {
-      val jsonString = new String(bytes.toArray, UTF_8)
+      val jsonString = new String(IArray.genericWrapArray(bytes).toArray, UTF_8)
       io.circe.parser.decode[T](jsonString) match {
         case Right(event) => Success(event)
         case Left(error)  => Failure(error)

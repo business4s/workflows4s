@@ -25,7 +25,7 @@ class SleepingKnockerUpperTest extends AnyFreeSpec {
             now = Instant.now()
             _  <- ku.updateWakeup(id, Some(now.plusMillis(100)))
             _  <- IO.sleep(200.millis)
-          } yield ku
+          } yield ()
         }
         .unsafeRunSync()
       assert(wokenUp == Vector(id))

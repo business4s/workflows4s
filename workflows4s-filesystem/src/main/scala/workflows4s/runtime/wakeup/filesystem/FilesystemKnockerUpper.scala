@@ -2,8 +2,8 @@ package workflows4s.runtime.wakeup.filesystem
 
 import java.nio.file.Path
 import java.time.{Clock, Instant}
-
 import cats.effect.{IO, ResourceIO}
+import cats.implicits.toFunctorOps
 import com.typesafe.scalalogging.StrictLogging
 import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.runtime.wakeup.filesystem.FilesystemKnockerUpper.StringCodec
@@ -34,7 +34,8 @@ class FilesystemKnockerUpper[Id](scheduler: FsScheduler)(using idCodec: StringCo
     .compile
     .drain
     .background
-    .map(_.void)
+    .void // we ditch the ability to wait for the stream to finish.
+  // If it's necessary, we could expose it, but it will complicate the return type.
 }
 
 object FilesystemKnockerUpper extends StrictLogging {

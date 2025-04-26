@@ -39,7 +39,7 @@ class PekkoRuntimeImpl[Ctx <: WorkflowContext](
   }
 
   def initializeShard(): Unit = {
-    sharding.init(
+    val _ = sharding.init(
       Entity(typeKey)(createBehavior = entityContext => {
         val persistenceId = PersistenceId(entityContext.entityTypeKey.name, entityContext.entityId)
         val input         = initialState
@@ -47,6 +47,7 @@ class PekkoRuntimeImpl[Ctx <: WorkflowContext](
         WorkflowBehavior(persistenceId, workflow.provideInput(input), input, clock, knockerUpperC)
       }),
     )
+    ()
   }
 
 }

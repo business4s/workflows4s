@@ -82,9 +82,9 @@ class InMemorySyncWorkflowInstance[Ctx <: WorkflowContext](
 
   private def updateState(newWf: ActiveWorkflow[Ctx]): Unit = {
     if (this.wf != newWf.wakeupAt) {
-      knockerUpper.updateWakeup((), newWf.wakeupAt)
+      knockerUpper.updateWakeup((), newWf.wakeupAt).unsafeRunSync()
     }
-    logger.debug(s"""Updating workflow. New behaviour:
+    logger.debug(s"""Updating workflow. New behavior:
                     | ${newWf.getDesc}
                     | New state: ${newWf.staticState}""".stripMargin)
     wf = newWf

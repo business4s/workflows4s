@@ -79,8 +79,10 @@ class FilesystemKnockerUpperTest extends AnyFreeSpec {
     } finally {
       Files.walk(tempDir).iterator().forEachRemaining { p =>
         p.toFile.delete()
+        ()
       }
       tempDir.toFile.delete()
+      ()
     }
   }
 
