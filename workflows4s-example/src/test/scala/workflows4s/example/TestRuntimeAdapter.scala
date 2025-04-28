@@ -142,7 +142,7 @@ object TestRuntimeAdapter {
       val _             = sharding.init(
         Entity(typeKey)(createBehavior = entityContext => {
           val persistenceId = PersistenceId(entityContext.entityTypeKey.name, entityContext.entityId)
-          val base          = WorkflowBehavior(persistenceId, workflow, state, clock, NoOpKnockerUpper.Agent)
+          val base          = WorkflowBehavior(persistenceId, workflow, state, clock)
           Behaviors.intercept[Cmd, RawCmd](() =>
             new BehaviorInterceptor[Cmd, RawCmd]() {
               override def aroundReceive(
@@ -165,11 +165,12 @@ object TestRuntimeAdapter {
       )
       val persistenceId = UUID.randomUUID().toString
       val entityRef     = sharding.entityRefFor(typeKey, persistenceId)
-      Actor(entityRef)
+      Actor(entityRef, clock)
     }
 
-    case class Actor(entityRef: EntityRef[Cmd]) extends WorkflowInstance[Id, WCState[Ctx]] {
-      val base                                                                                                                              = PekkoWorkflowInstance(entityRef, stateQueryTimeout = Timeout(1.second))
+    case class Actor(entityRef: EntityRef[Cmd], clock: Clock) extends WorkflowInstance[Id, WCState[Ctx]] {
+      val base                                                                                                                              =
+        PekkoWorkflowInstance(entityRef, NoOpKnockerUpper.Agent, clock, stateQueryTimeout = Timeout(1.second))
       override def queryState(): Id[WCState[Ctx]]                                                                                           = base.queryState().await
       override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): Id[Either[WorkflowInstance.UnexpectedSignal, Resp]] = {
         val resp = base.deliverSignal(signalDef, req).await
@@ -193,7 +194,7 @@ object TestRuntimeAdapter {
       val entityRef = sharding.entityRefFor(first.entityRef.typeKey, first.entityRef.entityId)
       logger.debug(s"""Original Actor: ${first.entityRef}
                       |New Actor     : ${entityRef}""".stripMargin)
-      Actor(entityRef)
+      Actor(entityRef, first.clock)
     }
   }
 
@@ -204,8 +205,13 @@ object TestRuntimeAdapter {
         state: WCState[Ctx],
         clock: Clock,
     ): Actor = {
+      import cats.effect.unsafe.implicits.global
       val runtime =
-        PostgresRuntime.default[Ctx, Unit](workflow, state, eventCodec, xa, NoOpKnockerUpper.Agent, clock)
+        PostgresRuntime
+          .default[Ctx, Unit](workflow, state, eventCodec, xa, NoOpKnockerUpper.Agent, clock)
+          .allocated // we shamelessly dont release it and hope its fine enough for tests.
+          .unsafeRunSync()
+          ._1
       Actor(runtime.createInstance(WorkflowId(Random.nextLong())))
     }
 

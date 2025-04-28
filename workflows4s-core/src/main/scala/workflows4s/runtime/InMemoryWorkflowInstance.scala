@@ -1,69 +1,50 @@
 package workflows4s.runtime
 
-import cats.effect.{IO, Ref}
-import cats.implicits.{catsSyntaxApplicativeId, catsSyntaxEitherId, toTraverseOps}
-import workflows4s.runtime.WorkflowInstance.UnexpectedSignal
+import cats.Monad
+import cats.effect.{IO, LiftIO, Ref}
+import cats.implicits.catsSyntaxApplicativeId
 import workflows4s.runtime.wakeup.KnockerUpper
+import workflows4s.runtime.wakeup.KnockerUpper.Agent.Curried
 import workflows4s.wio.*
-import workflows4s.wio.model.WIOExecutionProgress
 
 import java.time.Clock
 
-// WARNING: current implementation is not safe in concurrent scenario.
+// WARNING: current implementation is not safe in a concurrent scenario.
 // See https://github.com/business4s/workflows4s/issues/60 for details.
 class InMemoryWorkflowInstance[Ctx <: WorkflowContext](
     stateRef: Ref[IO, ActiveWorkflow[Ctx]],
     eventsRef: Ref[IO, Vector[WCEvent[Ctx]]],
-    clock: Clock,
-    knockerUpper: KnockerUpper.Agent.Curried,
-) extends WorkflowInstance[IO, WCState[Ctx]] {
+    protected val clock: Clock,
+    protected val knockerUpper: KnockerUpper.Agent.Curried,
+) extends WorkflowInstanceBase[IO, Ctx] {
 
-  def getEvents: IO[Vector[WCEvent[Ctx]]]                          = eventsRef.get
-  override def getProgress: IO[WIOExecutionProgress[WCState[Ctx]]] = stateRef.get.map(_.wio.toProgress)
+  def getEvents: IO[Vector[WCEvent[Ctx]]]          = eventsRef.get
+  def recover(events: Seq[WCEvent[Ctx]]): IO[Unit] = for {
+    oldState <- stateRef.get
+    newState <- super.recover(oldState, events)
+    _        <- stateRef.set(newState)
+    _        <- eventsRef.update(_ ++ events)
+  } yield ()
 
-  override def queryState(): IO[WCState[Ctx]] = for {
-    state <- stateRef.get
-    now   <- IO(clock.instant())
-  } yield state.liveState(now)
+  override protected def fMonad: Monad[IO]  = summon
+  override protected def liftIO: LiftIO[IO] = summon
 
-  override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): IO[Either[UnexpectedSignal, Resp]] = {
+  override protected def getWorkflow: IO[ActiveWorkflow[Ctx]] = stateRef.get
+
+  override protected def lockAndUpdateState[T](update: ActiveWorkflow[Ctx] => IO[LockOutcome[T]]): IO[StateUpdate[T]] = {
     for {
-      state  <- stateRef.get
-      now    <- IO(clock.instant())
-      result <- state.handleSignal(signalDef)(req, now) match {
-                  case Some(resultIO) =>
-                    for {
-                      result       <- resultIO
-                      (event, resp) = result
-                      _            <- handleEvent(event)
-                    } yield resp.asRight
-                  case None           => UnexpectedSignal(signalDef).asLeft.pure[IO]
-                }
+      oldState    <- stateRef.get
+      stateUpdate <- update(oldState)
+      now         <- IO(clock.instant())
+      result      <- stateUpdate match {
+                       case LockOutcome.NewEvent(event, result) =>
+                         val newState = processLiveEvent(event, oldState, now)
+                         for {
+                           _ <- stateRef.set(newState)
+                           _ <- eventsRef.update(_ :+ event)
+                         } yield StateUpdate.Updated(oldState, newState, result)
+                       case LockOutcome.NoOp(result)            => StateUpdate.NoOp(oldState, result).pure[IO]
+                     }
     } yield result
   }
-
-  override def wakeup(): IO[Unit] =
-    for {
-      state <- stateRef.get
-      now   <- IO(clock.instant())
-      _     <- state.proceed(now) match {
-                 case Some(resultIO) => resultIO.flatMap(handleEvent(_))
-                 case None           => IO.unit
-               }
-    } yield ()
-
-  private def handleEvent(event: WCEvent[Ctx], inRecovery: Boolean = false): IO[Unit] = {
-    for {
-      now        <- IO(clock.instant())
-      state      <- stateRef.get
-      newStateOpt = state.handleEvent(event, now)
-      newState   <- IO.fromOption(newStateOpt)(new Exception("Event returned by signal handling was not handled"))
-      _          <- eventsRef.update(_.appended(event))
-      _          <- stateRef.set(newState)
-      _          <- if (!inRecovery && state.wakeupAt != newState.wakeupAt) knockerUpper.updateWakeup((), newState.wakeupAt) else IO.unit
-      _          <- if (!inRecovery) wakeup() else IO.unit
-    } yield ()
-  }
-
-  def recover(events: Seq[WCEvent[Ctx]]): IO[Unit] = events.toList.traverse(handleEvent(_, inRecovery = true)).void
 }

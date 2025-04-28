@@ -8,7 +8,7 @@
         </encoder>
     </appender>
 
-    <logger name="workflows4s" level="DEBUG" />
+    <logger name="workflows4s" level="TRACE" />
 
     <root level="WARN">
         <appender-ref ref="CONSOLE"/>

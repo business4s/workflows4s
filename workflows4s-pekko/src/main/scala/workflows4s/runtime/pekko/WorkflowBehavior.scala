@@ -1,50 +1,45 @@
 package workflows4s.runtime.pekko
 
-import cats.effect.IO
 import cats.effect.unsafe.IORuntime
-import cats.implicits.catsSyntaxOptionId
 import com.typesafe.scalalogging.StrictLogging
-import org.apache.pekko.actor.typed.scaladsl.{ActorContext, Behaviors}
+import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.actor.typed.{ActorRef, Behavior}
+import org.apache.pekko.persistence.typed.PersistenceId
 import org.apache.pekko.persistence.typed.scaladsl.{Effect, EventSourcedBehavior}
-import org.apache.pekko.persistence.typed.{PersistenceId, RecoveryCompleted}
-import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.wio.*
-import workflows4s.wio.model.WIOExecutionProgress
 
-import java.time.{Clock, Instant}
-import scala.annotation.nowarn
+import java.time.Clock
+import java.util.UUID
+import java.util.concurrent.atomic.AtomicReference
 
 object WorkflowBehavior {
+
+  opaque type StateLockId <: String = String
+  object StateLockId {
+    def random(): StateLockId = UUID.randomUUID().toString
+  }
 
   def apply[Ctx <: WorkflowContext](
       id: PersistenceId,
       workflow: WIO.Initial[Ctx],
       initialState: WCState[Ctx],
       clock: Clock,
-      knockerUpper: KnockerUpper.Agent.Curried,
   )(using ioRuntime: IORuntime): Behavior[Command[Ctx]] =
-    new WorkflowBehavior(id, workflow, initialState, clock, knockerUpper).behavior
+    new WorkflowBehavior(id, workflow, initialState, clock).behavior
+
+  object LockExpired
 
   sealed trait Command[Ctx <: WorkflowContext]
   object Command {
-    case class DeliverSignal[Req, Resp, Ctx <: WorkflowContext](
-        signalDef: SignalDef[Req, Resp],
-        request: Req,
-        replyTo: ActorRef[SignalResponse[Resp]],
-    ) extends Command[Ctx]
-    case class QueryState[Ctx <: WorkflowContext](replyTo: ActorRef[WCState[Ctx]])                        extends Command[Ctx]
-    case class Wakeup[Ctx <: WorkflowContext](replyTo: ActorRef[Unit])                                    extends Command[Ctx]
-    case class GetProgress[Ctx <: WorkflowContext](replyTo: ActorRef[WIOExecutionProgress[WCState[Ctx]]]) extends Command[Ctx]
-
-    private[WorkflowBehavior] case class PersistEvent[Ctx <: WorkflowContext, T](event: WCEvent[Ctx], confirm: Option[(ActorRef[T], T)])
+    case class QueryState[Ctx <: WorkflowContext](replyTo: ActorRef[ActiveWorkflow[Ctx]])                 extends Command[Ctx]
+    // TODO should we communicate lock duration?
+    case class LockState[Ctx <: WorkflowContext](id: StateLockId, replyTo: ActorRef[ActiveWorkflow[Ctx]]) extends Command[Ctx]
+    case class UpdateState[Ctx <: WorkflowContext](id: StateLockId, replyTo: ActorRef[LockExpired.type | ActiveWorkflow[Ctx]], event: WCEvent[Ctx])
         extends Command[Ctx]
-    private[WorkflowBehavior] case class UpdateWakeup(wakeup: Option[Instant]) extends Command[?]
+    case class UnlockState[Ctx <: WorkflowContext](id: StateLockId, replyTo: ActorRef[Unit])              extends Command[Ctx]
   }
 
-  final private case class State[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx], awaitingCommandResult: Boolean)
-
-  case object CommandAccepted
+  final private case class State[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx])
 
   sealed trait SignalResponse[+Resp]
   object SignalResponse {
@@ -59,137 +54,82 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
     workflow: WIO.Initial[Ctx],
     initialState: WCState[Ctx],
     clock: Clock,
-    knockerUpper: KnockerUpper.Agent.Curried,
-)(using ioRuntime: IORuntime)
-    extends StrictLogging {
+) extends StrictLogging {
   import WorkflowBehavior.*
 
-  private type Event = WCEvent[Ctx] | CommandAccepted.type
+  private type Event = WCEvent[Ctx]
   private type Cmd   = Command[Ctx]
   private type St    = State[Ctx]
 
+  enum ProcessingState {
+    case Locked(id: StateLockId)
+    case Free
+  }
+
   val behavior: Behavior[Cmd] = Behaviors.setup { context =>
-    val initialWf: ActiveWorkflow[Ctx] = ActiveWorkflow(workflow.provideInput(()), initialState)
+    // doesn't have to be atomic but its what we have in stdlib
+    val processingState: AtomicReference[ProcessingState] = new AtomicReference(ProcessingState.Free)
+    val initialWf: ActiveWorkflow[Ctx]                    = ActiveWorkflow(workflow.provideInput(()), initialState)
     EventSourcedBehavior[Cmd, Event, St](
       persistenceId = id,
-      emptyState = State(initialWf, awaitingCommandResult = false),
-      commandHandler = (state, cmd) =>
+      emptyState = State(initialWf),
+      commandHandler = (state, cmd) => {
         cmd match {
-          case cmd: Command.DeliverSignal[?, resp, Ctx] => handleSignalDelivery(cmd, state, context)
-          case Command.QueryState(replyTo)              => Effect.none.thenRun(state => replyTo ! state.workflow.liveState(clock.instant()))
-          case cmd: Command.Wakeup[Ctx]                 => handleWakeup(cmd, state, context)
-          case cmd: Command.PersistEvent[Ctx, ?]        => handlePersistEvent(cmd, state)
-          case cmd: Command.UpdateWakeup                => handleUpdateWakeup(cmd)
-          case cmd: Command.GetProgress[Ctx]            => Effect.reply(cmd.replyTo)(state.workflow.wio.toProgress)
+          case Command.QueryState(replyTo)   => Effect.reply(replyTo)(state.workflow)
+          case cmd: Command.LockState[Ctx]   => handleLock(cmd, state, processingState)
+          case cmd: Command.UnlockState[Ctx] => handleUnlock(cmd, processingState)
+          case cmd: Command.UpdateState[Ctx] => handleUpdateState(cmd, processingState)
 
-        },
+        }
+      },
       eventHandler = handleEvent,
-    ).receiveSignal { case (state, RecoveryCompleted) =>
-      logger.debug("Workflow recovered, waking up.")
-      context.self ! Command.Wakeup(context.spawnAnonymous(Behaviors.ignore))
-    }
+    )
   }
 
-  private def handleSignalDelivery[Req, Resp](
-      cmd: Command.DeliverSignal[Req, Resp, Ctx],
-      state: St,
-      context: ActorContext[Cmd],
-  ): Effect[Event, St] = {
-    if (state.awaitingCommandResult) Effect.stash()
-    else {
-      state.workflow.handleSignal(cmd.signalDef)(cmd.request, clock.instant()) match {
-        case Some(resultIO: IO[(WCEvent[Ctx], resp)]) =>
-          Effect
-            .persist(CommandAccepted)
-            .thenRun((_: St) => {
-              // has to be spawned from actor thread
-              val ignore = context.spawnAnonymous(Behaviors.ignore)
-              val _      = resultIO
-                .map((event, resp) => {
-                  context.self ! Command.PersistEvent(event, (cmd.replyTo, SignalResponse.Success(resp)).some)
-                  context.self ! Command.Wakeup(ignore)
-                })
-                .handleError(err => cmd.replyTo ! SignalResponse.Failed(err))
-                .unsafeToFuture()
-            })
-        case None                                     =>
-          Effect.none
-            .thenRun(_ => cmd.replyTo ! SignalResponse.Unexpected)
-      }
-    }
-  }
-
-  private def handleWakeup(cmd: Command.Wakeup[Ctx], state: St, context: ActorContext[Cmd]): Effect[Event, St] = {
-    logger.debug(s"Waking up.")
-    if (state.awaitingCommandResult) {
-      logger.debug(s"Another command processing. Stashing")
-      Effect.stash()
-    } else {
-      state.workflow.proceed(clock.instant()) match {
-        case Some(eventIO) =>
-          logger.debug("Got new state during wakeup. Evaluating")
-          Effect
-            .persist(CommandAccepted)
-            .thenRun((_: St) => {
-              val _ = eventIO
-                .map(event => {
-                  logger.debug(s"New event evaluated to ${event}. Persisting. ")
-                  context.self ! Command.PersistEvent(event, None)
-                  context.self ! Command.Wakeup(cmd.replyTo)
-                })
-                .handleError(err => logger.error("Failed to execute workflow", err))
-                .unsafeToFuture()
-            })
-        case None          =>
-          logger.debug("No new state during wakeup.")
-          Effect.none.thenRun(_ => cmd.replyTo ! ())
-      }
-    }
-  }
-
-  // it's safe, compiler cant get patmatch exhaustivity
-  @nowarn("msg=he type test for workflows4s.wio.WorkflowContext.Event")
   private def handleEvent(state: St, event: Event): State[Ctx] = {
-    event match {
-      case CommandAccepted       => state.copy(awaitingCommandResult = true)
-      // compiler cant see that patmatch is exhaustive
-      case wfEvent: WCEvent[Ctx] =>
-        state.workflow.handleEvent(wfEvent, clock.instant()) match {
-          case Some(newWf) => State(newWf, awaitingCommandResult = false)
-          case None        =>
-            logger.warn(s"Unhandled and ignored event for workflow $id. Event: $event")
-            state
-        }
+    state.workflow.handleEvent(event, clock.instant()) match {
+      case Some(newWf) => State(newWf)
+      case None        =>
+        logger.warn(s"Unhandled and ignored event for workflow $id. Event: $event")
+        state
     }
   }
 
-  private def handlePersistEvent[Response](cmd: Command.PersistEvent[Ctx, Response], state: St) = {
-    logger.debug(s"Persisting event ${cmd.event}")
-    Effect
-      .persist(cmd.event)
-      .thenRun((newState: St) => {
-        cmd.confirm match {
-          case Some((replyTo, response)) =>
-            logger.debug(s"Replying to ${replyTo} with ${response} after persisting ${cmd.event}")
-            replyTo ! response
-          case None                      => ()
-        }
-        if (state.workflow.wakeupAt != newState.workflow.wakeupAt) {
-          val _ = knockerUpper.updateWakeup((), newState.workflow.wakeupAt).unsafeToFuture()
-        }
-      })
-      .thenUnstashAll()
+  private def handleLock(cmd: Command.LockState[Ctx], state: St, processingState: AtomicReference[ProcessingState]): Effect[Event, St] = {
+    processingState.get() match {
+      case ProcessingState.Locked(cmd.id) | ProcessingState.Free =>
+        logger.trace(s"Locked state with lock id ${cmd.id}")
+        processingState.set(ProcessingState.Locked(cmd.id))
+        Effect.reply(cmd.replyTo)(state.workflow)
+      case ProcessingState.Locked(id)                            =>
+        logger.debug(s"State already locked by id ${id}, request with id ${cmd.id} will be stashed.")
+        Effect.stash()
+    }
+  }
+  private def handleUnlock(cmd: Command.UnlockState[Ctx], processingState: AtomicReference[ProcessingState]): Effect[Event, St]        = {
+    processingState.get() match {
+      case ProcessingState.Locked(cmd.id) => processingState.set(ProcessingState.Free)
+      case state                          =>
+        logger.warn(s"Tried to unlock with ${cmd.id} but the state is $state")
+    }
+    // regardless of the state, we conclude unlocking as "done" because the lock with that id is no longer kept
+    Effect.reply(cmd.replyTo)(())
   }
 
-  private def handleUpdateWakeup(cmd: Command.UpdateWakeup): Effect[Event, St] = {
-    logger.debug(s"Updating wakeup to ${cmd.wakeup}")
-    val _ = knockerUpper
-      .updateWakeup((), cmd.wakeup)
-      .handleError(err => {
-        logger.error(s"Error when updating wakeup for workflow $id", err)
-      })
-      .unsafeToFuture()
-    Effect.none
+  private def handleUpdateState(cmd: Command.UpdateState[Ctx], processingState: AtomicReference[ProcessingState]) = {
+    processingState.get() match {
+      case ProcessingState.Locked(cmd.id)                   =>
+        logger.debug(s"Persisting event ${cmd.event}")
+        Effect
+          .persist(cmd.event)
+          .thenRun((newState: St) => {
+            processingState.set(ProcessingState.Free)
+            cmd.replyTo ! newState.workflow
+          })
+          .thenUnstashAll()
+      case ProcessingState.Locked(_) | ProcessingState.Free =>
+        Effect.reply(cmd.replyTo)(LockExpired)
+    }
   }
 
 }
