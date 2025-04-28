@@ -19,11 +19,9 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
   // this could theoretically be implemented in terms of `updateState` but we dont want to lock anything unnecessarly
   protected def getWorkflow: F[ActiveWorkflow[Ctx]]
 
-  enum LockResult[+T]  {
-    case StateUpdate(event: WCEvent[Ctx], result: T)
+  enum LockOutcome[+T] {
+    case NewEvent(event: WCEvent[Ctx], result: T)
     case NoOp(result: T)
-
-    def result: T
   }
   enum StateUpdate[+T] {
     case Updated(oldState: ActiveWorkflow[Ctx], newState: ActiveWorkflow[Ctx], result: T)
@@ -31,7 +29,7 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
 
     def result: T
   }
-  protected def lockAndUpdateState[T](update: ActiveWorkflow[Ctx] => F[LockResult[T]]): F[StateUpdate[T]]
+  protected def lockAndUpdateState[T](update: ActiveWorkflow[Ctx] => F[LockOutcome[T]]): F[StateUpdate[T]]
   protected def knockerUpper: KnockerUpper.Agent.Curried
   protected def clock: Clock
 
@@ -45,20 +43,20 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
   override def getProgress: F[WIOExecutionProgress[WCState[Ctx]]] = getWorkflow.map(_.wio.toProgress)
 
   override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): F[Either[WorkflowInstance.UnexpectedSignal, Resp]] = {
-    def processSignal(state: ActiveWorkflow[Ctx], now: Instant): F[LockResult[Either[WorkflowInstance.UnexpectedSignal, Resp]]] = {
+    def processSignal(state: ActiveWorkflow[Ctx], now: Instant): F[LockOutcome[Either[WorkflowInstance.UnexpectedSignal, Resp]]] = {
       state.handleSignal(signalDef)(req, now) match {
         case Some(resultIO) =>
           for {
             result       <- liftIO.liftIO(resultIO)
             (event, resp) = result
-          } yield LockResult.StateUpdate(event, resp.asRight)
+          } yield LockOutcome.NewEvent(event, resp.asRight)
         case None           =>
-          LockResult.NoOp(UnexpectedSignal(signalDef).asLeft).pure[F]
+          LockOutcome.NoOp(UnexpectedSignal(signalDef).asLeft).pure[F]
       }
     }
     for {
       now         <- currentTime
-      _            = logger.trace(s"Delivering signal $signalDef")
+      _            = logger.debug(s"Delivering signal $signalDef")
       stateUpdate <- lockAndUpdateState(processSignal(_, now))
       _           <- postEventActions(stateUpdate)
     } yield stateUpdate.result
@@ -75,8 +73,8 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
                                      case Some(resultIO) =>
                                        for {
                                          event <- liftIO.liftIO(resultIO)
-                                       } yield LockResult.StateUpdate(event, ())
-                                     case None           => LockResult.NoOp(()).pure[F]
+                                       } yield LockOutcome.NewEvent(event, ())
+                                     case None           => LockOutcome.NoOp(()).pure[F]
                                    }
                        } yield result
                      }
@@ -97,7 +95,14 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
     update match {
       case StateUpdate.Updated(oldState, newState, _) =>
         for {
-          _ <- if (newState.wakeupAt != oldState.wakeupAt) liftIO.liftIO(knockerUpper.updateWakeup((), newState.wakeupAt))
+          _ <- if (newState.wakeupAt != oldState.wakeupAt)
+                 liftIO.liftIO(
+                   knockerUpper
+                     .updateWakeup((), newState.wakeupAt)
+                     .handleError(err => {
+                       logger.error("Failed to register wakeup", err)
+                     }),
+                 )
                else fMonad.unit
           _ <- wakeup()
         } yield ()

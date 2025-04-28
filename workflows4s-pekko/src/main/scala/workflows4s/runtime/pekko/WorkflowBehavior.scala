@@ -74,7 +74,6 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
       persistenceId = id,
       emptyState = State(initialWf),
       commandHandler = (state, cmd) => {
-        logger.trace(s"Received command ${cmd}")
         cmd match {
           case Command.QueryState(replyTo)   => Effect.reply(replyTo)(state.workflow)
           case cmd: Command.LockState[Ctx]   => handleLock(cmd, state, processingState)
@@ -113,7 +112,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
       case state                          =>
         logger.warn(s"Tried to unlock with ${cmd.id} but the state is $state")
     }
-    // regardless of the state we conclude unlocking as "done" because the lock with that id is no longer kept
+    // regardless of the state, we conclude unlocking as "done" because the lock with that id is no longer kept
     Effect.reply(cmd.replyTo)(())
   }
 

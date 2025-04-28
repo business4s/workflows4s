@@ -30,7 +30,7 @@ class PostgresRuntime[Ctx <: WorkflowContext](
         eventCodec,
         clock,
         knockerUpper,
-        liftIO
+        liftIO,
       )
       new MappedWorkflowInstance(base, [t] => (connIo: ConnectionIO[t]) => xa.trans.apply(connIo))
     }

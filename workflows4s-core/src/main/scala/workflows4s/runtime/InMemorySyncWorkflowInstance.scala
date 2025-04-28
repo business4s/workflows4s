@@ -34,14 +34,14 @@ class InMemorySyncWorkflowInstance[Ctx <: WorkflowContext](
   override protected def fMonad: Monad[Id]                                = cats.Invariant.catsInstancesForId
   override protected def getWorkflow: workflows4s.wio.ActiveWorkflow[Ctx] = wf
 
-  override protected def lockAndUpdateState[T](update: ActiveWorkflow[Ctx] => LockResult[T]): StateUpdate[T] = {
+  override protected def lockAndUpdateState[T](update: ActiveWorkflow[Ctx] => LockOutcome[T]): StateUpdate[T] = {
     val oldState = wf
     update(oldState) match {
-      case LockResult.StateUpdate(event, result) =>
+      case LockOutcome.NewEvent(event, result) =>
         val newState = processLiveEvent(event, oldState, clock.instant())
         updateState(newState, Seq(event))
         StateUpdate.Updated(oldState, newState, result)
-      case LockResult.NoOp(result)               => StateUpdate.NoOp(oldState, result)
+      case LockOutcome.NoOp(result)            => StateUpdate.NoOp(oldState, result)
     }
   }
 

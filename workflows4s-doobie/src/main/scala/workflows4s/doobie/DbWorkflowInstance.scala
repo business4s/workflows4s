@@ -28,7 +28,7 @@ class DbWorkflowInstance[Ctx <: WorkflowContext, Id](
   override protected lazy val knockerUpper: Curried  = knockerUpperForId.curried(id)
 
   override protected def getWorkflow: ConnectionIO[ActiveWorkflow[Ctx]] = for {
-    events <- queryEvents
+    events   <- queryEvents
     newState <- recover(baseWorkflow, events)
   } yield newState
 
@@ -36,18 +36,18 @@ class DbWorkflowInstance[Ctx <: WorkflowContext, Id](
     storage.getEvents(id).flatMap(_.traverse(eventBytes => Sync[ConnectionIO].fromTry(eventCodec.read(eventBytes))))
   }
 
-  override protected def lockAndUpdateState[T](update: ActiveWorkflow[Ctx] => ConnectionIO[LockResult[T]]): ConnectionIO[StateUpdate[T]] = {
+  override protected def lockAndUpdateState[T](update: ActiveWorkflow[Ctx] => ConnectionIO[LockOutcome[T]]): ConnectionIO[StateUpdate[T]] = {
     for {
       oldState    <- getWorkflow
       lockResult  <- update(oldState)
       now         <- Sync[ConnectionIO].delay(clock.instant())
       stateUpdate <- lockResult match {
-                       case LockResult.StateUpdate(event, result) =>
+                       case LockOutcome.NewEvent(event, result) =>
                          for {
                            _       <- storage.saveEvent(id, eventCodec.write(event))
                            newState = processLiveEvent(event, oldState, now)
                          } yield StateUpdate.Updated(oldState, newState, result)
-                       case LockResult.NoOp(result)               => StateUpdate.NoOp(oldState, result).pure[ConnectionIO]
+                       case LockOutcome.NoOp(result)            => StateUpdate.NoOp(oldState, result).pure[ConnectionIO]
                      }
     } yield stateUpdate
 

@@ -40,17 +40,20 @@ class PekkoWorkflowInstance[Ctx <: WorkflowContext](
     actorRef.ask[ActiveWorkflow[Ctx]](replyTo => WorkflowBehavior.Command.QueryState(replyTo))
   }
 
-  override protected def lockAndUpdateState[T](update: ActiveWorkflow[Ctx] => Future[LockResult[T]]): Future[StateUpdate[T]] = {
+  override protected def lockAndUpdateState[T](update: ActiveWorkflow[Ctx] => Future[LockOutcome[T]]): Future[StateUpdate[T]] = {
     val lockId    = StateLockId.random()
     given Timeout = lockTimeout
+    def unlock    = actorRef.ask[Unit](replyTo => WorkflowBehavior.Command.UnlockState(lockId, replyTo))
     for {
-      oldState   <- actorRef.ask[ActiveWorkflow[Ctx]](replyTo => WorkflowBehavior.Command.LockState(lockId, replyTo))
+      oldState   <- actorRef
+                      .ask[ActiveWorkflow[Ctx]](replyTo => WorkflowBehavior.Command.LockState(lockId, replyTo))
+                      .onError(_ => unlock) // in case of timeout or other problems with receiving response.
       lockResult <- update(oldState).onError(err => {
                       logger.error(s"State update failed. Releasing lock ${lockId}", err)
-                      actorRef.ask[Unit](replyTo => WorkflowBehavior.Command.UnlockState(lockId, replyTo))
+                      unlock
                     })
       result     <- lockResult match {
-                      case LockResult.StateUpdate(event, result) =>
+                      case LockOutcome.NewEvent(event, result) =>
                         for {
                           askResult <-
                             actorRef.ask[LockExpired.type | ActiveWorkflow[Ctx]](replyTo => WorkflowBehavior.Command.UpdateState(lockId, replyTo, event))
@@ -66,9 +69,9 @@ class PekkoWorkflowInstance[Ctx <: WorkflowContext](
                                          case newState: workflows4s.wio.ActiveWorkflow[Ctx] => StateUpdate.Updated(oldState, newState, result).pure[Future]
                                        }
                         } yield result
-                      case LockResult.NoOp(result)               =>
+                      case LockOutcome.NoOp(result)            =>
                         for {
-                          _ <- actorRef.ask[Unit](replyTo => WorkflowBehavior.Command.UnlockState(lockId, replyTo))
+                          _ <- unlock
                         } yield StateUpdate.NoOp(oldState, result)
                     }
 

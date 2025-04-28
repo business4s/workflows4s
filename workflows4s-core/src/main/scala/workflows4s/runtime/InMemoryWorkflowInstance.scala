@@ -31,19 +31,19 @@ class InMemoryWorkflowInstance[Ctx <: WorkflowContext](
 
   override protected def getWorkflow: IO[ActiveWorkflow[Ctx]] = stateRef.get
 
-  override protected def lockAndUpdateState[T](update: ActiveWorkflow[Ctx] => IO[LockResult[T]]): IO[StateUpdate[T]] = {
+  override protected def lockAndUpdateState[T](update: ActiveWorkflow[Ctx] => IO[LockOutcome[T]]): IO[StateUpdate[T]] = {
     for {
       oldState    <- stateRef.get
       stateUpdate <- update(oldState)
       now         <- IO(clock.instant())
       result      <- stateUpdate match {
-                       case LockResult.StateUpdate(event, result) =>
+                       case LockOutcome.NewEvent(event, result) =>
                          val newState = processLiveEvent(event, oldState, now)
                          for {
                            _ <- stateRef.set(newState)
                            _ <- eventsRef.update(_ :+ event)
                          } yield StateUpdate.Updated(oldState, newState, result)
-                       case LockResult.NoOp(result)               => StateUpdate.NoOp(oldState, result).pure[IO]
+                       case LockOutcome.NoOp(result)            => StateUpdate.NoOp(oldState, result).pure[IO]
                      }
     } yield result
   }
