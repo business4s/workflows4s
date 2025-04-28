@@ -8,10 +8,6 @@ import workflows4s.runtime.WorkflowInstance
 import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.wio.{WCState, WorkflowContext}
 
-import scala.annotation.nowarn
-
-@nowarn("msg=unused value")
-@nowarn("msg=unused local definition")
 object PostgresExample {
 
   object MyWorkflowCtx extends WorkflowContext {
@@ -28,12 +24,8 @@ object PostgresExample {
   val eventCodec: EventCodec[Event]                = ???
   val transactor: Transactor[IO]                   = ???
 
-  PostgresRuntime
-    .default(workflow, initialState, eventCodec, transactor, knockerUpper) // Resource
-    .use(runtime => {
-      val wfInstance: IO[WorkflowInstance[IO, WCState[Ctx]]] = runtime.createInstance(WorkflowId(1L))
-      ???
-    })
+  val runtime: PostgresRuntime[Ctx]                      = PostgresRuntime.default(workflow, InitialState(), eventCodec, transactor, knockerUpper)
+  val wfInstance: IO[WorkflowInstance[IO, WCState[Ctx]]] = runtime.createInstance(WorkflowId(1L))
   // doc_end
 
 }

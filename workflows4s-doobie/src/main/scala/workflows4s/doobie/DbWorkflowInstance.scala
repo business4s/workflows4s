@@ -1,7 +1,8 @@
 package workflows4s.doobie
 
 import cats.Monad
-import cats.effect.{LiftIO, Sync}
+import cats.data.Kleisli
+import cats.effect.{IO, LiftIO, Sync}
 import cats.syntax.all.*
 import com.typesafe.scalalogging.StrictLogging
 import doobie.ConnectionIO
@@ -13,6 +14,8 @@ import workflows4s.wio.*
 
 import java.time.Clock
 
+private type Result[T] = Kleisli[ConnectionIO, LiftIO[ConnectionIO], T]
+
 class DbWorkflowInstance[Ctx <: WorkflowContext, Id](
     id: Id,
     baseWorkflow: ActiveWorkflow[Ctx],
@@ -20,36 +23,41 @@ class DbWorkflowInstance[Ctx <: WorkflowContext, Id](
     eventCodec: EventCodec[WCEvent[Ctx]],
     protected val clock: Clock,
     knockerUpperForId: KnockerUpper.Agent[Id],
-    protected val liftIO: LiftIO[ConnectionIO],
-) extends WorkflowInstanceBase[ConnectionIO, Ctx]
+) extends WorkflowInstanceBase[Result, Ctx]
     with StrictLogging {
 
-  override protected def fMonad: Monad[ConnectionIO] = summon
-  override protected lazy val knockerUpper: Curried  = knockerUpperForId.curried(id)
+  override protected def fMonad: Monad[Result]      = summon
+  override protected lazy val knockerUpper: Curried = knockerUpperForId.curried(id)
 
-  override protected def getWorkflow: ConnectionIO[ActiveWorkflow[Ctx]] = for {
-    events   <- queryEvents
-    newState <- recover(baseWorkflow, events)
-  } yield newState
+  override protected def getWorkflow: Result[ActiveWorkflow[Ctx]] =
+    for {
+      events   <- queryEvents
+      newState <- recover(baseWorkflow, events)
+    } yield newState
 
-  private def queryEvents: ConnectionIO[List[WCEvent[Ctx]]] = {
+  private def queryEvents: Result[List[WCEvent[Ctx]]] = Kleisli(liftIo => {
     storage.getEvents(id).flatMap(_.traverse(eventBytes => Sync[ConnectionIO].fromTry(eventCodec.read(eventBytes))))
-  }
+  })
 
-  override protected def lockAndUpdateState[T](update: ActiveWorkflow[Ctx] => ConnectionIO[LockOutcome[T]]): ConnectionIO[StateUpdate[T]] = {
+  override protected def lockAndUpdateState[T](update: ActiveWorkflow[Ctx] => Result[LockOutcome[T]]): Result[StateUpdate[T]] = {
     for {
       oldState    <- getWorkflow
       lockResult  <- update(oldState)
-      now         <- Sync[ConnectionIO].delay(clock.instant())
+      now         <- Sync[Result].delay(clock.instant())
       stateUpdate <- lockResult match {
                        case LockOutcome.NewEvent(event, result) =>
-                         for {
-                           _       <- storage.saveEvent(id, eventCodec.write(event))
-                           newState = processLiveEvent(event, oldState, now)
-                         } yield StateUpdate.Updated(oldState, newState, result)
-                       case LockOutcome.NoOp(result)            => StateUpdate.NoOp(oldState, result).pure[ConnectionIO]
+                         Kleisli(_ =>
+                           for {
+                             _       <- storage.saveEvent(id, eventCodec.write(event))
+                             newState = processLiveEvent(event, oldState, now)
+                           } yield StateUpdate.Updated(oldState, newState, result),
+                         )
+                       case LockOutcome.NoOp(result)            => StateUpdate.NoOp(oldState, result).pure[Result]
                      }
     } yield stateUpdate
+  }
 
+  override protected def liftIO: LiftIO[Result] = new LiftIO[Result] {
+    override def liftIO[A](ioa: IO[A]): Result[A] = Kleisli(liftIO => liftIO.liftIO(ioa))
   }
 }
