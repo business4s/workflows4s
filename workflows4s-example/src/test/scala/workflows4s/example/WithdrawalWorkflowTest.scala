@@ -75,7 +75,6 @@ object WithdrawalWorkflowTest {
           actor.init(CreateWithdrawal(txId, -100, recipient))
           assert(actor.queryData() == WithdrawalData.Completed.Failed("Amount must be positive"))
           persistProgress("failed-validation")
-
           checkRecovery()
         }
 

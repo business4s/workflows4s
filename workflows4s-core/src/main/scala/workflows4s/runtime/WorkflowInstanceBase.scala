@@ -6,8 +6,8 @@ import cats.syntax.all.*
 import com.typesafe.scalalogging.StrictLogging
 import workflows4s.runtime.WorkflowInstance.UnexpectedSignal
 import workflows4s.runtime.wakeup.KnockerUpper
-import workflows4s.wio.model.WIOExecutionProgress
 import workflows4s.wio.*
+import workflows4s.wio.model.WIOExecutionProgress
 
 import java.time.{Clock, Instant}
 
@@ -16,8 +16,22 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
   protected given fMonad: Monad[F]
   protected given liftIO: LiftIO[F]
 
+  // this could theoretically be implemented in terms of `updateState` but we dont want to lock anything unnecessarly
   protected def getWorkflow: F[ActiveWorkflow[Ctx]]
-  protected def updateState(event: Option[WCEvent[Ctx]], workflow: ActiveWorkflow[Ctx]): F[Unit]
+
+  enum LockResult[+T]  {
+    case StateUpdate(event: WCEvent[Ctx], result: T)
+    case NoOp(result: T)
+
+    def result: T
+  }
+  enum StateUpdate[+T] {
+    case Updated(oldState: ActiveWorkflow[Ctx], newState: ActiveWorkflow[Ctx], result: T)
+    case NoOp(oldState: ActiveWorkflow[Ctx], result: T)
+
+    def result: T
+  }
+  protected def lockAndUpdateState[T](update: ActiveWorkflow[Ctx] => F[LockResult[T]]): F[StateUpdate[T]]
   protected def knockerUpper: KnockerUpper.Agent.Curried
   protected def clock: Clock
 
@@ -28,54 +42,73 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
     } yield wf.liveState(now)
   }
 
-  override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): F[Either[WorkflowInstance.UnexpectedSignal, Resp]] = {
-    for {
-      state  <- getWorkflow
-      now     = Instant.now(clock)
-      result <- state.handleSignal(signalDef)(req, now) match {
-                  case Some(resultIO) =>
-                    for {
-                      result       <- liftIO.liftIO(resultIO)
-                      (event, resp) = result
-                      _            <- handleLiveEvent(event)
-                    } yield resp.asRight
-                  case None           => UnexpectedSignal(signalDef).asLeft.pure[F]
-                }
-    } yield result
-  }
-
-  override def wakeup(): F[Unit] =
-    for {
-      state <- getWorkflow
-      now    = Instant.now(clock)
-      _     <- state.proceed(now) match {
-                 case Some(resultIO) => liftIO.liftIO(resultIO).flatMap(handleLiveEvent)
-                 case None           => fMonad.unit
-               }
-    } yield ()
-
   override def getProgress: F[WIOExecutionProgress[WCState[Ctx]]] = getWorkflow.map(_.wio.toProgress)
 
-  protected def handleLiveEvent(event: WCEvent[Ctx]): F[Unit] = {
+  override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): F[Either[WorkflowInstance.UnexpectedSignal, Resp]] = {
+    def processSignal(state: ActiveWorkflow[Ctx], now: Instant): F[LockResult[Either[WorkflowInstance.UnexpectedSignal, Resp]]] = {
+      state.handleSignal(signalDef)(req, now) match {
+        case Some(resultIO) =>
+          for {
+            result       <- liftIO.liftIO(resultIO)
+            (event, resp) = result
+          } yield LockResult.StateUpdate(event, resp.asRight)
+        case None           =>
+          LockResult.NoOp(UnexpectedSignal(signalDef).asLeft).pure[F]
+      }
+    }
     for {
-      state      <- getWorkflow
-      now         = Instant.now(clock)
-      newStateOpt = state.handleEvent(event, now)
-      newState    = newStateOpt match {
-                      case Some(value) => value
-                      case None        => throw new Exception("Event was not handled") // TODO shouldn't be the case for recovery
-                    }
-      _          <- updateState(event.some, newState)
-      _          <- if (state.wakeupAt != newState.wakeupAt) liftIO.liftIO(knockerUpper.updateWakeup((), newState.wakeupAt)) else fMonad.unit
-      _          <- wakeup()
+      now         <- currentTime
+      _            = logger.trace(s"Delivering signal $signalDef")
+      stateUpdate <- lockAndUpdateState(processSignal(_, now))
+      _           <- postEventActions(stateUpdate)
+    } yield stateUpdate.result
+  }
+
+  override def wakeup(): F[Unit] = {
+    for {
+      _           <- fMonad.unit
+      _            = logger.trace(s"Waking up the workflow")
+      stateUpdate <- lockAndUpdateState { state =>
+                       for {
+                         now    <- currentTime
+                         result <- state.proceed(now) match {
+                                     case Some(resultIO) =>
+                                       for {
+                                         event <- liftIO.liftIO(resultIO)
+                                       } yield LockResult.StateUpdate(event, ())
+                                     case None           => LockResult.NoOp(()).pure[F]
+                                   }
+                       } yield result
+                     }
+      _           <- postEventActions(stateUpdate)
     } yield ()
   }
 
-  protected def recover(events: Seq[WCEvent[Ctx]]): F[Unit] = {
+  private def currentTime = fMonad.unit.map(_ => Instant.now(clock))
+
+  protected def processLiveEvent(event: WCEvent[Ctx], state: ActiveWorkflow[Ctx], now: Instant): ActiveWorkflow[Ctx] = {
+    state.handleEvent(event, now) match {
+      case Some(value) => value
+      case None        => throw new Exception("Event was not handled")
+    }
+  }
+
+  protected def postEventActions(update: StateUpdate[?]): F[Unit] = {
+    update match {
+      case StateUpdate.Updated(oldState, newState, _) =>
+        for {
+          _ <- if (newState.wakeupAt != oldState.wakeupAt) liftIO.liftIO(knockerUpper.updateWakeup((), newState.wakeupAt))
+               else fMonad.unit
+          _ <- wakeup()
+        } yield ()
+      case StateUpdate.NoOp(_, _)                     => fMonad.unit
+    }
+  }
+
+  protected def recover(initialState: ActiveWorkflow[Ctx], events: Seq[WCEvent[Ctx]]): F[ActiveWorkflow[Ctx]] = {
     for {
-      state   <- getWorkflow
-      now      = Instant.now(clock)
-      newState = events.foldLeft(state)((state, event) => {
+      now     <- currentTime
+      newState = events.foldLeft(initialState)((state, event) => {
                    state.handleEvent(event, now) match {
                      case Some(value) => value
                      case None        =>
@@ -83,8 +116,6 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
                        state
                    }
                  })
-      _       <- updateState(None, newState)
-      _       <- wakeup()
-    } yield ()
+    } yield newState
   }
 }

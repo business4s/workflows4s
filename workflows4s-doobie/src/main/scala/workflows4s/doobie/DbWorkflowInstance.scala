@@ -29,22 +29,27 @@ class DbWorkflowInstance[Ctx <: WorkflowContext, Id](
 
   override protected def getWorkflow: ConnectionIO[ActiveWorkflow[Ctx]] = for {
     events <- queryEvents
-    now    <- Sync[ConnectionIO].delay(clock.instant())
-  } yield events.foldLeft(baseWorkflow)((state, event) => {
-    state.handleEvent(event, now) match {
-      case Some(value) => value
-      case None        =>
-        logger.warn(s"Ignored event ${event}")
-        state
-    }
-  })
-
-  override protected def updateState(event: Option[WCEvent[Ctx]], workflow: ActiveWorkflow[Ctx]): ConnectionIO[Unit] = {
-    event.map(event => storage.saveEvent(id, eventCodec.write(event))).getOrElse(Sync[ConnectionIO].unit)
-  }
+    newState <- recover(baseWorkflow, events)
+  } yield newState
 
   private def queryEvents: ConnectionIO[List[WCEvent[Ctx]]] = {
     storage.getEvents(id).flatMap(_.traverse(eventBytes => Sync[ConnectionIO].fromTry(eventCodec.read(eventBytes))))
   }
 
+  override protected def lockAndUpdateState[T](update: ActiveWorkflow[Ctx] => ConnectionIO[LockResult[T]]): ConnectionIO[StateUpdate[T]] = {
+    for {
+      oldState    <- getWorkflow
+      lockResult  <- update(oldState)
+      now         <- Sync[ConnectionIO].delay(clock.instant())
+      stateUpdate <- lockResult match {
+                       case LockResult.StateUpdate(event, result) =>
+                         for {
+                           _       <- storage.saveEvent(id, eventCodec.write(event))
+                           newState = processLiveEvent(event, oldState, now)
+                         } yield StateUpdate.Updated(oldState, newState, result)
+                       case LockResult.NoOp(result)               => StateUpdate.NoOp(oldState, result).pure[ConnectionIO]
+                     }
+    } yield stateUpdate
+
+  }
 }

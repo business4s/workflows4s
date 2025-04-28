@@ -10,7 +10,9 @@ import workflows4s.wio.*
 import java.time.Clock
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
+import scala.util.chaining.scalaUtilChainingOps
 
+// TODO this could be made thread-safe using java primitives
 class InMemorySyncWorkflowInstance[Ctx <: WorkflowContext](
     initialState: ActiveWorkflow[Ctx],
     protected val clock: Clock,
@@ -24,16 +26,27 @@ class InMemorySyncWorkflowInstance[Ctx <: WorkflowContext](
   private val events: mutable.Buffer[WCEvent[Ctx]] = ListBuffer[WCEvent[Ctx]]()
   def getEvents: Seq[WCEvent[Ctx]]                 = events.toList
 
-  override def recover(events: Seq[WCEvent[Ctx]]): Unit = super.recover(events)
+  def recover(events: Seq[WCEvent[Ctx]]): Unit = super.recover(wf, events).pipe(updateState(_, events))
 
-  override protected def liftIO: cats.effect.LiftIO[Id] = new LiftIO[Id] {
+  override protected def liftIO: cats.effect.LiftIO[Id]                   = new LiftIO[Id] {
     override def liftIO[A](ioa: IO[A]): Id[A] = ioa.unsafeRunSync()
   }
-  override protected def fMonad: Monad[Id] = cats.Invariant.catsInstancesForId
+  override protected def fMonad: Monad[Id]                                = cats.Invariant.catsInstancesForId
   override protected def getWorkflow: workflows4s.wio.ActiveWorkflow[Ctx] = wf
 
-  override protected def updateState(event: Option[WCEvent[Ctx]], workflow: workflows4s.wio.ActiveWorkflow[Ctx]): Unit = {
-    event.foreach(events += _)
+  override protected def lockAndUpdateState[T](update: ActiveWorkflow[Ctx] => LockResult[T]): StateUpdate[T] = {
+    val oldState = wf
+    update(oldState) match {
+      case LockResult.StateUpdate(event, result) =>
+        val newState = processLiveEvent(event, oldState, clock.instant())
+        updateState(newState, Seq(event))
+        StateUpdate.Updated(oldState, newState, result)
+      case LockResult.NoOp(result)               => StateUpdate.NoOp(oldState, result)
+    }
+  }
+
+  private def updateState(workflow: workflows4s.wio.ActiveWorkflow[Ctx], _events: Seq[WCEvent[Ctx]]): Unit = {
+    events ++= _events
     wf = workflow
   }
 

@@ -35,16 +35,14 @@ class PekkoRuntimeImpl[Ctx <: WorkflowContext](
     Future.successful(createInstance_(id))
   }
   override def createInstance_(id: String): WorkflowInstance[Future, WCState[Ctx]]        = {
-    PekkoWorkflowInstance(sharding.entityRefFor(typeKey, id))
+    PekkoWorkflowInstance(sharding.entityRefFor(typeKey, id), knockerUpper.curried(id), clock)
   }
 
   def initializeShard(): Unit = {
     val _ = sharding.init(
       Entity(typeKey)(createBehavior = entityContext => {
         val persistenceId = PersistenceId(entityContext.entityTypeKey.name, entityContext.entityId)
-        val input         = initialState
-        val knockerUpperC = knockerUpper.curried(entityContext.entityId)
-        WorkflowBehavior(persistenceId, workflow.provideInput(input), input, clock, knockerUpperC)
+        WorkflowBehavior(persistenceId, workflow, initialState, clock)
       }),
     )
     ()

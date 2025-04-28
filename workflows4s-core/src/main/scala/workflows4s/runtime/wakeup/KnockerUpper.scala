@@ -11,6 +11,8 @@ object KnockerUpper {
     def initialize(wakeUp: Id => F[Unit]): Result
   }
 
+  // TODO we seem vulnerable to clash of ids between different workflows/runtimes?
+  //   theoretically user could be expected to handle separation on their side (create many KUs) buts not great UX
   trait Agent[-Id] {
     def updateWakeup(id: Id, at: Option[Instant]): IO[Unit]
     def curried(id: Id): Agent.Curried = {
