@@ -21,14 +21,11 @@ class PostgresRuntimeTest extends AnyFreeSpec with PostgresSuite {
         .handleEvent((_, _) => State())
         .done
 
-      PostgresRuntime
-        .default(wio, State(), noopCodec(Event()), xa, NoOpKnockerUpper.Agent)
-        .use(runtime => {
-          val workflowInstance = runtime.createInstance(WorkflowId(1)).unsafeRunSync()
-          // this used to throw due to leaked LiftIO
-          workflowInstance.wakeup()
-        })
-        .unsafeRunSync()
+      val runtime          = PostgresRuntime.default(wio, State(), noopCodec(Event()), xa, NoOpKnockerUpper.Agent)
+      val workflowInstance = runtime.createInstance(WorkflowId(1)).unsafeRunSync()
+
+      // this used to throw due to leaked LiftIO
+      workflowInstance.wakeup().unsafeRunSync()
     }
   }
 

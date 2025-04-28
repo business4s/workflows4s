@@ -205,13 +205,8 @@ object TestRuntimeAdapter {
         state: WCState[Ctx],
         clock: Clock,
     ): Actor = {
-      import cats.effect.unsafe.implicits.global
       val runtime =
-        PostgresRuntime
-          .default[Ctx, Unit](workflow, state, eventCodec, xa, NoOpKnockerUpper.Agent, clock)
-          .allocated // we shamelessly dont release it and hope its fine enough for tests.
-          .unsafeRunSync()
-          ._1
+        PostgresRuntime.default[Ctx, Unit](workflow, state, eventCodec, xa, NoOpKnockerUpper.Agent, clock)
       Actor(runtime.createInstance(WorkflowId(Random.nextLong())))
     }
 
