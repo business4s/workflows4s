@@ -4,7 +4,7 @@ import java.io.File
 import cats.effect.IO
 import org.camunda.bpm.model.bpmn.Bpmn
 import workflows4s.bpmn.BpmnRenderer
-import workflows4s.runtime.InMemorySyncRuntime
+import workflows4s.runtime.{InMemorySyncRuntime, InMemorySyncWorkflowInstance}
 import workflows4s.wio.{SignalDef, WorkflowContext}
 
 import scala.annotation.nowarn
@@ -110,7 +110,7 @@ object PullRequestWorkflow {
   // end_steps_3
 
   @nowarn("msg=unused value")
-  def main(args: Array[String]): Unit = {
+  def run: InMemorySyncWorkflowInstance[Ctx] = {
     // start_render
     val bpmnModel = BpmnRenderer.renderWorkflow(workflow.toProgress.toModel, "process")
     Bpmn.writeModelToFile(new File(s"pr.bpmn").getAbsoluteFile, bpmnModel)
@@ -135,6 +135,7 @@ object PullRequestWorkflow {
     assert(wfInstance.queryState() == recoveredInstance.queryState())
     // end_recovery
 
+    wfInstance
   }
 
 }

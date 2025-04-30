@@ -1,24 +1,24 @@
 package workflows4s.example.docs.visualization
 
 import workflows4s.example.docs.pullrequest.PullRequestWorkflow
-import workflows4s.mermaid.MermaidRenderer
+import workflows4s.wio.internal.DebugRenderer
 import workflows4s.runtime.WorkflowInstance
 import workflows4s.wio.WIO
 
 import scala.annotation.nowarn
 
 @nowarn("msg=unused local definition")
-object MermaidExample {
+object DebugExample {
 
   // start_doc
   val wio: WIO[?, ?, ?, ?] = PullRequestWorkflow.workflow
-  val mermaidString        = MermaidRenderer.renderWorkflow(wio.toProgress)
+  val debugString          = DebugRenderer.getCurrentStateDescription(wio.toProgress)
   // end_doc
 
   {
     // start_progress
     val instance: WorkflowInstance[cats.Id, ?] = ???
-    val mermaidString                          = MermaidRenderer.renderWorkflow(instance.getProgress)
+    val debugString                            = DebugRenderer.getCurrentStateDescription(instance.getProgress)
     // end_progress
   }
 }

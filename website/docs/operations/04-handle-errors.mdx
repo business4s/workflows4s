@@ -2,6 +2,12 @@ import OperationOutputs from '@site/src/components/OperationOutputs';
 
 # Handling Errors
 
+Error handling is critical for building robust workflows that can handle non-happy paths. It allows for short-circuiting operations
+and following an alternative path in the presence of expected but unusual situations.
+It can be seen as a more convenient alternative to [Forks](/docs/operations/fork).
+
+Errors defined and handled should be domain errors and not technical ones. Domain errors represent business-level exceptions that are meaningful in your workflow context, rather than implementation-specific exceptions like network failures or timeouts.
+
 ```scala file=./main/scala/workflows4s/example/docs/HandleErrorExample.scala start=start_declarative end=end_declarative
 ```
 

@@ -46,6 +46,4 @@ case class ActiveWorkflow[Ctx <: WorkflowContext](wio: WIO.Initial[Ctx], initial
       .proceed(wio, staticState, now)
       .newFlow
       .map(x => x.effectlessProceed(now).getOrElse(x))
-
-  def getDesc: String = DebugRenderer.getCurrentStateDescription(wio)
 }

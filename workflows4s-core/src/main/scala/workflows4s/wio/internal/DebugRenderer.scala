@@ -7,15 +7,12 @@ import workflows4s.wio.model.WIOExecutionProgress
 
 /** Renders WIO as a debugging string, that contains information about executed steps and minimal information about future ones
   */
-// TODO add to the docs
 object DebugRenderer {
-  def getCurrentStateDescription(
-      wio: WIO[?, ?, ?, ?],
-  ): String = {
-    renderModel(wio.toProgress).render
-  }
 
-  def renderModel(model: WIOExecutionProgress[?]): Description = {
+  def getCurrentStateDescription(model: WIOExecutionProgress[?]): String =
+    renderModel(model).render
+
+  private def renderModel(model: WIOExecutionProgress[?]): Description = {
     val tpe                  = model match {
       case _: WIOExecutionProgress.Sequence[?]      => "Sequence"
       case _: WIOExecutionProgress.Dynamic          => "Dynamic"
@@ -105,17 +102,17 @@ object DebugRenderer {
     formatNode(s"$tpe", name.getOrElse("no-name"), effectiveDescription, effectiveChildren)
   }
 
-  def renderChild(name: String, elem: WIOExecutionProgress[?]): Description                                                = {
+  private def renderChild(name: String, elem: WIOExecutionProgress[?]): Description                                        = {
     renderModel(elem).prepend(s"$name: ")
   }
-  def renderChildren(children: (String, WIOExecutionProgress[?])*): Seq[Description]                                       = {
+  private def renderChildren(children: (String, WIOExecutionProgress[?])*): Seq[Description]                               = {
     children.map(renderChild.tupled)
   }
   private def formatNode(nodeType: String, name: String, details: String, children: Seq[Description] = Seq()): Description = {
     Description(s"[$nodeType]($name) $details", children)
   }
 
-  case class Description(headline: String, children: Seq[Description]) {
+  private case class Description(headline: String, children: Seq[Description]) {
 
     def prepend(str: String): Description = Description(str + headline, children)
 

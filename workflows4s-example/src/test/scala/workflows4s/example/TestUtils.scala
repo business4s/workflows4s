@@ -6,7 +6,9 @@ import org.camunda.bpm.model.bpmn.Bpmn
 import org.scalatest.exceptions.TestFailedException
 import workflows4s.bpmn.BpmnRenderer
 import workflows4s.mermaid.MermaidRenderer
+import workflows4s.runtime.WorkflowInstance
 import workflows4s.wio.WIO
+import workflows4s.wio.internal.DebugRenderer
 import workflows4s.wio.model.WIOExecutionProgress
 
 import java.nio.file.{Files, Path, Paths}
@@ -37,25 +39,29 @@ object TestUtils {
     ensureFileContentMatchesOrUpdate(bpmnContent, outputPath)
   }
 
-  def renderMermaidToFile(wio: WIO[?, ?, ?, ?], path: String, technical: Boolean = false) = {
-    val model      = wio.toProgress
+  def renderMermaidToFile(model: WIOExecutionProgress[?], path: String, technical: Boolean = false) = {
     val flowchart  = MermaidRenderer.renderWorkflow(model, showTechnical = technical)
     val outputPath = basePath.resolve(path)
 
     ensureFileContentMatchesOrUpdate(flowchart.render, outputPath)
   }
 
-  def renderMermaidToFile(model: WIOExecutionProgress[?], path: String) = {
-    val flowchart  = MermaidRenderer.renderWorkflow(model)
-    val outputPath = basePath.resolve(path)
+  def renderDebugToFile(model: WIOExecutionProgress[?], path: String) = {
+    val debugString = DebugRenderer.getCurrentStateDescription(model)
+    val outputPath  = basePath.resolve(path)
 
-    ensureFileContentMatchesOrUpdate(flowchart.render, outputPath)
+    ensureFileContentMatchesOrUpdate(debugString, outputPath)
   }
 
   def renderDocsExample(wio: WIO[?, ?, ?, ?], name: String, technical: Boolean = false) = {
     renderModelToFile(wio, s"docs/${name}.json")
     renderBpmnToFile(wio, s"docs/${name}.bpmn")
-    renderMermaidToFile(wio, s"docs/${name}.mermaid", technical)
+    renderMermaidToFile(wio.toProgress, s"docs/${name}.mermaid", technical)
+  }
+
+  def renderDocsProgressExample(wio: WorkflowInstance[cats.Id, ?], name: String, technical: Boolean = false) = {
+    renderMermaidToFile(wio.getProgress, s"docs/${name}.mermaid", technical)
+    renderDebugToFile(wio.getProgress, s"docs/${name}.debug.txt")
   }
 
   private def ensureFileContentMatchesOrUpdate(content: String, path: Path): Unit = {

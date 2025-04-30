@@ -37,8 +37,8 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory with Withdrawa
   }
   "render mermaid model" in {
     val wf = new WithdrawalWorkflow(null, DummyChecksEngine)
-    TestUtils.renderMermaidToFile(wf.workflow, "withdrawal-example.mermaid")
-    TestUtils.renderMermaidToFile(wf.workflowDeclarative, "withdrawal-example-declarative.mermaid")
+    TestUtils.renderMermaidToFile(wf.workflow.toProgress, "withdrawal-example.mermaid")
+    TestUtils.renderMermaidToFile(wf.workflowDeclarative.toProgress, "withdrawal-example-declarative.mermaid")
   }
 }
 object WithdrawalWorkflowTest {

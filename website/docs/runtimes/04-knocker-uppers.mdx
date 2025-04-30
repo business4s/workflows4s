@@ -1,3 +1,5 @@
+import SbtDependency from "@site/src/components/SbtDependency";
+
 # Wake-Ups
 
 The `KnockerUpper` is responsible for waking up the workflow when needed, e.g.:
@@ -119,10 +121,14 @@ This is encoded in the examples below as a `createRuntime`.
 
 ### FilesystemKnockerUpper
 
+<SbtDependency moduleName={"workflows4s-filesystem"}/>
+
 ```scala file=./main/scala/workflows4s/example/docs/wakeups/FsKnockerUpperExample.scala start=docs_start end=docs_end
 ```
 
 ### QuartzKnockerUpper
+
+<SbtDependency moduleName={"workflows4s-quartz"}/>
 
 ```scala file=./main/scala/workflows4s/example/docs/wakeups/QuartzKnockerUpperExample.scala start=docs_start end=docs_end
 ```

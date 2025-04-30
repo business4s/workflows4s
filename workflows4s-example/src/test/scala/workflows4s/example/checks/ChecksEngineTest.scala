@@ -29,7 +29,7 @@ class ChecksEngineTest extends AnyFreeSpec with ChecksEngineTest.Suite {
   }
   "render mermaid model" in {
     val wf = ChecksEngine.runChecks
-    TestUtils.renderMermaidToFile(wf, "checks-engine.mermaid")
+    TestUtils.renderMermaidToFile(wf.toProgress, "checks-engine.mermaid")
   }
 
 }

@@ -1,0 +1,145 @@
+---
+sidebar_position: 2.1
+---
+
+import SbtDependency from "@site/src/components/SbtDependency";
+
+# Visualizations
+
+Workflows4s provides several visualization modes for representing workflows: **BPMN**, **Mermaid Flowchart**, and **Debug Renderer**.
+Each mode has its strengths and use cases.
+Most options are considered experimental, and they are subject to change.
+
+## Visualization Modes Overview
+
+<table>
+    <thead>
+    <tr>
+        <th>Mode</th>
+        <th>Description</th>
+        <th>Good For</th>
+        <th>Limitations</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td><code>BPMN</code></td>
+        <td>
+            Leverages the Business Process Model and Notation (BPMN) standard, widely recognized in workflow and process
+            modeling domains.
+            Requires the <code>workflows4s-bpmn</code> module for conversion and rendering.
+        </td>
+        <td>
+            <ul>
+                <li>Standardized format for workflow representation</li>
+                <li>Integration into BPMN-compatible tools</li>
+            </ul>
+        </td>
+        <td>
+            <ul>
+                <li>Basic auto-layout capabilities</li>
+                <li>Weaker integration ecosystem compared to modern alternatives</li>
+                <li>Additional dependency required: <code>workflows4s-bpmn</code></li>
+                <li>Rendering as image requires 3rd-party, community-provided tool</li>
+            </ul>
+        </td>
+    </tr>
+    <tr>
+        <td><code>Mermaid Flowchart</code></td>
+        <td>
+            Renders workflows as Mermaid flowcharts using built-in support in <code>workflows4s-core</code>.
+            Provides more flexibility, relies on custom workflow representation.
+        </td>
+        <td>
+            <ul>
+                <li>Better support within tools like GitLab, Markdown, and documentation platforms</li>
+                <li>Good auto-layout support</li>
+                <li>Rendering as image through official `mermaid-cli`</li>
+                <li>Can visualize both workflow definitions and execution progress</li>
+            </ul>
+        </td>
+        <td>
+            <ul>
+                <li>Non-standardized format</li>
+            </ul>
+        </td>
+    </tr>
+    <tr>
+        <td><code>Debug Renderer</code></td>
+        <td>
+            Renders workflows as a hierarchical text representation using built-in support
+            in <code>workflows4s-core</code>.
+            Provides most important information about executed steps and minimal information about future ones.
+        </td>
+        <td>
+            <ul>
+                <li>Debugging workflow execution</li>
+                <li>Understanding workflow state during development</li>
+                <li>Logging workflow progress</li>
+            </ul>
+        </td>
+        <td>
+            <ul>
+                <li>Text-only format, not graphical</li>
+                <li>Primarily for development and debugging, not for end-user visualization</li>
+            </ul>
+        </td>
+    </tr>
+    </tbody>
+</table>
+
+---
+
+## Usage Examples
+
+### BPMN
+
+<SbtDependency moduleName={"workflows4s-bpmn"}/>
+
+```scala file=./main/scala/workflows4s/example/docs/visualization/BPMNExample.scala start=start_doc end=end_doc
+```
+
+![pull-request.svg](/../../workflows4s-example/src/test/resources/docs/pull-request.svg)
+
+### Mermaid Flowchart
+
+#### Visualizing Workflow Definition
+
+```scala file=./main/scala/workflows4s/example/docs/visualization/MermaidExample.scala start=start_doc end=end_doc
+```
+
+```mermaid file=./test/resources/docs/pull-request.mermaid
+```
+
+#### Visualizing Workflow Progress
+
+You can also visualize the progress of a workflow instance:
+
+```scala file=./main/scala/workflows4s/example/docs/visualization/MermaidExample.scala start=start_progress end=end_progress
+```
+
+```mermaid file=./test/resources/docs/pull-request-completed.mermaid
+```
+
+### Debug Renderer
+
+The Debug Renderer provides a hierarchical text representation of workflows, which is useful for debugging and understanding workflow state during development.
+It's optimized for brevity and hides non-critical details.
+
+#### Visualizing Workflow Definition
+
+```scala file=./main/scala/workflows4s/example/docs/visualization/DebugExample.scala start=start_doc end=end_doc
+```
+
+```text file=./test/resources/docs/pull-request.debug.txt
+```
+
+#### Visualizing Workflow Progress
+
+You can also visualize the progress of a workflow instance:
+
+```scala file=./main/scala/workflows4s/example/docs/visualization/DebugExample.scala start=start_progress end=end_progress
+```
+
+```text file=./test/resources/docs/pull-request-completed.debug.txt
+```
