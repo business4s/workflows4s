@@ -47,8 +47,8 @@ object TestUtils {
   }
 
   def renderDebugToFile(model: WIOExecutionProgress[?], path: String) = {
-    val debugString  = DebugRenderer.getCurrentStateDescription(model)
-    val outputPath = basePath.resolve(path)
+    val debugString = DebugRenderer.getCurrentStateDescription(model)
+    val outputPath  = basePath.resolve(path)
 
     ensureFileContentMatchesOrUpdate(debugString, outputPath)
   }

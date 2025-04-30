@@ -18,7 +18,7 @@ object MermaidExample {
   {
     // start_progress
     val instance: WorkflowInstance[cats.Id, ?] = ???
-    val mermaidString                                     = MermaidRenderer.renderWorkflow(instance.getProgress)
+    val mermaidString                          = MermaidRenderer.renderWorkflow(instance.getProgress)
     // end_progress
   }
 }

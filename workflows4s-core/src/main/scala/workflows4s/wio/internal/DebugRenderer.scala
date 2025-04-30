@@ -102,10 +102,10 @@ object DebugRenderer {
     formatNode(s"$tpe", name.getOrElse("no-name"), effectiveDescription, effectiveChildren)
   }
 
-  private def renderChild(name: String, elem: WIOExecutionProgress[?]): Description                                                = {
+  private def renderChild(name: String, elem: WIOExecutionProgress[?]): Description                                        = {
     renderModel(elem).prepend(s"$name: ")
   }
-  private def renderChildren(children: (String, WIOExecutionProgress[?])*): Seq[Description]                                       = {
+  private def renderChildren(children: (String, WIOExecutionProgress[?])*): Seq[Description]                               = {
     children.map(renderChild.tupled)
   }
   private def formatNode(nodeType: String, name: String, details: String, children: Seq[Description] = Seq()): Description = {

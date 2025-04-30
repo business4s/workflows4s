@@ -12,13 +12,13 @@ object DebugExample {
 
   // start_doc
   val wio: WIO[?, ?, ?, ?] = PullRequestWorkflow.workflow
-  val debugString = DebugRenderer.getCurrentStateDescription(wio.toProgress)
+  val debugString          = DebugRenderer.getCurrentStateDescription(wio.toProgress)
   // end_doc
 
   {
     // start_progress
     val instance: WorkflowInstance[cats.Id, ?] = ???
-    val debugString = DebugRenderer.getCurrentStateDescription(instance.getProgress)
+    val debugString                            = DebugRenderer.getCurrentStateDescription(instance.getProgress)
     // end_progress
   }
 }
