@@ -51,18 +51,20 @@ code.
 
 ## Comparison with Airflow-like Systems
 
-While Workflows4s shares some conceptual similarities with data orchestration tools like Apache Airflow, there are fundamental differences in design philosophy and intended use cases.
+While Workflows4s shares some conceptual similarities with data orchestration tools like Apache Airflow, there are
+fundamental differences in design philosophy and intended use cases.
 
 ### Key Differences
 
-| Aspect | Airflow-like Systems | Workflows4s |
-|--------|----------------------|------------|
-| **Primary Purpose** | ETL and batch-oriented data workflows | Business workflows and service orchestration |
-| **Execution Model** | Schedule-based or manually triggered | Event-driven with strong state management |
-| **State Management** | Limited persistence of task status | Full event-sourced state management |
-| **Runtime Duration** | Optimized for short-lived tasks with timeouts | Supports long-running workflows with indefinite pauses |
-| **Service Orchestration** | Limited support for distributed transactions | Built for service orchestration with event-driven architecture |
-| **Human Interaction** | Limited native support for human tasks | Can incorporate human approval steps through signals |
-| **Deployment Model** | Separate orchestration server | Self-contained within your application |
+| Aspect                    | Airflow-like Systems                          | Workflows4s                                                    |
+|---------------------------|-----------------------------------------------|----------------------------------------------------------------|
+| **Primary Purpose**       | ETL and batch-oriented data workflows         | Business workflows and service orchestration                   |
+| **Execution Model**       | Schedule-based or manually triggered          | Event-driven with strong state management                      |
+| **State Management**      | Limited persistence of task status            | Full event-sourced state management                            |
+| **Runtime Duration**      | Optimized for short-lived tasks with timeouts | Supports long-running workflows with indefinite pauses         |
+| **Service Orchestration** | Limited support for distributed transactions  | Built for service orchestration with event-driven architecture |
+| **Human Interaction**     | Limited native support for human tasks        | Can incorporate human approval steps through signals           |
+| **Deployment Model**      | Separate orchestration server                 | Self-contained within your application                         |
 
-Workflows4s is designed to integrate directly with your application code, providing workflow capabilities without the operational overhead of standalone orchestration systems.
+Workflows4s is designed to integrate directly with your application code, providing workflow capabilities without the
+operational overhead of standalone orchestration systems.

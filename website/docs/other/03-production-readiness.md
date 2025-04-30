@@ -1,18 +1,13 @@
 # Production Readiness
 
-Workflows4s started as a proof of concept to validate the overall approach and assess its technical feasibility. The
-early results have been promising, confirming the viability of the design.
+**Workflows4s has been officially released and is available for use.**
+All major features are implemented and should work reliably in production environments.
 
-We’re now focused on taking it to production-grade quality. This involves stabilizing the core, refining the developer
-experience, and hardening the library for real-world use. It’s an ongoing effort, and we’re committed to doing it
-right — even if it takes time.
+That being said, the project is in a very early phase and some bugs and rough edges should be expected.
 
-All essential features are already available, and everything is thoroughly tested and expected to work reliably. That
-said, the public API is still evolving and remains the most likely area to change as we incorporate feedback and improve
-ergonomics.
+The API is likely to change as we continue to refine the library based on user feedback. There is
+currently no binary compatibility guarantee between versions, so you should avoid building libraries on top of it.
 
-The library is under active development and is currently available as snapshots via the Sonatype Snapshot repository. We
-encourage early adopters to experiment and provide feedback.
-
-You can follow the roadmap and release plans on
-our [GitHub Milestones](https://github.com/business4s/workflows4s/milestones).
+We highly appreciate feedback and bug reports, which can be submitted through both GitHub issues and our Discord
+community.
+Your input is invaluable in helping us improve the library.

@@ -21,10 +21,18 @@ class ExamplesTest extends AnyFreeSpec {
     TestUtils.renderDocsExample(InterruptionExample.interruptedThroughSignal, "interruption-signal")
     TestUtils.renderDocsExample(CheckpointExample.checkpoint.checkpointed, "checkpoint", technical = true)
     TestUtils.renderDocsExample(CheckpointExample.recovery.myWorkflow, "recovery", technical = true)
-    TestUtils.renderDocsExample(PullRequestWorkflowDraft.workflow, "pull-request-draft")
-    TestUtils.renderDocsExample(PullRequestWorkflow.workflow, "pull-request")
     TestUtils.renderDocsExample(PureExample.doThings, "pure")
     TestUtils.renderDocsExample(PureExample.doThingsWithError, "pure-error")
+    TestUtils.renderDocsExample(PullRequestWorkflowDraft.workflow, "pull-request-draft")
+    TestUtils.renderDocsExample(PullRequestWorkflow.workflow, "pull-request")
+
+    TestUtils.renderDebugToFile(PullRequestWorkflow.workflow.toProgress, "docs/pull-request.debug.txt")
+  }
+
+  "render progress" in {
+    val instance = PullRequestWorkflow.run
+    TestUtils.renderDocsProgressExample(instance, "pull-request-completed")
+
   }
 
 }

@@ -7,6 +7,7 @@ import OperationOutputs from '@site/src/components/OperationOutputs';
 All paths must incorporate their internal states into a global state (referred to as `InterimState`).
 
 The final result is constructed from the outcomes of all paths.
+Workflow's state is continously updated after each step completion (doesn't wait for all the paths to complete.)
 
 ```scala file=./main/scala/workflows4s/example/docs/ParallelExample.scala start=start_doc end=end_doc
 ```

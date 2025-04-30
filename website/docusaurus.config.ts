@@ -125,7 +125,7 @@ const config: Config = {
             additionalLanguages: ['java', 'scala', "json"]
         },
         customFields: {
-            workflows4sVersion: "unreleased",
+            workflows4sVersion: process.env.WORKFLOWS4S_VERSION,
         },
         algolia: {
             appId: 'IMCN9UXKWU',

@@ -3,21 +3,26 @@ sidebar_position: 1
 sidebar_label: Intro
 ---
 
+import SbtDependency from "@site/src/components/SbtDependency";
+
 # Intro
 
 :::info
 
-As of now, Workflows4s don't have a realease. The guide below aims at showcasing the basic ideas behind the library but
-to follow it you need to either release the code locally or write it inside `workflows4s-example` project.
+Workflows4s is a freshly released library. Please check [Production Readiness](other/production-readiness/) for details.
 
 :::
 
-Let's model a simplified pull request process that looks like this:
+To give a glimpse into the library, we will model a simplified pull request process that looks like this:
 
 1. Run CI/CD pipeline
 2. Close the PR if critical issue detected in the pipeline
 2. Await approval
 3. Merge if approved, close otherwise
+
+### Dependency
+
+<SbtDependency moduleName={"workflows4s-core"} />
 
 ## Modeling the workflow
 

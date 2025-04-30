@@ -2,7 +2,12 @@ import OperationOutputs from '@site/src/components/OperationOutputs';
 
 # Sequencing Operations
 
+Sequencing operations form the backbone of workflow composition, allowing you to define the order in which steps are executed. These operations enable you to build complex workflows by combining simpler ones, ensuring that each step completes before the next begins.
+
 ## Declarative
+
+Declarative sequencing provides a straightforward way to chain operations when _selecting_ the next step doesn't depend on the result of the previous one.
+Step inputs and outputs are fully typechecked.
 
 ```scala file=./main/scala/workflows4s/example/docs/SequencingExample.scala start=start_declarative end=end_declarative
 ```
@@ -10,6 +15,14 @@ import OperationOutputs from '@site/src/components/OperationOutputs';
 <OperationOutputs name="and-then"/>
 
 ## Dynamic
+
+Dynamic sequencing is more powerful, allowing the next workflow step to be determined based on the result of the previous step. This enables conditional branching and data-dependent workflow paths.
+
+:::warning
+
+Dynamic steps cannot be rendered statically. Consider using [Forks](/docs/operations/fork) instead.
+
+:::
 
 ```scala file=./main/scala/workflows4s/example/docs/SequencingExample.scala start=start_dynamic end=end_dynamic
 ```

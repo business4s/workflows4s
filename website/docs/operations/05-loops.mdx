@@ -2,6 +2,17 @@ import OperationOutputs from '@site/src/components/OperationOutputs';
 
 # Loops
 
+Loops are essential for workflows that need to repeat actions until a condition is met. This operation enables iterative processing, such as retrying operations, processing collections of items, or implementing polling mechanisms that continue until specific criteria are satisfied.
+
+:::warning
+
+Loops without timers or signals will be effectively [busy loops](https://en.wikipedia.org/wiki/Busy_waiting),
+possibly causing journal growth and other problems.
+Consider adding a short timer to slow it down.
+In the future this will be detected by the [linter](https://github.com/business4s/workflows4s/issues/23).
+
+:::
+
 ```scala file=./main/scala/workflows4s/example/docs/LoopExample.scala start=start_loop end=end_loop
 ```
 

@@ -37,6 +37,12 @@ To make them visible, use `.named("Name")` or `.autoNamed`.
 Nondeterministic operations involve side effects like API calls, database operations, or other external interactions.
 These operations need special handling because they shouldn't be re-executed during workflow recovery.
 
+:::info
+
+Workflows4s currently supports onyl cats-effect IO. If you're interested in other effect systems, please check [here](https://github.com/business4s/workflows4s/issues/59).
+
+:::
+
 ### Without Error
 
 ```scala file=./main/scala/workflows4s/example/docs/RunIOExample.scala start=start_withoutError end=end_withoutError
