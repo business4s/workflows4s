@@ -14,6 +14,7 @@ import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import workflows4s.doobie.EventCodec
 import workflows4s.doobie.postgres.{PostgresRuntime, WorkflowId}
 import workflows4s.runtime.pekko.{PekkoWorkflowInstance, WorkflowBehavior}
+import workflows4s.runtime.registry.NoOpWorkflowRegistry
 import workflows4s.runtime.wakeup.NoOpKnockerUpper
 import workflows4s.runtime.{InMemoryRuntime, InMemorySyncRuntime, InMemorySyncWorkflowInstance, WorkflowInstance}
 import workflows4s.wio.*
@@ -65,7 +66,7 @@ object TestRuntimeAdapter {
         with EventIntrospection[WCEvent[Ctx]] {
       val base: InMemorySyncWorkflowInstance[Ctx] = {
         val runtime =
-          new InMemorySyncRuntime[Ctx, Unit](initialWorkflow, state, clock, NoOpKnockerUpper.Agent)(using IORuntime.global)
+          new InMemorySyncRuntime[Ctx, Unit](initialWorkflow, state, clock, NoOpKnockerUpper.Agent, NoOpWorkflowRegistry.Agent)(using IORuntime.global)
         val inst    = runtime.createInstance(())
         inst.recover(events)
         inst
@@ -102,7 +103,7 @@ object TestRuntimeAdapter {
         with EventIntrospection[WCEvent[Ctx]] {
       import cats.effect.unsafe.implicits.global
       val base = {
-        val runtime = new InMemoryRuntime[Ctx, Unit](workflow, state, clock, NoOpKnockerUpper.Agent)
+        val runtime = new InMemoryRuntime[Ctx, Unit](workflow, state, clock, NoOpKnockerUpper.Agent, NoOpWorkflowRegistry.Agent)
         val inst    = runtime.createInstance(()).unsafeRunSync()
         inst.recover(events).unsafeRunSync()
         inst
@@ -170,7 +171,7 @@ object TestRuntimeAdapter {
 
     case class Actor(entityRef: EntityRef[Cmd], clock: Clock) extends WorkflowInstance[Id, WCState[Ctx]] {
       val base                                                                                                                              =
-        PekkoWorkflowInstance(entityRef, NoOpKnockerUpper.Agent, clock, stateQueryTimeout = Timeout(1.second))
+        PekkoWorkflowInstance(entityRef, NoOpKnockerUpper.Agent, clock, NoOpWorkflowRegistry.Agent, stateQueryTimeout = Timeout(1.second))
       override def queryState(): Id[WCState[Ctx]]                                                                                           = base.queryState().await
       override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): Id[Either[WorkflowInstance.UnexpectedSignal, Resp]] = {
         val resp = base.deliverSignal(signalDef, req).await

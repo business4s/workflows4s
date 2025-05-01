@@ -5,11 +5,14 @@ import cats.effect.LiftIO
 import cats.syntax.all.*
 import com.typesafe.scalalogging.StrictLogging
 import workflows4s.runtime.WorkflowInstance.UnexpectedSignal
+import workflows4s.runtime.registry.WorkflowRegistry
+import workflows4s.runtime.registry.WorkflowRegistry.ExecutionStatus
 import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.wio.*
 import workflows4s.wio.model.WIOExecutionProgress
 
 import java.time.{Clock, Instant}
+import scala.util.chaining.scalaUtilChainingOps
 
 trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstance[F, WCState[Ctx]] with StrictLogging {
 
@@ -32,6 +35,7 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
   protected def lockAndUpdateState[T](update: ActiveWorkflow[Ctx] => F[LockOutcome[T]]): F[StateUpdate[T]]
   protected def knockerUpper: KnockerUpper.Agent.Curried
   protected def clock: Clock
+  protected def registry: WorkflowRegistry.Agent.Curried
 
   override def queryState(): F[WCState[Ctx]] = {
     for {
@@ -47,6 +51,7 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
       state.handleSignal(signalDef)(req, now) match {
         case Some(resultIO) =>
           for {
+            _            <- registerRunningInstance
             result       <- liftIO.liftIO(resultIO)
             (event, resp) = result
           } yield LockOutcome.NewEvent(event, resp.asRight)
@@ -72,9 +77,14 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
                          result <- state.proceed(now) match {
                                      case Some(resultIO) =>
                                        for {
+                                         _     <- registerRunningInstance
                                          event <- liftIO.liftIO(resultIO)
                                        } yield LockOutcome.NewEvent(event, ())
-                                     case None           => LockOutcome.NoOp(()).pure[F]
+                                     case None           => {
+                                       for {
+                                         _ <- registerNotRunningInstance(state)
+                                       } yield LockOutcome.NoOp(())
+                                     }
                                    }
                        } yield result
                      }
@@ -122,5 +132,15 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
                    }
                  })
     } yield newState
+  }
+
+  private def registerRunningInstance: F[Unit]                                = {
+    registry.upsertInstance((), WorkflowRegistry.ExecutionStatus.Running).pipe(liftIO.liftIO)
+  }
+  private def registerNotRunningInstance(state: ActiveWorkflow[Ctx]): F[Unit] = {
+    val status =
+      if (state.wio.asExecuted.isDefined) ExecutionStatus.Finished
+      else ExecutionStatus.Awaiting
+    registry.upsertInstance((), status).pipe(liftIO.liftIO)
   }
 }

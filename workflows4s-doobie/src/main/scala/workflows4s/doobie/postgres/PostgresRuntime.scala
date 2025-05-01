@@ -5,6 +5,7 @@ import cats.effect.{IO, LiftIO}
 import doobie.util.transactor.Transactor
 import doobie.{ConnectionIO, WeakAsync}
 import workflows4s.doobie.{DbWorkflowInstance, EventCodec}
+import workflows4s.runtime.registry.{NoOpWorkflowRegistry, WorkflowRegistry}
 import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.runtime.{MappedWorkflowInstance, WorkflowInstance, WorkflowRuntime}
 import workflows4s.wio.WIO.Initial
@@ -19,6 +20,7 @@ class PostgresRuntime[Ctx <: WorkflowContext](
     knockerUpper: KnockerUpper.Agent[WorkflowId],
     eventCodec: EventCodec[WCEvent[Ctx]],
     xa: Transactor[IO],
+    registry: WorkflowRegistry.Agent[WorkflowId]
 ) extends WorkflowRuntime[IO, Ctx, WorkflowId] {
 
   override def createInstance(id: WorkflowId): IO[WorkflowInstance[IO, WCState[Ctx]]] = {
@@ -30,6 +32,7 @@ class PostgresRuntime[Ctx <: WorkflowContext](
         eventCodec,
         clock,
         knockerUpper,
+        registry
       )
       // alternative is to take `LiftIO` as runtime parameter but this complicates call site
       new MappedWorkflowInstance(
@@ -52,5 +55,6 @@ object PostgresRuntime {
       xa: Transactor[IO],
       knockerUpper: KnockerUpper.Agent[WorkflowId],
       clock: Clock = Clock.systemUTC(),
-  ) = new PostgresRuntime[Ctx](workflow, initialState, clock, knockerUpper, eventCodec, xa)
+      registry: WorkflowRegistry.Agent[WorkflowId] = NoOpWorkflowRegistry.Agent,
+  ) = new PostgresRuntime[Ctx](workflow, initialState, clock, knockerUpper, eventCodec, xa, registry)
 }

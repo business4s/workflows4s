@@ -4,6 +4,7 @@ import cats.effect.unsafe.IORuntime
 import org.apache.pekko.actor.typed.ActorSystem
 import org.apache.pekko.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity, EntityTypeKey}
 import org.apache.pekko.persistence.typed.PersistenceId
+import workflows4s.runtime.registry.{NoOpWorkflowRegistry, WorkflowRegistry}
 import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.runtime.{WorkflowInstance, WorkflowRuntime}
 import workflows4s.wio.WIO.Initial
@@ -23,6 +24,7 @@ class PekkoRuntimeImpl[Ctx <: WorkflowContext](
     entityName: String,
     clock: Clock,
     knockerUpper: KnockerUpper.Agent[PekkoRuntime.WorkflowId],
+    registry: WorkflowRegistry.Agent[PekkoRuntime.WorkflowId],
 )(using
     system: ActorSystem[?],
     IORuntime: IORuntime,
@@ -35,7 +37,7 @@ class PekkoRuntimeImpl[Ctx <: WorkflowContext](
     Future.successful(createInstance_(id))
   }
   override def createInstance_(id: String): WorkflowInstance[Future, WCState[Ctx]]        = {
-    PekkoWorkflowInstance(sharding.entityRefFor(typeKey, id), knockerUpper.curried(id), clock)
+    PekkoWorkflowInstance(sharding.entityRefFor(typeKey, id), knockerUpper.curried(id), clock, registry.curried(id))
   }
 
   def initializeShard(): Unit = {
@@ -60,11 +62,12 @@ object PekkoRuntime {
       initialState: WCState[Ctx],
       knockerUpper: KnockerUpper.Agent[WorkflowId],
       clock: Clock = Clock.systemUTC(),
+      registry: WorkflowRegistry.Agent[WorkflowId] = NoOpWorkflowRegistry.Agent,
   )(using
       ioRuntime: IORuntime,
       system: ActorSystem[?],
   ): PekkoRuntime[Ctx] = {
-    new PekkoRuntimeImpl(workflow, initialState, entityName, clock, knockerUpper)
+    new PekkoRuntimeImpl(workflow, initialState, entityName, clock, knockerUpper, registry)
   }
 
 }
