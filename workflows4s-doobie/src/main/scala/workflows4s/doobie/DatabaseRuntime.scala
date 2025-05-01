@@ -1,10 +1,9 @@
-package workflows4s.doobie.postgres
+package workflows4s.doobie
 
 import cats.data.Kleisli
 import cats.effect.{IO, LiftIO}
 import doobie.util.transactor.Transactor
 import doobie.{ConnectionIO, WeakAsync}
-import workflows4s.doobie.{DbWorkflowInstance, EventCodec}
 import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.runtime.{MappedWorkflowInstance, WorkflowInstance, WorkflowRuntime}
 import workflows4s.wio.WIO.Initial
@@ -12,13 +11,13 @@ import workflows4s.wio.{ActiveWorkflow, WCEvent, WCState, WorkflowContext}
 
 import java.time.Clock
 
-class PostgresRuntime[Ctx <: WorkflowContext](
+class DatabaseRuntime[Ctx <: WorkflowContext, WorkflowId](
     workflow: Initial[Ctx],
     initialState: WCState[Ctx],
     clock: Clock,
     knockerUpper: KnockerUpper.Agent[WorkflowId],
-    eventCodec: EventCodec[WCEvent[Ctx]],
     xa: Transactor[IO],
+    storage: WorkflowStorage[WorkflowId, WCEvent[Ctx]],
 ) extends WorkflowRuntime[IO, Ctx, WorkflowId] {
 
   override def createInstance(id: WorkflowId): IO[WorkflowInstance[IO, WCState[Ctx]]] = {
@@ -26,8 +25,7 @@ class PostgresRuntime[Ctx <: WorkflowContext](
       val base = new DbWorkflowInstance(
         id,
         ActiveWorkflow(workflow, initialState),
-        PostgresWorkflowStorage,
-        eventCodec,
+        storage,
         clock,
         knockerUpper,
       )
@@ -44,13 +42,13 @@ class PostgresRuntime[Ctx <: WorkflowContext](
 
 }
 
-object PostgresRuntime {
-  def default[Ctx <: WorkflowContext, Input](
+object DatabaseRuntime {
+  def default[Ctx <: WorkflowContext, WorkflowId](
       workflow: Initial[Ctx],
       initialState: WCState[Ctx],
-      eventCodec: EventCodec[WCEvent[Ctx]],
-      xa: Transactor[IO],
+      transactor: Transactor[IO],
       knockerUpper: KnockerUpper.Agent[WorkflowId],
+      storage: WorkflowStorage[WorkflowId, WCEvent[Ctx]],
       clock: Clock = Clock.systemUTC(),
-  ) = new PostgresRuntime[Ctx](workflow, initialState, clock, knockerUpper, eventCodec, xa)
+  ) = new DatabaseRuntime[Ctx, WorkflowId](workflow, initialState, clock, knockerUpper, transactor, storage)
 }
