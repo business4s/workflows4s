@@ -22,7 +22,7 @@ class PostgresRuntimeTest extends AnyFreeSpec with PostgresSuite {
         .handleEvent((_, _) => State())
         .done
 
-      val storage = PostgresWorkflowStorage()(using noopCodec(Event()))
+      val storage          = PostgresWorkflowStorage()(using noopCodec(Event()))
       val runtime          = DatabaseRuntime.default(wio, State(), xa, NoOpKnockerUpper.Agent, storage)
       val workflowInstance = runtime.createInstance(WorkflowId(1)).unsafeRunSync()
 

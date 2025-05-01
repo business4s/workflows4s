@@ -6,7 +6,8 @@ import doobie.*
 import doobie.implicits.*
 import workflows4s.doobie.{ByteCodec, WorkflowStorage}
 
-class PostgresWorkflowStorage[Event](tableName: String = "workflow_journal")(using evenCodec: ByteCodec[Event]) extends WorkflowStorage[WorkflowId, Event] {
+class PostgresWorkflowStorage[Event](tableName: String = "workflow_journal")(using evenCodec: ByteCodec[Event])
+    extends WorkflowStorage[WorkflowId, Event] {
 
   val tableNameFr = Fragment.const(tableName)
 
