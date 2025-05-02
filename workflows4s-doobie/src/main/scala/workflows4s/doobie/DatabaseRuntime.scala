@@ -1,4 +1,4 @@
-package workflows4s.doobie.postgres
+package workflows4s.doobie
 
 import cats.data.Kleisli
 import cats.effect.{IO, LiftIO}
@@ -13,14 +13,14 @@ import workflows4s.wio.{ActiveWorkflow, WCEvent, WCState, WorkflowContext}
 
 import java.time.Clock
 
-class PostgresRuntime[Ctx <: WorkflowContext](
+class DatabaseRuntime[Ctx <: WorkflowContext, WorkflowId](
     workflow: Initial[Ctx],
     initialState: WCState[Ctx],
     clock: Clock,
     knockerUpper: KnockerUpper.Agent[WorkflowId],
-    eventCodec: EventCodec[WCEvent[Ctx]],
     xa: Transactor[IO],
-    registry: WorkflowRegistry.Agent[WorkflowId]
+    storage: WorkflowStorage[WorkflowId, WCEvent[Ctx]],
+    registry: WorkflowRegistry.Agent[WorkflowId],
 ) extends WorkflowRuntime[IO, Ctx, WorkflowId] {
 
   override def createInstance(id: WorkflowId): IO[WorkflowInstance[IO, WCState[Ctx]]] = {
@@ -28,11 +28,10 @@ class PostgresRuntime[Ctx <: WorkflowContext](
       val base = new DbWorkflowInstance(
         id,
         ActiveWorkflow(workflow, initialState),
-        PostgresWorkflowStorage,
-        eventCodec,
+        storage,
         clock,
         knockerUpper,
-        registry
+        registry,
       )
       // alternative is to take `LiftIO` as runtime parameter but this complicates call site
       new MappedWorkflowInstance(
@@ -47,14 +46,14 @@ class PostgresRuntime[Ctx <: WorkflowContext](
 
 }
 
-object PostgresRuntime {
-  def default[Ctx <: WorkflowContext, Input](
+object DatabaseRuntime {
+  def default[Ctx <: WorkflowContext, WorkflowId](
       workflow: Initial[Ctx],
       initialState: WCState[Ctx],
-      eventCodec: EventCodec[WCEvent[Ctx]],
-      xa: Transactor[IO],
+      transactor: Transactor[IO],
       knockerUpper: KnockerUpper.Agent[WorkflowId],
+      storage: WorkflowStorage[WorkflowId, WCEvent[Ctx]],
       clock: Clock = Clock.systemUTC(),
       registry: WorkflowRegistry.Agent[WorkflowId] = NoOpWorkflowRegistry.Agent,
-  ) = new PostgresRuntime[Ctx](workflow, initialState, clock, knockerUpper, eventCodec, xa, registry)
+  ) = new DatabaseRuntime[Ctx, WorkflowId](workflow, initialState, clock, knockerUpper, transactor, storage, registry)
 }

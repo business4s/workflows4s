@@ -92,7 +92,7 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
     } yield ()
   }
 
-  private def currentTime = fMonad.unit.map(_ => Instant.now(clock))
+  protected def currentTime = fMonad.unit.map(_ => Instant.now(clock))
 
   protected def processLiveEvent(event: WCEvent[Ctx], state: ActiveWorkflow[Ctx], now: Instant): ActiveWorkflow[Ctx] = {
     state.handleEvent(event, now) match {

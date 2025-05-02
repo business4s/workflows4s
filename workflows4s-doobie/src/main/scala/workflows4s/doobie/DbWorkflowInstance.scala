@@ -12,15 +12,14 @@ import workflows4s.runtime.registry.WorkflowRegistry
 import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.wio.*
 
-import java.time.Clock
+import java.time.{Clock, Instant}
 
 private type Result[T] = Kleisli[ConnectionIO, LiftIO[ConnectionIO], T]
 
 class DbWorkflowInstance[Ctx <: WorkflowContext, Id](
     id: Id,
     baseWorkflow: ActiveWorkflow[Ctx],
-    storage: WorkflowStorage[Id],
-    eventCodec: EventCodec[WCEvent[Ctx]],
+    storage: WorkflowStorage[Id, WCEvent[Ctx]],
     protected val clock: Clock,
     knockerUpperForId: KnockerUpper.Agent[Id],
     registryAgent: WorkflowRegistry.Agent[Id],
@@ -31,15 +30,24 @@ class DbWorkflowInstance[Ctx <: WorkflowContext, Id](
   override protected lazy val knockerUpper: KnockerUpper.Agent.Curried = knockerUpperForId.curried(id)
   override protected lazy val registry: WorkflowRegistry.Agent.Curried = registryAgent.curried(id)
 
-  override protected def getWorkflow: Result[ActiveWorkflow[Ctx]] =
+  override protected def getWorkflow: Result[ActiveWorkflow[Ctx]] = {
+    def recoveredState(now: Instant): ConnectionIO[ActiveWorkflow[Ctx]] =
+      storage
+        .getEvents(id)
+        .compile
+        .fold(baseWorkflow)((state, event) =>
+          state.handleEvent(event, now) match {
+            case Some(value) => value
+            case None        =>
+              logger.warn(s"Ignored event ${}")
+              state
+          },
+        )
     for {
-      events   <- queryEvents
-      newState <- recover(baseWorkflow, events)
-    } yield newState
-
-  private def queryEvents: Result[List[WCEvent[Ctx]]] = Kleisli(liftIo => {
-    storage.getEvents(id).flatMap(_.traverse(eventBytes => Sync[ConnectionIO].fromTry(eventCodec.read(eventBytes))))
-  })
+      now    <- currentTime
+      result <- Kleisli(liftIO => recoveredState(now))
+    } yield result
+  }
 
   override protected def lockAndUpdateState[T](update: ActiveWorkflow[Ctx] => Result[LockOutcome[T]]): Result[StateUpdate[T]] = {
     for {
@@ -50,7 +58,7 @@ class DbWorkflowInstance[Ctx <: WorkflowContext, Id](
                        case LockOutcome.NewEvent(event, result) =>
                          Kleisli(_ =>
                            for {
-                             _       <- storage.saveEvent(id, eventCodec.write(event))
+                             _       <- storage.saveEvent(id, event)
                              newState = processLiveEvent(event, oldState, now)
                            } yield StateUpdate.Updated(oldState, newState, result),
                          )

@@ -3,6 +3,7 @@ package workflows4s.doobie.postgres
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import org.scalatest.freespec.AnyFreeSpec
+import workflows4s.doobie.DatabaseRuntime
 import workflows4s.runtime.wakeup.NoOpKnockerUpper
 import workflows4s.wio
 import workflows4s.wio.WorkflowContext
@@ -21,7 +22,8 @@ class PostgresRuntimeTest extends AnyFreeSpec with PostgresSuite {
         .handleEvent((_, _) => State())
         .done
 
-      val runtime          = PostgresRuntime.default(wio, State(), noopCodec(Event()), xa, NoOpKnockerUpper.Agent)
+      val storage          = PostgresWorkflowStorage()(using noopCodec(Event()))
+      val runtime          = DatabaseRuntime.default(wio, State(), xa, NoOpKnockerUpper.Agent, storage)
       val workflowInstance = runtime.createInstance(WorkflowId(1)).unsafeRunSync()
 
       // this used to throw due to leaked LiftIO
@@ -34,7 +36,7 @@ class PostgresRuntimeTest extends AnyFreeSpec with PostgresSuite {
     case class Event()
   }
 
-  def noopCodec[E](evt: E) = new workflows4s.doobie.EventCodec[E] {
+  def noopCodec[E](evt: E) = new workflows4s.doobie.ByteCodec[E] {
     override def write(event: E): IArray[Byte]     = IArray.empty
     override def read(bytes: IArray[Byte]): Try[E] = scala.util.Success(evt)
   }
