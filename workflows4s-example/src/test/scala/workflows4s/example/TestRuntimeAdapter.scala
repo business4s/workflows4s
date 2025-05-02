@@ -11,8 +11,8 @@ import org.apache.pekko.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity
 import org.apache.pekko.persistence.typed.PersistenceId
 import org.apache.pekko.util.Timeout
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
-import workflows4s.doobie.EventCodec
-import workflows4s.doobie.postgres.{PostgresRuntime, WorkflowId}
+import workflows4s.doobie.{ByteCodec, DatabaseRuntime}
+import workflows4s.doobie.postgres.{PostgresWorkflowStorage, WorkflowId}
 import workflows4s.runtime.pekko.{PekkoWorkflowInstance, WorkflowBehavior}
 import workflows4s.runtime.wakeup.NoOpKnockerUpper
 import workflows4s.runtime.{InMemoryRuntime, InMemorySyncRuntime, InMemorySyncWorkflowInstance, WorkflowInstance}
@@ -198,15 +198,16 @@ object TestRuntimeAdapter {
     }
   }
 
-  class Postgres[Ctx <: WorkflowContext](xa: Transactor[IO], eventCodec: EventCodec[WCEvent[Ctx]]) extends TestRuntimeAdapter[Ctx] {
+  class Postgres[Ctx <: WorkflowContext](xa: Transactor[IO], eventCodec: ByteCodec[WCEvent[Ctx]]) extends TestRuntimeAdapter[Ctx] {
 
     override def runWorkflow(
         workflow: WIO.Initial[Ctx],
         state: WCState[Ctx],
         clock: Clock,
     ): Actor = {
+      val storage = PostgresWorkflowStorage()(using eventCodec)
       val runtime =
-        PostgresRuntime.default[Ctx, Unit](workflow, state, eventCodec, xa, NoOpKnockerUpper.Agent, clock)
+        DatabaseRuntime.default[Ctx, WorkflowId](workflow, state, xa, NoOpKnockerUpper.Agent, storage, clock)
       Actor(runtime.createInstance(WorkflowId(Random.nextLong())))
     }
 

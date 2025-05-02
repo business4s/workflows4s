@@ -4,16 +4,23 @@ import cats.effect.kernel.{Resource, Sync}
 import cats.implicits.toFunctorOps
 import doobie.*
 import doobie.implicits.*
-import workflows4s.doobie.WorkflowStorage
+import workflows4s.doobie.{ByteCodec, WorkflowStorage}
 
-object PostgresWorkflowStorage extends WorkflowStorage[WorkflowId] {
-  override def getEvents(id: WorkflowId): ConnectionIO[List[IArray[Byte]]] = {
-    sql"select event_data from workflow_journal where workflow_id = ${id}".query[Array[Byte]].map(IArray.unsafeFromArray).to[List]
+class PostgresWorkflowStorage[Event](tableName: String = "workflow_journal")(using evenCodec: ByteCodec[Event])
+    extends WorkflowStorage[WorkflowId, Event] {
+
+  val tableNameFr = Fragment.const(tableName)
+
+  override def getEvents(id: WorkflowId): fs2.Stream[ConnectionIO, Event] = {
+    sql"select event_data from ${tableNameFr} where workflow_id = ${id}"
+      .query[Array[Byte]]
+      .stream
+      .evalMap(bytes => Sync[ConnectionIO].fromTry(evenCodec.read(IArray.unsafeFromArray(bytes))))
   }
 
-  override def saveEvent(id: WorkflowId, event: IArray[Byte]): ConnectionIO[Unit] = {
-    val bytes = IArray.genericWrapArray(event).toArray
-    sql"insert into workflow_journal (workflow_id, event_data) values ($id, $bytes)".update.run.void
+  override def saveEvent(id: WorkflowId, event: Event): ConnectionIO[Unit] = {
+    val bytes = IArray.genericWrapArray(evenCodec.write(event)).toArray
+    sql"insert into ${tableNameFr} (workflow_id, event_data) values ($id, $bytes)".update.run.void
   }
 
   override def lockWorkflow(id: WorkflowId): Resource[ConnectionIO, Unit] = {

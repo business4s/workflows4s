@@ -1,11 +1,11 @@
 package workflows4s.example.testuitls
 
 import io.circe.Codec
-import workflows4s.doobie.EventCodec
+import workflows4s.doobie.ByteCodec
 
 object CirceEventCodec {
 
-  def get[T]()(using Codec[T]): EventCodec[T] = new EventCodec[T] {
+  def get[T]()(using Codec[T]): ByteCodec[T] = new ByteCodec[T] {
 
     import scala.util.{Failure, Success, Try}
     import io.circe.syntax.*
