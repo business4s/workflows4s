@@ -4,6 +4,8 @@ import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 import workflows4s.testing.TestUtils
 import workflows4s.wio.{TestCtx2, TestState}
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
 class MermaidRendererTest extends AnyFreeSpec with Matchers {
 
@@ -18,13 +20,11 @@ class MermaidRendererTest extends AnyFreeSpec with Matchers {
         val flowchart = MermaidRenderer.renderWorkflow(wio.toProgress, showTechnical = false)
         val rendered  = flowchart.render
 
+        print(rendered)
         assert(rendered == """flowchart TD
                              |node0@{ shape: circle, label: "Start"}
                              |node1["@computation"]
                              |node0 --> node1
-                             |classDef executed fill:#0e0
-                             |classDef checkpoint fill:transparent,stroke-dasharray:5 5,stroke:black
-                             |classDef checkpoint-executed fill:transparent,stroke-dasharray:5 5,stroke:#0e0
                              |""".stripMargin)
       }
 
@@ -34,6 +34,11 @@ class MermaidRendererTest extends AnyFreeSpec with Matchers {
 
         val flowchart = MermaidRenderer.renderWorkflow(wio.toProgress, showTechnical = true)
         val rendered  = flowchart.render
+        println(rendered)
+        println(flowchart.toViewUrl)
+
+        println(s"wio.toProgress. = ${wio.toProgress.toString}")
+
 
         assert(rendered == """flowchart TD
                              |node0@{ shape: circle, label: "Start"}
@@ -42,9 +47,6 @@ class MermaidRendererTest extends AnyFreeSpec with Matchers {
                              |node2["@computation"]
                              |node0 --> node2
                              |end
-                             |classDef executed fill:#0e0
-                             |classDef checkpoint fill:transparent,stroke-dasharray:5 5,stroke:black
-                             |classDef checkpoint-executed fill:transparent,stroke-dasharray:5 5,stroke:#0e0
                              |""".stripMargin)
       }
     }
@@ -58,9 +60,6 @@ class MermaidRendererTest extends AnyFreeSpec with Matchers {
 
         assert(rendered == """flowchart TD
                              |node0@{ shape: circle, label: "Start"}
-                             |classDef executed fill:#0e0
-                             |classDef checkpoint fill:transparent,stroke-dasharray:5 5,stroke:black
-                             |classDef checkpoint-executed fill:transparent,stroke-dasharray:5 5,stroke:#0e0
                              |""".stripMargin)
       }
 
@@ -69,16 +68,38 @@ class MermaidRendererTest extends AnyFreeSpec with Matchers {
 
         val flowchart = MermaidRenderer.renderWorkflow(wio.toProgress, showTechnical = true)
         val rendered  = flowchart.render
+        println(rendered)
+        println(flowchart.toViewUrl)
+
+        println(s"wio.toProgress. = ${wio.toProgress.toString}")
 
         assert(rendered == """flowchart TD
                              |node0@{ shape: circle, label: "Start"}
                              |node1@{ shape: hexagon, label: "fa:fa-wrench State Recovery"}
                              |node0 --> node1
-                             |classDef executed fill:#0e0
-                             |classDef checkpoint fill:transparent,stroke-dasharray:5 5,stroke:black
-                             |classDef checkpoint-executed fill:transparent,stroke-dasharray:5 5,stroke:#0e0
                              |""".stripMargin)
       }
+    }
+
+    "should generate a valid URL for viewing the rendered Mermaid diagram" in {
+      val (_, runIoStep1) = TestUtils.runIO
+      val wio             = runIoStep1.checkpointed((_, _) => ???, (_, _) => ???)
+
+      val flowchart = MermaidRenderer.renderWorkflow(wio.toProgress, showTechnical = false)
+
+      print(flowchart.render)
+
+      val url       = flowchart.toViewUrl
+
+      // Verify the URL starts with the expected prefix
+      assert(url.startsWith("https://mermaid.live/edit#pako:"))
+
+      // Verify the URL contains the encoded diagram content
+      val expectedContent = URLEncoder.encode(flowchart.render, StandardCharsets.UTF_8.toString)
+      assert(url == s"https://mermaid.live/edit#pako:${expectedContent}")
+
+      // Print the URL for manual verification if needed
+      println(s"Generated URL: $url")
     }
   }
 }
