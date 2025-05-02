@@ -20,7 +20,6 @@ class MermaidRendererTest extends AnyFreeSpec with Matchers {
         val flowchart = MermaidRenderer.renderWorkflow(wio.toProgress, showTechnical = false)
         val rendered  = flowchart.render
 
-        print(rendered)
         assert(rendered == """flowchart TD
                              |node0@{ shape: circle, label: "Start"}
                              |node1["@computation"]
@@ -34,11 +33,6 @@ class MermaidRendererTest extends AnyFreeSpec with Matchers {
 
         val flowchart = MermaidRenderer.renderWorkflow(wio.toProgress, showTechnical = true)
         val rendered  = flowchart.render
-        println(rendered)
-        println(flowchart.toViewUrl)
-
-        println(s"wio.toProgress. = ${wio.toProgress.toString}")
-
 
         assert(rendered == """flowchart TD
                              |node0@{ shape: circle, label: "Start"}
@@ -68,10 +62,6 @@ class MermaidRendererTest extends AnyFreeSpec with Matchers {
 
         val flowchart = MermaidRenderer.renderWorkflow(wio.toProgress, showTechnical = true)
         val rendered  = flowchart.render
-        println(rendered)
-        println(flowchart.toViewUrl)
-
-        println(s"wio.toProgress. = ${wio.toProgress.toString}")
 
         assert(rendered == """flowchart TD
                              |node0@{ shape: circle, label: "Start"}
@@ -86,8 +76,6 @@ class MermaidRendererTest extends AnyFreeSpec with Matchers {
       val wio             = runIoStep1.checkpointed((_, _) => ???, (_, _) => ???)
 
       val flowchart = MermaidRenderer.renderWorkflow(wio.toProgress, showTechnical = false)
-
-      print(flowchart.render)
 
       val url       = flowchart.toViewUrl
 
