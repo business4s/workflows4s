@@ -1,5 +1,8 @@
 package workflows4s.mermaid
 
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+
 sealed trait MermaidElement {
   def render: String
 }
@@ -40,10 +43,29 @@ case class MermaidFlowchart(elements: Seq[MermaidElement]) {
   def addElement(element: MermaidElement): MermaidFlowchart  = MermaidFlowchart(elements :+ element)
   def addElements(el: Seq[MermaidElement]): MermaidFlowchart = MermaidFlowchart(elements ++ el)
 
-  def render: String =
+  def render: String = {
+
+    val usedClasses = elements.collect {
+      case Node(_, _, _, Some(klass))               => klass
+      case Subgraph(_, _, subElements, Some(klass)) =>
+        klass +: subElements.collect { case Node(_, _, _, Some(subKlass)) => subKlass }
+    }
+
+    // Filter elements to include only used class definitions and other elements
+    val filteredElements = elements.filter {
+      case ClassDef(name, _) => usedClasses.contains(name)
+      case _                 => true
+    }
+
     s"""flowchart TD
-       |${elements.map(_.render).mkString("\n")}
+       |${filteredElements.map(_.render).mkString("\n")}
        |""".stripMargin
+  }
+
+  def toViewUrl: String = {
+    val encoded = URLEncoder.encode(render, StandardCharsets.UTF_8.toString)
+    s"https://mermaid.live/edit#pako:${encoded}"
+  }
 }
 
 object MermaidFlowchart {
