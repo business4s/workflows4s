@@ -77,7 +77,7 @@ class MermaidRendererTest extends AnyFreeSpec with Matchers {
 
       val flowchart = MermaidRenderer.renderWorkflow(wio.toProgress, showTechnical = false)
 
-      val url       = flowchart.toViewUrl
+      val url = flowchart.toViewUrl
 
       // Verify the URL starts with the expected prefix
       assert(url.startsWith("https://mermaid.live/edit#pako:"))
