@@ -1,11 +1,11 @@
 ---
 sidebar_position: 1
-sidebar_label: Intro
+sidebar_label: Getting Started
 ---
 
 import SbtDependency from "@site/src/components/SbtDependency";
 
-# Intro
+# Getting Started
 
 :::info
 
@@ -26,9 +26,7 @@ To give a glimpse into the library, we will model a simplified pull request proc
 
 ## Modeling the workflow
 
-We will start by defining our workflow context. It controls types internal to the workflow: its state and events it uses
-for persistance. Those won't bother us for now because they are not important in the early phase of designing the
-workflow.
+We will start by importing a `DrafWorkflowContext`, a utility simplifying the creation of a workflow draft.
 
 
 <!-- @formatter:off -->
@@ -54,10 +52,17 @@ Tada!
 
 ![run-io.svg](../../workflows4s-example/src/test/resources/docs/pull-request-draft.svg)
 
+:::info
+
+:::mermaid
+Workflows4s comes with a few different ways to visualize the workflow. See [Visualizations](visualization) for details.
+:::
+
 ## Implementing the workflow
 
 Let's now implement our workflow. We have to start with defining the few underlying ADTs: state, events, errors and
-signals. Normally, you will define those as you go through the process od defining the steps, but for the sake of this
+signals.
+Normally, you will define those as you go through the process of defining the steps, but for the sake of this
 tutorial, we are defining them upfront.
 
 <!-- @formatter:off -->
@@ -93,7 +98,9 @@ Workflows4s supports short-circuiting operations with domain errors. The mechani
 and different parts of the workflow can use different errors. In this example, we use just one. All errors will be
 visible in type signatures.
 
-Now that we have it covered, we can plug state and events into our context and start defining the steps.
+Now that we have it covered,
+we can plug state and events into our context
+(that will replace `DraftWorkflowContext` we used initially) and start defining the steps.
 <!-- @formatter:off -->
 ```scala file=./main/scala/workflows4s/example/docs/pullrequest/PullRequestWorkflow.scala start=start_context end=end_context
 ```

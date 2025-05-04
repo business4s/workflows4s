@@ -4,16 +4,12 @@ import java.io.File
 
 import org.camunda.bpm.model.bpmn.Bpmn
 import workflows4s.bpmn.BpmnRenderer
-import workflows4s.wio.WorkflowContext
+//import workflows4s.wio.*
 
 object PullRequestWorkflowDraft {
 
   // start_context
-  object Context extends WorkflowContext {
-    override type Event = Unit
-    override type State = Unit
-  }
-  import Context.*
+  import workflows4s.wio.DraftWorkflowContext.*
   // end_context
 
   // start_steps
