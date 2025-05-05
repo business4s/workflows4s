@@ -57,7 +57,7 @@ lazy val `workflows4s-doobie` = (project in file("workflows4s-doobie"))
       "org.postgresql" % "postgresql"                      % "42.7.5"                   % Test,
     ),
   )
-  .dependsOn(`workflows4s-core`)
+  .dependsOn(`workflows4s-core` % "compile->compile;test->test")
 
 lazy val `workflows4s-filesystem` = (project in file("workflows4s-filesystem"))
   .settings(commonSettings)

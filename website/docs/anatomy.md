@@ -16,6 +16,7 @@ flowchart LR
     WIO --> Runtime
 
     KnockerUpper["KnockerUpper"] --> Runtime
+    WorkflowRegistry["WorkflowRegistry"] --> Runtime
 
     Runtime -- "createInstance(id)" --> Instance["WorkflowInstance"]
     Events["Events"] -. "persisted/retrieved" .-> Instance
@@ -25,6 +26,7 @@ flowchart LR
     Instance -- "deliverSignal()" --> Events
     KnockerUpper -. "wakeups" .-> Instance
     Instance -. "register wakeups" .-> KnockerUpper
+    Instance -. "records execution status" .-> WorkflowRegistry
 
     WIO --> StaticViz["Static Visualization"]
     Instance --> ProgressViz["Progress Visualization"]
@@ -36,7 +38,7 @@ flowchart LR
     classDef viz fill:#bfb,stroke:#333,stroke-width:2px;
 
     class WIO,Events core;
-    class Runtime,Instance,State,KnockerUpper runtime;
+    class Runtime,Instance,State,KnockerUpper,WorkflowRegistry runtime;
     class Renderer,StaticViz,ProgressViz viz;
 ```
 
@@ -58,6 +60,7 @@ flowchart LR
 - **WorkflowInstance**: A specific execution of a workflow with a unique ID.
 - **Events**: Persistent records of all actions and state changes in the workflow.
 - **KnockerUpper**: Responsible for waking up workflows at scheduled times, handling timer-based operations.
+- **WorkflowRegistry**: Keeps track of executed instances and their execution status.
 
 ### Interaction Methods
 

@@ -3,6 +3,7 @@ package workflows4s.runtime
 import cats.Monad
 import cats.effect.{IO, LiftIO, Ref}
 import cats.implicits.catsSyntaxApplicativeId
+import workflows4s.runtime.registry.WorkflowRegistry
 import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.runtime.wakeup.KnockerUpper.Agent.Curried
 import workflows4s.wio.*
@@ -16,6 +17,7 @@ class InMemoryWorkflowInstance[Ctx <: WorkflowContext](
     eventsRef: Ref[IO, Vector[WCEvent[Ctx]]],
     protected val clock: Clock,
     protected val knockerUpper: KnockerUpper.Agent.Curried,
+    protected val registry: WorkflowRegistry.Agent.Curried,
 ) extends WorkflowInstanceBase[IO, Ctx] {
 
   def getEvents: IO[Vector[WCEvent[Ctx]]]          = eventsRef.get
