@@ -4,6 +4,7 @@ import cats.effect.IO
 import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.runtime.{InMemoryRuntime, InMemorySyncRuntime, InMemorySyncWorkflowInstance, InMemoryWorkflowInstance}
 import workflows4s.wio.WorkflowContext
+import cats.effect.unsafe.implicits.global
 
 object InMemoryRuntimeExample {
 
@@ -19,7 +20,9 @@ object InMemoryRuntimeExample {
     import MyWorkflowCtx.*
     val workflow: WIO.Initial                               = ???
     val knockerUpperAgent: KnockerUpper.Agent[MyWorkflowId] = ???
-    val runtime: InMemoryRuntime[Ctx, MyWorkflowId]         = InMemoryRuntime.default(workflow, InitialState(), knockerUpperAgent)
+    val runtime: InMemoryRuntime[Ctx, MyWorkflowId]         = InMemoryRuntime
+      .default(workflow, InitialState(), knockerUpperAgent)
+      .unsafeRunSync()
     val wfInstance: IO[InMemoryWorkflowInstance[Ctx]]       = runtime.createInstance(??? : MyWorkflowId)
     // async_doc_end
   }

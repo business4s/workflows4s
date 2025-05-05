@@ -11,7 +11,7 @@ import java.time.Clock
   *
   * IT'S NOT A GENERAL-PURPOSE RUNTIME
   */
-class InMemoryRuntime[Ctx <: WorkflowContext, WorkflowId](
+class InMemoryRuntime[Ctx <: WorkflowContext, WorkflowId] private (
     workflow: Initial[Ctx],
     initialState: WCState[Ctx],
     clock: Clock,
