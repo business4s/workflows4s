@@ -29,6 +29,14 @@ object TestUtils {
     (clock, instance)
   }
 
+  def createInstance3(wio: WIO.Initial[TestCtx3.Ctx]): (TestClock, InMemorySyncWorkflowInstance[TestCtx3.Ctx]) = {
+    val clock                                               = new TestClock()
+    import cats.effect.unsafe.implicits.global
+    val instance: InMemorySyncWorkflowInstance[TestCtx3.Ctx] =
+      new InMemorySyncRuntime(wio, "initialState", clock, NoOpKnockerUpper.Agent).createInstance(())
+    (clock, instance)
+  }
+
   def pure: (StepId, WIO[TestState, Nothing, TestState, TestCtx2.Ctx])         = {
     import TestCtx2.*
     val stepId = StepId.random

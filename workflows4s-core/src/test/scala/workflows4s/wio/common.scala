@@ -35,3 +35,9 @@ object TestCtx2 extends WorkflowContext {
   case class SimpleEvent(value: String) extends Event
   type State = TestState
 }
+
+object TestCtx3 extends WorkflowContext {
+  trait Event
+  case class SimpleEvent(value: String) extends Event
+  type State = String
+}
