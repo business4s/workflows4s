@@ -7,7 +7,7 @@ import workflows4s.wio.WIO.Initial
 
 import java.time.Clock
 
-/** This runtime offers no persistance and stores all the events in memory It's designed to be used in test or in very specific scenarios.
+/** This runtime offers no persistence and stores all the events in memory It's designed to be used in test or in very specific scenarios.
   *
   * IT'S NOT A GENERAL-PURPOSE RUNTIME
   */
@@ -16,9 +16,8 @@ class InMemoryRuntime[Ctx <: WorkflowContext, WorkflowId](
     initialState: WCState[Ctx],
     clock: Clock,
     knockerUpper: KnockerUpper.Agent[WorkflowId],
+    instances: Ref[IO, Map[WorkflowId, InMemoryWorkflowInstance[Ctx]]],
 ) extends WorkflowRuntime[IO, Ctx, WorkflowId] {
-  val instances: Ref[IO, Map[WorkflowId, InMemoryWorkflowInstance[Ctx]]] = Ref.unsafe(Map.empty)
-
   override def createInstance(id: WorkflowId): IO[InMemoryWorkflowInstance[Ctx]] = {
     instances.access.flatMap({ (map, update) =>
       map.get(id) match {
@@ -46,7 +45,12 @@ object InMemoryRuntime {
       workflow: Initial[Ctx],
       initialState: WCState[Ctx],
       knockerUpper: KnockerUpper.Agent[Id],
-  ): InMemoryRuntime[Ctx, Id] =
-    new InMemoryRuntime[Ctx, Id](workflow, initialState, Clock.systemUTC(), knockerUpper)
+  ): IO[InMemoryRuntime[Ctx, Id]] = {
+    Ref
+      .of[IO, Map[Id, InMemoryWorkflowInstance[Ctx]]](Map.empty)
+      .map({ instances =>
+        new InMemoryRuntime[Ctx, Id](workflow, initialState, Clock.systemUTC(), knockerUpper, instances)
+      })
+  }
 
 }
