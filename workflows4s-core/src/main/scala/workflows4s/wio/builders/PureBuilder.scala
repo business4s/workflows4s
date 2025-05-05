@@ -19,6 +19,8 @@ object PureBuilder {
       def makeFrom[In]: MakeStep[In] = MakeStep[In]()
 
       case class MakeStep[In]() {
+        def apply[Err, Out <: WCState[Ctx]](f: In => Either[Err, Out])(using em: ErrorMeta[Err]): Step2[In, Err, Out] = Step2(f, None)
+
         def value[O <: WCState[Ctx]](f: In => O): Step2[In, Nothing, O] = Step2[In, Nothing, O](f.andThen(_.asRight), None)
 
         def error[Err](f: In => Err)(using em: ErrorMeta[Err]): Step2[In, Err, Nothing] = Step2[In, Err, Nothing](f.andThen(_.asLeft), None)
