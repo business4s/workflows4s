@@ -40,7 +40,12 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
     } yield wf.liveState(now)
   }
 
-  override def getProgress: F[WIOExecutionProgress[WCState[Ctx]]] = getWorkflow.map(_.wio.toProgress)
+  override def getProgress: F[WIOExecutionProgress[WCState[Ctx]]] = {
+    for {
+      wf <- getWorkflow
+      now = Instant.now
+    } yield wf.progress(now)
+  }
 
   override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): F[Either[WorkflowInstance.UnexpectedSignal, Resp]] = {
     def processSignal(state: ActiveWorkflow[Ctx], now: Instant): F[LockOutcome[Either[WorkflowInstance.UnexpectedSignal, Resp]]] = {

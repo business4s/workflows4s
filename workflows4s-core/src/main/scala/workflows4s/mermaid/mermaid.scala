@@ -1,7 +1,9 @@
 package workflows4s.mermaid
 
-import java.net.URLEncoder
+import io.circe.Json
+
 import java.nio.charset.StandardCharsets
+import java.util.Base64
 
 sealed trait MermaidElement {
   def render: String
@@ -63,9 +65,18 @@ case class MermaidFlowchart(elements: Seq[MermaidElement]) {
   }
 
   def toViewUrl: String = {
-    val encoded = URLEncoder.encode(render, StandardCharsets.UTF_8.toString)
-    s"https://mermaid.live/edit#pako:${encoded}"
+    val json = Json.obj("code" -> Json.fromString(render)).noSpaces
+
+    val encoded   = Base64.getEncoder.encodeToString(json.getBytes(StandardCharsets.UTF_8))
+    val base64url = encoded
+      .replace('+', '-')
+      .replace('/', '_')
+
+    s"https://mermaid.live/edit#base64:$base64url"
+    // Pako is also possible and more space-efficient but also more complex.
+    // See https://github.com/mermaid-js/mermaid-live-editor/discussions/1291#discussioncomment-7195767 for inspiration
   }
+
 }
 
 object MermaidFlowchart {
