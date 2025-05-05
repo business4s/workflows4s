@@ -4,8 +4,6 @@ import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 import workflows4s.testing.TestUtils
 import workflows4s.wio.{TestCtx2, TestState}
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 
 class MermaidRendererTest extends AnyFreeSpec with Matchers {
 
@@ -80,14 +78,12 @@ class MermaidRendererTest extends AnyFreeSpec with Matchers {
       val url = flowchart.toViewUrl
 
       // Verify the URL starts with the expected prefix
-      assert(url.startsWith("https://mermaid.live/edit#pako:"))
+      assert(url.startsWith("https://mermaid.live/edit#base64:"))
 
       // Verify the URL contains the encoded diagram content
-      val expectedContent = URLEncoder.encode(flowchart.render, StandardCharsets.UTF_8.toString)
-      assert(url == s"https://mermaid.live/edit#pako:${expectedContent}")
-
-      // Print the URL for manual verification if needed
-      println(s"Generated URL: $url")
+      val expectedContent =
+        "eyJjb2RlIjoiZmxvd2NoYXJ0IFREXG5ub2RlMEB7IHNoYXBlOiBjaXJjbGUsIGxhYmVsOiBcIlN0YXJ0XCJ9XG5ub2RlMVtcIkBjb21wdXRhdGlvblwiXVxubm9kZTAgLS0-IG5vZGUxXG4ifQ=="
+      assert(url == s"https://mermaid.live/edit#base64:${expectedContent}")
     }
   }
 }

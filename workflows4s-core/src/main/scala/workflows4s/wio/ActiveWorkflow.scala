@@ -12,7 +12,6 @@ case class ActiveWorkflow[Ctx <: WorkflowContext](wio: WIO.Initial[Ctx], initial
 
   lazy val staticState: WCState[Ctx] = GetStateEvaluator.extractLastState(wio, (), initialState).getOrElse(initialState)
 
-
   def liveState(now: Instant): WCState[Ctx] =
     effectlessProceed(now)
       .getOrElse(this)
