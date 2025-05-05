@@ -47,7 +47,7 @@ jobs:
         run: |
           cd ../
           sbt -batch -error 'print stableVersion' # something unexpected gets added to stdout on first run
-          export DECISIONS4S_VERSION=$(sbt -batch -error 'print stableVersion' | head -n 1)
+          export WORKFLOWS4S_VERSION=$(sbt -batch -error 'print stableVersion' | head -n 1)
           cd website
           yarn build
       - name: Setup Pages
