@@ -1,11 +1,11 @@
 package workflows4s.runtime
 
-import java.time.Clock
-
 import cats.effect.{Deferred, IO, Ref}
 import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.wio.*
 import workflows4s.wio.WIO.Initial
+
+import java.time.Clock
 
 /** This runtime offers no persistance and stores all the events in memory It's designed to be used in test or in very specific scenarios.
   *
@@ -17,18 +17,27 @@ class InMemoryRuntime[Ctx <: WorkflowContext, WorkflowId](
     clock: Clock,
     knockerUpper: KnockerUpper.Agent[WorkflowId],
 ) extends WorkflowRuntime[IO, Ctx, WorkflowId] {
+  val instances: Ref[IO, Map[WorkflowId, InMemoryWorkflowInstance[Ctx]]] = Ref.unsafe(Map.empty)
 
   override def createInstance(id: WorkflowId): IO[InMemoryWorkflowInstance[Ctx]] = {
-    for {
-      runningWfRef <- Deferred[IO, InMemoryWorkflowInstance[Ctx]]
-      initialWf     = ActiveWorkflow(workflow, initialState)
-      stateRef     <- Ref[IO].of(initialWf)
-      eventsRef    <- Ref[IO].of(Vector[WCEvent[Ctx]]())
-      runningWf     = InMemoryWorkflowInstance[Ctx](stateRef, eventsRef, clock, knockerUpper.curried(id))
-      _            <- runningWfRef.complete(runningWf)
-    } yield runningWf
+    instances.access.flatMap({ (map, update) =>
+      map.get(id) match {
+        case Some(instance) => IO.pure(instance)
+        case None           =>
+          for {
+            runningWfRef <- Deferred[IO, InMemoryWorkflowInstance[Ctx]]
+            initialWf     = ActiveWorkflow(workflow, initialState)
+            stateRef     <- Ref[IO].of(initialWf)
+            eventsRef    <- Ref[IO].of(Vector[WCEvent[Ctx]]())
+            runningWf     = InMemoryWorkflowInstance[Ctx](stateRef, eventsRef, clock, knockerUpper.curried(id))
+            _            <- runningWfRef.complete(runningWf)
+            success      <- update(map.updated(id, runningWf))
+            _            <- if (success) IO.unit
+                            else IO.raiseError(new RuntimeException("Could not add workflow to active instances"))
+          } yield runningWf
+      }
+    })
   }
-
 }
 
 object InMemoryRuntime {
