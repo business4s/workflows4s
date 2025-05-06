@@ -66,7 +66,9 @@ object TestRuntimeAdapter {
         with EventIntrospection[WCEvent[Ctx]] {
       val base: InMemorySyncWorkflowInstance[Ctx] = {
         val runtime =
-          new InMemorySyncRuntime[Ctx, Unit](initialWorkflow, state, clock, NoOpKnockerUpper.Agent, NoOpWorkflowRegistry.Agent)(using IORuntime.global)
+          new InMemorySyncRuntime[Ctx, Unit](initialWorkflow, state, clock, NoOpKnockerUpper.Agent, NoOpWorkflowRegistry.Agent)(using
+            IORuntime.global,
+          )
         val inst    = runtime.createInstance(())
         inst.recover(events)
         inst

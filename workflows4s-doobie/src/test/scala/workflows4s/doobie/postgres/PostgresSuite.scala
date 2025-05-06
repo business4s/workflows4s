@@ -29,10 +29,10 @@ trait PostgresSuite extends TestContainerForAll { self: Suite =>
   }
 
   def createSchema(xa: Transactor[IO]): IO[Unit] = {
-    val schemaSql  = scala.io.Source.fromResource("schema/postgres-schema.sql").mkString
+    val schemaSql         = scala.io.Source.fromResource("schema/postgres-schema.sql").mkString
     val registrySchemaSql = scala.io.Source.fromResource("schema/postgres-workflow-registry-schema.sql").mkString
-    val statements = (schemaSql + registrySchemaSql).split(";").map(_.trim).filter(_.nonEmpty)
-    val actions    = statements.toList.traverse(sql => Fragment.const(sql).update.run)
+    val statements        = (schemaSql + registrySchemaSql).split(";").map(_.trim).filter(_.nonEmpty)
+    val actions           = statements.toList.traverse(sql => Fragment.const(sql).update.run)
     actions.transact(xa).map(_ => ())
   }
 

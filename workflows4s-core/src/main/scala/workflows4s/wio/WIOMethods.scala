@@ -58,7 +58,7 @@ trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self
 
   def asExecuted: Option[WIO.Executed[Ctx, Err, Out, ?]] = this match {
     case x: WIO.Executed[Ctx, Err, Out, ?] => x.some
-    case _ => None
+    case _                                 => None
   }
 
 }

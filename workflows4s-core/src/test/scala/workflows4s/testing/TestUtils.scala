@@ -25,7 +25,13 @@ object TestUtils {
     val clock                                                = new TestClock()
     import cats.effect.unsafe.implicits.global
     val instance: InMemorySyncWorkflowInstance[TestCtx2.Ctx] =
-      new InMemorySyncRuntime[TestCtx2.Ctx, Unit](wio.provideInput(TestState.empty), TestState.empty, clock, NoOpKnockerUpper.Agent, NoOpWorkflowRegistry.Agent)
+      new InMemorySyncRuntime[TestCtx2.Ctx, Unit](
+        wio.provideInput(TestState.empty),
+        TestState.empty,
+        clock,
+        NoOpKnockerUpper.Agent,
+        NoOpWorkflowRegistry.Agent,
+      )
         .createInstance(())
     (clock, instance)
   }

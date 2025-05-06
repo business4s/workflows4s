@@ -13,7 +13,7 @@ class InMemorySyncRuntime[Ctx <: WorkflowContext, WorkflowId](
     initialState: WCState[Ctx],
     clock: Clock,
     knockerUpperAgent: KnockerUpper.Agent[WorkflowId],
-    registryAgent: WorkflowRegistry.Agent[WorkflowId]
+    registryAgent: WorkflowRegistry.Agent[WorkflowId],
 )(using IORuntime)
     extends WorkflowRuntime[Id, Ctx, WorkflowId] {
 

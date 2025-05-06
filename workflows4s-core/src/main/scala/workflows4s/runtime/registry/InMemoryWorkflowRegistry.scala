@@ -32,17 +32,17 @@ object InMemoryWorkflowRegistry {
       override def upsertInstance(id: WorkflowId, executionStatus: ExecutionStatus): IO[Unit] = {
         for {
           now <- IO(Instant.now(clock))
-          _ <- stateRef.update { state =>
-            state.get((workflowType, id)) match {
-              case Some(existing) =>
-                if (existing.updatedAt.isBefore(now)) {
-                  state + ((workflowType, id) -> existing.copy(updatedAt = now, status = executionStatus))
-                } else state
+          _   <- stateRef.update { state =>
+                   state.get((workflowType, id)) match {
+                     case Some(existing) =>
+                       if (existing.updatedAt.isBefore(now)) {
+                         state + ((workflowType, id) -> existing.copy(updatedAt = now, status = executionStatus))
+                       } else state
 
-              case None           =>
-                state + ((workflowType, id) -> Data(id, workflowType, now, now, executionStatus))
-            }
-          }
+                     case None =>
+                       state + ((workflowType, id) -> Data(id, workflowType, now, now, executionStatus))
+                   }
+                 }
         } yield ()
       }
     }

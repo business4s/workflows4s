@@ -117,7 +117,7 @@ class PostgresDatabaseWorkflowRegistryTest extends AnyFreeSpec with PostgresSuit
     }
   }
 
-  extension [T] (v: fs2.Stream[ConnectionIO, T]) {
+  extension [T](v: fs2.Stream[ConnectionIO, T]) {
     def drainUnsafe: List[T] = v.compile.toList.transact(xa).unsafeRunSync()
   }
 }

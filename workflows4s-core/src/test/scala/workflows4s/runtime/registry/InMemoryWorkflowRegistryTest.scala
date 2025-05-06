@@ -45,7 +45,7 @@ class InMemoryWorkflowRegistryTest extends AnyFreeSpec with Matchers {
       val agent    = registry.getAgent(wfType)
 
       val List(id1, id2) = List.fill(2)(UUID.randomUUID())
-      val initialTime = clock.instant
+      val initialTime    = clock.instant
 
       agent.upsertInstance(id1, ExecutionStatus.Running).unsafeRunSync()
       agent.upsertInstance(id2, ExecutionStatus.Running).unsafeRunSync()
@@ -70,10 +70,10 @@ class InMemoryWorkflowRegistryTest extends AnyFreeSpec with Matchers {
     "should separate ids by type" in {
       val clock    = TestClock()
       val registry = InMemoryWorkflowRegistry[UUID](clock).unsafeRunSync()
-      val wfType1   = "test-workflow-1"
-      val wfType2   = "test-workflow-2"
-      val agent1    = registry.getAgent(wfType1)
-      val agent2    = registry.getAgent(wfType2)
+      val wfType1  = "test-workflow-1"
+      val wfType2  = "test-workflow-2"
+      val agent1   = registry.getAgent(wfType1)
+      val agent2   = registry.getAgent(wfType2)
 
       val id = UUID.randomUUID()
 
