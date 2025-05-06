@@ -3,6 +3,7 @@ package workflows4s.wio.internal
 import cats.implicits.{catsSyntaxOptionId, toTraverseOps}
 import workflows4s.wio.WIO.HandleInterruption.{InterruptionStatus, InterruptionType}
 import workflows4s.wio.*
+import workflows4s.wio.WIO.Loop.State
 
 abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](
     wio: WIO[In, Err, Out, Ctx],
@@ -107,38 +108,47 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
     }
   }
 
-  def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result = {
+  def onLoop[BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx], ReturnIn](wio: WIO.Loop[Ctx, In, Err, Out, BodyIn, BodyOut, ReturnIn]): Result = {
     // TODO all the `.provideInput` here are not good, they enlarge the graph unnecessarily.
     //  alternatively we could maybe take the input from the last history entry
     val lastState = wio.history.lastOption.flatMap(_.output.toOption).getOrElse(lastSeenState)
-    recurse(wio.current, input, lastState).map({
-      case WFExecution.Complete(newWio) =>
-        newWio.output match {
-          case Left(err)    => WFExecution.complete(wio.copy(history = wio.history :+ newWio), Left(err), input)
-          case Right(value) =>
-            if (wio.isReturning) {
-              WFExecution.Partial(wio.copy(current = wio.loop.provideInput(value), isReturning = false, history = wio.history :+ newWio))
-            } else {
-              wio.stopCondition(value) match {
-                case Some(value1) =>
-                  WFExecution.complete(
-                    wio.copy(history = wio.history :+ newWio, current = WIO.Executed(wio.current, Right(value), input)),
-                    Right(value1),
-                    input,
-                  )
-                case None         =>
-                  wio.onRestart match {
-                    case Some(onRestart) =>
-                      WFExecution.Partial(wio.copy(current = onRestart.provideInput(value), isReturning = true, history = wio.history :+ newWio))
-                    case None            =>
-                      WFExecution.Partial(wio.copy(current = wio.loop.provideInput(value), isReturning = true, history = wio.history :+ newWio))
-                  }
+    wio.current match {
+      case State.Finished(_)          =>
+        None // TODO better error, this should never happen
+      case State.Forward(currentWio)  =>
+        recurse(currentWio, input, lastState).map({
+          case WFExecution.Complete(newWio) =>
+            newWio.output match {
+              case Left(err)    => WFExecution.complete(wio.copy(history = wio.history :+ newWio), Left(err), input)
+              case Right(value) =>
+                wio.stopCondition(value) match {
+                  case Right(value1)  =>
+                    WFExecution.complete(
+                      wio.copy(history = wio.history :+ newWio, current = WIO.Loop.State.Finished(WIO.Executed(currentWio, Right(value), input))),
+                      Right(value1),
+                      input,
+                    )
+                  case Left(returnIn) =>
+                    WFExecution.Partial(
+                      wio.copy(current = WIO.Loop.State.Backward(wio.onRestart.provideInput(returnIn)), history = wio.history :+ newWio),
+                    )
+                }
 
-              }
             }
-        }
-      case WFExecution.Partial(newWio)  => WFExecution.Partial(wio.copy(current = newWio))
-    })
+          case WFExecution.Partial(newWio)  => WFExecution.Partial(wio.copy(current = State.Forward(newWio)))
+        })
+      case State.Backward(currentWio) =>
+        recurse(currentWio, input, lastState).map({
+          case WFExecution.Complete(newWio) =>
+            newWio.output match {
+              case Left(err)    => WFExecution.complete(wio.copy(history = wio.history :+ newWio), Left(err), input)
+              case Right(value) =>
+                WFExecution.Partial(wio.copy(current = WIO.Loop.State.Forward(wio.body.provideInput(value)), history = wio.history :+ newWio))
+            }
+          case WFExecution.Partial(newWio)  => WFExecution.Partial(wio.copy(current = State.Backward(newWio)))
+        })
+    }
+
   }
 
   def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result = {
