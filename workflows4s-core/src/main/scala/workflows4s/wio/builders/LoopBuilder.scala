@@ -24,8 +24,8 @@ object LoopBuilder {
 
         def onRestart(action: WIO[ReturnIn, Err, BodyIn, Ctx]): Step3 = Step3(action)
 
-        def onRestartDoNothing(using ev1: ReturnIn <:< BodyOut, ev2: BodyOut <:< BodyIn): Step3 = Step3(
-          WIO.build[Ctx].pure.makeFrom[ReturnIn].value(_.pipe(ev1.apply).pipe(ev2.apply)).done,
+        def onRestartContinue(using ev1: ReturnIn <:< BodyIn): Step3 = Step3(
+          WIO.build[Ctx].pure.makeFrom[ReturnIn].value(_.pipe(ev1.apply)).done,
         )
 
         case class Step3(

@@ -26,7 +26,7 @@ object LoopExample {
     val loop: WIO[MyState, Nothing, MyState] = WIO
       .repeat(step1)
       .until(state => state.counter > 0)
-      .onRestartDoNothing
+      .onRestartContinue
       .done
     // end_simple
 

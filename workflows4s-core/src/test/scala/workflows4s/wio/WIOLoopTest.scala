@@ -231,7 +231,7 @@ class WIOLoopTest extends AnyFreeSpec with Matchers with OptionValues with Eithe
       .pipe(x =>
         onReturn match {
           case Some(value) => x.onRestart(value)
-          case None        => x.onRestartDoNothing
+          case None        => x.onRestartContinue
         },
       )
       .done
