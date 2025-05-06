@@ -15,22 +15,25 @@ class InMemorySyncRuntime[Ctx <: WorkflowContext, WorkflowId](
     knockerUpperAgent: KnockerUpper.Agent[WorkflowId],
 )(using IORuntime)
     extends WorkflowRuntime[Id, Ctx, WorkflowId] {
+  val instances = new java.util.concurrent.ConcurrentHashMap[WorkflowId, InMemorySyncWorkflowInstance[Ctx]]()
 
   override def createInstance(id: WorkflowId): InMemorySyncWorkflowInstance[Ctx] = {
-    val atomicRef                     = new java.util.concurrent.atomic.AtomicReference[InMemorySyncWorkflowInstance[Ctx]](null)
-    val activeWf: ActiveWorkflow[Ctx] = ActiveWorkflow(workflow, initialState)
-    val instance                      = new InMemorySyncWorkflowInstance[Ctx](activeWf, clock, knockerUpperAgent.curried(id))
-    atomicRef.set(instance)
-    instance
+    instances.computeIfAbsent(
+      id,
+      { _ =>
+        val activeWf: ActiveWorkflow[Ctx] = ActiveWorkflow(workflow, initialState)
+        new InMemorySyncWorkflowInstance[Ctx](activeWf, clock, knockerUpperAgent.curried(id))
+      },
+    )
   }
-
 }
 
 object InMemorySyncRuntime {
-  def default[Ctx <: WorkflowContext](
+  def default[Ctx <: WorkflowContext, Id](
       workflow: Initial[Ctx],
       initialState: WCState[Ctx],
-      knockerUpperAgent: KnockerUpper.Agent[Unit] = NoOpKnockerUpper.Agent,
-  ): InMemorySyncRuntime[Ctx, Unit] =
-    new InMemorySyncRuntime[Ctx, Unit](workflow, initialState, Clock.systemUTC(), knockerUpperAgent)(using IORuntime.global)
+      knockerUpperAgent: KnockerUpper.Agent[Id] = NoOpKnockerUpper.Agent,
+      clock: Clock = Clock.systemUTC(),
+  ): InMemorySyncRuntime[Ctx, Id] =
+    new InMemorySyncRuntime[Ctx, Id](workflow, initialState, clock, knockerUpperAgent)(using IORuntime.global)
 }
