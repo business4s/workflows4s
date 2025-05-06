@@ -17,7 +17,6 @@ object LoopExample {
       releaseBranchName = "Yes!",
       restartBranchName = "No",
     )
-    .done
   // end_loop
 
   object Simple {
@@ -27,6 +26,7 @@ object LoopExample {
     val loop: WIO[MyState, Nothing, MyState] = WIO
       .repeat(step1)
       .until(state => state.counter > 0)
+      .onRestartDoNothing
       .done
     // end_simple
 

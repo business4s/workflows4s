@@ -67,8 +67,8 @@ object RunIOEvaluator {
       }
     }
 
-    def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result =
-      recurse(wio.current, input)
+    def onLoop[BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx], ReturnIn](wio: WIO.Loop[Ctx, In, Err, Out, BodyIn, BodyOut, ReturnIn]): Result =
+      recurse(wio.current.wio, input)
 
     def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result =
       selectMatching(wio, input).flatMap(selected => recurse(selected.wio, selected.input))

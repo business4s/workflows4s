@@ -62,14 +62,14 @@ object ExecutionProgressEvaluator {
       }
     }
 
-    def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                             = WIOExecutionProgress.Pure(WIOMeta.Pure(wio.meta.name, wio.meta.error.toModel), result)
-    def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result = {
+    def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                                                                                       = WIOExecutionProgress.Pure(WIOMeta.Pure(wio.meta.name, wio.meta.error.toModel), result)
+    def onLoop[BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx], ReturnIn](wio: WIO.Loop[Ctx, In, Err, Out, BodyIn, BodyOut, ReturnIn]): Result = {
       WIOExecutionProgress.Loop(
-        recurse(wio.loop, None, result = None).toModel,
-        wio.onRestart.map(recurse(_, None, result = None).toModel),
+        recurse(wio.body, None, result = None).toModel,
+        recurse(wio.onRestart, None, result = None).toModel.some,
         WIOMeta.Loop(wio.meta.conditionName, wio.meta.releaseBranchName, wio.meta.restartBranchName),
         (
-          if (!wio.current.asExecuted.isDefined) wio.history.appended(wio.current)
+          if (wio.current.wio.asExecuted.isEmpty) wio.history.appended(wio.current.wio)
           else wio.history
         ).map(recurse(_, input, result = None)),
       )
