@@ -6,7 +6,13 @@
     },
     "_type" : "Pure"
   },
-  "onRestart" : null,
+  "onRestart" : {
+    "meta" : {
+      "name" : null,
+      "error" : null
+    },
+    "_type" : "Pure"
+  },
   "meta" : {
     "conditionName" : null,
     "exitBranchName" : null,
