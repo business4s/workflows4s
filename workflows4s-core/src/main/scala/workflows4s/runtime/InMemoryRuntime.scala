@@ -45,11 +45,12 @@ object InMemoryRuntime {
       workflow: Initial[Ctx],
       initialState: WCState[Ctx],
       knockerUpper: KnockerUpper.Agent[Id],
+      clock: Clock = Clock.systemUTC(),
   ): IO[InMemoryRuntime[Ctx, Id]] = {
     Ref
       .of[IO, Map[Id, InMemoryWorkflowInstance[Ctx]]](Map.empty)
       .map({ instances =>
-        new InMemoryRuntime[Ctx, Id](workflow, initialState, Clock.systemUTC(), knockerUpper, instances)
+        new InMemoryRuntime[Ctx, Id](workflow, initialState, clock, knockerUpper, instances)
       })
   }
 

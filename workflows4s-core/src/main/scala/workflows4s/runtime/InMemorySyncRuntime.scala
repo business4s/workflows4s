@@ -33,6 +33,7 @@ object InMemorySyncRuntime {
       workflow: Initial[Ctx],
       initialState: WCState[Ctx],
       knockerUpperAgent: KnockerUpper.Agent[Id] = NoOpKnockerUpper.Agent,
+      clock: Clock = Clock.systemUTC(),
   ): InMemorySyncRuntime[Ctx, Id] =
-    new InMemorySyncRuntime[Ctx, Id](workflow, initialState, Clock.systemUTC(), knockerUpperAgent)(using IORuntime.global)
+    new InMemorySyncRuntime[Ctx, Id](workflow, initialState, clock, knockerUpperAgent)(using IORuntime.global)
 }
