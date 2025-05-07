@@ -9,6 +9,7 @@ import workflows4s.runtime.registry.WorkflowRegistry.ExecutionStatus
 import workflows4s.testing.TestClock
 import doobie.implicits.given
 import org.scalatest.BeforeAndAfterEach
+import workflows4s.doobie.postgres.testing.PostgresSuite
 
 import scala.concurrent.duration.DurationInt
 import scala.util.Random

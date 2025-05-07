@@ -42,10 +42,13 @@ lazy val `workflows4s-pekko` = (project in file("workflows4s-pekko"))
       "org.apache.pekko" %% "pekko-persistence-typed"      % pekkoVersion,
       "org.apache.pekko" %% "pekko-cluster-typed"          % pekkoVersion,
       "org.apache.pekko" %% "pekko-cluster-sharding-typed" % pekkoVersion,
-      "org.apache.pekko" %% "pekko-persistence-testkit"    % pekkoVersion % Test,
+      "org.apache.pekko" %% "pekko-persistence-testkit"    % pekkoVersion    % Test,
+      "org.apache.pekko" %% "pekko-persistence-jdbc"       % "1.1.0"         % Test,
+      "com.h2database"    % "h2"                           % "2.3.232"       % Test,
+      "io.r2dbc"          % "r2dbc-h2"                     % "1.0.0.RELEASE" % Test,
     ),
   )
-  .dependsOn(`workflows4s-core`)
+  .dependsOn(`workflows4s-core` % "compile->compile;test->test")
 
 lazy val `workflows4s-doobie` = (project in file("workflows4s-doobie"))
   .settings(commonSettings)
@@ -101,17 +104,17 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
     publish / skip           := true,
   )
   .dependsOn(
-    `workflows4s-core` % "compile->compile;test->test",
+    `workflows4s-core`   % "compile->compile;test->test",
     `workflows4s-bpmn`,
-    `workflows4s-pekko`,
-    `workflows4s-doobie`,
+    `workflows4s-pekko`  % "compile->compile;test->test",
+    `workflows4s-doobie` % "compile->compile;test->test",
     `workflows4s-filesystem`,
     `workflows4s-quartz`,
   )
 
 lazy val commonSettings = Seq(
   scalaVersion      := "3.6.4",
-  scalacOptions ++= Seq("-no-indent", "-Xmax-inlines", "64"),
+  scalacOptions ++= Seq("-no-indent", "-Xmax-inlines", "64", "-explain-cyclic", "-Ydebug-cyclic"),
   libraryDependencies ++= Seq(
     "org.scalatest" %% "scalatest" % "3.2.19" % Test,
   ),
@@ -129,7 +132,7 @@ lazy val commonSettings = Seq(
     ),
   ),
   versionScheme     := Some("semver-spec"),
-  Test / tpolecatExcludeOptions += ScalacOptions.warnNonUnitStatement
+  Test / tpolecatExcludeOptions += ScalacOptions.warnNonUnitStatement,
 )
 
 lazy val pekkoVersion               = "1.1.3"

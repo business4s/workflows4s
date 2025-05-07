@@ -1,4 +1,4 @@
-package workflows4s.doobie.postgres
+package workflows4s.doobie.postgres.testing
 
 import cats.effect.IO
 import cats.implicits.toTraverseOps

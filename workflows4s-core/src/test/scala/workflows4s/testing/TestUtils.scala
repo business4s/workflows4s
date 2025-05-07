@@ -76,7 +76,7 @@ object TestUtils {
     (signalDef, stepId, wio)
   }
 
-  def timer(secs: Int = Random.nextInt()): (FiniteDuration, WIO[TestState, Nothing, TestState, TestCtx2.Ctx]) = {
+  def timer(secs: Int = Random.nextInt(10) + 1): (FiniteDuration, WIO[TestState, Nothing, TestState, TestCtx2.Ctx]) = {
     import TestCtx2.*
     case class Started(instant: Instant)  extends Event
     case class Released(instant: Instant) extends Event

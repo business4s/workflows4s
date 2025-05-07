@@ -1,12 +1,12 @@
 package workflows4s.example.checks
 
-import scala.concurrent.Await
-
 import org.apache.pekko.actor.testkit.typed.scaladsl.{ActorTestKit, ScalaTestWithActorTestKit}
 import org.apache.pekko.persistence.jdbc.testkit.scaladsl.SchemaUtils
 import org.scalatest.freespec.AnyFreeSpecLike
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
-import workflows4s.example.TestRuntimeAdapter
+import workflows4s.runtime.pekko.PekkoRuntimeAdapter
+
+import scala.concurrent.Await
 
 class PekkoChecksEngineTest extends ScalaTestWithActorTestKit(ActorTestKit("MyCluster")) with AnyFreeSpecLike with ChecksEngineTest.Suite {
 
@@ -17,7 +17,7 @@ class PekkoChecksEngineTest extends ScalaTestWithActorTestKit(ActorTestKit("MyCl
   }
 
   "pekko" - {
-    checkEngineTests(new TestRuntimeAdapter.Pekko("checks-engine")(using testKit.system))
+    checkEngineTests(new PekkoRuntimeAdapter("checks-engine")(using testKit.system))
   }
 
 }

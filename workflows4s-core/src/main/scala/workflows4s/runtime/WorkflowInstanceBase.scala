@@ -51,7 +51,6 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
       state.handleSignal(signalDef)(req, now) match {
         case Some(resultIO) =>
           for {
-            _            <- registerRunningInstance
             result       <- liftIO.liftIO(resultIO)
             (event, resp) = result
           } yield LockOutcome.NewEvent(event, resp.asRight)
@@ -70,7 +69,6 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
   override def wakeup(): F[Unit] = {
     for {
       _           <- fMonad.unit
-      _            = logger.trace(s"Waking up the workflow")
       stateUpdate <- lockAndUpdateState { state =>
                        for {
                          now    <- currentTime
@@ -79,12 +77,13 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
                                        for {
                                          _     <- registerRunningInstance
                                          event <- liftIO.liftIO(resultIO)
+                                         _      = logger.debug(s"Waking up the instance produced event: ${event}")
                                        } yield LockOutcome.NewEvent(event, ())
-                                     case None           => {
+                                     case None           =>
+                                       logger.debug(s"Waking up the instance didn't produce an event")
                                        for {
                                          _ <- registerNotRunningInstance(state)
                                        } yield LockOutcome.NoOp(())
-                                     }
                                    }
                        } yield result
                      }
