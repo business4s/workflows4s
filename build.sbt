@@ -110,7 +110,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
   )
 
 lazy val commonSettings = Seq(
-  scalaVersion      := "3.6.4",
+  scalaVersion      := "3.7.0",
   scalacOptions ++= Seq("-no-indent", "-Xmax-inlines", "64"),
   libraryDependencies ++= Seq(
     "org.scalatest" %% "scalatest" % "3.2.19" % Test,
@@ -129,7 +129,7 @@ lazy val commonSettings = Seq(
     ),
   ),
   versionScheme     := Some("semver-spec"),
-  Test / tpolecatExcludeOptions += ScalacOptions.warnNonUnitStatement
+  Test / tpolecatExcludeOptions += ScalacOptions.warnNonUnitStatement,
 )
 
 lazy val pekkoVersion               = "1.1.3"
