@@ -31,7 +31,7 @@ class InMemoryRuntime[Ctx <: WorkflowContext, WorkflowId] private (
             runningWf     = InMemoryWorkflowInstance[Ctx](stateRef, eventsRef, clock, knockerUpper.curried(id))
             _            <- runningWfRef.complete(runningWf)
             success      <- update(map.updated(id, runningWf))
-            _            <- if (success) IO.unit
+            _            <- if success then IO.unit
                             else IO.raiseError(new RuntimeException("Could not add workflow to active instances"))
           } yield runningWf
       }

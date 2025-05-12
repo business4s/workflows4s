@@ -100,14 +100,13 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
     update match {
       case StateUpdate.Updated(oldState, newState, _) =>
         for {
-          _ <- if (newState.wakeupAt != oldState.wakeupAt)
-                 liftIO.liftIO(
-                   knockerUpper
-                     .updateWakeup((), newState.wakeupAt)
-                     .handleError(err => {
-                       logger.error("Failed to register wakeup", err)
-                     }),
-                 )
+          _ <- if newState.wakeupAt != oldState.wakeupAt then liftIO.liftIO(
+                 knockerUpper
+                   .updateWakeup((), newState.wakeupAt)
+                   .handleError(err => {
+                     logger.error("Failed to register wakeup", err)
+                   }),
+               )
                else fMonad.unit
           _ <- wakeup()
         } yield ()

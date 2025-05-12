@@ -47,7 +47,7 @@ extension (scheduler: Scheduler) {
     val map = Option(scheduler.getContext.get(wakeupContextsKey))
       .map(_.asInstanceOf[Map[String, WakeupJob.Context[?]]])
       .getOrElse(Map())
-    if (map.contains(runtimeId)) Failure(new RuntimeException(s"Wakeup context for runtime $runtimeId already set"))
+    if map.contains(runtimeId) then Failure(new RuntimeException(s"Wakeup context for runtime $runtimeId already set"))
     else {
       scheduler.getContext.put(wakeupContextsKey, map.updated(runtimeId, ctx))
       Success(())
