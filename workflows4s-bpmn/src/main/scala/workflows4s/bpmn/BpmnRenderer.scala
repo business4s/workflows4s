@@ -74,7 +74,7 @@ object BpmnRenderer {
           .subProcessDone()
       case WIOModel.End                                               => builder
       case WIOModel.Pure(meta)                                        =>
-        if (meta.error.isDefined || meta.name.isDefined) {
+        if meta.error.isDefined || meta.name.isDefined then {
           builder
             .serviceTask()
             .name(meta.name.orNull)

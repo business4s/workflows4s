@@ -32,9 +32,9 @@ object SignalEvaluator {
     override type Result = Option[IO[(WCEvent[Ctx], Resp)]]
 
     def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result = {
-      if (signalDef.id == wio.sigDef.id) {
+      if signalDef.id == wio.sigDef.id then {
         val expectedReqOpt = wio.sigDef.reqCt.unapply(req)
-        if (expectedReqOpt.isEmpty) {
+        if expectedReqOpt.isEmpty then {
           logger.warn(
             s"""Request passed to signal handler doesn't have the type expected by the handler. This should not happen, please report it as a bug.
                |Request: ${req}

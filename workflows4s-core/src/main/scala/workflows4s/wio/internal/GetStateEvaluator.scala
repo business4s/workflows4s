@@ -86,7 +86,7 @@ object GetStateEvaluator {
         wio: workflows4s.wio.WIO.Parallel[Ctx, In, Err, Out, InterimState],
     ): Result = {
       val subStates = wio.elements.flatMap(elem => recurse(elem.wio, input).tupleLeft(elem))
-      if (subStates.isEmpty) None
+      if subStates.isEmpty then None
       else {
         val initialInterim = wio.initialInterimState(input)
         subStates

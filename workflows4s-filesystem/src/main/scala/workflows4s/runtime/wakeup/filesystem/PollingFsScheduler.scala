@@ -51,7 +51,7 @@ class PollingFsScheduler(workdir: Path, clock: Clock, pollInterval: FiniteDurati
     val file = creatFilePath(time, id)
     for {
       deleted <- files.deleteIfExists(file)
-      _       <- if (deleted) { IO(logger.debug(s"Consumed wakeup ${file.fileName}")) }
+      _       <- if deleted then { IO(logger.debug(s"Consumed wakeup ${file.fileName}")) }
                  else { IO(logger.warn(s"No wakeup found for ${file.fileName}")) }
     } yield ()
   }
