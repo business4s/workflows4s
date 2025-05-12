@@ -85,7 +85,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
     libraryDependencies ++= Seq(
       "org.apache.pekko"     %% "pekko-http"                      % pekkoHttpVersion, // for interacting with the app
       "org.apache.pekko"     %% "pekko-cluster-sharding-typed"    % pekkoVersion,     // for realistic example and spawning actors
-      "org.apache.pekko"     %% "pekko-persistence-jdbc"          % "1.1.0",          // published locally until the release is there
+      "org.apache.pekko"     %% "pekko-persistence-jdbc"          % "1.1.1",          // published locally until the release is there
       "org.apache.pekko"     %% "pekko-serialization-jackson"     % "1.1.3",
       "com.h2database"        % "h2"                              % "2.3.232",
       "io.r2dbc"              % "r2dbc-h2"                        % "1.0.0.RELEASE",
@@ -129,7 +129,7 @@ lazy val commonSettings = Seq(
     ),
   ),
   versionScheme     := Some("semver-spec"),
-  Test / tpolecatExcludeOptions += ScalacOptions.warnNonUnitStatement
+  Test / tpolecatExcludeOptions += ScalacOptions.warnNonUnitStatement,
 )
 
 lazy val pekkoVersion               = "1.1.3"
