@@ -5,6 +5,7 @@ import workflows4s.wio.WIO.Timer.DurationSource
 import workflows4s.wio.model.{WIOExecutionProgress, WIOMeta}
 import workflows4s.wio.*
 import workflows4s.wio.model.WIOExecutionProgress.Dynamic
+import workflows4s.wio.model.WIOExecutionProgress.ExecutedResult
 object ExecutionProgressEvaluator {
 
   def run[Ctx <: WorkflowContext, In](
@@ -89,7 +90,7 @@ object ExecutionProgressEvaluator {
       // We could express embedding in model but need a use case for it.
       val visitor = new ExecProgressVisitor(
         wio.inner,
-        this.result.flatMap(_.traverse(wio.embedding.unconvertState)),
+        this.result.flatMap(_.mapValue(wio.embedding.unconvertState)),
         lastSeenState.flatMap(wio.embedding.unconvertState),
         input,
       )
@@ -143,7 +144,7 @@ object ExecutionProgressEvaluator {
         input: Option[I1],
         result: WIOExecutionProgress.ExecutionResult[WCState[Ctx]] = this.result,
     ): WIOExecutionProgress[WCState[Ctx]] = {
-      val state = result.flatMap(_.toOption).orElse(lastSeenState)
+      val state = result.flatMap(_.value.toOption).orElse(lastSeenState)
       new ExecProgressVisitor(wio, result, state, input).run
     }
 
