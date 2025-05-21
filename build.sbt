@@ -89,7 +89,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "org.apache.pekko"     %% "pekko-serialization-jackson"     % "1.1.3",
       "com.h2database"        % "h2"                              % "2.3.232",
       "io.r2dbc"              % "r2dbc-h2"                        % "1.0.0.RELEASE",
-      "com.github.pjfanning" %% "pekko-http-circe"                % "3.1.0",
+      "com.github.pjfanning" %% "pekko-http-circe"                % "3.1.1",
       "ch.qos.logback"        % "logback-classic"                 % "1.5.18",
       "org.scalamock"        %% "scalamock"                       % "6.2.0" % Test,
       "org.apache.pekko"     %% "pekko-actor-testkit-typed"       % pekkoVersion % Test,
