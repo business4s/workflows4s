@@ -33,9 +33,12 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers {
       // Assert
       signalResult should not be empty
       assert(
-        signalResult.get.unsafeRunSync() === (SimpleEvent(
-          "input: initialState, request: 42",
-        ), "response(initialState, SimpleEvent(input: initialState, request: 42))"),
+        signalResult.get.unsafeRunSync() === (
+          SimpleEvent(
+            "input: initialState, request: 42",
+          ),
+          "response(initialState, SimpleEvent(input: initialState, request: 42))",
+        ),
       )
     }
 

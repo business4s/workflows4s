@@ -84,7 +84,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
       .handleSignal(Signals.createWithdrawal)
       .using[Any]
       .purely { (_, signal) =>
-        if (signal.amount > 0) WithdrawalAccepted(signal.txId, signal.amount, signal.recipient)
+        if signal.amount > 0 then WithdrawalAccepted(signal.txId, signal.amount, signal.recipient)
         else WithdrawalRejected("Amount must be positive")
       }
       .handleEventWithError { (st, event) =>
@@ -207,7 +207,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
           case _: WithdrawalData.Checking  => ok
           case _: WithdrawalData.Checked   => ok
           case _: WithdrawalData.Executed  =>
-            if (signal.acceptStartedExecution) ok
+            if signal.acceptStartedExecution then ok
             else
               IO.raiseError(
                 new Exception("To cancel transaction that has been already executed, this fact has to be explicitly accepted in the request."),

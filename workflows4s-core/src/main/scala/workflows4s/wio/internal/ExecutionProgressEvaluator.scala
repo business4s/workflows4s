@@ -69,7 +69,7 @@ object ExecutionProgressEvaluator {
         recurse(wio.onRestart, None, result = None).toModel.some,
         WIOMeta.Loop(wio.meta.conditionName, wio.meta.releaseBranchName, wio.meta.restartBranchName),
         (
-          if (wio.current.wio.asExecuted.isEmpty) wio.history.appended(wio.current.wio)
+          if wio.current.wio.asExecuted.isEmpty then wio.history.appended(wio.current.wio)
           else wio.history
         ).map(recurse(_, input, result = None)),
       )
@@ -167,7 +167,7 @@ object ExecutionProgressEvaluator {
             rest match {
               case Some(value) => WIOExecutionProgress.Sequence(steps.toList.updated(0, value)).some
               case None        =>
-                if (steps.size > 3) WIOExecutionProgress.Sequence(steps.tail).some
+                if steps.size > 3 then WIOExecutionProgress.Sequence(steps.tail).some
                 else steps(1).some
             },
           ),

@@ -23,7 +23,7 @@ class QuartzKnockerUpper[Id](runtimeId: RuntimeId, scheduler: Scheduler, dispatc
           .startAt(Date.from(instant))
           .build()
 
-        if (scheduler.checkExists(jobKey)) {
+        if scheduler.checkExists(jobKey) then {
           scheduler.rescheduleJob(trigger.getKey, trigger)
           ()
         } else {

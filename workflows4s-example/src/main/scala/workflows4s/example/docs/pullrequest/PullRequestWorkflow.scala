@@ -65,7 +65,7 @@ object PullRequestWorkflow {
       .using[Any]
       .purely((in, req) => PREvent.Created(req.commit))
       .handleEventWithError((in, evt) =>
-        if (evt.commit.length > 8) Left(PRError.CommitNotFound)
+        if evt.commit.length > 8 then Left(PRError.CommitNotFound)
         else Right(PRState.Initiated(evt.commit)),
       )
       .voidResponse
@@ -77,7 +77,7 @@ object PullRequestWorkflow {
     WIO
       .runIO[PRState.Initiated](in => IO(PREvent.Checked("<Some tests results>")))
       .handleEventWithError((in, evt) =>
-        if (evt.pipelineResults.contains("error")) Left(PRError.PipelineFailed)
+        if evt.pipelineResults.contains("error") then Left(PRError.PipelineFailed)
         else Right(PRState.Checked(in.commit, evt.pipelineResults)),
       )
       .autoNamed
@@ -88,7 +88,7 @@ object PullRequestWorkflow {
       .using[PRState.Checked]
       .purely((in, req) => PREvent.Reviewed(req.approve))
       .handleEventWithError((in, evt) =>
-        if (evt.approved) Right(PRState.Reviewed(in.commit, in.pipelineResults, evt.approved))
+        if evt.approved then Right(PRState.Reviewed(in.commit, in.pipelineResults, evt.approved))
         else Left(PRError.ReviewRejected),
       )
       .voidResponse

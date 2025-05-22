@@ -135,7 +135,7 @@ class WIOHandleInterruptionTest extends AnyFreeSpec with Matchers with OptionVal
         assert(
           signalResult === (
             SignalBReceived("initialState,42"),
-            "signalBResponse(initialState, SignalBReceived(initialState,42))"
+            "signalBResponse(initialState, SignalBReceived(initialState,42))",
           ),
         )
 
@@ -158,7 +158,7 @@ class WIOHandleInterruptionTest extends AnyFreeSpec with Matchers with OptionVal
         assert(
           signalResult === (
             SignalAReceived("initialState,42)"),
-            "signalAResponse(initialState, SignalAReceived(initialState,42)))"
+            "signalAResponse(initialState, SignalAReceived(initialState,42)))",
           ),
         )
 
