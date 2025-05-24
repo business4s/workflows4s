@@ -28,7 +28,7 @@ class QuartzKnockerUpperTest extends AnyFreeSpec with Matchers with BeforeAndAft
       knockerUpper
         .initialize(id =>
           IO {
-            if (id == testId) {
+            if id == testId then {
               wokenUpAt = Instant.now()
               logger.info(s"Woken up at $wokenUpAt")
             }
@@ -51,7 +51,7 @@ class QuartzKnockerUpperTest extends AnyFreeSpec with Matchers with BeforeAndAft
     "should allow rescheduling a wakeup" in withQuartzKnockerUpper { knockerUpper =>
       var wokenUpAt: Instant = null
       val testId             = "test-id"
-      knockerUpper.initialize(id => IO { if (id == testId) wokenUpAt = Instant.now() }).unsafeRunSync()
+      knockerUpper.initialize(id => IO { if id == testId then wokenUpAt = Instant.now() }).unsafeRunSync()
       val wakeupAt1          = Instant.now().plusMillis(100)
       val wakeupAt2          = Instant.now().plusMillis(200)
       knockerUpper.updateWakeup(testId, Some(wakeupAt1)).unsafeRunSync()
@@ -69,7 +69,7 @@ class QuartzKnockerUpperTest extends AnyFreeSpec with Matchers with BeforeAndAft
       knockerUpper
         .initialize(id =>
           IO {
-            if (id == testId) wokenUpAt = Instant.now()
+            if id == testId then wokenUpAt = Instant.now()
           },
         )
         .unsafeRunSync()
