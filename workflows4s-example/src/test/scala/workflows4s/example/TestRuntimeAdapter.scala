@@ -133,7 +133,6 @@ object TestRuntimeAdapter {
         state: WCState[Ctx],
         clock: Clock,
     ): Actor = {
-      import cats.effect.unsafe.implicits.global
       // we create unique type key per workflow, so we can ensure we get right actor/behavior/input
       // with single shard region its tricky to inject input into behavior creation
       val typeKey = EntityTypeKey[Cmd](entityKeyPrefix + "-" + UUID.randomUUID().toString)

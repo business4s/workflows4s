@@ -7,8 +7,6 @@ import workflows4s.testing.TestUtils
 
 class WIOFlatMapTest extends AnyFreeSpec with Matchers with EitherValues {
 
-  import TestCtx.*
-
   "WIO.FlatMap" - {
 
     "simple" in {

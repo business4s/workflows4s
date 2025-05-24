@@ -6,8 +6,7 @@ import workflows4s.runtime.WorkflowRuntime
 
 import scala.annotation.nowarn
 
-@nowarn("msg=unused value")
-@nowarn("msg=unused local definition")
+@nowarn("msg=unused")
 object SleepingKnockerUpperExample {
 
   // docs_start

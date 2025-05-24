@@ -4,6 +4,9 @@ import cats.effect.IO
 import cats.implicits.catsSyntaxEitherId
 import workflows4s.example.docs.Context.WIO
 
+import scala.annotation.nowarn
+
+@nowarn("msg=unused explicit parameter")
 object RunIOExample {
 
   // start_withoutError

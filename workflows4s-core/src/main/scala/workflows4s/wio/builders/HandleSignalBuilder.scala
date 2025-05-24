@@ -42,7 +42,7 @@ object HandleSignalBuilder {
 
             def produceResponse(f: (Input, Evt) => Resp): Step4 = Step4(f, None, None)
 
-            def voidResponse(using ev: Unit =:= Resp): Step4 = Step4((x, y) => (), None, None)
+            def voidResponse(using ev: Unit =:= Resp): Step4 = Step4((_, _) => (), None, None)
 
             class Step4(responseBuilder: (Input, Evt) => Resp, operationName: Option[String], signalName: Option[String]) {
 

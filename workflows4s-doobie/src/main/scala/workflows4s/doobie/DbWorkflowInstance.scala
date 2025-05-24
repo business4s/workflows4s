@@ -43,7 +43,7 @@ class DbWorkflowInstance[Ctx <: WorkflowContext, Id](
         )
     for {
       now    <- currentTime
-      result <- Kleisli(liftIO => recoveredState(now))
+      result <- Kleisli(_ => recoveredState(now))
     } yield result
   }
 
