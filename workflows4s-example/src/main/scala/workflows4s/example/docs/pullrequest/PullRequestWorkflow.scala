@@ -9,6 +9,7 @@ import workflows4s.wio.{SignalDef, WorkflowContext}
 
 import scala.annotation.nowarn
 
+@nowarn("msg=unused explicit parameter")
 object PullRequestWorkflow {
 
   // start_state

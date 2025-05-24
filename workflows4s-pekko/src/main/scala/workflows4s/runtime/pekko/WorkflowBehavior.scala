@@ -1,6 +1,5 @@
 package workflows4s.runtime.pekko
 
-import cats.effect.unsafe.IORuntime
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.actor.typed.{ActorRef, Behavior}
@@ -24,7 +23,7 @@ object WorkflowBehavior {
       workflow: WIO.Initial[Ctx],
       initialState: WCState[Ctx],
       clock: Clock,
-  )(using ioRuntime: IORuntime): Behavior[Command[Ctx]] =
+  ): Behavior[Command[Ctx]] =
     new WorkflowBehavior(id, workflow, initialState, clock).behavior
 
   object LockExpired
@@ -66,7 +65,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
     case Free
   }
 
-  val behavior: Behavior[Cmd] = Behaviors.setup { context =>
+  val behavior: Behavior[Cmd] = Behaviors.setup { _ =>
     // doesn't have to be atomic but its what we have in stdlib
     val processingState: AtomicReference[ProcessingState] = new AtomicReference(ProcessingState.Free)
     val initialWf: ActiveWorkflow[Ctx]                    = ActiveWorkflow(workflow.provideInput(()), initialState)

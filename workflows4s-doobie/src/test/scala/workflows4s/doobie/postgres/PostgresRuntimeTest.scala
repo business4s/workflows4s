@@ -5,7 +5,6 @@ import cats.effect.unsafe.implicits.global
 import org.scalatest.freespec.AnyFreeSpec
 import workflows4s.doobie.DatabaseRuntime
 import workflows4s.runtime.wakeup.NoOpKnockerUpper
-import workflows4s.wio
 import workflows4s.wio.WorkflowContext
 
 import scala.concurrent.duration.DurationInt

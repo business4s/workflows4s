@@ -5,8 +5,11 @@ import workflows4s.{RenderUtils, wio}
 import workflows4s.wio.*
 import workflows4s.wio.model.WIOExecutionProgress
 
+import scala.annotation.nowarn
+
 /** Renders WIO as a debugging string, that contains information about executed steps and minimal information about future ones
   */
+@nowarn("msg=unused private member")
 object DebugRenderer {
 
   def getCurrentStateDescription(model: WIOExecutionProgress[?]): String =

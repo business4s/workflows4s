@@ -3,6 +3,9 @@ package workflows4s.example.docs
 import workflows4s.example.docs.Context.WIO
 import workflows4s.wio.SignalDef
 
+import scala.annotation.nowarn
+
+@nowarn("msg=unused explicit parameter")
 object InterruptionExample {
 
   // start_signal

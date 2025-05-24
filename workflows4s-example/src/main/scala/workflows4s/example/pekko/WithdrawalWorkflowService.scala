@@ -6,7 +6,6 @@ import org.apache.pekko.persistence.query.scaladsl.{CurrentPersistenceIdsQuery, 
 import org.apache.pekko.stream.scaladsl.Sink
 import workflows4s.example.withdrawal.WithdrawalSignal.CreateWithdrawal
 import workflows4s.example.withdrawal.{WithdrawalData, WithdrawalSignal, WithdrawalWorkflow}
-import workflows4s.runtime.WorkflowInstance
 import workflows4s.runtime.WorkflowInstance.UnexpectedSignal
 import workflows4s.runtime.pekko.PekkoRuntime
 

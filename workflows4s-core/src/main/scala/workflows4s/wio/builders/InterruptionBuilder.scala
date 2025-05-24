@@ -44,7 +44,7 @@ object InterruptionBuilder {
         ) {
 
           def produceResponse(f: (Input, Evt) => Resp): Step4 = Step4(f)
-          def voidResponse(using ev: Unit =:= Resp): Step4    = Step4((x, y) => ())
+          def voidResponse(using ev: Unit =:= Resp): Step4    = Step4((_, _) => ())
 
           class Step4(responseBuilder: (Input, Evt) => Resp) {
 

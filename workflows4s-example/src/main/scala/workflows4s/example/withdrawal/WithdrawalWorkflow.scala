@@ -87,7 +87,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
         if (signal.amount > 0) WithdrawalAccepted(signal.txId, signal.amount, signal.recipient)
         else WithdrawalRejected("Amount must be positive")
       }
-      .handleEventWithError { (st, event) =>
+      .handleEventWithError { (_, event) =>
         event match {
           case WithdrawalAccepted(txId, amount, recipient) => WithdrawalData.Initiated(txId, amount, recipient).asRight
           case WithdrawalRejected(error)                   => WithdrawalRejection.InvalidInput(error).asLeft

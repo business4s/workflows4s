@@ -6,7 +6,9 @@ import workflows4s.RenderUtils
 import workflows4s.wio.model.{WIOExecutionProgress, WIOMeta}
 
 import java.time.Duration
+import scala.annotation.nowarn
 
+@nowarn("msg=unused private member")
 object MermaidRenderer {
 
   def renderWorkflow(model: WIOExecutionProgress[?], showTechnical: Boolean = false): MermaidFlowchart = {

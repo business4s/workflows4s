@@ -8,7 +8,7 @@ import org.scalatest.freespec.AnyFreeSpec
 import workflows4s.runtime.wakeup.filesystem.FilesystemKnockerUpper.StringCodec
 import workflows4s.testing.TestClock
 
-import java.nio.file.{Files, Path}
+import java.nio.file.Files
 import scala.concurrent.duration.*
 
 class FilesystemKnockerUpperTest extends AnyFreeSpec {
