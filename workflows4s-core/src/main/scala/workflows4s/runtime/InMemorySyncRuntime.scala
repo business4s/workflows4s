@@ -35,7 +35,7 @@ object InMemorySyncRuntime {
       initialState: WCState[Ctx],
       knockerUpperAgent: KnockerUpper.Agent[Id] = NoOpKnockerUpper.Agent,
       clock: Clock = Clock.systemUTC(),
-      registryAgent: WorkflowRegistry.Agent[Unit] = NoOpWorkflowRegistry.Agent,
+      registryAgent: WorkflowRegistry.Agent[Id] = NoOpWorkflowRegistry.Agent,
   ): InMemorySyncRuntime[Ctx, Id] =
     new InMemorySyncRuntime[Ctx, Id](workflow, initialState, clock, knockerUpperAgent, registryAgent)(using IORuntime.global)
 }

@@ -4,7 +4,6 @@ import org.apache.pekko.actor.testkit.typed.scaladsl.{ActorTestKit, ScalaTestWit
 import org.apache.pekko.persistence.jdbc.testkit.scaladsl.SchemaUtils
 import org.scalatest.freespec.AnyFreeSpecLike
 import workflows4s.testing.WorkflowRuntimeTest
-import workflows4s.wio
 import workflows4s.wio.TestCtx2
 
 import scala.concurrent.Await
@@ -14,7 +13,7 @@ class PekkoRuntimeTest extends ScalaTestWithActorTestKit(ActorTestKit("MyCluster
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    Await.result(SchemaUtils.createIfNotExists()(testKit.system), 10.seconds)
+    val _ = Await.result(SchemaUtils.createIfNotExists()(using testKit.system), 10.seconds)
     ()
   }
 

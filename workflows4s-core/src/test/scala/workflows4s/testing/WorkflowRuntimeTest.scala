@@ -4,9 +4,11 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import org.scalatest.freespec.AnyFreeSpecLike
 import sourcecode.Text.generate
+import workflows4s.runtime.registry.InMemoryWorkflowRegistry
 import workflows4s.runtime.registry.WorkflowRegistry.ExecutionStatus
-import workflows4s.runtime.registry.{InMemoryWorkflowRegistry, WorkflowRegistry}
 import workflows4s.wio.{TestCtx2, TestState}
+
+import scala.annotation.nowarn
 
 class WorkflowRuntimeTest extends WorkflowRuntimeTest.Suite {
 
@@ -28,6 +30,7 @@ object WorkflowRuntimeTest {
         "register execution status for io" in new Fixture {
 
           val exception = new Exception("IO failed")
+          @nowarn("msg=unused private member")
           var failing   = true
           val ioLogic   = IO(if (failing) throw exception else ())
 

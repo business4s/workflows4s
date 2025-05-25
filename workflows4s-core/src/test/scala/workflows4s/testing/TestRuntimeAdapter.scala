@@ -95,7 +95,7 @@ object TestRuntimeAdapter {
         with EventIntrospection[WCEvent[Ctx]] {
       import cats.effect.unsafe.implicits.global
       val base = {
-        val runtime = new InMemoryRuntime[Ctx, Unit](workflow, state, clock, NoOpKnockerUpper.Agent, registryAgent)
+        val runtime = InMemoryRuntime.default[Ctx, Unit](workflow, state, NoOpKnockerUpper.Agent, clock, registryAgent).unsafeRunSync()
         val inst    = runtime.createInstance(()).unsafeRunSync()
         inst.recover(events).unsafeRunSync()
         inst
