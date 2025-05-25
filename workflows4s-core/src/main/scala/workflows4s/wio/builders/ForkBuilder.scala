@@ -1,7 +1,5 @@
 package workflows4s.wio.builders
 
-import scala.jdk.DurationConverters.*
-
 import cats.implicits.catsSyntaxOptionId
 import workflows4s.wio.*
 import workflows4s.wio.model.ModelUtils

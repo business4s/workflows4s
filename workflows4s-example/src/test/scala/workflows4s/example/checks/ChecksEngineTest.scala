@@ -11,6 +11,7 @@ import workflows4s.runtime.WorkflowInstance
 import workflows4s.testing.{TestClock, TestRuntimeAdapter}
 import workflows4s.wio.WCState
 
+import scala.annotation.nowarn
 import scala.reflect.Selectable.reflectiveSelectable
 
 class ChecksEngineTest extends AnyFreeSpec with ChecksEngineTest.Suite {
@@ -41,6 +42,7 @@ object ChecksEngineTest {
 
       "re-run pending checks until complete" in new Fixture {
         val check: Check[Unit] { def runNum: Int } = new Check[Unit] {
+          @nowarn("msg=unused private member") // compiler went nuts
           var runNum = 0
 
           override def key: CheckKey = CheckKey("foo")

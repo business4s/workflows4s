@@ -72,7 +72,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
   def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result
   def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result
   def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result
-  def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result
+  def onLoop[BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx], ReturnIn](wio: WIO.Loop[Ctx, In, Err, Out, BodyIn, BodyOut, ReturnIn]): Result
   def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result
   def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_ <: WCState[InnerCtx]] <: WCState[Ctx]](
       wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
@@ -90,30 +90,30 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
   @nowarn("msg=the type test for workflows4s.wio.WIO.Embedded")
   def run: Result = {
     wio match {
-      case x: WIO.HandleSignal[?, ?, ?, ?, ?, ?, ?]                  => onSignal(x)
-      case x: WIO.RunIO[?, ?, ?, ?, ?]                               => onRunIO(x)
+      case x: WIO.HandleSignal[?, ?, ?, ?, ?, ?, ?]                    => onSignal(x)
+      case x: WIO.RunIO[?, ?, ?, ?, ?]                                 => onRunIO(x)
       // https://github.com/scala/scala3/issues/20040
-      case x: WIO.FlatMap[?, ? <: Err, Err, ? <: WCState[Ctx], ?, ?] =>
+      case x: WIO.FlatMap[?, ? <: Err, Err, ? <: WCState[Ctx], ?, ?]   =>
         x match {
           case x: WIO.FlatMap[?, err1, Err, out1, ?, In] => onFlatMap[out1, err1](x)
         }
-      case x: WIO.Transform[?, ?, ?, ? <: State, ?, ?, Err]          => onTransform(x)
-      case x: WIO.End[?]                                             => onNoop(x)
-      case x: WIO.HandleError[?, ?, ?, ?, ?, ? <: State]             => onHandleError(x)
-      case x: WIO.AndThen[?, ?, ?, ? <: State, ? <: State]           => onAndThen(x)
-      case x: WIO.Pure[?, ?, ?, ?]                                   => onPure(x)
-      case x: WIO.HandleErrorWith[?, ?, ?, ?, ?]                     => onHandleErrorWith(x)
-      case x: WIO.Loop[?, ?, ?, ? <: State, ? <: State]              => onLoop(x)
-      case x: WIO.Fork[?, ?, ?, ?]                                   => onFork(x)
-      case x: WIO.Embedded[?, ?, ?, ?, ?, ?]                         => onEmbedded(x.asInstanceOf) // TODO make compiler happy
-      case x: WIO.HandleInterruption[?, ?, ?, ?]                     => onHandleInterruption(x)
-      case x: WIO.Timer[?, ?, ?, ?]                                  => onTimer(x)
-      case x: WIO.AwaitingTime[?, ?, ?, ?]                           => onAwaitingTime(x)
-      case x: WIO.Executed[?, ?, ?, ?]                               => onExecuted(x)
-      case x: WIO.Discarded[?, ?]                                    => onDiscarded(x)
-      case x: WIO.Parallel[?, ?, ?, ? <: State, ? <: State]          => onParallel(x)
-      case x: WIO.Checkpoint[?, ?, ?, ? <: State, ?]                 => onCheckpoint(x)
-      case x: WIO.Recovery[?, ?, ?, ?, ?]                            => onRecovery(x)
+      case x: WIO.Transform[?, ?, ?, ? <: State, ?, ?, Err]            => onTransform(x)
+      case x: WIO.End[?]                                               => onNoop(x)
+      case x: WIO.HandleError[?, ?, ?, ?, ?, ? <: State]               => onHandleError(x)
+      case x: WIO.AndThen[?, ?, ?, ? <: State, ? <: State]             => onAndThen(x)
+      case x: WIO.Pure[?, ?, ?, ?]                                     => onPure(x)
+      case x: WIO.HandleErrorWith[?, ?, ?, ?, ?]                       => onHandleErrorWith(x)
+      case x: WIO.Loop[?, ?, ?, ? <: State, ? <: State, ? <: State, ?] => onLoop(x)
+      case x: WIO.Fork[?, ?, ?, ?]                                     => onFork(x)
+      case x: WIO.Embedded[?, ?, ?, ?, ?, ?]                           => onEmbedded(x.asInstanceOf) // TODO make compiler happy
+      case x: WIO.HandleInterruption[?, ?, ?, ?]                       => onHandleInterruption(x)
+      case x: WIO.Timer[?, ?, ?, ?]                                    => onTimer(x)
+      case x: WIO.AwaitingTime[?, ?, ?, ?]                             => onAwaitingTime(x)
+      case x: WIO.Executed[?, ?, ?, ?]                                 => onExecuted(x)
+      case x: WIO.Discarded[?, ?]                                      => onDiscarded(x)
+      case x: WIO.Parallel[?, ?, ?, ? <: State, ? <: State]            => onParallel(x)
+      case x: WIO.Checkpoint[?, ?, ?, ? <: State, ?]                   => onCheckpoint(x)
+      case x: WIO.Recovery[?, ?, ?, ?, ?]                              => onRecovery(x)
     }
   }
 

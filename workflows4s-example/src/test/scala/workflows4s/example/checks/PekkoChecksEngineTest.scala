@@ -12,7 +12,7 @@ class PekkoChecksEngineTest extends ScalaTestWithActorTestKit(ActorTestKit("MyCl
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    Await.result(SchemaUtils.createIfNotExists()(testKit.system), 10.seconds)
+    val _ = Await.result(SchemaUtils.createIfNotExists()(using testKit.system), 10.seconds)
     ()
   }
 

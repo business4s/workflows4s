@@ -88,17 +88,27 @@ object WIO {
       second: WIO[Out1, Err, Out2, Ctx],
   ) extends WIO[In, Err, Out2, Ctx]
 
-  case class Loop[Ctx <: WorkflowContext, -In, +Err, LoopOut <: WCState[Ctx], +Out <: WCState[Ctx]](
-      loop: WIO[LoopOut, Err, LoopOut, Ctx],
-      stopCondition: LoopOut => Option[Out],
-      current: WIO[In, Err, LoopOut, Ctx],
-      onRestart: Option[WIO[LoopOut, Err, LoopOut, Ctx]],
+  case class Loop[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx], BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx], ReturnIn](
+      body: WIO[BodyIn, Err, BodyOut, Ctx],
+      stopCondition: BodyOut => Either[ReturnIn, Out],
+      onRestart: WIO[ReturnIn, Err, BodyIn, Ctx],
+      current: Loop.State[Ctx, In, Err, BodyIn, BodyOut],
       meta: Loop.Meta,
-      isReturning: Boolean, // true if current is coming from onReturn
-      history: Vector[WIO.Executed[Ctx, Err, LoopOut, ?]],
+      history: Vector[WIO.Executed[Ctx, Err, WCState[Ctx], ?]],
   ) extends WIO[In, Err, Out, Ctx]
 
   object Loop {
+    sealed trait State[Ctx <: WorkflowContext, -In, +Err, BodyIn, BodyOut] {
+      def wio: WIO[In, Err, WCState[Ctx], Ctx]
+    }
+    object State                                                           {
+      case class Forward[Ctx <: WorkflowContext, In, Err, BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx]](wio: WIO[In, Err, BodyOut, Ctx])
+          extends State[Ctx, In, Err, BodyIn, BodyOut]
+      case class Backward[Ctx <: WorkflowContext, In, Err, BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx]](wio: WIO[In, Err, BodyIn, Ctx])
+          extends State[Ctx, In, Err, BodyIn, BodyOut]
+      case class Finished[Ctx <: WorkflowContext, In, Err, BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx]](wio: WIO.Executed[Ctx, Err, BodyOut, In])
+          extends State[Ctx, In, Err, BodyIn, BodyOut]
+    }
     case class Meta(
         releaseBranchName: Option[String],
         restartBranchName: Option[String],

@@ -7,8 +7,6 @@ import workflows4s.testing.TestUtils
 
 class WIOAndThenTest extends AnyFreeSpec with Matchers with EitherValues {
 
-  import TestCtx.*
-
   "WIO.AndThen" - {
 
     "simple" in {

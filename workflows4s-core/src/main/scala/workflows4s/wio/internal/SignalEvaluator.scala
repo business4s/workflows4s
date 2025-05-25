@@ -73,11 +73,11 @@ object SignalEvaluator {
     def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result                                       = None
     def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): Result                         = None
 
-    def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result          = recurse(wio.base, input)
-    def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Result          =
+    def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result                                  = recurse(wio.base, input)
+    def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Result                                  =
       recurse(wio.base, wio.contramapInput(input))
-    def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result = recurse(wio.base, input)
-    def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result                           = {
+    def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result                         = recurse(wio.base, input)
+    def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result                                                   = {
       wio.base.asExecuted match {
         case Some(baseExecuted) =>
           baseExecuted.output match {
@@ -90,11 +90,11 @@ object SignalEvaluator {
         case None               => recurse(wio.base, input)
       }
     }
-    def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result                                   = {
+    def onLoop[BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx], ReturnIn](wio: WIO.Loop[Ctx, In, Err, Out, BodyIn, BodyOut, ReturnIn]): Result = {
       val lastState = wio.history.lastOption.flatMap(_.output.toOption).getOrElse(lastSeenState)
-      recurse(wio.current, input, lastState)
+      recurse(wio.current.wio, input, lastState)
     }
-    def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                                                               =
+    def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                                                                                       =
       selectMatching(wio, input).flatMap(selected => recurse(selected.wio, selected.input))
 
     def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result = {

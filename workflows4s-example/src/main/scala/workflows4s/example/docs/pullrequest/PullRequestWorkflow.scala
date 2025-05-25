@@ -9,6 +9,7 @@ import workflows4s.wio.{SignalDef, WorkflowContext}
 
 import scala.annotation.nowarn
 
+@nowarn("msg=unused explicit parameter")
 object PullRequestWorkflow {
 
   // start_state
@@ -117,8 +118,8 @@ object PullRequestWorkflow {
     // end_render
 
     // start_execution
-    val runtime    = InMemorySyncRuntime.default[Context.Ctx](workflow, PRState.Empty)
-    val wfInstance = runtime.createInstance(())
+    val runtime    = InMemorySyncRuntime.default[Context.Ctx, String](workflow, PRState.Empty)
+    val wfInstance = runtime.createInstance("id")
 
     wfInstance.deliverSignal(Signals.createPR, Signals.CreateRequest("some-sha"))
     println(wfInstance.queryState())
@@ -130,7 +131,7 @@ object PullRequestWorkflow {
     // end_execution
 
     // start_recovery
-    val recoveredInstance = runtime.createInstance(())
+    val recoveredInstance = runtime.createInstance("id")
     recoveredInstance.recover(wfInstance.getEvents)
     assert(wfInstance.queryState() == recoveredInstance.queryState())
     // end_recovery

@@ -59,7 +59,6 @@ object ChecksEngine extends ChecksEngine with StrictLogging {
       .untilSome(isDone)
       .onRestart(awaitRetry)
       .named(conditionName = "All checks completed?", releaseBranchName = "Yes", restartBranchName = "No")
-      .done
 
     initialize >>> iterateUntilDone.interruptWith(executionTimeout)
   }

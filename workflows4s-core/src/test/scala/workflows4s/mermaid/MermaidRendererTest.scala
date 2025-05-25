@@ -22,9 +22,6 @@ class MermaidRendererTest extends AnyFreeSpec with Matchers {
                              |node0@{ shape: circle, label: "Start"}
                              |node1["@computation"]
                              |node0 --> node1
-                             |classDef executed fill:#0e0
-                             |classDef checkpoint fill:transparent,stroke-dasharray:5 5,stroke:black
-                             |classDef checkpoint-executed fill:transparent,stroke-dasharray:5 5,stroke:#0e0
                              |""".stripMargin)
       }
 
@@ -42,9 +39,6 @@ class MermaidRendererTest extends AnyFreeSpec with Matchers {
                              |node2["@computation"]
                              |node0 --> node2
                              |end
-                             |classDef executed fill:#0e0
-                             |classDef checkpoint fill:transparent,stroke-dasharray:5 5,stroke:black
-                             |classDef checkpoint-executed fill:transparent,stroke-dasharray:5 5,stroke:#0e0
                              |""".stripMargin)
       }
     }
@@ -58,9 +52,6 @@ class MermaidRendererTest extends AnyFreeSpec with Matchers {
 
         assert(rendered == """flowchart TD
                              |node0@{ shape: circle, label: "Start"}
-                             |classDef executed fill:#0e0
-                             |classDef checkpoint fill:transparent,stroke-dasharray:5 5,stroke:black
-                             |classDef checkpoint-executed fill:transparent,stroke-dasharray:5 5,stroke:#0e0
                              |""".stripMargin)
       }
 
@@ -74,11 +65,25 @@ class MermaidRendererTest extends AnyFreeSpec with Matchers {
                              |node0@{ shape: circle, label: "Start"}
                              |node1@{ shape: hexagon, label: "fa:fa-wrench State Recovery"}
                              |node0 --> node1
-                             |classDef executed fill:#0e0
-                             |classDef checkpoint fill:transparent,stroke-dasharray:5 5,stroke:black
-                             |classDef checkpoint-executed fill:transparent,stroke-dasharray:5 5,stroke:#0e0
                              |""".stripMargin)
       }
+    }
+
+    "should generate a valid URL for viewing the rendered Mermaid diagram" in {
+      val (_, runIoStep1) = TestUtils.runIO
+      val wio             = runIoStep1.checkpointed((_, _) => ???, (_, _) => ???)
+
+      val flowchart = MermaidRenderer.renderWorkflow(wio.toProgress, showTechnical = false)
+
+      val url = flowchart.toViewUrl
+
+      // Verify the URL starts with the expected prefix
+      assert(url.startsWith("https://mermaid.live/edit#base64:"))
+
+      // Verify the URL contains the encoded diagram content
+      val expectedContent =
+        "eyJjb2RlIjoiZmxvd2NoYXJ0IFREXG5ub2RlMEB7IHNoYXBlOiBjaXJjbGUsIGxhYmVsOiBcIlN0YXJ0XCJ9XG5ub2RlMVtcIkBjb21wdXRhdGlvblwiXVxubm9kZTAgLS0-IG5vZGUxXG4ifQ=="
+      assert(url == s"https://mermaid.live/edit#base64:${expectedContent}")
     }
   }
 }

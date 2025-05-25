@@ -88,13 +88,13 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
     libraryDependencies ++= Seq(
       "org.apache.pekko"     %% "pekko-http"                      % pekkoHttpVersion, // for interacting with the app
       "org.apache.pekko"     %% "pekko-cluster-sharding-typed"    % pekkoVersion,     // for realistic example and spawning actors
-      "org.apache.pekko"     %% "pekko-persistence-jdbc"          % "1.1.0",          // published locally until the release is there
+      "org.apache.pekko"     %% "pekko-persistence-jdbc"          % "1.1.1",          // published locally until the release is there
       "org.apache.pekko"     %% "pekko-serialization-jackson"     % "1.1.3",
       "com.h2database"        % "h2"                              % "2.3.232",
       "io.r2dbc"              % "r2dbc-h2"                        % "1.0.0.RELEASE",
-      "com.github.pjfanning" %% "pekko-http-circe"                % "3.1.0",
+      "com.github.pjfanning" %% "pekko-http-circe"                % "3.1.1",
       "ch.qos.logback"        % "logback-classic"                 % "1.5.18",
-      "org.scalamock"        %% "scalamock"                       % "6.0.0" % Test,
+      "org.scalamock"        %% "scalamock"                       % "6.2.0" % Test,
       "org.apache.pekko"     %% "pekko-actor-testkit-typed"       % pekkoVersion % Test,
       "com.dimafeng"         %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
       "com.dimafeng"         %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
@@ -113,7 +113,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
   )
 
 lazy val commonSettings = Seq(
-  scalaVersion      := "3.6.4",
+  scalaVersion      := "3.7.0",
   scalacOptions ++= Seq("-no-indent", "-Xmax-inlines", "64", "-explain-cyclic", "-Ydebug-cyclic"),
   libraryDependencies ++= Seq(
     "org.scalatest" %% "scalatest" % "3.2.19" % Test,
@@ -136,7 +136,7 @@ lazy val commonSettings = Seq(
 )
 
 lazy val pekkoVersion               = "1.1.3"
-lazy val pekkoHttpVersion           = "1.1.0"
+lazy val pekkoHttpVersion           = "1.2.0"
 lazy val testcontainersScalaVersion = "0.43.0"
 
 addCommandAlias("prePR", List("compile", "Test / compile", "test", "scalafmtCheckAll").mkString(";", ";", ""))

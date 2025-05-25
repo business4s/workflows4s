@@ -94,7 +94,7 @@ object TestUtils {
     case class RunIODone(stepId: StepId) extends TestCtx2.Event
     val stepId = StepId.random
     val wio    = WIO
-      .runIO[TestState](input => IO.pure(RunIODone(stepId)))
+      .runIO[TestState](_ => IO.pure(RunIODone(stepId)))
       .handleEvent((st, evt) => st.addExecuted(evt.stepId))
       .done
     (stepId, wio)

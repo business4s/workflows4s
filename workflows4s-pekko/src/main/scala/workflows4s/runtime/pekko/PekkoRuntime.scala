@@ -1,6 +1,5 @@
 package workflows4s.runtime.pekko
 
-import cats.effect.unsafe.IORuntime
 import org.apache.pekko.actor.typed.ActorSystem
 import org.apache.pekko.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity, EntityTypeKey}
 import org.apache.pekko.persistence.typed.PersistenceId
@@ -27,7 +26,6 @@ class PekkoRuntimeImpl[Ctx <: WorkflowContext](
     registry: WorkflowRegistry.Agent[PekkoRuntime.WorkflowId],
 )(using
     system: ActorSystem[?],
-    IORuntime: IORuntime,
 ) extends PekkoRuntime[Ctx] {
   private val sharding: ClusterSharding = ClusterSharding(system)
   private type Command = WorkflowBehavior.Command[Ctx]
@@ -64,7 +62,6 @@ object PekkoRuntime {
       clock: Clock = Clock.systemUTC(),
       registry: WorkflowRegistry.Agent[WorkflowId] = NoOpWorkflowRegistry.Agent,
   )(using
-      ioRuntime: IORuntime,
       system: ActorSystem[?],
   ): PekkoRuntime[Ctx] = {
     new PekkoRuntimeImpl(workflow, initialState, entityName, clock, knockerUpper, registry)

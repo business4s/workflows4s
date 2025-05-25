@@ -6,6 +6,7 @@ import org.scalatest.freespec.AnyFreeSpec
 import workflows4s.doobie.DatabaseRuntime
 import workflows4s.doobie.postgres.testing.{JavaSerdeEventCodec, PostgresRuntimeAdapter, PostgresSuite}
 import workflows4s.runtime.wakeup.NoOpKnockerUpper
+import workflows4s.wio.WorkflowContext
 import workflows4s.testing.WorkflowRuntimeTest
 import workflows4s.wio
 import workflows4s.wio.{TestCtx2, WorkflowContext}

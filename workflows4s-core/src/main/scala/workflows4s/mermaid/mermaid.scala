@@ -1,5 +1,10 @@
 package workflows4s.mermaid
 
+import io.circe.Json
+
+import java.nio.charset.StandardCharsets
+import java.util.Base64
+
 sealed trait MermaidElement {
   def render: String
 }
@@ -40,10 +45,38 @@ case class MermaidFlowchart(elements: Seq[MermaidElement]) {
   def addElement(element: MermaidElement): MermaidFlowchart  = MermaidFlowchart(elements :+ element)
   def addElements(el: Seq[MermaidElement]): MermaidFlowchart = MermaidFlowchart(elements ++ el)
 
-  def render: String =
+  def render: String = {
+
+    val usedClasses = elements.collect {
+      case Node(_, _, _, Some(klass))               => klass
+      case Subgraph(_, _, subElements, Some(klass)) =>
+        klass +: subElements.collect { case Node(_, _, _, Some(subKlass)) => subKlass }
+    }
+
+    // Filter elements to include only used class definitions and other elements
+    val filteredElements = elements.filter {
+      case ClassDef(name, _) => usedClasses.contains(name)
+      case _                 => true
+    }
+
     s"""flowchart TD
-       |${elements.map(_.render).mkString("\n")}
+       |${filteredElements.map(_.render).mkString("\n")}
        |""".stripMargin
+  }
+
+  def toViewUrl: String = {
+    val json = Json.obj("code" -> Json.fromString(render)).noSpaces
+
+    val encoded   = Base64.getEncoder.encodeToString(json.getBytes(StandardCharsets.UTF_8))
+    val base64url = encoded
+      .replace('+', '-')
+      .replace('/', '_')
+
+    s"https://mermaid.live/edit#base64:$base64url"
+    // Pako is also possible and more space-efficient but also more complex.
+    // See https://github.com/mermaid-js/mermaid-live-editor/discussions/1291#discussioncomment-7195767 for inspiration
+  }
+
 }
 
 object MermaidFlowchart {
