@@ -40,20 +40,16 @@ object PostgresWorkflowRegistry {
         now <- Sync[ConnectionIO].delay(Instant.now(clock))
         _   <- executionStatus match {
                  case ExecutionStatus.Running                             =>
-                   sql"""
-                INSERT INTO $tableNameFr (workflow_id, workflow_type, updated_at)
-                VALUES ($id, $workflowType, ${Timestamp.from(now)})
-                ON CONFLICT (workflow_id, workflow_type)
-                DO UPDATE SET updated_at = ${Timestamp.from(now)}
-                WHERE $tableNameFr.updated_at <= ${Timestamp.from(now)}
-              """.update.run.void
+                   sql"""INSERT INTO $tableNameFr (workflow_id, workflow_type, updated_at)
+                      |VALUES ($id, $workflowType, ${Timestamp.from(now)})
+                      |ON CONFLICT (workflow_id, workflow_type)
+                      |DO UPDATE SET updated_at = ${Timestamp.from(now)}
+                      |WHERE $tableNameFr.updated_at <= ${Timestamp.from(now)}""".stripMargin.update.run.void
                  case ExecutionStatus.Finished | ExecutionStatus.Awaiting =>
-                   sql"""
-                DELETE FROM $tableNameFr
-                WHERE workflow_id = $id
-                  and workflow_type = $workflowType
-                  and $tableNameFr.updated_at <= ${Timestamp.from(now)}
-              """.update.run.void
+                   sql"""DELETE FROM $tableNameFr
+                      |WHERE workflow_id = $id
+                      |  and workflow_type = $workflowType
+                      |  and $tableNameFr.updated_at <= ${Timestamp.from(now)}""".stripMargin.update.run.void
                }
       } yield ()
 
@@ -64,11 +60,9 @@ object PostgresWorkflowRegistry {
       for {
         now       <- fs2.Stream.eval(Sync[ConnectionIO].delay(Instant.now(clock)))
         cutoffTime = now.minusMillis(notUpdatedFor.toMillis)
-        elem      <- sql"""
-        SELECT workflow_type, workflow_id
-        FROM ${tableNameFr}
-        WHERE updated_at <= ${Timestamp.from(cutoffTime)}
-      """
+        elem      <- sql"""SELECT workflow_type, workflow_id
+                     |FROM ${tableNameFr}
+                     |WHERE updated_at <= ${Timestamp.from(cutoffTime)}""".stripMargin
                        .query[(WorkflowType, WorkflowId)]
                        .stream
       } yield elem
