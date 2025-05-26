@@ -75,11 +75,11 @@ object TestUtils {
       )
     }
 
-    if (!Files.exists(absolutePath)) {
+    if !Files.exists(absolutePath) then {
       writeAndFail()
     }
     val existingContent = Files.readString(absolutePath)
-    if (existingContent != content) {
+    if existingContent != content then {
       writeAndFail()
     }
   }
