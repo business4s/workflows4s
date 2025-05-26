@@ -9,6 +9,12 @@ import java.time.Duration
 
 object MermaidRenderer {
 
+  // TODO: for visualizing order index implementation. Should be removed later
+  private def appendOrdering(baseLabel: String, wioProgress: WIOExecutionProgress[?]): String = {
+    val ordering = wioProgress.result.map(_.index).getOrElse(-1)
+    if (baseLabel.trim.isEmpty) s"$ordering" else s"$baseLabel $ordering"
+  }
+
   def renderWorkflow(model: WIOExecutionProgress[?], showTechnical: Boolean = false): MermaidFlowchart = {
     (addNode(
       id => Node(id, "Start", shape = "circle".some, clazz = if (RenderUtils.hasStarted(model)) executedClass.some else None),
@@ -35,7 +41,7 @@ object MermaidRenderer {
   private def render(model: WIOExecutionProgress[?], showTechnical: Boolean = false): State[RenderState, Option[NodeId]] = {
     def go(model: WIOExecutionProgress[?]): State[RenderState, Option[NodeId]] = {
       def addStep(label: String, shape: Option[String] = None): State[RenderState, NodeId] = {
-        addStepGeneral(id => Node(id, label, shape, clazz = if (model.isExecuted) executedClass.some else None))
+        addStepGeneral(id => Node(id, appendOrdering(label, model), shape, clazz = if (model.isExecuted) executedClass.some else None))
       }
       model match {
         case WIOExecutionProgress.Sequence(steps)                             =>
@@ -136,17 +142,24 @@ object MermaidRenderer {
           } yield baseStart
         case WIOExecutionProgress.Timer(meta, _)                              =>
           val durationStr = meta.duration.map(RenderUtils.humanReadableDuration).getOrElse("dynamic")
-          val label       = s"${meta.name.getOrElse("")} ($durationStr)"
+          val baseLabel   = s"${meta.name.getOrElse("")} ($durationStr)"
           for {
             stepId <-
               addStepGeneral(id =>
-                Node(id, s"fa:fa-clock ${label}", shape = eventShape.some, clazz = if (model.isExecuted) executedClass.some else None),
+                Node(
+                  id,
+                  appendOrdering(s"fa:fa-clock $baseLabel", model),
+                  shape = eventShape.some,
+                  clazz = if (model.isExecuted) executedClass.some else None,
+                ),
               )
           } yield stepId.some
         case WIOExecutionProgress.Parallel(elems, _)                          =>
           for {
             forkId <-
-              addStepGeneral(id => Node(id, "", shape = forkShape.some, clazz = if (RenderUtils.hasStarted(model)) executedClass.some else None))
+              addStepGeneral(id =>
+                Node(id, appendOrdering("", model), shape = forkShape.some, clazz = if (RenderUtils.hasStarted(model)) executedClass.some else None),
+              )
             ends   <- elems.toList.flatTraverse(element =>
                         for {
                           _    <- setActiveNodes(Seq((forkId, None)))
@@ -155,7 +168,9 @@ object MermaidRenderer {
                         } yield ends.toList,
                       )
             _      <- setActiveNodes(ends)
-            endId  <- addStepGeneral(id => Node(id, "", shape = forkShape.some, clazz = if (model.isExecuted) executedClass.some else None))
+            endId  <- addStepGeneral(id =>
+                        Node(id, appendOrdering("", model), shape = forkShape.some, clazz = if (model.isExecuted) executedClass.some else None),
+                      )
           } yield forkId.some
 
         case WIOExecutionProgress.Checkpoint(base, result) =>
@@ -171,7 +186,12 @@ object MermaidRenderer {
           // This is a recovery-only checkpoint (created with WIO.recover)
           if (showTechnical)
             addStepGeneral(id =>
-              Node(id, "fa:fa-wrench State Recovery", shape = "hexagon".some, clazz = if (model.isExecuted) executedClass.some else None),
+              Node(
+                id,
+                appendOrdering("fa:fa-wrench State Recovery", model),
+                shape = "hexagon".some,
+                clazz = if (model.isExecuted) executedClass.some else None,
+              ),
             ).map(_.some)
           else State.pure(None)
       }
