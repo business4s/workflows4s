@@ -15,7 +15,7 @@ object WIOExecutionProgress {
 
   case class ExecutedResult[+State](
     value: Either[Any, State],  // Left = error, Right = successful state
-    ordering: Int               // Sequence number of this execution step
+    index: Int               // Sequence number of this execution step
   ) {
     def mapValue[NewState](f: State => Option[NewState]): Option[ExecutedResult[NewState]] = {
       value.traverse(f).map(newValue => copy(value = newValue))

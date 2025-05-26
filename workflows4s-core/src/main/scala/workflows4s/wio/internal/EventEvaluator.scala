@@ -10,8 +10,9 @@ object EventEvaluator {
       event: WCEvent[Ctx],
       wio: WIO[Any, Nothing, WCState[Ctx], Ctx],
       state: WCState[Ctx],
+      index: Int,
   ): EventResponse[Ctx] = {
-    val visitor: EventVisitor[Ctx, Any, Nothing, WCState[Ctx]] = new EventVisitor(wio, event, state, state)
+    val visitor: EventVisitor[Ctx, Any, Nothing, WCState[Ctx]] = new EventVisitor(wio, event, state, state, index)
     visitor.run
       .map(execution => EventResponse.Ok(execution.wio))
       .getOrElse(EventResponse.UnexpectedEvent())
@@ -22,12 +23,13 @@ object EventEvaluator {
       event: WCEvent[Ctx],
       input: In,
       lastSeenState: WCState[Ctx],
-  ) extends ProceedingVisitor[Ctx, In, Err, Out](wio, input, lastSeenState) {
+      lastIndex: Int
+  ) extends ProceedingVisitor[Ctx, In, Err, Out](wio, input, lastSeenState, lastIndex) {
 
     def doHandle[Evt](handler: EventHandler[In, Either[Err, Out], WCEvent[Ctx], Evt]): Result =
       handler
         .detect(event)
-        .map(x => WFExecution.complete(wio, handler.handle(input, x), input))
+        .map(x => WFExecution.complete(wio, handler.handle(input, x), input, lastIndex + 1))
 
     def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result = doHandle(wio.evtHandler.map(_._1))
     def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result                               = doHandle(wio.evtHandler)
@@ -51,7 +53,7 @@ object EventEvaluator {
       val newState: WCState[InnerCtx] = wio.embedding.unconvertStateUnsafe(lastSeenState)
       wio.embedding
         .unconvertEvent(event)
-        .flatMap(convertedEvent => new EventVisitor(wio.inner, convertedEvent, input, newState).run)
+        .flatMap(convertedEvent => new EventVisitor(wio.inner, convertedEvent, input, newState, lastIndex).run)
         .map(convertEmbeddingResult2(wio, _, input))
     }
 
@@ -59,8 +61,8 @@ object EventEvaluator {
       doHandle(wio.eventHandler.map(_.asRight)).orElse(handleCheckpointBase(wio))
     }
 
-    def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], in: I1, state: WCState[Ctx]): EventVisitor[Ctx, I1, E1, O1]#Result =
-      new EventVisitor(wio, event, in, state).run
+    def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], in: I1, state: WCState[Ctx], index: Int): EventVisitor[Ctx, I1, E1, O1]#Result =
+      new EventVisitor(wio, event, in, state, index).run
 
   }
 }

@@ -131,6 +131,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
             wio.copy(inner = newWio),
             newWio.output.map(wio.embedding.convertState(_, input)),
             input,
+            newWio.index
           ),
         )
       case WFExecution.Partial(newWio)  =>
@@ -151,7 +152,7 @@ object WFExecution {
 
   case class Partial[C <: WorkflowContext, I, E, O <: WCState[C]](wio: WIO[I, E, O, C]) extends WFExecution[C, I, E, O]
 
-  def complete[Ctx <: WorkflowContext, Err, Out <: WCState[Ctx], In](original: WIO[In, ?, ?, Ctx], output: Either[Err, Out], input: In) =
-    WFExecution.Complete(WIO.Executed(original, output, input))
+  def complete[Ctx <: WorkflowContext, Err, Out <: WCState[Ctx], In](original: WIO[In, ?, ?, Ctx], output: Either[Err, Out], input: In, index: Int) =
+    WFExecution.Complete(WIO.Executed(original, output, input, index))
 
 }

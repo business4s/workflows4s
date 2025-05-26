@@ -15,7 +15,7 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers{
       val singleStep = WIO.pure("someState").done
       val (_, wf) = TestUtils.createInstance(singleStep)
       val progress = wf.getProgress
-      assert(progress.result.get.ordering == 0)
+      assert(progress.result.get.index == 0)
     }
 
     "single signal step" in {
@@ -37,11 +37,37 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers{
       progress match {
         case WIOExecutionProgress.HandleSignal(_, resultOpt) =>
           resultOpt should (be (defined) and not be empty)
-          resultOpt.get.ordering shouldBe 0
+          resultOpt.get.index shouldBe 0
         case other =>
           fail(s"Expected WIOExecutionProgress.HandleSignal, got ${other.getClass.getSimpleName}")
       }
     }
+
+    "single signal 2 steps" in {
+      val signalDef = SignalDef[Unit, Unit]("TestSignalUnit")
+      val signalHandlingWio: WIO[State, Nothing, State] =
+        WIO.handleSignal(signalDef)
+          .using[State]
+          .purely { (_, _) => SimpleEvent("SignalProcessed") }
+          .handleEvent { (prevState, event) => s"${prevState}_${event.value}" }
+          .voidResponse
+          .done
+
+      val initialSignalWio: WIO.Initial = signalHandlingWio.provideInput("WrapperInputForSignal")
+      val (_, wfInstance) = TestUtils.createInstance(initialSignalWio)
+
+      wfInstance.deliverSignal(signalDef, ()) shouldBe Right(())
+
+      val progress = wfInstance.getProgress
+      progress match {
+        case WIOExecutionProgress.HandleSignal(_, resultOpt) =>
+          resultOpt should (be (defined) and not be empty)
+          resultOpt.get.index shouldBe 0
+        case other =>
+          fail(s"Expected WIOExecutionProgress.HandleSignal, got ${other.getClass.getSimpleName}")
+      }
+    }
+
 
     "2 steps" in {
       val (step1Id, step1) = TestUtils.pure
@@ -52,8 +78,8 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers{
       progress match {
         case WIOExecutionProgress.Sequence(steps) => 
             steps.size shouldBe 2
-            steps.head.result.map(_.ordering) shouldBe Some(0)
-            steps.last.result.map(_.ordering) shouldBe Some(1)
+            steps.head.result.map(_.index) shouldBe Some(0)
+            steps.last.result.map(_.index) shouldBe Some(1)
         case _                                    => fail("Progress was not a Sequence")
       }
     }
