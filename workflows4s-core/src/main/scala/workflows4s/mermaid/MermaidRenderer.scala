@@ -13,7 +13,7 @@ object MermaidRenderer {
 
   def renderWorkflow(model: WIOExecutionProgress[?], showTechnical: Boolean = false): MermaidFlowchart = {
     (addNode(
-      id => Node(id, "Start", shape = "circle".some, clazz = if (RenderUtils.hasStarted(model)) executedClass.some else None),
+      id => Node(id, "Start", shape = "circle".some, clazz = if RenderUtils.hasStarted(model) then executedClass.some else None),
       active = true,
     ) *>
       render(model, showTechnical))
@@ -37,7 +37,7 @@ object MermaidRenderer {
   private def render(model: WIOExecutionProgress[?], showTechnical: Boolean = false): State[RenderState, Option[NodeId]] = {
     def go(model: WIOExecutionProgress[?]): State[RenderState, Option[NodeId]] = {
       def addStep(label: String, shape: Option[String] = None): State[RenderState, NodeId] = {
-        addStepGeneral(id => Node(id, label, shape, clazz = if (model.isExecuted) executedClass.some else None))
+        addStepGeneral(id => Node(id, label, shape, clazz = if model.isExecuted then executedClass.some else None))
       }
       model match {
         case WIOExecutionProgress.Sequence(steps)                             =>
@@ -61,7 +61,7 @@ object MermaidRenderer {
                             id,
                             s"fa:fa-envelope ${meta.signalName}",
                             shape = eventShape.some,
-                            clazz = if (model.isExecuted) executedClass.some else None,
+                            clazz = if model.isExecuted then executedClass.some else None,
                           ),
                         )
             stepId   <- addStep(meta.operationName.getOrElse(s"Handle ${meta.signalName}"))
@@ -84,7 +84,7 @@ object MermaidRenderer {
         case WIOExecutionProgress.End(_)                                      =>
           addStep("End", shape = "circle".some).map(_.some)
         case WIOExecutionProgress.Pure(meta, _)                               =>
-          if (meta.name.isDefined || meta.error.isDefined) {
+          if meta.name.isDefined || meta.error.isDefined then {
             for {
               stepId <- addStep(meta.name.getOrElse("@computation"))
               _      <- meta.error.traverse(addPendingError(stepId, _))
@@ -93,7 +93,7 @@ object MermaidRenderer {
         case WIOExecutionProgress.Loop(base, onRestart, meta, history)        =>
           // history contains `current` and this is prefilled on creation,
           // hence empty nodes have history of 1 with not started node
-          if (history.size > 1 || history.lastOption.exists(RenderUtils.hasStarted)) {
+          if history.size > 1 || history.lastOption.exists(RenderUtils.hasStarted) then {
             // TODO we could render conditions as well
             for {
               subSteps <- history.traverse(h => go(h))
@@ -142,13 +142,13 @@ object MermaidRenderer {
           for {
             stepId <-
               addStepGeneral(id =>
-                Node(id, s"fa:fa-clock ${label}", shape = eventShape.some, clazz = if (model.isExecuted) executedClass.some else None),
+                Node(id, s"fa:fa-clock ${label}", shape = eventShape.some, clazz = if model.isExecuted then executedClass.some else None),
               )
           } yield stepId.some
         case WIOExecutionProgress.Parallel(elems, _)                          =>
           for {
             forkId <-
-              addStepGeneral(id => Node(id, "", shape = forkShape.some, clazz = if (RenderUtils.hasStarted(model)) executedClass.some else None))
+              addStepGeneral(id => Node(id, "", shape = forkShape.some, clazz = if RenderUtils.hasStarted(model) then executedClass.some else None))
             ends   <- elems.toList.flatTraverse(element =>
                         for {
                           _    <- setActiveNodes(Seq((forkId, None)))
@@ -157,24 +157,23 @@ object MermaidRenderer {
                         } yield ends.toList,
                       )
             _      <- setActiveNodes(ends)
-            endId  <- addStepGeneral(id => Node(id, "", shape = forkShape.some, clazz = if (model.isExecuted) executedClass.some else None))
+            endId  <- addStepGeneral(id => Node(id, "", shape = forkShape.some, clazz = if model.isExecuted then executedClass.some else None))
           } yield forkId.some
 
         case WIOExecutionProgress.Checkpoint(base, result) =>
-          if (showTechnical) {
+          if showTechnical then {
             for {
               (baseEnds, baseStart) <-
-                addSubgraph(go(base), "Checkpoint", Some(if (model.isExecuted) checkpointExecutedClass else checkpointClass))
+                addSubgraph(go(base), "Checkpoint", Some(if model.isExecuted then checkpointExecutedClass else checkpointClass))
               _                     <- State.modify[RenderState](s => s.copy(activeNodes = baseEnds))
             } yield baseStart
           } else go(base)
 
         case WIOExecutionProgress.Recovery(result) =>
           // This is a recovery-only checkpoint (created with WIO.recover)
-          if (showTechnical)
-            addStepGeneral(id =>
-              Node(id, "fa:fa-wrench State Recovery", shape = "hexagon".some, clazz = if (model.isExecuted) executedClass.some else None),
-            ).map(_.some)
+          if showTechnical then addStepGeneral(id =>
+            Node(id, "fa:fa-wrench State Recovery", shape = "hexagon".some, clazz = if model.isExecuted then executedClass.some else None),
+          ).map(_.some)
           else State.pure(None)
       }
     }
@@ -198,7 +197,7 @@ object MermaidRenderer {
     s.copy(
       chart = s.chart.addElement(nodeF(nodeId)),
       idIdx = s.idIdx + 1,
-      activeNodes = if (active) s.activeNodes.appended(nodeId -> label) else s.activeNodes,
+      activeNodes = if active then s.activeNodes.appended(nodeId -> label) else s.activeNodes,
     ) -> nodeId
   }
   private def addStepGeneral(createElem: NodeId => MermaidElement): State[RenderState, NodeId]                                    = {

@@ -113,7 +113,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
     //  alternatively we could maybe take the input from the last history entry
     val lastState = wio.history.lastOption.flatMap(_.output.toOption).getOrElse(lastSeenState)
     wio.current match {
-      case State.Finished(_)          =>
+      case State.Finished(_) =>
         None // TODO better error, this should never happen
       case State.Forward(currentWio)  =>
         recurse(currentWio, input, lastState).map({
@@ -155,7 +155,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
     def updateSelectedBranch[I](selected: Matching[I]): WIO.Fork[Ctx, In, Err, Out] = {
       wio.copy(
         branches = wio.branches.zipWithIndex.map((branch, idx) => {
-          if (idx == selected.idx) WIO.Branch.selected(selected.input, selected.wio, branch.name)
+          if idx == selected.idx then WIO.Branch.selected(selected.input, selected.wio, branch.name)
           else branch
         }),
         selected = Some(selected.idx),
@@ -230,7 +230,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
     var branchHandled: Option[(Int, WIO[In, Err, WCState[Ctx], Ctx])] = None
 
     val updatedElements = wio.elements.zipWithIndex.map { case (elem, idx) =>
-      if (branchHandled.isEmpty) {
+      if branchHandled.isEmpty then {
         // Try to process the event on this branch using our recurse helper.
         recurse(elem.wio, input, lastSeenState) match {
           case Some(newBranch) =>
@@ -246,7 +246,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
         elem
       }
     }
-    if (branchHandled.isEmpty) return None
+    if branchHandled.isEmpty then return None
 
     val maybeStates: Either[Err, Seq[Option[WCState[Ctx]]]] = updatedElements.traverse(elem => elem.wio.asExecuted.traverse(_.output))
     val newWio                                              = wio.copy(elements = updatedElements)

@@ -88,7 +88,7 @@ object ChecksEngine extends ChecksEngine with StrictLogging {
       .makeFrom[ChecksState.Executed]
       .value(st => {
         val decision =
-          if (st.isRejected) Decision.RejectedBySystem()
+          if st.isRejected then Decision.RejectedBySystem()
           else Decision.ApprovedBySystem()
         st.asDecided(decision)
       })

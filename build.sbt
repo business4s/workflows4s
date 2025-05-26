@@ -21,7 +21,7 @@ lazy val `workflows4s-core` = (project in file("workflows4s-core"))
       "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.5",
       "io.circe"                   %% "circe-core"      % "0.14.13", // for model serialization
       "io.circe"                   %% "circe-generic"   % "0.14.13", // for model serialization
-      "com.lihaoyi"                %% "sourcecode"      % "0.4.2",   // for auto naming
+      "com.lihaoyi"                %% "sourcecode"      % "0.4.2", // for auto naming
       "ch.qos.logback"              % "logback-classic" % "1.5.18" % Test,
     ),
   )
@@ -84,18 +84,18 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
   .settings(
     libraryDependencies ++= Seq(
       "org.apache.pekko"     %% "pekko-http"                      % pekkoHttpVersion, // for interacting with the app
-      "org.apache.pekko"     %% "pekko-cluster-sharding-typed"    % pekkoVersion,     // for realistic example and spawning actors
-      "org.apache.pekko"     %% "pekko-persistence-jdbc"          % "1.1.1",          // published locally until the release is there
+      "org.apache.pekko"     %% "pekko-cluster-sharding-typed"    % pekkoVersion, // for realistic example and spawning actors
+      "org.apache.pekko"     %% "pekko-persistence-jdbc"          % "1.1.1", // published locally until the release is there
       "org.apache.pekko"     %% "pekko-serialization-jackson"     % "1.1.3",
       "com.h2database"        % "h2"                              % "2.3.232",
       "io.r2dbc"              % "r2dbc-h2"                        % "1.0.0.RELEASE",
       "com.github.pjfanning" %% "pekko-http-circe"                % "3.2.0",
       "ch.qos.logback"        % "logback-classic"                 % "1.5.18",
-      "org.scalamock"        %% "scalamock"                       % "6.2.0" % Test,
-      "org.apache.pekko"     %% "pekko-actor-testkit-typed"       % pekkoVersion % Test,
+      "org.scalamock"        %% "scalamock"                       % "6.2.0"                    % Test,
+      "org.apache.pekko"     %% "pekko-actor-testkit-typed"       % pekkoVersion               % Test,
       "com.dimafeng"         %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
       "com.dimafeng"         %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
-      "org.postgresql"        % "postgresql"                      % "42.7.5" % Test,
+      "org.postgresql"        % "postgresql"                      % "42.7.5"                   % Test,
     ),
     Test / parallelExecution := false, // otherwise akka clusters clash
     publish / skip           := true,
