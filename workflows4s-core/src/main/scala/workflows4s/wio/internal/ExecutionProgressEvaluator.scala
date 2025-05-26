@@ -127,8 +127,7 @@ object ExecutionProgressEvaluator {
       WIOExecutionProgress.Timer(WIOMeta.Timer(None, wio.resumeAt.some, None), result) // TODO persist duration and name
 
     def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result = {
-      //TODO: - get current counter value (from runtime ?)
-      val output = ExecutedResult(wio.output, 42).some // FIXME: correct this value
+      val output = ExecutedResult(wio.output, wio.index).some
       recurse(wio.original, wio.input.some, output)
     } 
     def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result           = recurse(wio.original, wio.input.some, None)
