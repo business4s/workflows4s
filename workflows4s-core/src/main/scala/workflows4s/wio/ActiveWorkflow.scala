@@ -7,7 +7,7 @@ import workflows4s.wio.Interpreter.SignalResponse
 import workflows4s.wio.internal.*
 import workflows4s.wio.model.WIOExecutionProgress
 
-case class ActiveWorkflow[Ctx <: WorkflowContext](wio: WIO.Initial[Ctx], initialState: WCState[Ctx]) {
+case class ActiveWorkflow[Ctx <: WorkflowContext](wio: WIO.Initial[Ctx], initialState: WCState[Ctx], initialIndex: Int) {
   lazy val wakeupAt: Option[Instant] = GetWakeupEvaluator.extractNearestWakeup(wio)
 
   lazy val staticState: WCState[Ctx] = GetStateEvaluator.extractLastState(wio, (), initialState).getOrElse(initialState)
@@ -29,7 +29,7 @@ case class ActiveWorkflow[Ctx <: WorkflowContext](wio: WIO.Initial[Ctx], initial
   def handleEvent(event: WCEvent[Ctx], now: Instant): Option[ActiveWorkflow[Ctx]] = {
     val wf = effectlessProceed(now).getOrElse(this)
     EventEvaluator
-      .handleEvent(event, wf.wio, wf.staticState)
+      .handleEvent(event, wf.wio, wf.staticState, initialIndex)
       .newWorkflow
       .map(x => x.effectlessProceed(now).getOrElse(x))
   }
@@ -44,7 +44,7 @@ case class ActiveWorkflow[Ctx <: WorkflowContext](wio: WIO.Initial[Ctx], initial
   // moves forward as far as possible
   private def effectlessProceed(now: Instant): Option[ActiveWorkflow[Ctx]] =
     ProceedEvaluator
-      .proceed(wio, staticState, now)
+      .proceed(wio, staticState, now, initialIndex)
       .newFlow
       .map(x => x.effectlessProceed(now).getOrElse(x))
 }

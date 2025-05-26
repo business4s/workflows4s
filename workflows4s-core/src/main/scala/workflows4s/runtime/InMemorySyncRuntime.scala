@@ -21,7 +21,7 @@ class InMemorySyncRuntime[Ctx <: WorkflowContext, WorkflowId](
     instances.computeIfAbsent(
       id,
       { _ =>
-        val activeWf: ActiveWorkflow[Ctx] = ActiveWorkflow(workflow, initialState)
+        val activeWf: ActiveWorkflow[Ctx] = ActiveWorkflow(workflow, initialState, -1)
         new InMemorySyncWorkflowInstance[Ctx](activeWf, clock, knockerUpperAgent.curried(id))
       },
     )

@@ -42,12 +42,14 @@ object SignalEvaluator {
                |""".stripMargin,
           )
         }
+        val castedLastSeenState = lastSeenState.asInstanceOf[In]
+
         val responseOpt    = expectedReqOpt
-          .map(wio.sigHandler.handle(input, _))
+          .map(wio.sigHandler.handle(castedLastSeenState, _))
           .map(evtIo =>
             for {
               evt   <- evtIo
-              result = wio.evtHandler.handle(input, evt)
+              result = wio.evtHandler.handle(castedLastSeenState, evt)
             } yield wio.evtHandler.convert(evt) -> signalDef.respCt
               .unapply(result._2)
               .getOrElse(
