@@ -48,7 +48,7 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers{
       val signalHandlingWio: WIO[State, Nothing, State] =
         WIO.handleSignal(signalDef)
           .using[State]
-          .purely { (_, _) => SimpleEvent("SignalProcessed") }
+          .purely { (_, _) => SimpleEvent("SignalProcessedP") }
           .handleEvent { (prevState, event) => s"${prevState}_${event.value}" }
           .voidResponse
           .done
@@ -93,17 +93,17 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers{
       val step1: WIO[Any, Nothing, String] = WIO.pure
         .makeFrom[Any]
         .value(_ => "step1")
-        .named("step1")
+        .autoNamed
 
       val step2: WIO[String, Err, Nothing] = WIO.pure
         .makeFrom[String]
         .error(_ => FixedError)
-        .named("step2") // just produce an error
+        .autoNamed // just produce an error
 
       val step3: WIO[(String, Err), Nothing, String] = WIO.pure
         .makeFrom[(String, Err)]
         .value { case (stateBeforeError, errorMsg) => "what?" }
-        .named("step3")
+        .autoNamed
 
       val compositeWIO: WIO[Any, Nothing, String] =  (step1 >>> step2).handleErrorWith(step3)
       val (_, wfInstance) = TestUtils.createInstance(compositeWIO)
