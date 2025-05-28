@@ -84,4 +84,47 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers{
       }
     }
   }
+
+  "A WIO.HandleErrorWith" - {
+    "should assign correct ordering indices when a step in the main flow errors and is handled" in {
+      type Err = Int
+      val FixedError = 1
+
+      val step1: WIO[Any, Nothing, String] = WIO.pure
+        .makeFrom[Any]
+        .value(_ => "step1")
+        .named("step1")
+
+      val step2: WIO[String, Err, Nothing] = WIO.pure
+        .makeFrom[String]
+        .error(_ => FixedError)
+        .named("step2") // just produce an error
+
+      val step3: WIO[(String, Err), Nothing, String] = WIO.pure
+        .makeFrom[(String, Err)]
+        .value { case (stateBeforeError, errorMsg) => "what?" }
+        .named("step3")
+
+      val compositeWIO: WIO[Any, Nothing, String] =  (step1 >>> step2).handleErrorWith(step3)
+      val (_, wfInstance) = TestUtils.createInstance(compositeWIO)
+
+      val progress = wfInstance.getProgress
+
+      progress match {
+        case WIOExecutionProgress.HandleError(base, handler, _, step3Result) =>
+          step3Result.map(_.index) shouldBe Some(2)
+          base match {
+            case WIOExecutionProgress.Sequence(steps) => 
+              steps.forall(_.isExecuted) shouldBe true
+              steps(0).result.map(_.index) shouldBe Some(0)
+              steps(1).result.map(_.index) shouldBe Some(1)
+              
+            case _ => fail("Base of HandleError was not a Sequence")
+
+          }
+          
+        case other => fail(s"Progress was not a HandleError")
+      }
+    }
+  }
 }
