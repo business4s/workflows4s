@@ -98,7 +98,6 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
   }
 
   def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result = {
-    println("onAndThen")
     wio.first.asExecuted match {
       case Some(firstExecuted) =>
         firstExecuted.output match {
