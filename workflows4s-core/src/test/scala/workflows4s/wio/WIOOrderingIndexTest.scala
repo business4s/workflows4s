@@ -8,7 +8,7 @@ import workflows4s.wio.model.WIOExecutionProgress
 class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
   import TestCtx.*
 
-  //TODO: test case for WIO.FlatMap, Loop
+  //TODO: test case for WIO.Loop
 
   "WIO.Index" - {
 
@@ -83,6 +83,27 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
           steps.head.result.map(_.index) shouldBe Some(0)
           steps.last.result.map(_.index) shouldBe Some(1)
         case _                                    => fail("Progress was not a Sequence")
+      }
+    }
+  }
+
+  "WIO.FlatMap" - {
+    "should assign correct ordering indices after execution" in {
+      val wioA = WIO.pure("initial").autoNamed
+      val wioB = (s: String) => WIO.pure(s + "_next").autoNamed
+
+      val flatMappedWio = wioA.flatMap(wioB)
+
+      val (_, wf)  = TestUtils.createInstance(flatMappedWio)
+      val progress = wf.getProgress
+
+      progress match {
+        case flatMappedWioProgress @ WIOExecutionProgress.Sequence(steps) =>
+          steps.head.result.map(_.index) shouldBe Some(0) 
+          steps.last.result.map(_.index) shouldBe Some(1)
+          flatMappedWioProgress.result.map(_.index) shouldBe Some(1)
+        case other                                    =>
+          fail(s"Expected WIOExecutionProgress.Sequence, got ${other.getClass.getSimpleName} with value $other")
       }
     }
   }
