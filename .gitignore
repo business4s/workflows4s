@@ -1,3 +1,4 @@
+# IDE files
 .idea
 .bsp
 target
@@ -7,3 +8,4 @@ node_modules
 .metals/
 .bloop/
 project/metals.sbt
+.vscode/
