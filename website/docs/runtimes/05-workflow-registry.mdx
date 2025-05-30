@@ -1,0 +1,28 @@
+# Collecting Instances
+
+The `WorkflowRegistry` component is responsible for collecting instances and their execution status.
+By providing `WorkflowRegistry.Agent` to the `WorkflowRuntime` you enable registering status changes.
+
+This allows you to build a reliable store of instances that can be later queried for various use cases.
+
+## Available Implementations
+
+`Workflows4s` doesn't try to build a comprehensive implementation of `WorkflowRegistry`. Instead, it exposes a straightforward API that can be
+implemented by the user.
+Having said that, some simple implementations are provided:
+
+* **NoOpWorkflowRegistry** - a default one, doesn't store anything.
+* **InMemoryWorkflowRegistry** - stores all the created instances in memory.
+* **PostgresWorkflowRegistry** - a simple reference implementation that allows to query for instances that are running for a particular period of time.
+
+## Interrupted Executions
+
+Whenever execution is interrupted
+(e.g. `WorkflowInstance#wakeup` was called but the process was killed before processing finished)
+the workflow requires re-executing the `wakeup` to continue processing.
+
+`PostgresWorkflowRegistry` is a simple implementation leveraging `WorkflowRegistry.Agent` to collect all the instances that
+started processing some time ago and has not finished yet.
+
+It requires [migration](https://github.com/business4s/workflows4s/blob/main/workflows4s-doobie/src/main/resources/schema/postgres-workflow-registry-schema.sql)
+to be applied by the user.

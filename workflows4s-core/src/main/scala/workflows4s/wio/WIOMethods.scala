@@ -1,7 +1,7 @@
 package workflows4s.wio
 
 import cats.effect.IO
-import cats.implicits.catsSyntaxApplicativeId
+import cats.implicits.{catsSyntaxApplicativeId, catsSyntaxOptionId}
 import workflows4s.wio.internal.{EventHandler, ExecutionProgressEvaluator}
 import workflows4s.wio.model.WIOExecutionProgress
 
@@ -55,5 +55,10 @@ trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self
   }
 
   def toProgress: WIOExecutionProgress[WCState[Ctx]] = ExecutionProgressEvaluator.run(this, None, None)
+
+  def asExecuted: Option[WIO.Executed[Ctx, Err, Out, ?]] = this match {
+    case x: WIO.Executed[Ctx, Err, Out, ?] => x.some
+    case _                                 => None
+  }
 
 }

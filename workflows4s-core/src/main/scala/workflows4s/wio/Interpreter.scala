@@ -144,13 +144,6 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
     }
   }
 
-  extension [I, E, O <: WCState[C], C <: WorkflowContext](wio: WIO[I, E, O, C]) {
-    def asExecuted: Option[WIO.Executed[C, E, O, ?]] = wio match {
-      case x: WIO.Executed[C, E, O, ?] => x.some
-      case _                           => None
-    }
-  }
-
 }
 
 sealed trait WFExecution[C <: WorkflowContext, -I, +E, +O <: WCState[C]] {

@@ -4,6 +4,7 @@ import cats.effect.unsafe.IORuntime
 import cats.effect.{IO, LiftIO}
 import cats.{Id, Monad}
 import com.typesafe.scalalogging.StrictLogging
+import workflows4s.runtime.registry.WorkflowRegistry
 import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.wio.*
 
@@ -17,6 +18,7 @@ class InMemorySyncWorkflowInstance[Ctx <: WorkflowContext](
     initialState: ActiveWorkflow[Ctx],
     protected val clock: Clock,
     protected val knockerUpper: KnockerUpper.Agent.Curried,
+    protected val registry: WorkflowRegistry.Agent.Curried,
 )(implicit
     IORuntime: IORuntime,
 ) extends WorkflowInstanceBase[Id, Ctx]
