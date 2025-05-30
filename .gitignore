@@ -1,6 +1,11 @@
+# IDE files
 .idea
 .bsp
 target
 /pr.bpmn
 node_modules
 .aider*
+.metals/
+.bloop/
+project/metals.sbt
+.vscode/
