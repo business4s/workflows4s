@@ -8,6 +8,8 @@ import workflows4s.wio.model.WIOExecutionProgress
 class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
   import TestCtx.*
 
+  //TODO: test case for WIO.FlatMap, Loop
+
   "WIO.Index" - {
 
     "single step" in {
