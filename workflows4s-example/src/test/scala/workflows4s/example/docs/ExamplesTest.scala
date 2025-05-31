@@ -3,7 +3,7 @@ package workflows4s.example.docs
 import org.scalatest.freespec.AnyFreeSpec
 import workflows4s.example.TestUtils
 import workflows4s.example.docs.pullrequest.{PullRequestWorkflow, PullRequestWorkflowDraft}
-import workflows4s.example.docs.courseregistration.CourseRegistrationWorkflow
+ 
 
 class ExamplesTest extends AnyFreeSpec {
 
@@ -27,8 +27,7 @@ class ExamplesTest extends AnyFreeSpec {
     TestUtils.renderDocsExample(PullRequestWorkflowDraft.workflow, "pull-request-draft")
     TestUtils.renderDocsExample(PullRequestWorkflow.workflow, "pull-request")
 
-    TestUtils.renderDocsExample(CourseRegistrationWorkflow.workflow, "course-registration")
-    TestUtils.renderDebugToFile(CourseRegistrationWorkflow.workflow.toProgress, "docs/course-registration.debug.txt")
+ 
     TestUtils.renderDebugToFile(PullRequestWorkflow.workflow.toProgress, "docs/pull-request.debug.txt")
   }
 
