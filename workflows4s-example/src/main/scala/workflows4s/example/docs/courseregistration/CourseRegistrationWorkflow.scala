@@ -134,5 +134,10 @@ object CourseRegistrationWorkflow {
     // end_recovery
 
     wfInstance
+
   }
+ def main(args: Array[String]): Unit = {
+  val _ = run  // Explicitly discard the return value
+  println("Course registration workflow executed and BPMN generated!")
+}
 }
