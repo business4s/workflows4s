@@ -136,8 +136,8 @@ object CourseRegistrationWorkflow {
     wfInstance
 
   }
- def main(args: Array[String]): Unit = {
-  val _ = run  // Explicitly discard the return value
-  println("Course registration workflow executed and BPMN generated!")
-}
+  def main(args: Array[String]): Unit = {
+    val _ = run // Explicitly discard the return value
+    println("Course registration workflow executed and BPMN generated!")
+  }
 }
