@@ -218,7 +218,7 @@ object WithdrawalWorkflowTest {
         def withExecutionInitiated(success: Boolean) =
           (service.initiateExecution)
             .expects(*, *)
-            .returning(IO(if (success) ExecutionResponse.Accepted(externalId) else ExecutionResponse.Rejected("Rejected by execution engine")))
+            .returning(IO(if success then ExecutionResponse.Accepted(externalId) else ExecutionResponse.Rejected("Rejected by execution engine")))
 
         def withFundsReleased() =
           (service.releaseFunds)
