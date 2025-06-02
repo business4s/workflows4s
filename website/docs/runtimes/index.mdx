@@ -104,3 +104,8 @@ Below is an overview of the available runtimes, with their strengths and limitat
 
 Each `WorkflowRuntime` is usually parameterized by a `KnockerUpper` implementation which is responsible for waking up the workflow when needed.
 See [Wake-Ups](./04-knocker-uppers.mdx) for additional details.
+
+## WorkflowRegistry
+
+Each `WorkflowRuntime` can also be configured with a `WorkflowRegistry` implementation which is responsible for tracking the execution status of workflow instances.
+See [Collecting Instances](./05-workflow-registry.mdx) for additional details.

@@ -5,45 +5,38 @@ import cats.effect.LiftIO
 import cats.syntax.all.*
 import com.typesafe.scalalogging.StrictLogging
 import workflows4s.runtime.WorkflowInstance.UnexpectedSignal
+import workflows4s.runtime.registry.WorkflowRegistry
+import workflows4s.runtime.registry.WorkflowRegistry.ExecutionStatus
 import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.wio.*
 import workflows4s.wio.model.WIOExecutionProgress
 
 import java.time.{Clock, Instant}
+import scala.util.chaining.scalaUtilChainingOps
 
 trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstance[F, WCState[Ctx]] with StrictLogging {
 
   protected given fMonad: Monad[F]
   protected given liftIO: LiftIO[F]
 
+  protected def lockAndUpdateState[T](update: ActiveWorkflow[Ctx] => F[LockOutcome[T]]): F[StateUpdate[T]]
   // this could theoretically be implemented in terms of `updateState` but we dont want to lock anything unnecessarly
   protected def getWorkflow: F[ActiveWorkflow[Ctx]]
-
-  enum LockOutcome[+T] {
-    case NewEvent(event: WCEvent[Ctx], result: T)
-    case NoOp(result: T)
-  }
-  enum StateUpdate[+T] {
-    case Updated(oldState: ActiveWorkflow[Ctx], newState: ActiveWorkflow[Ctx], result: T)
-    case NoOp(oldState: ActiveWorkflow[Ctx], result: T)
-
-    def result: T
-  }
-  protected def lockAndUpdateState[T](update: ActiveWorkflow[Ctx] => F[LockOutcome[T]]): F[StateUpdate[T]]
   protected def knockerUpper: KnockerUpper.Agent.Curried
   protected def clock: Clock
+  protected def registry: WorkflowRegistry.Agent.Curried
 
   override def queryState(): F[WCState[Ctx]] = {
     for {
-      wf <- getWorkflow
-      now = Instant.now
+      wf  <- getWorkflow
+      now <- currentTime
     } yield wf.liveState(now)
   }
 
   override def getProgress: F[WIOExecutionProgress[WCState[Ctx]]] = {
     for {
-      wf <- getWorkflow
-      now = Instant.now
+      wf  <- getWorkflow
+      now <- currentTime
     } yield wf.progress(now)
   }
 
@@ -68,26 +61,30 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
   }
 
   override def wakeup(): F[Unit] = {
+    def processWakeup(state: ActiveWorkflow[Ctx]) = for {
+      now    <- currentTime
+      result <- state.proceed(now) match {
+                  case Some(resultIO) =>
+                    for {
+                      _     <- registerRunningInstance
+                      event <- liftIO.liftIO(resultIO)
+                      _      = logger.debug(s"Waking up the instance. Produced event: ${event}")
+                    } yield LockOutcome.NewEvent(event, ())
+                  case None           =>
+                    logger.debug(s"Waking up the instance didn't produce an event")
+                    for {
+                      _ <- registerNotRunningInstance(state)
+                    } yield LockOutcome.NoOp(())
+                }
+    } yield result
+
     for {
-      _           <- fMonad.unit
-      _            = logger.trace(s"Waking up the workflow")
-      stateUpdate <- lockAndUpdateState { state =>
-                       for {
-                         now    <- currentTime
-                         result <- state.proceed(now) match {
-                                     case Some(resultIO) =>
-                                       for {
-                                         event <- liftIO.liftIO(resultIO)
-                                       } yield LockOutcome.NewEvent(event, ())
-                                     case None           => LockOutcome.NoOp(()).pure[F]
-                                   }
-                       } yield result
-                     }
+      stateUpdate <- lockAndUpdateState(processWakeup)
       _           <- postEventActions(stateUpdate)
     } yield ()
   }
 
-  protected def currentTime = fMonad.unit.map(_ => Instant.now(clock))
+  protected def currentTime: F[Instant] = fMonad.unit.map(_ => clock.instant())
 
   protected def processLiveEvent(event: WCEvent[Ctx], state: ActiveWorkflow[Ctx], now: Instant): ActiveWorkflow[Ctx] = {
     state.handleEvent(event, now) match {
@@ -126,5 +123,27 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
                    }
                  })
     } yield newState
+  }
+
+  private def registerRunningInstance: F[Unit]                                = {
+    registry.upsertInstance((), WorkflowRegistry.ExecutionStatus.Running).pipe(liftIO.liftIO)
+  }
+  private def registerNotRunningInstance(state: ActiveWorkflow[Ctx]): F[Unit] = {
+    val status =
+      if state.wio.asExecuted.isDefined then ExecutionStatus.Finished
+      else ExecutionStatus.Awaiting
+    registry.upsertInstance((), status).pipe(liftIO.liftIO)
+  }
+
+  enum LockOutcome[+T] {
+    case NewEvent(event: WCEvent[Ctx], result: T)
+    case NoOp(result: T)
+  }
+
+  enum StateUpdate[+T] {
+    case Updated(oldState: ActiveWorkflow[Ctx], newState: ActiveWorkflow[Ctx], result: T)
+    case NoOp(oldState: ActiveWorkflow[Ctx], result: T)
+
+    def result: T
   }
 }

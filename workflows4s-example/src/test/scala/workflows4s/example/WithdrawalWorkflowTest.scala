@@ -13,7 +13,7 @@ import workflows4s.example.withdrawal.*
 import workflows4s.example.withdrawal.WithdrawalService.{ExecutionResponse, Fee, Iban}
 import workflows4s.example.withdrawal.WithdrawalSignal.CreateWithdrawal
 import workflows4s.example.withdrawal.checks.*
-import workflows4s.testing.TestClock
+import workflows4s.testing.{TestClock, TestRuntimeAdapter}
 
 //noinspection ForwardReference
 class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory with WithdrawalWorkflowTest.Suite {
@@ -45,7 +45,7 @@ object WithdrawalWorkflowTest {
 
   trait Suite extends AnyFreeSpecLike with MockFactory {
 
-    def withdrawalTests(getRuntime: => TestRuntimeAdapter[WithdrawalWorkflow.Context.Ctx]) = {
+    def withdrawalTests[WfId](getRuntime: => TestRuntimeAdapter[WithdrawalWorkflow.Context.Ctx, WfId]) = {
 
       "happy path" in new Fixture {
         assert(actor.queryData() == WithdrawalData.Empty)

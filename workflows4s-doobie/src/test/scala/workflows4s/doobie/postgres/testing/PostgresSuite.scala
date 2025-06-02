@@ -1,4 +1,4 @@
-package workflows4s.doobie.postgres
+package workflows4s.doobie.postgres.testing
 
 import cats.effect.IO
 import cats.implicits.toTraverseOps
@@ -29,10 +29,10 @@ trait PostgresSuite extends TestContainerForAll { self: Suite =>
   }
 
   def createSchema(xa: Transactor[IO]): IO[Unit] = {
-    val schemaSql  = scala.io.Source.fromResource("schema/postgres-schema.sql").mkString
-    // Split the script into individual statements (if necessary) and execute them
-    val statements = schemaSql.split(";").map(_.trim).filter(_.nonEmpty)
-    val actions    = statements.toList.traverse(sql => Fragment.const(sql).update.run)
+    val schemaSql         = scala.io.Source.fromResource("schema/postgres-schema.sql").mkString
+    val registrySchemaSql = scala.io.Source.fromResource("schema/postgres-workflow-registry-schema.sql").mkString
+    val statements        = (schemaSql + registrySchemaSql).split(";").map(_.trim).filter(_.nonEmpty)
+    val actions           = statements.toList.traverse(sql => Fragment.const(sql).update.run)
     actions.transact(xa).map(_ => ())
   }
 

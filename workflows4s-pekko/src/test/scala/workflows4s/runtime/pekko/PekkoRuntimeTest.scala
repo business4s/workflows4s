@@ -1,14 +1,15 @@
-package workflows4s.example.checks
+package workflows4s.runtime.pekko
 
 import org.apache.pekko.actor.testkit.typed.scaladsl.{ActorTestKit, ScalaTestWithActorTestKit}
 import org.apache.pekko.persistence.jdbc.testkit.scaladsl.SchemaUtils
 import org.scalatest.freespec.AnyFreeSpecLike
-import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
-import workflows4s.runtime.pekko.PekkoRuntimeAdapter
+import workflows4s.testing.WorkflowRuntimeTest
+import workflows4s.wio.TestCtx2
 
 import scala.concurrent.Await
+import scala.concurrent.duration.DurationInt
 
-class PekkoChecksEngineTest extends ScalaTestWithActorTestKit(ActorTestKit("MyCluster")) with AnyFreeSpecLike with ChecksEngineTest.Suite {
+class PekkoRuntimeTest extends ScalaTestWithActorTestKit(ActorTestKit("MyCluster")) with AnyFreeSpecLike with WorkflowRuntimeTest.Suite {
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -16,8 +17,8 @@ class PekkoChecksEngineTest extends ScalaTestWithActorTestKit(ActorTestKit("MyCl
     ()
   }
 
-  "pekko" - {
-    checkEngineTests(new PekkoRuntimeAdapter("checks-engine")(using testKit.system))
+  "generic tests" - {
+    workflowTests(new PekkoRuntimeAdapter[TestCtx2.Ctx]("generic-test-workflow"))
   }
 
 }

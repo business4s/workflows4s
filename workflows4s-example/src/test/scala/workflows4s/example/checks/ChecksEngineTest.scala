@@ -6,9 +6,9 @@ import com.typesafe.scalalogging.StrictLogging
 import org.scalatest.Inside.inside
 import org.scalatest.freespec.{AnyFreeSpec, AnyFreeSpecLike}
 import workflows4s.example.withdrawal.checks.*
-import workflows4s.example.{TestRuntimeAdapter, TestUtils}
+import workflows4s.example.TestUtils
 import workflows4s.runtime.WorkflowInstance
-import workflows4s.testing.TestClock
+import workflows4s.testing.{TestClock, TestRuntimeAdapter}
 import workflows4s.wio.WCState
 
 import scala.annotation.nowarn
@@ -38,7 +38,7 @@ object ChecksEngineTest {
 
   trait Suite extends AnyFreeSpecLike {
 
-    def checkEngineTests(getRuntime: => TestRuntimeAdapter[ChecksEngine.Context]) = {
+    def checkEngineTests(getRuntime: => TestRuntimeAdapter[ChecksEngine.Context, ?]) = {
 
       "re-run pending checks until complete" in new Fixture {
         val check: Check[Unit] { def runNum: Int } = new Check[Unit] {
