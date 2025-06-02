@@ -1,7 +1,7 @@
 name: Release
 on:
   push:
-    branches: [main]
+    branches: [main, sonatype-central]
     tags: ["*"]
 jobs:
   publish:
