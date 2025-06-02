@@ -32,7 +32,7 @@ object WorkflowRuntimeTest {
           val exception = new Exception("IO failed")
           @nowarn("msg=unused private member")
           var failing   = true
-          val ioLogic   = IO(if (failing) throw exception else ())
+          val ioLogic   = IO(if failing then throw exception else ())
 
           val wf = createInstance(failingRunIO(ioLogic))
 

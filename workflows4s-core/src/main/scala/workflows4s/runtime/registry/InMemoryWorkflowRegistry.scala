@@ -36,7 +36,7 @@ object InMemoryWorkflowRegistry {
           _   <- stateRef.update { state =>
                    state.get((workflowType, id)) match {
                      case Some(existing) =>
-                       if (existing.updatedAt.isAfter(now)) state
+                       if existing.updatedAt.isAfter(now) then state
                        else state + ((workflowType, id) -> existing.copy(updatedAt = now, status = executionStatus))
                      case None           =>
                        state + ((workflowType, id) -> Data(id, workflowType, now, now, executionStatus))

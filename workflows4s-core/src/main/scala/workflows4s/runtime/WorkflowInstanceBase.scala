@@ -130,7 +130,7 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
   }
   private def registerNotRunningInstance(state: ActiveWorkflow[Ctx]): F[Unit] = {
     val status =
-      if (state.wio.asExecuted.isDefined) ExecutionStatus.Finished
+      if state.wio.asExecuted.isDefined then ExecutionStatus.Finished
       else ExecutionStatus.Awaiting
     registry.upsertInstance((), status).pipe(liftIO.liftIO)
   }
