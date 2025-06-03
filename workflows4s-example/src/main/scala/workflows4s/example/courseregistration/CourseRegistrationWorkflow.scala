@@ -1,4 +1,4 @@
-package workflows4s.example.docs.courseregistration
+package workflows4s.example.courseregistration
 
 import java.io.File
 import cats.effect.IO
