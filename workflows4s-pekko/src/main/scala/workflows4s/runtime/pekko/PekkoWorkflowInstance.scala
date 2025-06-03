@@ -47,9 +47,9 @@ class PekkoWorkflowInstance[Ctx <: WorkflowContext](
     given Timeout = lockTimeout
     def unlock    = actorRef.ask[Unit](replyTo => WorkflowBehavior.Command.UnlockState(lockId, replyTo))
     for {
-      oldState <- actorRef
-                    .ask[ActiveWorkflow[Ctx]](replyTo => WorkflowBehavior.Command.LockState(lockId, replyTo))
-                    .onError(_ => unlock) // in case of timeout or other problems with receiving response.
+      oldState   <- actorRef
+                      .ask[ActiveWorkflow[Ctx]](replyTo => WorkflowBehavior.Command.LockState(lockId, replyTo))
+                      .onError(_ => unlock) // in case of timeout or other problems with receiving response.
       lockResult <- update(oldState).onError(err => {
                       logger.error(s"State update failed. Releasing lock ${lockId}", err)
                       unlock
