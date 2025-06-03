@@ -8,6 +8,7 @@ import org.apache.pekko.actor.typed.{ActorSystem, RecipientRef}
 import org.apache.pekko.util.Timeout
 import workflows4s.runtime.WorkflowInstanceBase
 import workflows4s.runtime.pekko.WorkflowBehavior.{LockExpired, StateLockId}
+import workflows4s.runtime.registry.WorkflowRegistry
 import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.runtime.wakeup.KnockerUpper.Agent.Curried
 import workflows4s.wio.{ActiveWorkflow, WorkflowContext}
@@ -20,6 +21,7 @@ class PekkoWorkflowInstance[Ctx <: WorkflowContext](
     actorRef: RecipientRef[WorkflowBehavior.Command[Ctx]],
     protected val knockerUpper: KnockerUpper.Agent.Curried,
     protected val clock: Clock,
+    protected val registry: WorkflowRegistry.Agent.Curried,
     stateQueryTimeout: Timeout = Timeout(100.millis),
     lockTimeout: Timeout = Timeout(5.seconds),
 )(using system: ActorSystem[?])

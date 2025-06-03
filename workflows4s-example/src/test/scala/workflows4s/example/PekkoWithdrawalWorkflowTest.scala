@@ -1,13 +1,14 @@
 package workflows4s.example
 
-import scala.concurrent.Await
-import scala.concurrent.duration.DurationInt
-
 import org.apache.pekko.actor.testkit.typed.scaladsl.{ActorTestKit, ScalaTestWithActorTestKit}
 import org.apache.pekko.persistence.jdbc.testkit.scaladsl.SchemaUtils
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.freespec.AnyFreeSpecLike
+import workflows4s.runtime.pekko.PekkoRuntimeAdapter
+
+import scala.concurrent.Await
+import scala.concurrent.duration.DurationInt
 
 //noinspection ForwardReference
 class PekkoWithdrawalWorkflowTest
@@ -24,7 +25,7 @@ class PekkoWithdrawalWorkflowTest
   }
 
   "pekko" - {
-    withdrawalTests(new TestRuntimeAdapter.Pekko("withdrawal")(using testKit.system))
+    withdrawalTests(new PekkoRuntimeAdapter("withdrawal")(using testKit.system))
   }
 
 }

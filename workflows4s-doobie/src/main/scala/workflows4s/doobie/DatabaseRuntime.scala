@@ -4,6 +4,7 @@ import cats.data.Kleisli
 import cats.effect.{IO, LiftIO}
 import doobie.util.transactor.Transactor
 import doobie.{ConnectionIO, WeakAsync}
+import workflows4s.runtime.registry.{NoOpWorkflowRegistry, WorkflowRegistry}
 import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.runtime.{MappedWorkflowInstance, WorkflowInstance, WorkflowRuntime}
 import workflows4s.wio.WIO.Initial
@@ -18,6 +19,7 @@ class DatabaseRuntime[Ctx <: WorkflowContext, WorkflowId](
     knockerUpper: KnockerUpper.Agent[WorkflowId],
     xa: Transactor[IO],
     storage: WorkflowStorage[WorkflowId, WCEvent[Ctx]],
+    registry: WorkflowRegistry.Agent[WorkflowId],
 ) extends WorkflowRuntime[IO, Ctx, WorkflowId] {
 
   override def createInstance(id: WorkflowId): IO[WorkflowInstance[IO, WCState[Ctx]]] = {
@@ -28,6 +30,7 @@ class DatabaseRuntime[Ctx <: WorkflowContext, WorkflowId](
         storage,
         clock,
         knockerUpper,
+        registry,
       )
       // alternative is to take `LiftIO` as runtime parameter but this complicates call site
       new MappedWorkflowInstance(
@@ -50,5 +53,6 @@ object DatabaseRuntime {
       knockerUpper: KnockerUpper.Agent[WorkflowId],
       storage: WorkflowStorage[WorkflowId, WCEvent[Ctx]],
       clock: Clock = Clock.systemUTC(),
-  ) = new DatabaseRuntime[Ctx, WorkflowId](workflow, initialState, clock, knockerUpper, transactor, storage)
+      registry: WorkflowRegistry.Agent[WorkflowId] = NoOpWorkflowRegistry.Agent,
+  ) = new DatabaseRuntime[Ctx, WorkflowId](workflow, initialState, clock, knockerUpper, transactor, storage, registry)
 }

@@ -1,6 +1,7 @@
 package workflows4s.testing
 
 import cats.effect.IO
+import workflows4s.runtime.registry.NoOpWorkflowRegistry
 import workflows4s.runtime.wakeup.NoOpKnockerUpper
 import workflows4s.runtime.{InMemorySyncRuntime, InMemorySyncWorkflowInstance}
 import workflows4s.wio.{TestCtx, TestCtx2, *}
@@ -16,7 +17,7 @@ object TestUtils {
     val clock                                               = new TestClock()
     import cats.effect.unsafe.implicits.global
     val instance: InMemorySyncWorkflowInstance[TestCtx.Ctx] =
-      new InMemorySyncRuntime(wio, "initialState", clock, NoOpKnockerUpper.Agent).createInstance(())
+      new InMemorySyncRuntime(wio, "initialState", clock, NoOpKnockerUpper.Agent, NoOpWorkflowRegistry.Agent).createInstance(())
     (clock, instance)
   }
 
@@ -24,7 +25,13 @@ object TestUtils {
     val clock                                                = new TestClock()
     import cats.effect.unsafe.implicits.global
     val instance: InMemorySyncWorkflowInstance[TestCtx2.Ctx] =
-      new InMemorySyncRuntime[TestCtx2.Ctx, Unit](wio.provideInput(TestState.empty), TestState.empty, clock, NoOpKnockerUpper.Agent)
+      new InMemorySyncRuntime[TestCtx2.Ctx, Unit](
+        wio.provideInput(TestState.empty),
+        TestState.empty,
+        clock,
+        NoOpKnockerUpper.Agent,
+        NoOpWorkflowRegistry.Agent,
+      )
         .createInstance(())
     (clock, instance)
   }
@@ -69,7 +76,7 @@ object TestUtils {
     (signalDef, stepId, wio)
   }
 
-  def timer(secs: Int = Random.nextInt()): (FiniteDuration, WIO[TestState, Nothing, TestState, TestCtx2.Ctx]) = {
+  def timer(secs: Int = Random.nextInt(10) + 1): (FiniteDuration, WIO[TestState, Nothing, TestState, TestCtx2.Ctx]) = {
     import TestCtx2.*
     case class Started(instant: Instant)  extends Event
     case class Released(instant: Instant) extends Event

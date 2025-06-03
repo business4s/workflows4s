@@ -1,6 +1,7 @@
 package workflows4s.runtime
 
 import cats.effect.{Deferred, IO, Ref}
+import workflows4s.runtime.registry.{NoOpWorkflowRegistry, WorkflowRegistry}
 import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.wio.*
 import workflows4s.wio.WIO.Initial
@@ -11,12 +12,13 @@ import java.time.Clock
   *
   * IT'S NOT A GENERAL-PURPOSE RUNTIME
   */
-class InMemoryRuntime[Ctx <: WorkflowContext, WorkflowId] private (
+class InMemoryRuntime[Ctx <: WorkflowContext, WorkflowId](
     workflow: Initial[Ctx],
     initialState: WCState[Ctx],
     clock: Clock,
     knockerUpper: KnockerUpper.Agent[WorkflowId],
     instances: Ref[IO, Map[WorkflowId, InMemoryWorkflowInstance[Ctx]]],
+    registry: WorkflowRegistry.Agent[WorkflowId],
 ) extends WorkflowRuntime[IO, Ctx, WorkflowId] {
   override def createInstance(id: WorkflowId): IO[InMemoryWorkflowInstance[Ctx]] = {
     instances.access.flatMap({ (map, update) =>
@@ -28,7 +30,7 @@ class InMemoryRuntime[Ctx <: WorkflowContext, WorkflowId] private (
             initialWf     = ActiveWorkflow(workflow, initialState)
             stateRef     <- Ref[IO].of(initialWf)
             eventsRef    <- Ref[IO].of(Vector[WCEvent[Ctx]]())
-            runningWf     = InMemoryWorkflowInstance[Ctx](stateRef, eventsRef, clock, knockerUpper.curried(id))
+            runningWf     = InMemoryWorkflowInstance[Ctx](stateRef, eventsRef, clock, knockerUpper.curried(id), registry.curried(id))
             _            <- runningWfRef.complete(runningWf)
             success      <- update(map.updated(id, runningWf))
             _            <- if success then IO.unit
@@ -46,11 +48,12 @@ object InMemoryRuntime {
       initialState: WCState[Ctx],
       knockerUpper: KnockerUpper.Agent[Id],
       clock: Clock = Clock.systemUTC(),
+      registry: WorkflowRegistry.Agent[Id] = NoOpWorkflowRegistry.Agent,
   ): IO[InMemoryRuntime[Ctx, Id]] = {
     Ref
       .of[IO, Map[Id, InMemoryWorkflowInstance[Ctx]]](Map.empty)
       .map({ instances =>
-        new InMemoryRuntime[Ctx, Id](workflow, initialState, clock, knockerUpper, instances)
+        new InMemoryRuntime[Ctx, Id](workflow, initialState, clock, knockerUpper, instances, registry)
       })
   }
 
