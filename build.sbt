@@ -10,6 +10,7 @@ lazy val `workflows4s` = (project in file("."))
     `workflows4s-doobie`,
     `workflows4s-filesystem`,
     `workflows4s-quartz`,
+    `workflows4s-web-ui`, 
   )
 
 lazy val `workflows4s-core` = (project in file("workflows4s-core"))
@@ -110,7 +111,20 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
     `workflows4s-doobie` % "compile->compile;test->test",
     `workflows4s-filesystem`,
     `workflows4s-quartz`,
+
   )
+  
+  lazy val `workflows4s-web-ui` = (project in file("workflows4s-web-ui"))
+  .enablePlugins(ScalaJSPlugin)
+  .settings(commonSettings)
+  .settings(
+    libraryDependencies ++= Seq(
+      "io.indigoengine" %%% "tyrian-io" % "0.14.0"
+    ),
+    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.CommonJSModule) },
+    publish / skip := true,
+  )
+  .dependsOn(`workflows4s-core`)
 
 lazy val commonSettings = Seq(
   scalaVersion      := "3.7.0",
