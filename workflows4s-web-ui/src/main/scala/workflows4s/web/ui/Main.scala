@@ -156,7 +156,7 @@ object Main extends TyrianIOApp[Msg, Model]:
           padding: 0;
         }
       """)
-    ) /
+    ) 
 
   def subscriptions(model: Model): Sub[IO, Msg] =
     Sub.None 
