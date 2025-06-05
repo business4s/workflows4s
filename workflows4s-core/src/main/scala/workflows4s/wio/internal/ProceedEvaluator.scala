@@ -50,8 +50,8 @@ object ProceedEvaluator {
       handleCheckpointBase(wio)
     }
 
-    def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], in: I1, state: WCState[Ctx], index: Int): Option[WFExecution[Ctx, I1, E1, O1]] =
-      new ProceedVisitor(wio, in, state, now, index).run
+    def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], in: I1, state: WCState[Ctx]): Option[WFExecution[Ctx, I1, E1, O1]] =
+      new ProceedVisitor(wio, in, state, now, lastIndex).run
 
   }
 
