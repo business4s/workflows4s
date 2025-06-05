@@ -11,7 +11,6 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
   import TestCtx.*
 
   "WIO.Index" - {
-
     "single step" in {
       val singleStep = WIO.pure("someState").done
       val (_, wf)    = TestUtils.createInstance(singleStep)
@@ -35,6 +34,21 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
     }
 
 
+    "3 steps" in {
+      val step1 = WIO.pure("step1").autoNamed
+      val step2 = WIO.pure.makeFrom[String].value(s => s"$s>>>step2").autoNamed
+      val step3 = WIO.pure.makeFrom[String].value(s => s"$s>>>step3").autoNamed
+      val (_, wf)  = TestUtils.createInstance(step1 >>> step2 >>> step3)
+      val progress = wf.getProgress
+      progress match {
+        case WIOExecutionProgress.Sequence(steps) =>
+          steps.size shouldBe 3
+          steps.head.result.map(_.index) shouldBe Some(0)
+          steps(1).result.map(_.index) shouldBe Some(1)
+          steps.last.result.map(_.index) shouldBe Some(2)
+        case _                                    => fail("Progress was not a Sequence")
+      }
+    }
     "2 steps with error handling" in {
       type Err = Int
       val FixedError = 41

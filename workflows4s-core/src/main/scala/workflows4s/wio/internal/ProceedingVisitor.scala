@@ -103,7 +103,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
         firstExecuted.output match {
           case Left(err)    => WFExecution.complete(wio, Left(err), input, firstExecuted.index).some
           case Right(value) =>
-            recurse(wio.second, value, value, index = firstExecuted.index).map({
+            recurse(wio.second, value, value).map({
               case WFExecution.Complete(newWio) =>
                 WFExecution.complete(
                   WIO.AndThen(wio.first, newWio), newWio.output, input, newWio.index)
@@ -283,7 +283,6 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
   def recurse[I1, E1, O1 <: WCState[Ctx]](
       wio: WIO[I1, E1, O1, Ctx],
       in: I1,
-      state: WCState[Ctx] = lastSeenState,
-      index: Int = lastIndex,
+      state: WCState[Ctx] = lastSeenState
   ): Option[WFExecution[Ctx, I1, E1, O1]]
 }
