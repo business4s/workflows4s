@@ -20,10 +20,10 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
     }
 
     "2 steps" in {
-      val (step1Id, step1) = TestUtils.pure
-      val (step2Id, step2) = TestUtils.pure
+      val step1 = WIO.pure("step1").autoNamed
+      val step2 = WIO.pure.makeFrom[String].value(s => s"$s>>>step2").autoNamed
 
-      val (_, wf)  = TestUtils.createInstance2(step1 >>> step2)
+      val (_, wf)  = TestUtils.createInstance(step1 >>> step2)
       val progress = wf.getProgress
       progress match {
         case WIOExecutionProgress.Sequence(steps) =>
@@ -33,6 +33,7 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
         case _                                    => fail("Progress was not a Sequence")
       }
     }
+
 
     "2 steps with error handling" in {
       type Err = Int
