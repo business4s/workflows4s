@@ -61,8 +61,8 @@ object EventEvaluator {
       doHandle(wio.eventHandler.map(_.asRight)).orElse(handleCheckpointBase(wio))
     }
 
-    def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], in: I1, state: WCState[Ctx], index: Int): EventVisitor[Ctx, I1, E1, O1]#Result =
-      new EventVisitor(wio, event, in, state, index).run
+    def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], in: I1, state: WCState[Ctx]): EventVisitor[Ctx, I1, E1, O1]#Result =
+      new EventVisitor(wio, event, in, state, lastIndex).run
 
   }
 }
