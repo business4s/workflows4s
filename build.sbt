@@ -114,14 +114,15 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
 
   )
   
-  lazy val `workflows4s-web-ui` = (project in file("workflows4s-web-ui"))
+ 
+lazy val `workflows4s-web-ui` = (project in file("workflows4s-web-ui"))
   .enablePlugins(ScalaJSPlugin)
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "io.indigoengine" %%% "tyrian-io" % "0.14.0"
+      "io.indigoengine" %%% "tyrian-io" % "0.14.0",
     ),
-    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.CommonJSModule) },
+    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) }, // Changed this line
     publish / skip := true,
   )
   .dependsOn(`workflows4s-core`)

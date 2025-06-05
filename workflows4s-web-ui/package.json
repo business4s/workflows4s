@@ -1,9 +1,11 @@
 {
+  "type": "module",
   "scripts": {
-    "start": "parcel index.html --no-cache --dist-dir dist --log-level info",
-    "build": "parcel build index.html --dist-dir dist --log-level info"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "devDependencies": {
-    "parcel": "^2.1.0"
+    "vite": "^5.0.0"
   }
 }
