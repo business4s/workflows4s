@@ -2,15 +2,15 @@
 
 ## Setup instructions
 
-To run the program in a browser you will need to have yarn (or npm) installed.
+To run the program in a browser you will need to have npm (or yarn) installed.
 
 Before your first run and for your tests to work, **you must** install the node dependencies with:
 
 ```sh
-yarn install
+npm install
 ```
 
-This example uses Parcel.js as our bundler and dev server, there are lots of other options you might prefer like Webpack, scalajs-bunder, or even just vanilla JavaScript.
+This example uses Vite as our bundler and dev server, which is a modern and fast build tool. There are other options you might prefer like Webpack, Parcel.js, or even just vanilla JavaScript.
 
 We recommend you have two terminal tabs open in the directory containing this README file.
 
@@ -27,12 +27,12 @@ Run `fastLinkJS` now to get an initial build in place.
 Then start your dev server, with:
 
 ```sh
-yarn start
+npm run dev
 ```
 
-Now navigate to [http://localhost:1234/](http://localhost:1234/) to see your site running.
+Now navigate to [http://localhost:5173/](http://localhost:5173/) to see your site running.
 
-If you leave parcel's dev server running, all you have to do is another `fastLinkJS` or `fullLinkJS` and your app running in the browser should hot-reload the new code.
+If you leave Vite's dev server running, all you have to do is another `fastLinkJS` or `fullLinkJS` and your app running in the browser should hot-reload the new code.
 
 ## Supported Effect Types
 
@@ -44,4 +44,4 @@ Otherwise, it's identical.
 
 ## Supported Build Tools
 
-Tyrian works equally well with sbt or Mill. Most of the examples are given in sbt, and this g8 template uses sbt too. However there is a [Mill example](https://github.com/PurpleKingdomGames/tyrian/tree/main/examples/mill) project that serves as a good starting point.
+Tyrian works equally well with sbt or Mill. Most of the examples are given in sbt, and this g8 template uses sbt too. However there is a [Mill example](https://github.com/PurpleKingdomGames/tyrian/tree/main/examples) project that serves as a good starting point.
