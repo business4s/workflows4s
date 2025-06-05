@@ -162,13 +162,7 @@ object WFExecution {
 
   extension [C <: WorkflowContext](wfe: WFExecution[C, Any, Nothing, WCState[C]]) {
     def toActiveWorkflow(initialState: WCState[C], initialIndex: Int): ActiveWorkflow[C] = {
-      val orderIndex = wfe match {
-        case WFExecution.Complete(executedResult) =>
-          executedResult.index
-        case WFExecution.Partial(_) =>
-          initialIndex
-      }
-      ActiveWorkflow(wfe.wio, initialState, orderIndex)
+      ActiveWorkflow(wfe.wio, initialState, initialIndex)
     }
   }
   case class Complete[C <: WorkflowContext, E, O <: WCState[C], I](wio: WIO.Executed[C, E, O, I]) extends WFExecution[C, I, E, O]

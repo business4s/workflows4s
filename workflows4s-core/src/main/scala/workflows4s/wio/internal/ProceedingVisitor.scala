@@ -60,7 +60,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
             executedBase.output match {
               case Left(err)    =>
                 WFExecution.Partial(WIO.HandleErrorWith(executedBase, wio.handleError(lastSeenState, err), wio.handledErrorMeta, wio.newErrorMeta))
-              case Right(value) => WFExecution.complete(wio.copy(base = executedBase), Right(value), executedBase.input, executedBase.index + 1)
+              case Right(value) => WFExecution.complete(wio.copy(base = executedBase), Right(value), executedBase.input, executedBase.index)
             }
           case WFExecution.Partial(newWio)        => WFExecution.Partial(wio.copy(base = newWio))
         })
@@ -79,7 +79,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
                 case WFExecution.Partial(newHandler)  => WFExecution.Partial(updateHandler(newHandler))
               }
             })
-          case Right(value) => WFExecution.complete(wio, Right(value), input, baseExecuted.index + 1).some
+          case Right(value) => WFExecution.complete(wio, Right(value), input, baseExecuted.index).some
         }
       case None               =>
         recurse(wio.base, input).map(baseResult => {
@@ -88,7 +88,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
             case WFExecution.Complete(newWio) =>
               newWio.output match {
                 case Left(_)      => WFExecution.Partial(updateBase(newWio))
-                case Right(value) => WFExecution.complete(updateBase(newWio), Right(value), input, lastIndex + 1)
+                case Right(value) => WFExecution.complete(updateBase(newWio), Right(value), input, lastIndex)
               }
             case WFExecution.Partial(newWio)  => WFExecution.Partial(updateBase(newWio))
           }
@@ -125,7 +125,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
         recurse(currentWio, input, lastState).map({
           case WFExecution.Complete(newWio) =>
             newWio.output match {
-              case Left(err)    => WFExecution.complete(wio.copy(history = wio.history :+ newWio), Left(err), input, lastIndex +1)
+              case Left(err)    => WFExecution.complete(wio.copy(history = wio.history :+ newWio), Left(err), input, newWio.index)
               case Right(value) =>
                 wio.stopCondition(value) match {
                   case Right(value1)  =>
@@ -133,7 +133,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
                       wio.copy(history = wio.history :+ newWio, current = WIO.Loop.State.Finished(WIO.Executed(currentWio, Right(value), input, 0))),
                       Right(value1),
                       input,
-                      lastIndex
+                      newWio.index
                     )
                   case Left(returnIn) =>
                     WFExecution.Partial(
@@ -148,7 +148,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
         recurse(currentWio, input, lastState).map({
           case WFExecution.Complete(newWio) =>
             newWio.output match {
-              case Left(err)    => WFExecution.complete(wio.copy(history = wio.history :+ newWio), Left(err), input, lastIndex)
+              case Left(err)    => WFExecution.complete(wio.copy(history = wio.history :+ newWio), Left(err), input, newWio.index)
               case Right(value) =>
                 WFExecution.Partial(wio.copy(current = WIO.Loop.State.Forward(wio.body.provideInput(value)), history = wio.history :+ newWio))
             }
