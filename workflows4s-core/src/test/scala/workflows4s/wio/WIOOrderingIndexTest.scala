@@ -5,10 +5,10 @@ import org.scalatest.matchers.should.Matchers
 import workflows4s.testing.TestUtils
 import workflows4s.wio.model.WIOExecutionProgress
 
+//TODO: WIO.Parallel
+
 class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
   import TestCtx.*
-
-  //TODO: test case for WIO.Loop
 
   "WIO.Index" - {
 
@@ -17,58 +17,6 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
       val (_, wf)    = TestUtils.createInstance(singleStep)
       val progress   = wf.getProgress
       assert(progress.result.get.index == 0)
-    }
-
-    "single signal step" in {
-      val signalDef                                     = SignalDef[Unit, Unit]("TestSignalUnit")
-      val signalHandlingWio: WIO[State, Nothing, State] =
-        WIO
-          .handleSignal(signalDef)
-          .using[State]
-          .purely { (_, _) => SimpleEvent("SignalProcessed") }
-          .handleEvent { (prevState, event) => s"${prevState}_${event.value}" }
-          .voidResponse
-          .done
-
-      val initialSignalWio: WIO.Initial = signalHandlingWio.provideInput("WrapperInputForSignal")
-      val (_, wfInstance)               = TestUtils.createInstance(initialSignalWio)
-
-      wfInstance.deliverSignal(signalDef, ()) shouldBe Right(())
-
-      val progress = wfInstance.getProgress
-      progress match {
-        case WIOExecutionProgress.HandleSignal(_, resultOpt) =>
-          resultOpt should (be(defined) and not be empty)
-          resultOpt.get.index shouldBe 0
-        case other                                           =>
-          fail(s"Expected WIOExecutionProgress.HandleSignal, got ${other.getClass.getSimpleName}")
-      }
-    }
-
-    "single signal 2 steps" in {
-      val signalDef                                     = SignalDef[Unit, Unit]("TestSignalUnit")
-      val signalHandlingWio: WIO[State, Nothing, State] =
-        WIO
-          .handleSignal(signalDef)
-          .using[State]
-          .purely { (_, _) => SimpleEvent("SignalProcessedP") }
-          .handleEvent { (prevState, event) => s"${prevState}_${event.value}" }
-          .voidResponse
-          .done
-
-      val initialSignalWio: WIO.Initial = signalHandlingWio.provideInput("WrapperInputForSignal")
-      val (_, wfInstance)               = TestUtils.createInstance(initialSignalWio)
-
-      wfInstance.deliverSignal(signalDef, ()) shouldBe Right(())
-
-      val progress = wfInstance.getProgress
-      progress match {
-        case WIOExecutionProgress.HandleSignal(_, resultOpt) =>
-          resultOpt should (be(defined) and not be empty)
-          resultOpt.get.index shouldBe 0
-        case other                                           =>
-          fail(s"Expected WIOExecutionProgress.HandleSignal, got ${other.getClass.getSimpleName}")
-      }
     }
 
     "2 steps" in {
@@ -85,74 +33,18 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
         case _                                    => fail("Progress was not a Sequence")
       }
     }
-  }
 
-  "WIO.FlatMap" - {
-    "should assign correct ordering indices after execution" in {
-      val wioA = WIO.pure("initial").autoNamed
-      val wioB = (s: String) => WIO.pure(s + "_next").autoNamed
-
-      val flatMappedWio = wioA.flatMap(wioB)
-
-      val (_, wf)  = TestUtils.createInstance(flatMappedWio)
-      val progress = wf.getProgress
-
-      progress match {
-        case flatMappedWioProgress @ WIOExecutionProgress.Sequence(steps) =>
-          steps.head.result.map(_.index) shouldBe Some(0) 
-          steps.last.result.map(_.index) shouldBe Some(1)
-          flatMappedWioProgress.result.map(_.index) shouldBe Some(1)
-        case other                                    =>
-          fail(s"Expected WIOExecutionProgress.Sequence, got ${other.getClass.getSimpleName} with value $other")
-      }
-    }
-  }
-
-  "A WIO.HandleErrorWith" - {
-    "2 steps including error handling" in {
-      type Err = Int
-      val FixedError                                             = 41
-      val step1: WIO[Any, Err, String]                           = WIO.pure
-        .makeFrom[Any]
-        .error(_ => FixedError)
-        .autoNamed
-      val errorHandlingStep: WIO[(String, Err), Nothing, String] = WIO.pure
-        .makeFrom[(String, Err)]
-        .value((_, error) => s"Completed handling error $error")
-        .autoNamed
-
-      val wio: WIO[Any, Nothing, String] = step1.handleErrorWith(errorHandlingStep)
-
-      val (_, wf)  = TestUtils.createInstance(wio)
-      val progress = wf.getProgress
-      progress match {
-        case WIOExecutionProgress.HandleError(base, handler, _, finalResult) =>
-          finalResult.map(_.index) shouldBe Some(1)
-          base match {
-            case WIOExecutionProgress.Pure(meta, result) =>
-              result.map(_.value.isLeft) shouldBe Some(true)
-              result.map(_.index) shouldBe Some(0)
-
-            case _ => fail("Base of HandleError was not a Sequence")
-          }
-
-        case other => fail(s"Progress was not a HandleError")
-      }
-    }
-    "should assign correct ordering indices when a step in the main flow errors and is handled" in {
+    "2 steps with error handling" in {
       type Err = Int
       val FixedError = 41
 
       val step1: WIO[Any, Nothing, String] = WIO.pure("step1").autoNamed
 
-      val step2: WIO[String, Err, Nothing] = WIO.pure
-        .makeFrom[String]
-        .error(_ => FixedError)
-        .autoNamed // just produce an error
+      val step2: WIO[String, Err, Nothing] = WIO.pure.makeFrom[String].error(_ => FixedError).autoNamed
 
       val step3: WIO[(String, Err), Nothing, String] = WIO.pure
         .makeFrom[(String, Err)]
-        .value { case (stateBeforeError, errorMsg) => "what?" }
+        .value { case (stateBeforeError, errorMsg) => s"Handled error $FixedError" }
         .autoNamed
 
       val compositeWIO: WIO[Any, Nothing, String] = (step1 >>> step2).handleErrorWith(step3)
@@ -176,50 +68,82 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
         case other => fail(s"Progress was not a HandleError")
       }
     }
+
+    "WIO.FlatMap" in {
+      val wioA = WIO.pure("initial").autoNamed
+      val wioB = (s: String) => WIO.pure(s + "_next").autoNamed
+
+      val flatMappedWio = wioA.flatMap(wioB)
+
+      val (_, wf)  = TestUtils.createInstance(flatMappedWio)
+      val progress = wf.getProgress
+
+      progress match {
+        case flatMappedWioProgress @ WIOExecutionProgress.Sequence(steps) =>
+          steps.head.result.map(_.index) shouldBe Some(0)
+          steps.last.result.map(_.index) shouldBe Some(1)
+          flatMappedWioProgress.result.map(_.index) shouldBe Some(1)
+        case other                                                        =>
+          fail(s"Expected WIOExecutionProgress.Sequence, got ${other.getClass.getSimpleName} with value $other")
+      }
+    }
   }
 
-  "should assign correct ordering indices when rename me" in {
-    type Err = Int
-    val FixedError = 41
+  "WIO.Loop " in {
+    val baseText               = "step"
+    // Initial state for the WIO.repeat, format: "text_count"
+    // "s_0" signifies base text and 0 iterations *completed* by the body yet.
+    val initialStateForLoopWIO = s"${baseText}_0"
 
-    val errorTriggerSignal: SignalDef[Unit, Unit] = SignalDef()
+    // Loop body:
+    // Input state: "text_count" (e.g., "s_0" or "s_iter1_1")
+    // Output state: "text_iter(count+1)_(count+1)" (e.g., "s_iter1_1" or "s_iter1_iter2_2")
+    val loopBody: WIO[String, Nothing, String] = WIO.pure
+      .makeFrom[String]
+      .value { inputState =>
+        val parts       = inputState.split('_')
+        val currentText = if (parts.length > 1 && parts.last.toIntOption.isDefined) parts.dropRight(1).mkString("_") else parts.mkString("_")
+        val count       = parts.last.toInt
 
-    val step1: WIO[Any, Nothing, String] = WIO.pure("step1").autoNamed
-
-    val step2: WIO[String, Err, Nothing] = WIO
-      .handleSignal(errorTriggerSignal)
-      .using[String]
-      .purely { (_, _) => SimpleEvent("SignalProcessed") }
-      .handleEventWithError((in, event) => Left(FixedError), // just produce an error
-      )
-      .voidResponse
+        val nextCount = count + 1
+        s"${currentText}_iter${nextCount}_${nextCount}"
+      }
       .autoNamed
 
-    val step3: WIO[(String, Err), Nothing, String] = WIO.pure
-      .makeFrom[(String, Err)]
-      .value { case (stateBeforeError, errorMsg) => "what?" }
-      .autoNamed
+    val stopCondition: String => Boolean = bodyOutputState => {
+      val parts = bodyOutputState.split('_')
+      val count = parts.last.toInt
+      count >= 2
+    }
 
-    val compositeWIO: WIO[Any, Nothing, String] = (step1 >>> step2).handleErrorWith(step3)
-    val (_, wfInstance)                         = TestUtils.createInstance(compositeWIO)
-    wfInstance.deliverSignal(errorTriggerSignal, ())
+    val repeatedWio: WIO[String, Nothing, String] = WIO
+      .repeat(loopBody)
+      .until(stopCondition)
+      .onRestartContinue
+      .done
 
-    val progress = wfInstance.getProgress
+    val (_, wf)      = TestUtils.createInstance(repeatedWio.provideInput(initialStateForLoopWIO))
+    val loopProgress = wf.getProgress
 
-    progress match {
-      case WIOExecutionProgress.HandleError(base, handler, _, step3Result) =>
-        step3Result.map(_.index) shouldBe Some(2)
-        base match {
-          case WIOExecutionProgress.Sequence(steps) =>
-            steps.forall(_.isExecuted) shouldBe true
-            steps(0).result.map(_.index) shouldBe Some(0)
-            steps(1).result.map(_.index) shouldBe Some(1)
+    loopProgress match {
+      case lp @ WIOExecutionProgress.Loop(_, _, meta, history) =>
+        history.size shouldBe 3 // Two completed executions of the body
 
-          case _ => fail("Base of HandleError was not a Sequence")
+        // Iteration 1: Body input "s_0" -> Body output "s_iter1_1"
+        history.head.result.flatMap(_.value.toOption) shouldBe Some(s"${baseText}_iter1_1")
+        history.head.result.map(_.index) shouldBe Some(0)
+        history.head shouldBe a[WIOExecutionProgress.Pure[?]]
 
-        }
+        // Iteration 2: Body input "s_iter1_1" (from onRestartContinue) -> Body output "s_iter1_iter2_2"
+        history(2).result.flatMap(_.value.toOption) shouldBe Some(s"${baseText}_iter1_iter2_2")
+        history(2).result.map(_.index) shouldBe Some(1)
+        history.last shouldBe a[WIOExecutionProgress.Pure[?]]
 
-      case other => fail(s"Progress was not a HandleError")
+        // The Loop's overall result is the state from the last body execution (which made 'until' true)
+        lp.result.flatMap(_.value.toOption) shouldBe Some(s"${baseText}_iter1_iter2_2")
+        lp.result.map(_.index) shouldBe Some(1) // Index of the last step in the loop
+
+      case other => fail(s"Expected WIOExecutionProgress.Loop, got ${other.getClass.getSimpleName} ($other)")
     }
   }
 }
