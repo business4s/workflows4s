@@ -122,7 +122,7 @@ lazy val `workflows4s-web-ui` = (project in file("workflows4s-web-ui"))
     libraryDependencies ++= Seq(
       "io.indigoengine" %%% "tyrian-io" % "0.14.0",
     ),
-    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) }, // Changed this line
+    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
     publish / skip := true,
   )
   .dependsOn(`workflows4s-core`)
