@@ -5,7 +5,7 @@ import org.scalatest.matchers.should.Matchers
 import workflows4s.testing.TestUtils
 import workflows4s.wio.model.WIOExecutionProgress
 
-//TODO: WIO.Parallel
+//TODO: WIO.Parallel, Loop with internal WIO.Sequence
 
 class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
   import TestCtx.*
@@ -106,13 +106,8 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
 
   "WIO.Loop " in {
     val baseText               = "step"
-    // Initial state for the WIO.repeat, format: "text_count"
-    // "s_0" signifies base text and 0 iterations *completed* by the body yet.
     val initialStateForLoopWIO = s"${baseText}_0"
 
-    // Loop body:
-    // Input state: "text_count" (e.g., "s_0" or "s_iter1_1")
-    // Output state: "text_iter(count+1)_(count+1)" (e.g., "s_iter1_1" or "s_iter1_iter2_2")
     val loopBody: WIO[String, Nothing, String] = WIO.pure
       .makeFrom[String]
       .value { inputState =>
@@ -125,6 +120,8 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
       }
       .autoNamed
 
+      val restartStep = WIO.pure.makeFrom[String].value(identity).autoNamed
+
     val stopCondition: String => Boolean = bodyOutputState => {
       val parts = bodyOutputState.split('_')
       val count = parts.last.toInt
@@ -134,7 +131,7 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
     val repeatedWio: WIO[String, Nothing, String] = WIO
       .repeat(loopBody)
       .until(stopCondition)
-      .onRestartContinue
+      .onRestart(restartStep)
       .done
 
     val (_, wf)      = TestUtils.createInstance(repeatedWio.provideInput(initialStateForLoopWIO))
@@ -142,21 +139,19 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
 
     loopProgress match {
       case lp @ WIOExecutionProgress.Loop(_, _, meta, history) =>
-        history.size shouldBe 3 // Two completed executions of the body
+        history.size shouldBe 3 // 3: iter1, restart, iter2
 
-        // Iteration 1: Body input "s_0" -> Body output "s_iter1_1"
+        //iter1
         history.head.result.flatMap(_.value.toOption) shouldBe Some(s"${baseText}_iter1_1")
         history.head.result.map(_.index) shouldBe Some(0)
-        history.head shouldBe a[WIOExecutionProgress.Pure[?]]
 
-        // Iteration 2: Body input "s_iter1_1" (from onRestartContinue) -> Body output "s_iter1_iter2_2"
-        history(2).result.flatMap(_.value.toOption) shouldBe Some(s"${baseText}_iter1_iter2_2")
-        history(2).result.map(_.index) shouldBe Some(1)
-        history.last shouldBe a[WIOExecutionProgress.Pure[?]]
+        //restart
+        history(1).result.flatMap(_.value.toOption) shouldBe Some(s"step_iter1_1")
+        history(1).result.map(_.index) shouldBe Some(1)
 
-        // The Loop's overall result is the state from the last body execution (which made 'until' true)
-        lp.result.flatMap(_.value.toOption) shouldBe Some(s"${baseText}_iter1_iter2_2")
-        lp.result.map(_.index) shouldBe Some(1) // Index of the last step in the loop
+        //restart
+        history.last.result.flatMap(_.value.toOption) shouldBe Some(s"${baseText}_iter1_iter2_2")
+        history.last.result.map(_.index) shouldBe Some(2)
 
       case other => fail(s"Expected WIOExecutionProgress.Loop, got ${other.getClass.getSimpleName} ($other)")
     }
