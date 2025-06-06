@@ -124,8 +124,8 @@ object ExecutionProgressEvaluator {
 
     def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result =
       WIOExecutionProgress.Timer(WIOMeta.Timer(None, wio.resumeAt.some, None), result) // TODO persist duration and name
-    def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result = recurse(wio.original, wio.input.some, wio.output.some)
-    def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result           = recurse(wio.original, wio.input.some, None)
+    def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result   = recurse(wio.original, wio.input.some, wio.output.some)
+    def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result             = recurse(wio.original, wio.input.some, None)
 
     def onParallel[InterimState <: workflows4s.wio.WorkflowContext.State[Ctx]](wio: WIO.Parallel[Ctx, In, Err, Out, InterimState]): Result = {
       WIOExecutionProgress.Parallel(wio.elements.map(elem => recurse(elem.wio, input, result = None)), result)
