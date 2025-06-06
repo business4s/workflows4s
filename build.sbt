@@ -113,7 +113,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
     `workflows4s-doobie` % "compile->compile;test->test",
     `workflows4s-filesystem`,
     `workflows4s-quartz`,
-
+    `workflows4s-web-api`
   )
 
 lazy val `workflows4s-web-ui` = (project in file("workflows4s-web-ui"))

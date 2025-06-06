@@ -7,7 +7,6 @@ import java.time.Instant
 trait WorkflowApiService {
   def listDefinitions(): Future[Either[String, List[WorkflowDefinition]]]
   def getDefinition(id: String): Future[Either[String, WorkflowDefinition]]
-  def listInstances(definitionId: String, filter: InstancesFilter): Future[Either[String, PaginatedResponse[WorkflowInstance]]]
   def getInstance(definitionId: String, instanceId: String): Future[Either[String, WorkflowInstance]]   
 }
 
