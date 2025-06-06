@@ -11,6 +11,8 @@ lazy val `workflows4s` = (project in file("."))
     `workflows4s-filesystem`,
     `workflows4s-quartz`,
     `workflows4s-web-ui`, 
+    `workflows4s-web-ui`, 
+    `workflows4s-web-api`,  
   )
 
 lazy val `workflows4s-core` = (project in file("workflows4s-core"))
@@ -113,8 +115,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
     `workflows4s-quartz`,
 
   )
-  
- 
+
 lazy val `workflows4s-web-ui` = (project in file("workflows4s-web-ui"))
   .enablePlugins(ScalaJSPlugin)
   .settings(commonSettings)
@@ -124,6 +125,22 @@ lazy val `workflows4s-web-ui` = (project in file("workflows4s-web-ui"))
     ),
     scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
     publish / skip := true,
+  )
+  .dependsOn(`workflows4s-core`)
+
+lazy val `workflows4s-web-api` = (project in file("workflows4s-web-api"))
+  .settings(commonSettings)
+  .settings(
+    libraryDependencies ++= Seq(
+      "com.softwaremill.sttp.tapir" %% "tapir-core"               % tapirVersion,
+      "com.softwaremill.sttp.tapir" %% "tapir-json-circe"         % tapirVersion,
+      "com.softwaremill.sttp.tapir" %% "tapir-pekko-http-server"  % tapirVersion,
+      "com.softwaremill.sttp.tapir" %% "tapir-swagger-ui-bundle"  % tapirVersion,
+      "com.softwaremill.sttp.tapir" %% "tapir-openapi-docs"       % tapirVersion,
+      "org.apache.pekko"           %% "pekko-http"                % pekkoHttpVersion,
+      "org.apache.pekko"           %% "pekko-actor-typed"         % pekkoVersion,      
+      "org.apache.pekko"           %% "pekko-stream"              % pekkoVersion,    
+    ),
   )
   .dependsOn(`workflows4s-core`)
 
@@ -153,6 +170,7 @@ lazy val commonSettings = Seq(
 lazy val pekkoVersion               = "1.1.3"
 lazy val pekkoHttpVersion           = "1.2.0"
 lazy val testcontainersScalaVersion = "0.43.0"
+lazy val tapirVersion = "1.11.29"
 
 addCommandAlias("prePR", List("compile", "Test / compile", "test", "scalafmtCheckAll").mkString(";", ";", ""))
 
