@@ -11,6 +11,7 @@ lazy val `workflows4s` = (project in file("."))
     `workflows4s-filesystem`,
     `workflows4s-quartz`,
     `workflows4s-web-ui`, 
+    `workflows4s-web-ui`, 
     `workflows4s-web-api`,  
   )
 
@@ -59,7 +60,7 @@ lazy val `workflows4s-doobie` = (project in file("workflows4s-doobie"))
       "org.tpolecat"  %% "doobie-core"                     % "1.0.0-RC9",
       "com.dimafeng"  %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
       "com.dimafeng"  %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
-      "org.postgresql" % "postgresql"                      % "42.7.5"                   % Test,
+      "org.postgresql" % "postgresql"                      % "42.7.6"                   % Test,
     ),
   )
   .dependsOn(`workflows4s-core` % "compile->compile;test->test")
@@ -100,7 +101,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "org.apache.pekko"     %% "pekko-actor-testkit-typed"       % pekkoVersion               % Test,
       "com.dimafeng"         %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
       "com.dimafeng"         %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
-      "org.postgresql"        % "postgresql"                      % "42.7.5"                   % Test,
+      "org.postgresql"        % "postgresql"                      % "42.7.6"                   % Test,
     ),
     Test / parallelExecution := false, // otherwise akka clusters clash
     publish / skip           := true,
@@ -114,8 +115,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
     `workflows4s-quartz`,
 
   )
-  
- 
+
 lazy val `workflows4s-web-ui` = (project in file("workflows4s-web-ui"))
   .enablePlugins(ScalaJSPlugin)
   .settings(commonSettings)

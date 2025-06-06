@@ -12,14 +12,14 @@ object Main extends IOApp.Simple {
     given ActorSystem[Nothing] = ActorSystem(Behaviors.empty, "workflows4s-api-system")
     
     for {
-      _ <- IO.println("🚀 Starting Workflows4s API Server...")
+      _ <- IO.println(" Starting Workflows4s API Server...")
       
       apiService = new MockWorkflowApiService()
       apiServer = new WorkflowApiServer(apiService)
       
       binding <- IO.fromFuture(IO(apiServer.start("localhost", 8081)))
       
-      _ <- IO.println("✅ API Server started!")
+      _ <- IO.println(" API Server started!")
       _ <- IO.never
       
     } yield ()
