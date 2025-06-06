@@ -149,7 +149,7 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
         history(1).result.flatMap(_.value.toOption) shouldBe Some(s"step_iter1_1")
         history(1).result.map(_.index) shouldBe Some(1)
 
-        //restart
+        //iter2
         history.last.result.flatMap(_.value.toOption) shouldBe Some(s"${baseText}_iter1_iter2_2")
         history.last.result.map(_.index) shouldBe Some(2)
 
