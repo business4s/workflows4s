@@ -126,7 +126,7 @@ object RunIOEvaluator {
       recurse(wio.base, input).map(
         _.handleErrorWith(err =>
           wio
-            .onError(err)
+            .onError(err, lastSeenState, now)
             .flatMap({
               case Some(retryTime) => retryTime.asLeft.pure[IO]
               case None            => IO.raiseError(err)
