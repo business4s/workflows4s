@@ -34,7 +34,7 @@ case class ActiveWorkflow[Ctx <: WorkflowContext](wio: WIO.Initial[Ctx], initial
       .map(x => x.effectlessProceed(now).getOrElse(x))
   }
 
-  def proceed(now: Instant): Option[IO[WCEvent[Ctx]]] = {
+  def proceed(now: Instant): Option[IO[Either[Instant, WCEvent[Ctx]]]] = {
     val wf = effectlessProceed(now).getOrElse(this)
     RunIOEvaluator.proceed(wf.wio, wf.staticState, now).event
   }

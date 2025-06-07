@@ -17,7 +17,7 @@ object RunIOEvaluator {
     Response(visitor.run)
   }
 
-  case class Response[Ctx <: WorkflowContext](event: Option[IO[WCEvent[Ctx]]])
+  case class Response[Ctx <: WorkflowContext](event: Option[IO[Either[Instant, WCEvent[Ctx]]]])
 
   private class RunIOVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](
       wio: WIO[In, Err, Out, Ctx],
@@ -25,7 +25,7 @@ object RunIOEvaluator {
       lastSeenState: WCState[Ctx],
       now: Instant,
   ) extends Visitor[Ctx, In, Err, Out](wio) {
-    override type Result = Option[IO[WCEvent[Ctx]]]
+    override type Result = Option[IO[Either[Instant, WCEvent[Ctx]]]]
 
     def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result                             = None
     def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result = None
@@ -34,7 +34,7 @@ object RunIOEvaluator {
     def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result                                       = None
     override def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): Result                = None
 
-    def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result = wio.buildIO(input).map(wio.evtHandler.convert).some
+    def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result = wio.buildIO(input).map(wio.evtHandler.convert).map(_.asRight).some
 
     def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result          = recurse(wio.base, input)
     def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Result          =
@@ -78,7 +78,7 @@ object RunIOEvaluator {
     ): Result = {
       val newState: WCState[InnerCtx] = wio.embedding.unconvertStateUnsafe(lastSeenState)
       new RunIOVisitor(wio.inner, input, newState, now).run
-        .map(_.map(wio.embedding.convertEvent))
+        .map(_.map(_.map(wio.embedding.convertEvent)))
     }
 
     // proceed on interruption will be needed for timeouts
@@ -95,13 +95,13 @@ object RunIOEvaluator {
     def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result = {
       val started   = WIO.Timer.Started(now)
       val converted = wio.startedEventHandler.convert(started)
-      Some(IO.pure(converted))
+      Some(IO.pure(converted.asRight))
     }
 
     def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result = {
       val timeCame = now.plusNanos(1).isAfter(wio.resumeAt)
       Option.when(timeCame)(
-        wio.releasedEventHandler.convert(Timer.Released(now)).pure[IO],
+        wio.releasedEventHandler.convert(Timer.Released(now)).asRight.pure[IO],
       )
     }
 
@@ -116,14 +116,28 @@ object RunIOEvaluator {
         case Some(executedBase) =>
           executedBase.output match {
             case Left(_)        => None
-            case Right(baseOut) => wio.genEvent(input, baseOut).map(wio.eventHandler.convert).some
+            case Right(baseOut) => wio.genEvent(input, baseOut).map(wio.eventHandler.convert).map(_.asRight).some
           }
         case None               => recurse(wio.base, input)
       }
     }
 
-    private def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], s: I1): Option[IO[WCEvent[Ctx]]] =
+    override def onRetry(wio: WIO.Retry[Ctx, In, Err, Out]): Option[IO[Either[Instant, WCEvent[Ctx]]]] = {
+      recurse(wio.base, input).map(
+        _.handleErrorWith(err =>
+          wio
+            .onError(err)
+            .flatMap({
+              case Some(retryTime) => retryTime.asLeft.pure[IO]
+              case None            => IO.raiseError(err)
+            }),
+        ),
+      )
+    }
+
+    private def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], s: I1): Option[IO[Either[Instant, WCEvent[Ctx]]]] =
       new RunIOVisitor(wio, s, lastSeenState, now).run
+
   }
 
 }

@@ -56,7 +56,7 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
       now         <- currentTime
       _            = logger.debug(s"Delivering signal $signalDef")
       stateUpdate <- lockAndUpdateState(processSignal(_, now))
-      _           <- postEventActions(stateUpdate)
+      _           <- postEventActions(stateUpdate.map(_ => None))
     } yield stateUpdate.result
   }
 
@@ -69,12 +69,15 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
                       _     <- registerRunningInstance
                       event <- liftIO.liftIO(resultIO)
                       _      = logger.debug(s"Waking up the instance. Produced event: ${event}")
-                    } yield LockOutcome.NewEvent(event, ())
+                    } yield event match {
+                      case Left(retryTime) => LockOutcome.NoOp(Some(retryTime))
+                      case Right(event)    => LockOutcome.NewEvent(event, None)
+                    }
                   case None           =>
                     logger.debug(s"Waking up the instance didn't produce an event")
                     for {
                       _ <- registerNotRunningInstance(state)
-                    } yield LockOutcome.NoOp(())
+                    } yield LockOutcome.NoOp(None)
                 }
     } yield result
 
@@ -93,22 +96,33 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
     }
   }
 
-  protected def postEventActions(update: StateUpdate[?]): F[Unit] = {
+  private type RetryTime = Instant
+  private def postEventActions(update: StateUpdate[Option[RetryTime]]): F[Unit] = {
     update match {
       case StateUpdate.Updated(oldState, newState, _) =>
         for {
-          _ <- if newState.wakeupAt != oldState.wakeupAt then liftIO.liftIO(
-                 knockerUpper
-                   .updateWakeup((), newState.wakeupAt)
-                   .handleError(err => {
-                     logger.error("Failed to register wakeup", err)
-                   }),
-               )
+          _ <- if newState.wakeupAt != oldState.wakeupAt then updateWakeup(newState.wakeupAt)
                else fMonad.unit
           _ <- wakeup()
         } yield ()
-      case StateUpdate.NoOp(_, _)                     => fMonad.unit
+      case StateUpdate.NoOp(oldState, retryTimeOpt)   =>
+        retryTimeOpt match {
+          case Some(retryTime) =>
+            if oldState.wakeupAt.forall(_.isAfter(retryTime)) then updateWakeup(Some(retryTime))
+            else fMonad.unit
+          case None            => fMonad.unit
+        }
     }
+  }
+
+  private def updateWakeup(time: Option[Instant]) = {
+    liftIO.liftIO(
+      knockerUpper
+        .updateWakeup((), time)
+        .handleError(err => {
+          logger.error("Failed to register wakeup", err)
+        }),
+    )
   }
 
   protected def recover(initialState: ActiveWorkflow[Ctx], events: Seq[WCEvent[Ctx]]): F[ActiveWorkflow[Ctx]] = {
@@ -145,5 +159,11 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
     case NoOp(oldState: ActiveWorkflow[Ctx], result: T)
 
     def result: T
+
+    def map[U](f: T => U): StateUpdate[U] = this match {
+      case Updated(oldState, newState, result) => Updated(oldState, newState, f(result))
+      case NoOp(oldState, result)              => NoOp(oldState, f(result))
+    }
+
   }
 }

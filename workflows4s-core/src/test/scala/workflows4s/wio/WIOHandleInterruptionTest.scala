@@ -112,7 +112,7 @@ class WIOHandleInterruptionTest extends AnyFreeSpec with Matchers with OptionVal
 
         val wf = initialWIO.interruptWith(interruptWithSignalA).toWorkflow("initialState")
 
-        val event = wf.proceed(Instant.now).value.unsafeRunSync()
+        val event = wf.proceed(Instant.now).value.unsafeRunSync().value
 
         assert(event === MyEvent("RunIOEvent(initialState)"))
 
