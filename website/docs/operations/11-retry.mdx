@@ -1,0 +1,59 @@
+# Retry Operations
+
+Retries enable workflows to automatically recover from transient technical failures by reattempting failed operations after a delay.
+
+## Error Types: Technical vs Business
+
+It's important to distinguish between:
+
+- **Technical errors** – Infrastructure-level problems like network timeouts or service unavailability. These are typically transient and can be retried.
+- **Business errors** – Domain-specific conditions like invalid input or failed validations. These require explicit handling and **should not be retried**.
+
+Use [error handling](/docs/operations/handle-errors) for managing business errors.
+
+## How Retry Works
+
+When a workflow is resumed (e.g. via `wakeup` on `WorkflowInstance`) and the operation fails:
+
+- **Without retry**: the error is propagated to the caller.
+- **With retry**: the error is swallowed, and a `KnockerUpper` schedules a future wakeup based on retry logic.
+
+## Retry Strategies
+
+### 1. Simple Retry with Fixed Delay
+
+```scala 3
+val operation = WIO.runIO(/* some operation that might fail */)
+val withRetry = operation.retryIn {
+  case _: NetworkException => Duration.ofSeconds(30)
+  case _: TimeoutException => Duration.ofMinutes(1)
+}
+```
+
+### 2. Advanced Retry with Custom Logic
+
+```scala 3
+val operation = WIO.runIO(/* some operation that might fail */)
+val withRetry = operation.retry { (error, state, now) =>
+  error match {
+    case _: NetworkException =>
+      IO.pure(Some(now.plus(Duration.ofSeconds(30))))
+    case _: TimeoutException =>
+      IO.pure(Some(now.plus(Duration.ofMinutes(1))))
+    case _ =>
+      IO.pure(None) // Don't retry other errors
+  }
+}
+
+```
+
+### Limitations
+
+The current retry mechanism is stateless — it doesn't track attempt counts or elapsed time. As a result, it cannot natively support conditions like:
+
+- "Stop retrying after 5 attempts"
+- "Give up after 1 day"
+
+To implement such logic, use custom persistent state within your workflow and consult it in the retry handler.
+
+Alternatively, clearing the scheduled wakeup time via the `KnockerUpper` will effectively stop future retries.
