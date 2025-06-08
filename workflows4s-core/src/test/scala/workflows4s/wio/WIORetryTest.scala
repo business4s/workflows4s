@@ -39,15 +39,55 @@ class WIORetryTest extends AnyFreeSpec with Matchers with OptionValues with Eith
       val exception       = new RuntimeException("fail")
       val (_, failingWIO) = TestUtils.runIOCustom(IO.raiseError(exception))
 
-      val retryingWIO      = failingWIO.retry((_, _, _) => IO(None))
-      val retryingInstance = runtime.createInstance(retryingWIO)
+      val retryingWIO = failingWIO.retry((_, _, _) => IO(None))
+      val instance    = runtime.createInstance(retryingWIO)
 
       assert(runtime.knockerUpper.lastRegisteredWakeup == None)
       val receivedException = intercept[RuntimeException] {
-        retryingInstance.wakeup()
+        instance.wakeup()
       }
       assert(receivedException == exception)
       assert(runtime.knockerUpper.lastRegisteredWakeup == None)
+    }
+
+    "when another wakeup is present" - {
+
+      "should not overwrite earlier one" in {
+        val runtime         = TestRuntime()
+        val exception       = new RuntimeException("fail")
+        val (_, failingWIO) = TestUtils.runIOCustom(IO.raiseError(exception))
+
+        val retryDelay  = Duration.ofSeconds(123)
+        val retryingWIO = failingWIO.retryIn({ case _ => retryDelay })
+
+        val interruptionDelay = retryDelay.minusSeconds(1)
+        val interruption      = TestUtils.timer(interruptionDelay.getSeconds.toInt)._2.toInterruption
+        val interruptedWIO    = retryingWIO.interruptWith(interruption)
+        val instance          = runtime.createInstance(interruptedWIO)
+
+        // wakeup didnt throw but wakeup
+        instance.wakeup()
+        assert(runtime.knockerUpper.lastRegisteredWakeup == Some(runtime.clock.instant.plus(interruptionDelay)))
+
+      }
+      "should overwrite later one" in {
+        val runtime         = TestRuntime()
+        val exception       = new RuntimeException("fail")
+        val (_, failingWIO) = TestUtils.runIOCustom(IO.raiseError(exception))
+
+        val retryDelay  = Duration.ofSeconds(123)
+        val retryingWIO = failingWIO.retryIn({ case _ => retryDelay })
+
+        val interruptionDelay = retryDelay.plusSeconds(1)
+        val interruption      = TestUtils.timer(interruptionDelay.getSeconds.toInt)._2.toInterruption
+        val interruptedWIO    = retryingWIO.interruptWith(interruption)
+        val instance          = runtime.createInstance(interruptedWIO)
+
+        // wakeup didnt throw but wakeup
+        instance.wakeup()
+        assert(runtime.knockerUpper.lastRegisteredWakeup == Some(runtime.clock.instant.plus(retryDelay)))
+
+      }
     }
 
   }

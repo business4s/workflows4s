@@ -66,7 +66,7 @@ object AwaitBuilder {
           def autoNamed(using name: sourcecode.Name): WIO[InOut, Nothing, InOut, Ctx] =
             this.copy(name = Some(ModelUtils.prettifyName(name.value))).done
 
-          def done: WIO[InOut, Nothing, InOut, Ctx] = WIO.Timer(durationSource, startedEventHandler, name, releasedEventHandler)
+          def done: WIO.Timer[Ctx, InOut, Nothing, InOut] = WIO.Timer(durationSource, startedEventHandler, name, releasedEventHandler)
         }
       }
 
