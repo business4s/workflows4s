@@ -65,7 +65,7 @@ trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self
 
   type Now = Instant
   def retry(onError: (Throwable, WCState[Ctx], Now) => IO[Option[Instant]]): WIO[In, Err, Out, Ctx] = WIO.Retry(this, onError)
-  def retryIn(onError: PartialFunction[Throwable, Duration]): WIO[In, Err, Out, Ctx]                   = {
+  def retryIn(onError: PartialFunction[Throwable, Duration]): WIO[In, Err, Out, Ctx]                = {
     val adapted: (Throwable, WCState[Ctx], Now) => IO[Option[Instant]] = (err, _, now) => {
       onError.lift(err).map(d => now.plus(d)).pure[IO]
     }
