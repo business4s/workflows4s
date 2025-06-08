@@ -23,37 +23,50 @@ When a workflow is resumed (e.g. via `wakeup` on `WorkflowInstance`) and the ope
 ### 1. Simple Retry with Fixed Delay
 
 ```scala 3
-val operation = WIO.runIO(/* some operation that might fail */)
+val operation = WIO.runIO( /* some operation that might fail */ )
 val withRetry = operation.retryIn {
   case _: NetworkException => Duration.ofSeconds(30)
   case _: TimeoutException => Duration.ofMinutes(1)
 }
+
 ```
 
 ### 2. Advanced Retry with Custom Logic
 
 ```scala 3
-val operation = WIO.runIO(/* some operation that might fail */)
+val operation = WIO.runIO( /* some operation that might fail */ )
 val withRetry = operation.retry { (error, state, now) =>
   error match {
     case _: NetworkException =>
       IO.pure(Some(now.plus(Duration.ofSeconds(30))))
     case _: TimeoutException =>
       IO.pure(Some(now.plus(Duration.ofMinutes(1))))
-    case _ =>
+    case _                   =>
       IO.pure(None) // Don't retry other errors
   }
 }
 
 ```
 
-### Limitations
+## Caveats
 
-The current retry mechanism is stateless — it doesn't track attempt counts or elapsed time. As a result, it cannot natively support conditions like:
+### Retries Are Stateless
 
-- "Stop retrying after 5 attempts"
-- "Give up after 1 day"
+Currently, Workflow-level retries are **stateless**—they don’t track attempt counts,
+elapsed time or any other information about executed retries.
+This means you can't directly express rules like:
 
-To implement such logic, use custom persistent state within your workflow and consult it in the retry handler.
+- "Retry at most 5 times"
+- "Stop after 1 day"
 
-Alternatively, clearing the scheduled wakeup time via the `KnockerUpper` will effectively stop future retries.
+To support such logic, you can:
+- Use custom persistent state to track retry metadata and query it in the retry handler.
+- Manually clear the scheduled wakeup time via the `KnockerUpper` to stop future retries.
+
+### Choose the Right Layer
+
+Use workflow-level retries for:
+- Recovering from long-lived or external failures (e.g., service unavailability)
+- Retry schedules spanning **minutes to hours or days**
+
+For short-lived retries (e.g., retrying within milliseconds or seconds), prefer handling them directly inside the `IO` operation using libraries like [`cats-retry`](https://github.com/cats-effect/cats-retry).
