@@ -163,6 +163,9 @@ object WIO {
       val releaseTime   = started.at.plus(awaitDuration)
       releaseTime
     }
+
+    def toInterruption(using ev: WCState[Ctx] <:< In): Interruption[Ctx, Err, Out] =
+      WIO.Interruption(ev.substituteContra[[t] =>> WIO[t, Err, Out, Ctx]](this), InterruptionType.Timer)
   }
 
   case class AwaitingTime[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]](
@@ -195,6 +198,11 @@ object WIO {
         incorporateState: (InterimState, WCState[Ctx]) => InterimState,
     )
   }
+
+  case class Retry[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]](
+      base: WIO[In, Err, Out, Ctx],
+      onError: (Throwable, WCState[Ctx], Instant) => IO[Option[Instant]],
+  ) extends WIO[In, Err, Out, Ctx]
 
   // -----
 
