@@ -29,7 +29,7 @@ class WIORetryTest extends AnyFreeSpec with Matchers with OptionValues with Eith
       val retryingWIO      = failingWIO.retryIn({ case _ => retryDelay })
       val retryingInstance = runtime.createInstance(retryingWIO)
 
-      assert(runtime.knockerUpper.lastRegisteredWakeup == None)
+      assert(runtime.knockerUpper.lastRegisteredWakeup(()) == None)
       retryingInstance.wakeup()
       assert(runtime.knockerUpper.lastRegisteredWakeup == Some(runtime.clock.instant.plus(retryDelay)))
     }
@@ -42,12 +42,12 @@ class WIORetryTest extends AnyFreeSpec with Matchers with OptionValues with Eith
       val retryingWIO = failingWIO.retry((_, _, _) => IO(None))
       val instance    = runtime.createInstance(retryingWIO)
 
-      assert(runtime.knockerUpper.lastRegisteredWakeup == None)
+      assert(runtime.knockerUpper.lastRegisteredWakeup(()) == None)
       val receivedException = intercept[RuntimeException] {
         instance.wakeup()
       }
       assert(receivedException == exception)
-      assert(runtime.knockerUpper.lastRegisteredWakeup == None)
+      assert(runtime.knockerUpper.lastRegisteredWakeup(()) == None)
     }
 
     "when another wakeup is present" - {

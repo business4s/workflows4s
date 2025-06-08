@@ -7,12 +7,11 @@ import workflows4s.doobie.postgres.{PostgresWorkflowStorage, WorkflowId}
 import workflows4s.doobie.{ByteCodec, DatabaseRuntime}
 import workflows4s.runtime.WorkflowInstance
 import workflows4s.runtime.registry.WorkflowRegistry
-import workflows4s.runtime.wakeup.NoOpKnockerUpper
 import workflows4s.testing.TestRuntimeAdapter
-import workflows4s.wio.model.WIOExecutionProgress
+import workflows4s.testing.TestRuntimeAdapter.Identifiable
 import workflows4s.wio.*
+import workflows4s.wio.model.WIOExecutionProgress
 
-import java.time.Clock
 import scala.util.Random
 
 class PostgresRuntimeAdapter[Ctx <: WorkflowContext](xa: Transactor[IO], eventCodec: ByteCodec[WCEvent[Ctx]])
@@ -21,20 +20,20 @@ class PostgresRuntimeAdapter[Ctx <: WorkflowContext](xa: Transactor[IO], eventCo
   override def runWorkflow(
       workflow: WIO.Initial[Ctx],
       state: WCState[Ctx],
-      clock: Clock,
       registryAgent: WorkflowRegistry.Agent[WorkflowId],
   ): Actor = {
     val storage = PostgresWorkflowStorage()(using eventCodec)
     val runtime =
-      DatabaseRuntime.default[Ctx, WorkflowId](workflow, state, xa, NoOpKnockerUpper.Agent, storage, clock, registryAgent)
-    Actor(runtime.createInstance(WorkflowId(Random.nextLong())))
+      DatabaseRuntime.default[Ctx, WorkflowId](workflow, state, xa, knockerUpper, storage, clock, registryAgent)
+    val id = WorkflowId(Random.nextLong())
+    Actor(id, runtime.createInstance(id))
   }
 
   override def recover(first: Actor): Actor = {
     first // in this runtime there is no in-memory state, hence no recovery.
   }
 
-  case class Actor(base: IO[WorkflowInstance[IO, WCState[Ctx]]]) extends WorkflowInstance[Id, WCState[Ctx]] {
+  case class Actor(id: WorkflowId, base: IO[WorkflowInstance[IO, WCState[Ctx]]]) extends WorkflowInstance[Id, WCState[Ctx]] with Identifiable[WorkflowId]  {
     import cats.effect.unsafe.implicits.global
 
     override def queryState(): WCState[Ctx] = base.flatMap(_.queryState()).unsafeRunSync()

@@ -13,7 +13,7 @@ import scala.util.Random
 
 class TestRuntime {
   val clock        = TestClock()
-  val knockerUpper = FakeKnockerUpper()
+  val knockerUpper = FakeKnockerUpper[Unit]()
 
   def createInstance(wio: WIO[TestState, Nothing, TestState, TestCtx2.Ctx]): InMemorySyncWorkflowInstance[TestCtx2.Ctx] = {
     import cats.effect.unsafe.implicits.global

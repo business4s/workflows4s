@@ -5,10 +5,10 @@ import workflows4s.runtime.wakeup.KnockerUpper
 
 import java.time.Instant
 
-class FakeKnockerUpper extends KnockerUpper.Agent[Unit] {
+class FakeKnockerUpper[Id] extends KnockerUpper.Agent[Id] {
 
-  private var wakeupAt: Option[Instant]     = None
-  def lastRegisteredWakeup: Option[Instant] = wakeupAt
+  private var wakeups: Map[Id, Option[Instant]]     = Map()
+  def lastRegisteredWakeup(id: Id): Option[Instant] = wakeups.get(id).flatten
 
-  override def updateWakeup(id: Unit, at: Option[Instant]): IO[Unit] = IO(this.wakeupAt = at)
+  override def updateWakeup(id: Id, at: Option[Instant]): IO[Unit] = IO(this.wakeups = wakeups.updatedWith(id)(_ => Some(at)))
 }
