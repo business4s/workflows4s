@@ -33,7 +33,7 @@ Below is an overview of the available runtimes, with their strengths and limitat
     </thead>
     <tbody>
     <tr>
-        <td><code>PekkoRuntime</code></td>
+        <td><a href="pekko"><code>PekkoRuntime</code></a></td>
         <td>Uses Pekko Persistance and Cluster Sharding to manage the state and distribution of workload.</td>
         <td>
             <ul>
@@ -49,8 +49,8 @@ Below is an overview of the available runtimes, with their strengths and limitat
         </td>
     </tr>
     <tr>
-        <td><code>PostgresRuntime</code></td>
-        <td>Relies on PostgreSQL advisory locks, without any in-memory state management.</td>
+        <td><a href="database"><code>DatabaseRuntime</code></a></td>
+        <td>Relies on database storage and locking mechanisms, without any in-memory state management.</td>
         <td>
             <ul>
                 <li>Simplicity</li>
@@ -65,7 +65,7 @@ Below is an overview of the available runtimes, with their strengths and limitat
         </td>
     </tr>
     <tr>
-        <td><code>InMemoryRuntime</code></td>
+        <td><a href="in-memory"><code>InMemoryRuntime</code></a></td>
         <td>Based on Cats Effect; keeps state in memory without persistence.</td>
         <td>
             <ul>
@@ -81,7 +81,7 @@ Below is an overview of the available runtimes, with their strengths and limitat
         </td>
     </tr>
     <tr>
-        <td><code>InMemorySyncRuntime</code></td>
+        <td><a href="in-memory"><code>InMemorySyncRuntime</code></a></td>
         <td>Vanilla Scala implementation, not thread-safe and lacks persistence.</td>
         <td>
             <ul>
@@ -105,3 +105,7 @@ Below is an overview of the available runtimes, with their strengths and limitat
 Each `WorkflowRuntime` is usually parameterized by a `KnockerUpper` implementation which is responsible for waking up the workflow when needed.
 See [Wake-Ups](./04-knocker-uppers.mdx) for additional details.
 
+## WorkflowRegistry
+
+Each `WorkflowRuntime` can also be configured with a `WorkflowRegistry` implementation which is responsible for tracking the execution status of workflow instances.
+See [Collecting Instances](./05-workflow-registry.mdx) for additional details.

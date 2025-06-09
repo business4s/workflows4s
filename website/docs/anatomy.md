@@ -1,36 +1,88 @@
 ---
 sidebar_position: 1.1
-sidebar_label: Workflows4s Anatomy
+sidebar_label: Workflows4s Architecture
 ---
 
-# Workflows4s Anatomy
+# Workflows4s Architecture
 
-## What Does It Do?
+## System Components
 
-Workflows4s enables the creation of workflows using the `WIO` data type. A workflow built with `WIO` supports the
-following operations, as through the [Workflow Elements](../category/workflow-elements):
+The diagram below illustrates the key components of Workflows4s and their relationships:
 
-- **Running side-effectful computations**
-- **Receiving signals** from the external world
-- **Querying workflow state** at any time
-- **Recovering workflow state** without re-triggering side-effecting operations
+```mermaid
+flowchart LR
+    UserLogic["Your Business Logic"] --> WIO["WIO (Workflow Definition)"]
+    RuntimeDeps["Runtime Dependencies"] --> Runtime["WorkflowRuntime"]
+    WIO --> Runtime
 
-`WIO` is a pure value object that describes the workflow. However, to execute it, you need a [runtime](../runtimes)
-capable of:
+    KnockerUpper["KnockerUpper"] --> Runtime
+    WorkflowRegistry["WorkflowRegistry"] --> Runtime
 
-- Persisting events in a journal
-- Reading events from the journal
+    Runtime -- "createInstance(id)" --> Instance["WorkflowInstance"]
+    Events["Events"] -. "persisted/retrieved" .-> Instance
 
-## How Does It Work?
+    Instance -- "queryState()" --> State["Current State"]
+    Instance -- "wakeup()" --> Events
+    Instance -- "deliverSignal()" --> Events
+    KnockerUpper -. "wakeups" .-> Instance
+    Instance -. "register wakeups" .-> KnockerUpper
+    Instance -. "records execution status" .-> WorkflowRegistry
 
-### First Run
+    WIO --> StaticViz["Static Visualization"]
+    Instance --> ProgressViz["Progress Visualization"]
+    Renderer["Renderer"] --> StaticViz
+    Renderer --> ProgressViz
 
-1. The workflow executes `IO`s along its path. Each `IO` produces an event that is persisted in the journal.
-2. Event handlers can modify the workflow state based on the events.
-3. The workflow halts execution when a signal or a timer is expected and resumes once the conditions are met.
+    classDef core fill:#f9f,stroke:#333,stroke-width:2px;
+    classDef runtime fill:#bbf,stroke:#333,stroke-width:2px;
+    classDef viz fill:#bfb,stroke:#333,stroke-width:2px;
 
-### Recovery (e.g., After a Service Restart)
+    class WIO,Events core;
+    class Runtime,Instance,State,KnockerUpper,WorkflowRegistry runtime;
+    class Renderer,StaticViz,ProgressViz viz;
+```
 
-1. Events are read from the journal and applied to the workflow.
-2. All previously executed `IO`s and received signals are skipped if corresponding events are already registered.
-3. Once all events are processed, the workflow continues execution as normal.
+## Key Concepts
+
+### Core Components
+
+- **Your Business Logic**: Your application code that defines the workflow steps and business rules.
+- **WIO (Workflow Definition)**: A pure value object that describes the workflow structure, e.g.:
+    - Steps (computations)
+    - Signal handling
+    - Timers
+    - Branching
+
+### Runtime Components
+
+- **WorkflowRuntime**: Manages workflow instances and their execution.
+- **Runtime Dependencies**: External services required by the runtime (e.g., event storage).
+- **WorkflowInstance**: A specific execution of a workflow with a unique ID.
+- **Events**: Persistent records of all actions and state changes in the workflow.
+- **KnockerUpper**: Responsible for waking up workflows at scheduled times, handling timer-based operations.
+- **WorkflowRegistry**: Keeps track of executed instances and their execution status.
+
+### Interaction Methods
+
+- **createInstance**: Creates a new workflow instance with a specific ID.
+- **queryState**: Retrieves the current state of a workflow instance.
+- **wakeup**: Resumes a paused workflow instance.
+- **deliverSignal**: Sends external signals to a workflow instance.
+
+### Visualization
+
+- **Renderer**: Converts workflow definitions into visual representations.
+- **Static Visualization**: Shows the complete workflow structure before execution.
+- **Progress Visualization**: Shows the current state and progress of a running workflow.
+
+## Execution Model
+
+Workflows4s uses an event-sourcing approach:
+
+1. **First Run**: The workflow executes operations along its path, with each operation producing an event that is
+   persisted.
+2. **Recovery**: After a restart, events are read from storage and applied to rebuild the workflow state without
+   re-executing side effects.
+3. **Signals**: External events can be delivered to the workflow to trigger state transitions.
+
+This architecture enables workflows to be resilient, recoverable, and visualizable throughout their lifecycle.

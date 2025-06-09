@@ -1,6 +1,7 @@
 package workflows4s.example.withdrawal.checks
 
 import cats.syntax.all.*
+import com.typesafe.scalalogging.StrictLogging
 import workflows4s.wio.{SignalDef, WorkflowContext}
 
 import scala.concurrent.duration.DurationInt
@@ -9,7 +10,7 @@ trait ChecksEngine {
   def runChecks: ChecksEngine.Context.WIO[ChecksInput, Nothing, ChecksState.Decided]
 }
 
-object ChecksEngine extends ChecksEngine {
+object ChecksEngine extends ChecksEngine with StrictLogging {
   val retryBackoff     = 20.seconds
   val timeoutThreshold = 2.minutes
 
@@ -25,8 +26,11 @@ object ChecksEngine extends ChecksEngine {
   import Context.WIO
 
   def runChecks: WIO[ChecksInput, Nothing, ChecksState.Decided] =
-    refreshChecksUntilAllComplete >>> getDecision
-  //      .checkpointed((s, decision) => ChecksEvent.CheckCompleted(s.results, decision))((s, e) => (s, e.decision))
+    (refreshChecksUntilAllComplete >>> getDecision)
+      .checkpointed(
+        (_, state) => ChecksEvent.CheckCompleted(state.results, state.decision),
+        (_, evt) => ChecksState.Decided(evt.results, evt.decision),
+      )
 
   private def getDecision: WIO[ChecksState.Executed, Nothing, ChecksState.Decided] = {
     WIO
@@ -55,7 +59,6 @@ object ChecksEngine extends ChecksEngine {
       .untilSome(isDone)
       .onRestart(awaitRetry)
       .named(conditionName = "All checks completed?", releaseBranchName = "Yes", restartBranchName = "No")
-      .done
 
     initialize >>> iterateUntilDone.interruptWith(executionTimeout)
   }
@@ -69,7 +72,10 @@ object ChecksEngine extends ChecksEngine {
           .traverse(check =>
             check
               .run(state.input.data)
-              .handleError(_ => CheckResult.RequiresReview()) // TODO logging
+              .handleError(_ => {
+                logger.error("Error when running a check, falling back to manual review.")
+                CheckResult.RequiresReview()
+              })
               .tupleLeft(check.key),
           )
           .map(results => ChecksEvent.ChecksRun(results.toMap))
@@ -82,7 +88,7 @@ object ChecksEngine extends ChecksEngine {
       .makeFrom[ChecksState.Executed]
       .value(st => {
         val decision =
-          if (st.isRejected) Decision.RejectedBySystem()
+          if st.isRejected then Decision.RejectedBySystem()
           else Decision.ApprovedBySystem()
         st.asDecided(decision)
       })

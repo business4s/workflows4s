@@ -32,6 +32,7 @@ object RunIOEvaluator {
     def onNoop(wio: WIO.End[Ctx]): Result                                                          = None
     def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                                           = None
     def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result                                       = None
+    override def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): Result                = None
 
     def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result = wio.buildIO(input).map(wio.evtHandler.convert).some
 
@@ -66,21 +67,16 @@ object RunIOEvaluator {
       }
     }
 
-    def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result =
-      recurse(wio.current, input)
+    def onLoop[BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx], ReturnIn](wio: WIO.Loop[Ctx, In, Err, Out, BodyIn, BodyOut, ReturnIn]): Result =
+      recurse(wio.current.wio, input)
 
     def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result =
       selectMatching(wio, input).flatMap(selected => recurse(selected.wio, selected.input))
 
-    def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_] <: WCState[Ctx]](
+    def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_ <: WCState[InnerCtx]] <: WCState[Ctx]](
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
     ): Result = {
-      val newState: WCState[InnerCtx] =
-        wio.embedding
-          .unconvertState(lastSeenState)
-          .getOrElse(
-            wio.initialState(input),
-          ) // TODO, this is not safe, we will use initial state if the state mapping is incorrect (not symetrical). This will be very hard for the user to diagnose.
+      val newState: WCState[InnerCtx] = wio.embedding.unconvertStateUnsafe(lastSeenState)
       new RunIOVisitor(wio.inner, input, newState, now).run
         .map(_.map(wio.embedding.convertEvent))
     }
@@ -107,6 +103,23 @@ object RunIOEvaluator {
       Option.when(timeCame)(
         wio.releasedEventHandler.convert(Timer.Released(now)).pure[IO],
       )
+    }
+
+    def onParallel[InterimState <: workflows4s.wio.WorkflowContext.State[Ctx]](
+        wio: workflows4s.wio.WIO.Parallel[Ctx, In, Err, Out, InterimState],
+    ): Result = {
+      wio.elements.collectFirstSome(elem => recurse(elem.wio, input))
+    }
+
+    override def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): Result = {
+      wio.base.asExecuted match {
+        case Some(executedBase) =>
+          executedBase.output match {
+            case Left(_)        => None
+            case Right(baseOut) => wio.genEvent(input, baseOut).map(wio.eventHandler.convert).some
+          }
+        case None               => recurse(wio.base, input)
+      }
     }
 
     private def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], s: I1): Option[IO[WCEvent[Ctx]]] =

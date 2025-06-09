@@ -1,6 +1,6 @@
 package workflows4s.wio.internal
 
-import cats.implicits.catsSyntaxOptionId
+import cats.implicits.{catsSyntaxOptionId, toFunctorOps}
 import workflows4s.wio.*
 
 object GetStateEvaluator {
@@ -30,15 +30,15 @@ object GetStateEvaluator {
     def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result                                         = None
     def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result                           = None
 
-    def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result                                                           = recurse(wio.original, wio.input)
-    def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result          = recurse(wio.base, input)
-    def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Result          =
+    def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result                                                                                   = recurse(wio.original, wio.input)
+    def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result                                  = recurse(wio.base, input)
+    def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Result                                  =
       recurse(wio.base, wio.contramapInput(input))
-    def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result                                   = {
+    def onLoop[BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx], ReturnIn](wio: WIO.Loop[Ctx, In, Err, Out, BodyIn, BodyOut, ReturnIn]): Result = {
       val lastState = wio.history.lastOption.flatMap(_.output.toOption).getOrElse(lastSeenState)
-      recurse(wio.current, input, lastState).orElse(wio.history.lastOption.flatMap(recurse(_, ())))
+      recurse(wio.current.wio, input, lastState).orElse(wio.history.lastOption.flatMap(recurse(_, ())))
     }
-    def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result = recurse(wio.base, input)
+    def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result                         = recurse(wio.base, input)
 
     def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result = {
       wio.first.asExecuted match {
@@ -74,13 +74,29 @@ object GetStateEvaluator {
       recurse(wio.interruption, lastSeenState).orElse(recurse(wio.base, input))
     }
 
-    def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_] <: WCState[Ctx]](
+    def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_ <: WCState[InnerCtx]] <: WCState[Ctx]](
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
     ): Result = {
-      val lastStateAsInner = wio.embedding.unconvertState(lastSeenState).getOrElse(wio.initialState(input))
+      val lastStateAsInner = wio.embedding.unconvertStateUnsafe(lastSeenState)
       GetStateVisitor(wio.inner, input, lastStateAsInner).run
         .map(innerState => wio.embedding.convertState(innerState, input))
     }
+
+    def onParallel[InterimState <: workflows4s.wio.WorkflowContext.State[Ctx]](
+        wio: workflows4s.wio.WIO.Parallel[Ctx, In, Err, Out, InterimState],
+    ): Result = {
+      val subStates = wio.elements.flatMap(elem => recurse(elem.wio, input).tupleLeft(elem))
+      if subStates.isEmpty then None
+      else {
+        val initialInterim = wio.initialInterimState(input)
+        subStates
+          .foldLeft(initialInterim)({ case (interim, (elem, partial)) => elem.incorporateState(interim, partial) })
+          .some
+      }
+    }
+
+    override def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): Result = recurse(wio.base, input)
+    override def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): Result                   = None
 
     def recurse[I1, E1, O1 <: WCState[Ctx]](
         wio: WIO[I1, ?, ?, Ctx],

@@ -13,14 +13,14 @@ object DummyWithdrawalService extends WithdrawalService {
 
   override def putMoneyOnHold(amount: BigDecimal): IO[Either[WithdrawalService.NotEnoughFunds, Unit]] =
     IO(
-      if (amount > 1000) WithdrawalService.NotEnoughFunds().asLeft
+      if amount > 1000 then WithdrawalService.NotEnoughFunds().asLeft
       else ().asRight,
     )
 
   override def initiateExecution(amount: BigDecimal, recepient: WithdrawalService.Iban): IO[WithdrawalService.ExecutionResponse] = {
     val hasUnwantedDecimals = amount.setScale(2) != amount
     IO(
-      if (hasUnwantedDecimals) WithdrawalService.ExecutionResponse.Rejected("Invalid precision! Only 2 decimal places expected.")
+      if hasUnwantedDecimals then WithdrawalService.ExecutionResponse.Rejected("Invalid precision! Only 2 decimal places expected.")
       else WithdrawalService.ExecutionResponse.Accepted(UUID.randomUUID().toString),
     )
   }

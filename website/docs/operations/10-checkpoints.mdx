@@ -1,0 +1,52 @@
+import OperationOutputs from '@site/src/components/OperationOutputs';
+
+# Checkpointing and Recovery
+
+Elements described below are used primarily for evolving workflows, see the [dedicated docs](/docs/other/evolving-workflows/) for details.
+
+:::info
+The elements below are technical in nature and behave differently during rendering.
+`BpmnRenderer` will not render them at all, while `MermaidRenderer` will render them only with `showTechnical=true`.
+:::
+
+## Checkpointing
+
+Checkpointing allows you to emit a state-capturing event that, during recovery, marks the wrapped part of the workflow as complete. This is particularly useful for:
+
+- Skipping the full recovery of previously completed workflow segments
+- Enabling workflow evolution by allowing parts of the workflow to be modified or removed
+
+When a workflow is executed, the `saveState` function is called to generate an event that captures the current state.
+During recovery, the `recoverState` function is used to rebuild the state from the event,
+allowing the workflow to override recovery of the wrapped logic.
+
+```scala file=./main/scala/workflows4s/example/docs/CheckpointExample.scala start=start_checkpoint end=end_checkpoint
+```
+
+<OperationOutputs name="checkpoint" showBpmn={false}/>
+
+### Error Handling
+
+If an error is emitted from within a checkpointed workflow segment, the checkpointing is ignored, and the error is propagated normally. This ensures that checkpointing doesn't interfere with the error handling mechanisms of the workflow.
+
+## Recovery
+
+Recovery allows processing an event that has been previously emitted. The event must be inserted into the journal outside the current workflow, either by previous checkpointing or manual operations.
+
+This method creates a workflow that doesn't execute any logic but instead directly processes an event to recover a state. It's particularly useful when:
+
+- Migrating workflows to a new version where parts of the original workflow have been removed
+- Integrating with external changes that generate events outside the workflow
+
+```scala file=./main/scala/workflows4s/example/docs/CheckpointExample.scala start=start_recovery end=end_recovery
+```
+
+<OperationOutputs name="recovery" showBpmn={false}/>
+
+## Practical Usage
+
+In practice, checkpointing and recovery are often used together to enable workflow evolution. For example:
+
+1. Version 1 of a workflow includes a segment that is checkpointed
+2. Version 2 of the workflow removes that segment but includes a recovery mechanism
+3. When a workflow instance created with version 1 is resumed using version 2, the recovery mechanism processes the checkpoint event, allowing the workflow to continue without the removed segment

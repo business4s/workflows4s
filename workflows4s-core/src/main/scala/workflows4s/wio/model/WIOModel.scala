@@ -15,7 +15,7 @@ object WIOModel {
   sealed trait Interruption extends WIOModel
 
   case class Sequence(steps: Seq[WIOModel])                                                  extends WIOModel {
-    assert(steps.size >= 2) // TODO could be safer
+    assert(steps.size >= 2, "Sequence should contain at least two steps")
   }
   case class Dynamic(meta: WIOMeta.Dynamic)                                                  extends WIOModel
   case class RunIO(meta: WIOMeta.RunIO)                                                      extends WIOModel
@@ -32,5 +32,8 @@ object WIOModel {
   // handle flow is optional because handling might end on single step(the trigger)
   case class Interruptible(base: WIOModel, trigger: Interruption, handler: Option[WIOModel]) extends WIOModel
   case class Timer(meta: WIOMeta.Timer)                                                      extends WIOModel with Interruption
+  case class Parallel(elements: Seq[WIOModel])                                               extends WIOModel
+  case class Checkpoint(base: WIOModel)                                                      extends WIOModel
+  case class Recovery()                                                                      extends WIOModel
 
 }

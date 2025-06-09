@@ -4,11 +4,15 @@ import cats.effect.IO
 import cats.syntax.all.*
 import workflows4s.wio.internal.WorkflowEmbedding
 
+import scala.annotation.nowarn
+
 object Interpreter {
 
   sealed trait EventResponse[Ctx <: WorkflowContext] {
     def newWorkflow: Option[ActiveWorkflow[Ctx]] = this match {
       case EventResponse.Ok(newFlow)       => newFlow.some
+      // TODO event is silently ignored here and runtimes have to log it.
+      //   Would be good to commonize this behavior
       case EventResponse.UnexpectedEvent() => None
     }
   }
@@ -68,9 +72,9 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
   def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result
   def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result
   def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result
-  def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result
+  def onLoop[BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx], ReturnIn](wio: WIO.Loop[Ctx, In, Err, Out, BodyIn, BodyOut, ReturnIn]): Result
   def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result
-  def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_] <: WCState[Ctx]](
+  def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_ <: WCState[InnerCtx]] <: WCState[Ctx]](
       wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
   ): Result
   def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result
@@ -79,38 +83,37 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
   def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result
   def onDiscarded[In1](wio: WIO.Discarded[Ctx, In1]): Result
 
+  def onParallel[InterimState <: WCState[Ctx]](wio: WIO.Parallel[Ctx, In, Err, Out, InterimState]): Result
+  def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): Result
+  def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): Result
+
+  @nowarn("msg=the type test for workflows4s.wio.WIO.Embedded")
   def run: Result = {
     wio match {
-      case x: WIO.HandleSignal[?, ?, ?, ?, ?, ?, ?]                  => onSignal(x)
-      case x: WIO.RunIO[?, ?, ?, ?, ?]                               => onRunIO(x)
+      case x: WIO.HandleSignal[?, ?, ?, ?, ?, ?, ?]                    => onSignal(x)
+      case x: WIO.RunIO[?, ?, ?, ?, ?]                                 => onRunIO(x)
       // https://github.com/scala/scala3/issues/20040
-      case x: WIO.FlatMap[?, ? <: Err, Err, ? <: WCState[Ctx], ?, ?] =>
+      case x: WIO.FlatMap[?, ? <: Err, Err, ? <: WCState[Ctx], ?, ?]   =>
         x match {
           case x: WIO.FlatMap[?, err1, Err, out1, ?, In] => onFlatMap[out1, err1](x)
         }
-      case x: WIO.Transform[?, ?, ?, ? <: State, ?, ?, Err]          => onTransform(x)
-      case x: WIO.End[?]                                             => onNoop(x)
-      case x: WIO.HandleError[?, ?, ?, ?, ?, ? <: State]             => onHandleError(x)
-      case x: WIO.AndThen[?, ?, ?, ? <: State, ? <: State]           => onAndThen(x)
-      case x: WIO.Pure[?, ?, ?, ?]                                   => onPure(x)
-      case x: WIO.HandleErrorWith[?, ?, ?, ?, ?]                     => onHandleErrorWith(x)
-      case x: WIO.Loop[?, ?, ?, ? <: State, ? <: State]              => onLoop(x)
-      case x: WIO.Fork[?, ?, ?, ?]                                   => onFork(x)
-      case x: WIO.Embedded[?, ?, ?, ?, ?, ?]                         =>
-        x match {
-          case x: WIO.Embedded[?, ?, ?, ic, ?, ?] =>
-            x match {
-              case x: WIO.Embedded[?, ?, ?, ?, ? <: WCState[ic], ?] =>
-                x match {
-                  case x: WIO.Embedded[?, ?, ?, ?, io, mp] => onEmbedded(x.asInstanceOf) // TODO
-                }
-            }
-        }
-      case x: WIO.HandleInterruption[?, ?, ?, ?]                     => onHandleInterruption(x)
-      case x: WIO.Timer[?, ?, ?, ?]                                  => onTimer(x)
-      case x: WIO.AwaitingTime[?, ?, ?, ?]                           => onAwaitingTime(x)
-      case x: WIO.Executed[?, ?, ?, ?]                               => onExecuted(x)
-      case x: WIO.Discarded[?, ?]                                    => onDiscarded(x)
+      case x: WIO.Transform[?, ?, ?, ? <: State, ?, ?, Err]            => onTransform(x)
+      case x: WIO.End[?]                                               => onNoop(x)
+      case x: WIO.HandleError[?, ?, ?, ?, ?, ? <: State]               => onHandleError(x)
+      case x: WIO.AndThen[?, ?, ?, ? <: State, ? <: State]             => onAndThen(x)
+      case x: WIO.Pure[?, ?, ?, ?]                                     => onPure(x)
+      case x: WIO.HandleErrorWith[?, ?, ?, ?, ?]                       => onHandleErrorWith(x)
+      case x: WIO.Loop[?, ?, ?, ? <: State, ? <: State, ? <: State, ?] => onLoop(x)
+      case x: WIO.Fork[?, ?, ?, ?]                                     => onFork(x)
+      case x: WIO.Embedded[?, ?, ?, ?, ?, ?]                           => onEmbedded(x.asInstanceOf) // TODO make compiler happy
+      case x: WIO.HandleInterruption[?, ?, ?, ?]                       => onHandleInterruption(x)
+      case x: WIO.Timer[?, ?, ?, ?]                                    => onTimer(x)
+      case x: WIO.AwaitingTime[?, ?, ?, ?]                             => onAwaitingTime(x)
+      case x: WIO.Executed[?, ?, ?, ?]                                 => onExecuted(x)
+      case x: WIO.Discarded[?, ?]                                      => onDiscarded(x)
+      case x: WIO.Parallel[?, ?, ?, ? <: State, ? <: State]            => onParallel(x)
+      case x: WIO.Checkpoint[?, ?, ?, ? <: State, ?]                   => onCheckpoint(x)
+      case x: WIO.Recovery[?, ?, ?, ?, ?]                              => onRecovery(x)
     }
   }
 
@@ -119,7 +122,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
     wio.branches.zipWithIndex.collectFirstSome((branch, idx) => branch.condition(in).map(interm => Matching(idx, interm, branch.wio)))
   }
 
-  def convertEmbeddingResult2[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], O1[_] <: WCState[Ctx]](
+  def convertEmbeddingResult2[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], O1[_ <: WCState[InnerCtx]] <: WCState[Ctx]](
       wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, O1],
       newWf: WFExecution[InnerCtx, In, Err, InnerOut],
       input: In,
@@ -130,21 +133,14 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
       case WFExecution.Complete(newWio) =>
         convert(
           WFExecution.complete(
-            WIO.Embedded(newWio, wio.embedding, wio.initialState),
+            wio.copy(inner = newWio),
             newWio.output.map(wio.embedding.convertState(_, input)),
             input,
           ),
         )
       case WFExecution.Partial(newWio)  =>
         val embedding: WorkflowEmbedding.Aux[InnerCtx, Ctx, O1, Any] = wio.embedding.contramap(_ => input)
-        convert(WFExecution.Partial(WIO.Embedded(newWio, embedding, _ => wio.initialState(input))))
-    }
-  }
-
-  extension [I, E, O <: WCState[C], C <: WorkflowContext](wio: WIO[I, E, O, C]) {
-    def asExecuted: Option[WIO.Executed[C, E, O, ?]] = wio match {
-      case x: WIO.Executed[C, E, O, ?] => x.some
-      case _                           => None
+        convert(WFExecution.Partial(WIO.Embedded(newWio, embedding)))
     }
   }
 

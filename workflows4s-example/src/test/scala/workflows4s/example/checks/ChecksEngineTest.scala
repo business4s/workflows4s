@@ -6,10 +6,12 @@ import com.typesafe.scalalogging.StrictLogging
 import org.scalatest.Inside.inside
 import org.scalatest.freespec.{AnyFreeSpec, AnyFreeSpecLike}
 import workflows4s.example.withdrawal.checks.*
-import workflows4s.example.{TestClock, TestRuntimeAdapter, TestUtils}
+import workflows4s.example.TestUtils
 import workflows4s.runtime.WorkflowInstance
+import workflows4s.testing.{TestClock, TestRuntimeAdapter}
 import workflows4s.wio.WCState
 
+import scala.annotation.nowarn
 import scala.reflect.Selectable.reflectiveSelectable
 
 class ChecksEngineTest extends AnyFreeSpec with ChecksEngineTest.Suite {
@@ -28,7 +30,7 @@ class ChecksEngineTest extends AnyFreeSpec with ChecksEngineTest.Suite {
   }
   "render mermaid model" in {
     val wf = ChecksEngine.runChecks
-    TestUtils.renderMermaidToFile(wf, "checks-engine.mermaid")
+    TestUtils.renderMermaidToFile(wf.toProgress, "checks-engine.mermaid")
   }
 
 }
@@ -36,10 +38,11 @@ object ChecksEngineTest {
 
   trait Suite extends AnyFreeSpecLike {
 
-    def checkEngineTests(getRuntime: => TestRuntimeAdapter[ChecksEngine.Context]) = {
+    def checkEngineTests(getRuntime: => TestRuntimeAdapter[ChecksEngine.Context, ?]) = {
 
       "re-run pending checks until complete" in new Fixture {
         val check: Check[Unit] { def runNum: Int } = new Check[Unit] {
+          @nowarn("msg=unused private member") // compiler went nuts
           var runNum = 0
 
           override def key: CheckKey = CheckKey("foo")

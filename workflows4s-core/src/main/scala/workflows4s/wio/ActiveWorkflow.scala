@@ -1,12 +1,11 @@
 package workflows4s.wio
 
 import java.time.Instant
-
 import scala.util.chaining.scalaUtilChainingOps
-
 import cats.effect.IO
 import workflows4s.wio.Interpreter.SignalResponse
 import workflows4s.wio.internal.*
+import workflows4s.wio.model.WIOExecutionProgress
 
 case class ActiveWorkflow[Ctx <: WorkflowContext](wio: WIO.Initial[Ctx], initialState: WCState[Ctx]) {
   lazy val wakeupAt: Option[Instant] = GetWakeupEvaluator.extractNearestWakeup(wio)
@@ -40,12 +39,12 @@ case class ActiveWorkflow[Ctx <: WorkflowContext](wio: WIO.Initial[Ctx], initial
     RunIOEvaluator.proceed(wf.wio, wf.staticState, now).event
   }
 
+  def progress(now: Instant): WIOExecutionProgress[WCState[Ctx]] = effectlessProceed(now).getOrElse(this).wio.toProgress
+
   // moves forward as far as possible
   private def effectlessProceed(now: Instant): Option[ActiveWorkflow[Ctx]] =
     ProceedEvaluator
       .proceed(wio, staticState, now)
       .newFlow
       .map(x => x.effectlessProceed(now).getOrElse(x))
-
-  def getDesc: String = DebugEvaluator.getCurrentStateDescription(wio)
 }

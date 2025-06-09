@@ -1,0 +1,11 @@
+flowchart TD
+node0@{ shape: circle, label: "Start"}
+node1@{ shape: fork, label: ""}
+node0 --> node1
+node2["Do A"]
+node1 --> node2
+node3["Do B"]
+node1 --> node3
+node4@{ shape: fork, label: ""}
+node2 --> node4
+node3 --> node4

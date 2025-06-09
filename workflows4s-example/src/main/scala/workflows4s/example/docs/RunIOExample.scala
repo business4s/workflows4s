@@ -4,6 +4,9 @@ import cats.effect.IO
 import cats.implicits.catsSyntaxEitherId
 import workflows4s.example.docs.Context.WIO
 
+import scala.annotation.nowarn
+
+@nowarn("msg=unused explicit parameter")
 object RunIOExample {
 
   // start_withoutError
@@ -19,7 +22,7 @@ object RunIOExample {
     WIO
       .runIO[MyState](state => IO(MyEvent()))
       .handleEventWithError((state, event) =>
-        if (true) MyState(state.counter + 1).asRight
+        if true then MyState(state.counter + 1).asRight
         else MyError().asLeft,
       )
       .autoNamed

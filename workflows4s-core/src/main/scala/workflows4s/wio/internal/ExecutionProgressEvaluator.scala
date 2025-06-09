@@ -4,6 +4,7 @@ import cats.syntax.all.*
 import workflows4s.wio.WIO.Timer.DurationSource
 import workflows4s.wio.model.{WIOExecutionProgress, WIOMeta}
 import workflows4s.wio.*
+import workflows4s.wio.model.WIOExecutionProgress.Dynamic
 object ExecutionProgressEvaluator {
 
   def run[Ctx <: WorkflowContext, In](
@@ -11,10 +12,10 @@ object ExecutionProgressEvaluator {
       input: Option[In],
       lastSeenState: Option[WCState[Ctx]],
   ): WIOExecutionProgress[WCState[Ctx]] = {
-    new ModelVisitor(wio, None, lastSeenState, input).run
+    new ExecProgressVisitor(wio, None, lastSeenState, input).run
   }
 
-  private class ModelVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](
+  private class ExecProgressVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](
       wio: WIO[In, Err, Out, Ctx],
       result: WIOExecutionProgress.ExecutionResult[WCState[Ctx]],
       lastSeenState: Option[WCState[Ctx]],
@@ -61,14 +62,14 @@ object ExecutionProgressEvaluator {
       }
     }
 
-    def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                             = WIOExecutionProgress.Pure(WIOMeta.Pure(wio.meta.name, wio.meta.error.toModel), result)
-    def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result = {
+    def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                                                                                       = WIOExecutionProgress.Pure(WIOMeta.Pure(wio.meta.name, wio.meta.error.toModel), result)
+    def onLoop[BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx], ReturnIn](wio: WIO.Loop[Ctx, In, Err, Out, BodyIn, BodyOut, ReturnIn]): Result = {
       WIOExecutionProgress.Loop(
-        recurse(wio.loop, None, result = None).toModel,
-        wio.onRestart.map(recurse(_, None, result = None).toModel),
+        recurse(wio.body, None, result = None).toModel,
+        recurse(wio.onRestart, None, result = None).toModel.some,
         WIOMeta.Loop(wio.meta.conditionName, wio.meta.releaseBranchName, wio.meta.restartBranchName),
         (
-          if (!wio.current.asExecuted.isDefined) wio.history.appended(wio.current)
+          if wio.current.wio.asExecuted.isEmpty then wio.history.appended(wio.current.wio)
           else wio.history
         ).map(recurse(_, input, result = None)),
       )
@@ -82,11 +83,11 @@ object ExecutionProgressEvaluator {
       )
     }
 
-    def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_] <: WCState[Ctx]](
+    def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_ <: WCState[InnerCtx]] <: WCState[Ctx]](
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
     ): Result = {
-      // TODO should express embedding in model?
-      val visitor = new ModelVisitor(
+      // We could express embedding in model but need a use case for it.
+      val visitor = new ExecProgressVisitor(
         wio.inner,
         this.result.flatMap(_.traverse(wio.embedding.unconvertState)),
         lastSeenState.flatMap(wio.embedding.unconvertState),
@@ -97,8 +98,9 @@ object ExecutionProgressEvaluator {
       // if we got state inside, also the last seen state should be correct
     }
     def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result = {
-      // TODO better error handling. meaningful exception would be a good start
-      val Some((trigger, rest)) = extractFirstInterruption(recurse(wio.interruption, lastSeenState, result = None)): @unchecked
+      val (trigger, rest) = extractFirstInterruption(recurse(wio.interruption, lastSeenState, result = None))
+        .getOrElse(throw new Exception(s"""Couldn't extract interruption from the interruption path. This is a bug, please report it.
+                                          |Workflow: $wio""".stripMargin))
       WIOExecutionProgress.Interruptible(
         recurse(wio.base, input, result = None),
         trigger,
@@ -112,17 +114,29 @@ object ExecutionProgressEvaluator {
         .Timer(
           wio.duration match {
             case DurationSource.Static(duration)     => duration.some
-            case DurationSource.Dynamic(getDuration) => none
+            case DurationSource.Dynamic(getDuration) => input.map(getDuration)
           },
+          None,
           wio.name,
         ),
       result,
     )
 
     def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result =
-      WIOExecutionProgress.Timer(WIOMeta.Timer(None, None), result) // TODO persist duration and name
-    def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result = recurse(wio.original, wio.input.some, wio.output.some)
-    def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result           = recurse(wio.original, wio.input.some, None)
+      WIOExecutionProgress.Timer(WIOMeta.Timer(None, wio.resumeAt.some, None), result) // TODO persist duration and name
+    def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result   = recurse(wio.original, wio.input.some, wio.output.some)
+    def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result             = recurse(wio.original, wio.input.some, None)
+
+    def onParallel[InterimState <: workflows4s.wio.WorkflowContext.State[Ctx]](wio: WIO.Parallel[Ctx, In, Err, Out, InterimState]): Result = {
+      WIOExecutionProgress.Parallel(wio.elements.map(elem => recurse(elem.wio, input, result = None)), result)
+    }
+
+    override def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): WIOExecutionProgress[WCState[Ctx]] = {
+      WIOExecutionProgress.Checkpoint(recurse(wio.base, input, result = None), result)
+    }
+
+    override def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): WIOExecutionProgress[WCState[Ctx]] =
+      WIOExecutionProgress.Recovery(result)
 
     def recurse[I1, E1, O1 <: WCState[Ctx]](
         wio: WIO[I1, E1, O1, Ctx],
@@ -130,7 +144,7 @@ object ExecutionProgressEvaluator {
         result: WIOExecutionProgress.ExecutionResult[WCState[Ctx]] = this.result,
     ): WIOExecutionProgress[WCState[Ctx]] = {
       val state = result.flatMap(_.toOption).orElse(lastSeenState)
-      new ModelVisitor(wio, result, state, input).run
+      new ExecProgressVisitor(wio, result, state, input).run
     }
 
     extension (m: ErrorMeta[?]) {
@@ -142,6 +156,8 @@ object ExecutionProgressEvaluator {
 
   }
 
+  // TODO this whole method should be stricter, it makes assumptions (e.g. interruption cant be wrapped in parallel)
+  //  and should fail if those assumptions don't hold
   def extractFirstInterruption[S](flow: WIOExecutionProgress[S]): Option[(WIOExecutionProgress.Interruption[S], Option[WIOExecutionProgress[S]])] = {
     flow match {
       case WIOExecutionProgress.Sequence(steps)                               =>
@@ -151,7 +167,7 @@ object ExecutionProgressEvaluator {
             rest match {
               case Some(value) => WIOExecutionProgress.Sequence(steps.toList.updated(0, value)).some
               case None        =>
-                if (steps.size > 3) WIOExecutionProgress.Sequence(steps.tail).some
+                if steps.size > 3 then WIOExecutionProgress.Sequence(steps.tail).some
                 else steps(1).some
             },
           ),
@@ -160,7 +176,7 @@ object ExecutionProgressEvaluator {
       case WIOExecutionProgress.RunIO(_, _)                                   => None
       case x @ WIOExecutionProgress.HandleSignal(_, _)                        => Some((x, None))
       case WIOExecutionProgress.HandleError(base, handler, errorName, result) =>
-        // TODO this is not a correct model, in cae of signal handler with error handler,
+        // TODO this is not a correct model, in case of signal handler with error handler,
         //  it will not express it correctly
         extractFirstInterruption(base).map((first, rest) => first -> rest.map(x => WIOExecutionProgress.HandleError(x, handler, errorName, result)))
       case _ @WIOExecutionProgress.End(_)                                     => None
@@ -169,6 +185,9 @@ object ExecutionProgressEvaluator {
       case _ @WIOExecutionProgress.Fork(_, _, _)                              => None
       case x @ WIOExecutionProgress.Timer(_, _)                               => (x, None).some
       case WIOExecutionProgress.Interruptible(_, _, _, _)                     => None
+      case _: WIOExecutionProgress.Parallel[?]                                => None
+      case _: WIOExecutionProgress.Checkpoint[?]                              => None
+      case _: WIOExecutionProgress.Recovery[?]                                => None
     }
   }
 

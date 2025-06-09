@@ -3,17 +3,13 @@ package workflows4s.example.docs.pullrequest
 import java.io.File
 
 import org.camunda.bpm.model.bpmn.Bpmn
-import workflows4s.bpmn.BPMNConverter
-import workflows4s.wio.WorkflowContext
+import workflows4s.bpmn.BpmnRenderer
+//import workflows4s.wio.*
 
 object PullRequestWorkflowDraft {
 
   // start_context
-  object Context extends WorkflowContext {
-    override type Event = Unit
-    override type State = Unit
-  }
-  import Context.*
+  import workflows4s.wio.DraftWorkflowContext.*
   // end_context
 
   // start_steps
@@ -34,7 +30,7 @@ object PullRequestWorkflowDraft {
 
   def main(args: Array[String]): Unit = {
     // start_render
-    val bpmnModel = BPMNConverter.convert(workflow.toProgress.toModel, "process")
+    val bpmnModel = BpmnRenderer.renderWorkflow(workflow.toProgress.toModel, "process")
     Bpmn.writeModelToFile(new File(s"pr-draft.bpmn").getAbsoluteFile, bpmnModel)
     // end_render
   }

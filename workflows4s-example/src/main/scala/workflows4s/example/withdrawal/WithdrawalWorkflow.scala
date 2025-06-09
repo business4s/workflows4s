@@ -43,9 +43,10 @@ object WithdrawalWorkflow {
     }
 
     override def unconvertState(outerState: WithdrawalData): Option[ChecksState] = outerState match {
-      case x: WithdrawalData.Checking => Some(x.checkResults)
-      case x: WithdrawalData.Checked  => Some(x.checkResults)
-      case _                          => None
+      case _: WithdrawalData.Validated => Some(ChecksState.Empty)
+      case x: WithdrawalData.Checking  => Some(x.checkResults)
+      case x: WithdrawalData.Checked   => Some(x.checkResults)
+      case _                           => None
     }
   }
 
@@ -83,10 +84,10 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
       .handleSignal(Signals.createWithdrawal)
       .using[Any]
       .purely { (_, signal) =>
-        if (signal.amount > 0) WithdrawalAccepted(signal.txId, signal.amount, signal.recipient)
+        if signal.amount > 0 then WithdrawalAccepted(signal.txId, signal.amount, signal.recipient)
         else WithdrawalRejected("Amount must be positive")
       }
-      .handleEventWithError { (st, event) =>
+      .handleEventWithError { (_, event) =>
         event match {
           case WithdrawalAccepted(txId, amount, recipient) => WithdrawalData.Initiated(txId, amount, recipient).asRight
           case WithdrawalRejected(error)                   => WithdrawalRejection.InvalidInput(error).asLeft
@@ -123,8 +124,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
       WIO.embed[WithdrawalData.Validated, Nothing, ChecksState.Decided, ChecksEngine.Context.Ctx, checksEmbedding.OutputState](
         checksEngine.runChecks
           .transformInput((x: WithdrawalData.Validated) => ChecksInput(x, service.getChecks())),
-          //          .transformOutput((validated, checkState) => validated.checked(checkState)),
-      )(checksEmbedding, _ => ChecksState.Empty) // TODO
+      )(checksEmbedding)
 
     val actOnDecision = WIO.pure
       .makeFrom[WithdrawalData.Checked]
@@ -139,10 +139,10 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
     doRunChecks >>> actOnDecision
   }
 
-  // TODO can fail with provider fatal failure, need retries, needs cancellation
   private def execute: WIO[WithdrawalData.Checked, WithdrawalRejection.RejectedByExecutionEngine, WithdrawalData.Executed] =
     initiateExecution >>> awaitExecutionCompletion
 
+  // This could use retries once we have them
   private def initiateExecution: WIO[WithdrawalData.Checked, WithdrawalRejection.RejectedByExecutionEngine, WithdrawalData.Executed] =
     WIO
       .runIO[WithdrawalData.Checked](s =>
@@ -207,7 +207,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
           case _: WithdrawalData.Checking  => ok
           case _: WithdrawalData.Checked   => ok
           case _: WithdrawalData.Executed  =>
-            if (signal.acceptStartedExecution) ok
+            if signal.acceptStartedExecution then ok
             else
               IO.raiseError(
                 new Exception("To cancel transaction that has been already executed, this fact has to be explicitly accepted in the request."),
@@ -217,7 +217,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
       })
       .handleEventWithError((_, evt) => WithdrawalRejection.Cancelled(evt.operatorId, evt.comment).asLeft)
       .voidResponse
-      .noFollowupSteps
+      .done
   }
 
 }

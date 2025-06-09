@@ -1,20 +1,21 @@
 package workflows4s.wio.internal
 
 import cats.implicits.catsSyntaxOptionId
-import workflows4s.wio
+import workflows4s.{RenderUtils, wio}
 import workflows4s.wio.*
 import workflows4s.wio.model.WIOExecutionProgress
 
+import scala.annotation.nowarn
+
 /** Renders WIO as a debugging string, that contains information about executed steps and minimal information about future ones
   */
-object DebugEvaluator {
-  def getCurrentStateDescription(
-      wio: WIO[?, ?, ?, ?],
-  ): String = {
-    renderModel(wio.toProgress).render
-  }
+@nowarn("msg=unused private member")
+object DebugRenderer {
 
-  def renderModel(model: WIOExecutionProgress[?]): Description = {
+  def getCurrentStateDescription(model: WIOExecutionProgress[?]): String =
+    renderModel(model).render
+
+  private def renderModel(model: WIOExecutionProgress[?]): Description = {
     val tpe                  = model match {
       case _: WIOExecutionProgress.Sequence[?]      => "Sequence"
       case _: WIOExecutionProgress.Dynamic          => "Dynamic"
@@ -27,6 +28,9 @@ object DebugEvaluator {
       case _: WIOExecutionProgress.Fork[?]          => "Fork"
       case _: WIOExecutionProgress.Interruptible[?] => "Interruptible"
       case _: WIOExecutionProgress.Timer[?]         => "Timer"
+      case _: WIOExecutionProgress.Parallel[?]      => "Parallel"
+      case x: WIOExecutionProgress.Checkpoint[?]    => "Checkpoint"
+      case x: WIOExecutionProgress.Recovery[?]      => "Recovery"
     }
     val name                 = model match {
       case x: WIOExecutionProgress.Sequence[?]      => None
@@ -40,6 +44,9 @@ object DebugEvaluator {
       case x: WIOExecutionProgress.Fork[?]          => x.meta.name
       case x: WIOExecutionProgress.Interruptible[?] => None
       case x: WIOExecutionProgress.Timer[?]         => x.meta.name
+      case _: WIOExecutionProgress.Parallel[?]      => None
+      case _: WIOExecutionProgress.Checkpoint[?]    => None
+      case _: WIOExecutionProgress.Recovery[?]      => None
     }
     val description          = model match {
       case x: WIOExecutionProgress.Sequence[?]      => None
@@ -52,7 +59,10 @@ object DebugEvaluator {
       case x: WIOExecutionProgress.Loop[?]          => None
       case x: WIOExecutionProgress.Fork[?]          => None
       case x: WIOExecutionProgress.Interruptible[?] => None
-      case x: WIOExecutionProgress.Timer[?]         => x.meta.duration.map(_.toString)
+      case x: WIOExecutionProgress.Timer[?]         => x.meta.duration.map(RenderUtils.humanReadableDuration).orElse(x.meta.releaseAt.map(_.toString))
+      case _: WIOExecutionProgress.Parallel[?]      => None
+      case _: WIOExecutionProgress.Checkpoint[?]    => None
+      case _: WIOExecutionProgress.Recovery[?]      => None
     }
     val children             = model match {
       case x: WIOExecutionProgress.Sequence[?]      =>
@@ -64,8 +74,8 @@ object DebugEvaluator {
       case _: WIOExecutionProgress.Dynamic          => Seq()
       case _: WIOExecutionProgress.RunIO[?]         => Seq()
       case x: WIOExecutionProgress.HandleError[?]   =>
-        // TODO should render handler without its children unless handler was entered.
-        renderChildren("base" -> x.base, "handler" -> x.handler)
+        Seq(renderChild("base", x.base)) ++
+          Option.when(RenderUtils.hasStarted(x.handler))(renderChild("handler", x.handler))
       case _: WIOExecutionProgress.HandleSignal[?]  => Seq()
       case _: WIOExecutionProgress.End[?]           => Seq()
       case _: WIOExecutionProgress.Pure[?]          => Seq()
@@ -86,29 +96,32 @@ object DebugEvaluator {
           .when(!x.base.isExecuted)(Seq(renderChild("trigger", x.trigger)) ++ x.handler.map(x => renderChild("handler", x)))
           .getOrElse(Seq())
       case _: WIOExecutionProgress.Timer[?]         => Seq()
+      case x: WIOExecutionProgress.Parallel[?]      => x.elements.zipWithIndex.map((elem, idx) => renderChild(s"branch ${idx}", elem))
+      case x: WIOExecutionProgress.Checkpoint[?]    => renderChildren("base" -> x.base)
+      case x: WIOExecutionProgress.Recovery[?]      => Seq()
     }
-    val effectiveDescription = if (model.isExecuted) s"Executed: ${model.result.get.merge}" else description.getOrElse("")
-    val effectiveChildren    = if (model.isExecuted) Seq() else children
+    val effectiveDescription = if model.isExecuted then s"Executed: ${model.result.get.merge}" else description.getOrElse("")
+    val effectiveChildren    = if model.isExecuted then Seq() else children
     formatNode(s"$tpe", name.getOrElse("no-name"), effectiveDescription, effectiveChildren)
   }
 
-  def renderChild(name: String, elem: WIOExecutionProgress[?]): Description                                                = {
+  private def renderChild(name: String, elem: WIOExecutionProgress[?]): Description                                        = {
     renderModel(elem).prepend(s"$name: ")
   }
-  def renderChildren(children: (String, WIOExecutionProgress[?])*): Seq[Description]                                       = {
+  private def renderChildren(children: (String, WIOExecutionProgress[?])*): Seq[Description]                               = {
     children.map(renderChild.tupled)
   }
   private def formatNode(nodeType: String, name: String, details: String, children: Seq[Description] = Seq()): Description = {
     Description(s"[$nodeType]($name) $details", children)
   }
 
-  case class Description(headline: String, children: Seq[Description]) {
+  private case class Description(headline: String, children: Seq[Description]) {
 
     def prepend(str: String): Description = Description(str + headline, children)
 
     def render: String = {
       val childrenStr =
-        if (children.nonEmpty) "\n" + children.map(x => s"- ${x.render}").mkString("\n").indent(2).stripSuffix("\n")
+        if children.nonEmpty then "\n" + children.map(x => s"- ${x.render}").mkString("\n").indent(2).stripSuffix("\n")
         else ""
       s"$headline$childrenStr"
     }

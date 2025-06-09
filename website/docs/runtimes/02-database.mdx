@@ -1,0 +1,44 @@
+import SbtDependency from '@site/src/components/SbtDependency';
+
+# Database Runtime
+
+`DatabaseRuntime` provides a simpler, yet less powerful alternative to full-fledged event-sourcing solutions like Akka/Pekko.
+
+It stores events in a database table without maintaining any state in memory. Each interaction with the runtime reads events
+directly from the journal. This design results in higher latency but reduces memory usage.
+
+## Usage
+
+Follow these steps to use the `DatabaseRuntime`. Detailed explanations are provided in the sections below:
+
+<SbtDependency moduleName={"workflows4s-doobie"}/>
+
+```scala file=./main/scala/workflows4s/example/docs/doobie/DatabaseExample.scala start=doc_start end=doc_end
+```
+
+## Workflow Storage
+
+Database runtime is database-agnostic but requires a database-specific component called `WorkflowStorage`.
+This component is responsible for storing and reading events as well as locking the workflow.
+
+Users are expected to implement custom storages that fit their needs.
+
+### Postgres Storage
+
+`PostgresWorkflowStorage` is a minimal, but fully functional storage relying on postgres advisory locks and assuming byte-based store.
+
+```scala file=./main/scala/workflows4s/example/docs/doobie/DatabaseExample.scala start=doc_postgres_start end=doc_postgres_end
+```
+
+It requires the [migration](https://github.com/business4s/workflows4s/blob/main/workflows4s-doobie/src/main/resources/schema/postgres-schema.sql)
+to be applied to the database by the user.
+
+## Locking the Workflow
+
+To understand why locking the workflow is important, consider the following scenario:
+
+1. A workflow awaits two signals in parallel.
+2. Both signals arrive simultaneously.
+3. Only one path of the workflow can be followed.
+
+To address this, workflows are locked, ensuring that only a single signal is processed at a time.

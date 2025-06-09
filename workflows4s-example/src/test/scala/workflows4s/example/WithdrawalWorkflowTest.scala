@@ -13,10 +13,7 @@ import workflows4s.example.withdrawal.*
 import workflows4s.example.withdrawal.WithdrawalService.{ExecutionResponse, Fee, Iban}
 import workflows4s.example.withdrawal.WithdrawalSignal.CreateWithdrawal
 import workflows4s.example.withdrawal.checks.*
-
-import java.time.{Clock, Instant, ZoneId, ZoneOffset}
-import scala.concurrent.duration.FiniteDuration
-import scala.jdk.DurationConverters.ScalaDurationOps
+import workflows4s.testing.{TestClock, TestRuntimeAdapter}
 
 //noinspection ForwardReference
 class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory with WithdrawalWorkflowTest.Suite {
@@ -40,15 +37,15 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory with Withdrawa
   }
   "render mermaid model" in {
     val wf = new WithdrawalWorkflow(null, DummyChecksEngine)
-    TestUtils.renderMermaidToFile(wf.workflow, "withdrawal-example.mermaid")
-    TestUtils.renderMermaidToFile(wf.workflowDeclarative, "withdrawal-example-declarative.mermaid")
+    TestUtils.renderMermaidToFile(wf.workflow.toProgress, "withdrawal-example.mermaid")
+    TestUtils.renderMermaidToFile(wf.workflowDeclarative.toProgress, "withdrawal-example-declarative.mermaid")
   }
 }
 object WithdrawalWorkflowTest {
 
   trait Suite extends AnyFreeSpecLike with MockFactory {
 
-    def withdrawalTests(getRuntime: => TestRuntimeAdapter[WithdrawalWorkflow.Context.Ctx]) = {
+    def withdrawalTests[WfId](getRuntime: => TestRuntimeAdapter[WithdrawalWorkflow.Context.Ctx, WfId]) = {
 
       "happy path" in new Fixture {
         assert(actor.queryData() == WithdrawalData.Empty)
@@ -78,7 +75,6 @@ object WithdrawalWorkflowTest {
           actor.init(CreateWithdrawal(txId, -100, recipient))
           assert(actor.queryData() == WithdrawalData.Completed.Failed("Amount must be positive"))
           persistProgress("failed-validation")
-
           checkRecovery()
         }
 
@@ -222,7 +218,7 @@ object WithdrawalWorkflowTest {
         def withExecutionInitiated(success: Boolean) =
           (service.initiateExecution)
             .expects(*, *)
-            .returning(IO(if (success) ExecutionResponse.Accepted(externalId) else ExecutionResponse.Rejected("Rejected by execution engine")))
+            .returning(IO(if success then ExecutionResponse.Accepted(externalId) else ExecutionResponse.Rejected("Rejected by execution engine")))
 
         def withFundsReleased() =
           (service.releaseFunds)
@@ -273,17 +269,4 @@ object WithdrawalWorkflowTest {
       ChecksEngine.Context.WIO.pure(ChecksState.Decided(Map(), Decision.ApprovedBySystem())).autoNamed
   }
 
-}
-
-class TestClock extends Clock with StrictLogging {
-  var instant_ : Instant                       = Instant.now
-  def setInstant(instant: Instant): Unit       = this.instant_ = instant
-  def instant: Instant                         = instant_
-  def getZone: ZoneId                          = ZoneOffset.UTC
-  override def withZone(zoneId: ZoneId): Clock = ???
-
-  def advanceBy(duration: FiniteDuration) = {
-    instant_ = this.instant_.plus(duration.toJava)
-    logger.debug(s"Advancing time by ${duration} to ${instant_}")
-  }
 }

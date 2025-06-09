@@ -28,7 +28,7 @@ class WIOHandleInterruptionTest extends AnyFreeSpec with Matchers with OptionVal
     .handleAsync((input, request) => IO(SignalAReceived(s"$input,$request)")))
     .handleEvent((input, request) => s"signalAOutput($input, $request)")
     .produceResponse((input, request) => s"signalAResponse($input, $request)")
-    .noFollowupSteps
+    .done
 
   "WIO.HandleInterruption" - {
 
@@ -39,6 +39,7 @@ class WIOHandleInterruptionTest extends AnyFreeSpec with Matchers with OptionVal
         .throughTimeout(20.seconds)
         .persistStartThrough(x => TimerStarted(x.at))(_.at)
         .persistReleaseThrough(x => TimerReleased(x.at))(_.at)
+        .done
 
       "trigger interruption" in {
         val base         = handleSignalA
@@ -134,7 +135,7 @@ class WIOHandleInterruptionTest extends AnyFreeSpec with Matchers with OptionVal
         assert(
           signalResult === (
             SignalBReceived("initialState,42"),
-            "signalBResponse(initialState, SignalBReceived(initialState,42))"
+            "signalBResponse(initialState, SignalBReceived(initialState,42))",
           ),
         )
 
@@ -157,7 +158,7 @@ class WIOHandleInterruptionTest extends AnyFreeSpec with Matchers with OptionVal
         assert(
           signalResult === (
             SignalAReceived("initialState,42)"),
-            "signalAResponse(initialState, SignalAReceived(initialState,42)))"
+            "signalAResponse(initialState, SignalAReceived(initialState,42)))",
           ),
         )
 

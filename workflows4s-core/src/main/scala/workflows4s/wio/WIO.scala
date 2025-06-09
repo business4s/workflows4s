@@ -7,7 +7,6 @@ import workflows4s.wio.builders.AllBuilders
 import workflows4s.wio.internal.{EventHandler, SignalHandler, WorkflowEmbedding}
 
 import java.time.{Duration, Instant}
-import scala.annotation.unused
 import scala.language.implicitConversions
 
 sealed trait WIO[-In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext] extends WIOMethods[Ctx, In, Err, Out]
@@ -17,23 +16,23 @@ object WIO {
   type Initial[Ctx <: WorkflowContext] = WIO[Any, Nothing, WCState[Ctx], Ctx]
   type Draft[Ctx <: WorkflowContext]   = WIO[Any, Nothing, Nothing, Ctx]
 
-  sealed trait InterruptionSource[-In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext] extends WIO[In, Err, Out, Ctx]
+  // Experimental approach top exposing concrete subtypes.
+  // We dont want to expose concrete impls because they have way too much type params.
+  // Alternatively, this could be a sealed trait extending WIO
+  type IHandleSignal[-In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext] = HandleSignal[Ctx, In, Out, Err, ?, ?, ?]
 
   case class HandleSignal[Ctx <: WorkflowContext, -In, +Out <: WCState[Ctx], +Err, Sig, Resp, Evt](
       sigDef: SignalDef[Sig, Resp],
       sigHandler: SignalHandler[Sig, Evt, In],
       evtHandler: EventHandler[In, (Either[Err, Out], Resp), WCEvent[Ctx], Evt],
-      meta: HandleSignal.Meta,
-  ) extends InterruptionSource[In, Err, Out, Ctx] {
-    def expects[Req1, Resp1](@unused signalDef: SignalDef[Req1, Resp1]): Option[HandleSignal[Ctx, In, Out, Err, Req1, Resp1, Evt]] = {
-      Some(this.asInstanceOf[HandleSignal[Ctx, In, Out, Err, Req1, Resp1, Evt]]) // TODO
-    }
+      meta: HandleSignal.Meta, // TODO here and everywhere else, we could use WIOMeta directly
+  ) extends WIO[In, Err, Out, Ctx] {
 
-    // TODO this could be useful, just need to prove In >: WCState[Ctx]
-    // def toInterruption: Interruption[Ctx, Err, Out] = WIO.Interruption(this, InterruptionType.Signal)
+    def toInterruption(using ev: WCState[Ctx] <:< In): Interruption[Ctx, Err, Out] =
+      WIO.Interruption(ev.substituteContra[[t] =>> WIO[t, Err, Out, Ctx]](this), InterruptionType.Signal)
   }
+
   object HandleSignal {
-    // TODO, should the signal name be on handler level or in SignalDef?
     case class Meta(error: ErrorMeta[?], signalName: String, operationName: Option[String])
   }
 
@@ -55,6 +54,7 @@ object WIO {
   object Pure {
     case class Meta(error: ErrorMeta[?], name: Option[String])
   }
+
   case class Transform[Ctx <: WorkflowContext, In1, Err1, Out1 <: WCState[Ctx], -In2, +Out2 <: WCState[Ctx], +Err2](
       base: WIO[In1, Err1, Out1, Ctx],
       contramapInput: In2 => In1,
@@ -63,7 +63,7 @@ object WIO {
 
   case class End[Ctx <: WorkflowContext]() extends WIO[Any, Nothing, Nothing, Ctx]
 
-  case class FlatMap[Ctx <: WorkflowContext, Err1 <: Err2, Err2, Out1 <: WCState[Ctx], +Out2 <: WCState[Ctx], -In](
+  case class FlatMap[Ctx <: WorkflowContext, Err1 <: Err2, +Err2, Out1 <: WCState[Ctx], +Out2 <: WCState[Ctx], -In](
       base: WIO[In, Err1, Out1, Ctx],
       getNext: Out1 => WIO[Out1, Err2, Out2, Ctx],
       errorMeta: ErrorMeta[?],
@@ -88,17 +88,27 @@ object WIO {
       second: WIO[Out1, Err, Out2, Ctx],
   ) extends WIO[In, Err, Out2, Ctx]
 
-  case class Loop[Ctx <: WorkflowContext, -In, +Err, LoopOut <: WCState[Ctx], +Out <: WCState[Ctx]](
-      loop: WIO[LoopOut, Err, LoopOut, Ctx],
-      stopCondition: LoopOut => Option[Out],
-      current: WIO[In, Err, LoopOut, Ctx],
-      onRestart: Option[WIO[LoopOut, Err, LoopOut, Ctx]],
+  case class Loop[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx], BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx], ReturnIn](
+      body: WIO[BodyIn, Err, BodyOut, Ctx],
+      stopCondition: BodyOut => Either[ReturnIn, Out],
+      onRestart: WIO[ReturnIn, Err, BodyIn, Ctx],
+      current: Loop.State[Ctx, In, Err, BodyIn, BodyOut],
       meta: Loop.Meta,
-      isReturning: Boolean, // true if current is coming from onReturn
-      history: Vector[WIO.Executed[Ctx, Err, LoopOut, ?]],
+      history: Vector[WIO.Executed[Ctx, Err, WCState[Ctx], ?]],
   ) extends WIO[In, Err, Out, Ctx]
 
   object Loop {
+    sealed trait State[Ctx <: WorkflowContext, -In, +Err, BodyIn, BodyOut] {
+      def wio: WIO[In, Err, WCState[Ctx], Ctx]
+    }
+    object State                                                           {
+      case class Forward[Ctx <: WorkflowContext, In, Err, BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx]](wio: WIO[In, Err, BodyOut, Ctx])
+          extends State[Ctx, In, Err, BodyIn, BodyOut]
+      case class Backward[Ctx <: WorkflowContext, In, Err, BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx]](wio: WIO[In, Err, BodyIn, Ctx])
+          extends State[Ctx, In, Err, BodyIn, BodyOut]
+      case class Finished[Ctx <: WorkflowContext, In, Err, BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx]](wio: WIO.Executed[Ctx, Err, BodyOut, In])
+          extends State[Ctx, In, Err, BodyIn, BodyOut]
+    }
     case class Meta(
         releaseBranchName: Option[String],
         restartBranchName: Option[String],
@@ -119,7 +129,6 @@ object WIO {
   ]] <: WCState[Ctx]](
       inner: WIO[In, Err, InnerOut, InnerCtx],
       embedding: WorkflowEmbedding.Aux[InnerCtx, Ctx, MappingOutput, In],
-      initialState: In => WCState[InnerCtx], // should we move this into embedding?
   ) extends WIO[In, Err, MappingOutput[InnerOut], Ctx]
 
   // do we need imperative variant?
@@ -131,9 +140,10 @@ object WIO {
   ) extends WIO[In, Err, Out, Ctx]
 
   object HandleInterruption {
-    enum InterruptionType   {
+    enum InterruptionType {
       case Signal, Timer
     }
+
     enum InterruptionStatus {
       case Pending, TimerStarted, Interrupted
     }
@@ -144,7 +154,7 @@ object WIO {
       startedEventHandler: EventHandler[In, Unit, WCEvent[Ctx], Timer.Started],
       name: Option[String],
       releasedEventHandler: EventHandler[In, Either[Err, Out], WCEvent[Ctx], Timer.Released],
-  ) extends InterruptionSource[In, Err, Out, Ctx] {
+  ) extends WIO[In, Err, Out, Ctx] {
     def getReleaseTime(started: Timer.Started, in: In): Instant = {
       val awaitDuration = duration match {
         case DurationSource.Static(duration)     => duration
@@ -158,7 +168,7 @@ object WIO {
   case class AwaitingTime[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]](
       resumeAt: Instant,
       releasedEventHandler: EventHandler[In, Either[Err, Out], WCEvent[Ctx], Timer.Released],
-  ) extends InterruptionSource[In, Err, Out, Ctx]
+  ) extends WIO[In, Err, Out, Ctx]
 
   object Timer {
 
@@ -173,6 +183,19 @@ object WIO {
     }
   }
 
+  case class Parallel[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx], InterimState <: WCState[Ctx]](
+      elements: Seq[Parallel.Element[Ctx, In, Err, WCState[Ctx], InterimState]],
+      formResult: Seq[WCState[Ctx]] => Out,
+      initialInterimState: In => InterimState,
+  ) extends WIO[In, Err, Out, Ctx]
+
+  object Parallel {
+    case class Element[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx], InterimState](
+        wio: WIO[In, Err, Out, Ctx],
+        incorporateState: (InterimState, WCState[Ctx]) => InterimState,
+    )
+  }
+
   // -----
 
   def build[Ctx <: WorkflowContext]: AllBuilders[Ctx] = new AllBuilders[Ctx] {}
@@ -182,6 +205,7 @@ object WIO {
       wio: WIO[BranchIn, Err, Out, Ctx],
       name: Option[String],
   )
+
   object Branch {
     def selected[Err, Out <: WCState[Ctx], Ctx <: WorkflowContext, BranchIn](
         branchIn: BranchIn,
@@ -199,5 +223,26 @@ object WIO {
   case class Interruption[Ctx <: WorkflowContext, +Err, +Out <: WCState[Ctx]](
       handler: WIO[WCState[Ctx], Err, Out, Ctx],
       tpe: HandleInterruption.InterruptionType,
-  )
+  ) {
+    def andThen[FinalErr, FinalOut <: WCState[Ctx]](
+        f: WIO[WCState[Ctx], Err, Out, Ctx] => WIO[WCState[Ctx], FinalErr, FinalOut, Ctx],
+    ): WIO.Interruption[Ctx, FinalErr, FinalOut] = {
+      WIO.Interruption(f(handler), tpe)
+    }
+  }
+
+  // This could also allow for raising errors.
+  case class Checkpoint[Ctx <: WorkflowContext, -In, +Err, Out <: WCState[Ctx], Evt](
+      base: WIO[In, Err, Out, Ctx],
+      genEvent: (In, Out) => IO[Evt],
+      eventHandler: EventHandler[In, Out, WCEvent[Ctx], Evt],
+  ) extends WIO[In, Err, Out, Ctx]
+
+  // This could also allow for optionality (do X if event is present,
+  // do Y otherwise), but the implementation might be a bit convoluted, hence left for later.
+  // This could also allow for raising errors.
+  case class Recovery[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx], Evt](
+      eventHandler: EventHandler[In, Out, WCEvent[Ctx], Evt],
+  ) extends WIO[In, Err, Out, Ctx]
+
 }

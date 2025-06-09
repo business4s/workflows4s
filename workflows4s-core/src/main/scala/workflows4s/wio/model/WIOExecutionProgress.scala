@@ -21,7 +21,7 @@ object WIOExecutionProgress {
   }
 
   case class Sequence[State](steps: Seq[WIOExecutionProgress[State]]) extends WIOExecutionProgress[State] {
-    assert(steps.size >= 2) // TODO could be safer
+    assert(steps.size >= 2, "Sequence should contain at least two steps")
     def result: ExecutionResult[State] = steps.lastOption.flatMap(_.result)
 
     override lazy val toModel: WIOModel                                                      = WIOModel.Sequence(steps.map(_.toModel))
@@ -107,6 +107,23 @@ object WIOExecutionProgress {
     override def map[NewState](f: State => Option[NewState]): Timer[NewState] = Timer(meta, result.flatMap(_.traverse(f)))
   }
 
+  case class Parallel[State](elements: Seq[WIOExecutionProgress[State]], result: ExecutionResult[State]) extends WIOExecutionProgress[State] {
+    override lazy val toModel: WIOModel.Parallel                                 = WIOModel.Parallel(elements.map(_.toModel))
+    override def map[NewState](f: State => Option[NewState]): Parallel[NewState] =
+      Parallel(elements.map(_.map(f)), result.flatMap(_.traverse(f)))
+  }
+
+  case class Checkpoint[State](base: WIOExecutionProgress[State], result: ExecutionResult[State]) extends WIOExecutionProgress[State] {
+    override lazy val toModel: WIOModel.Checkpoint                                 = WIOModel.Checkpoint(base.toModel)
+    override def map[NewState](f: State => Option[NewState]): Checkpoint[NewState] =
+      Checkpoint(base.map(f), result.flatMap(_.traverse(f)))
+  }
+  case class Recovery[State](result: ExecutionResult[State])                                      extends WIOExecutionProgress[State] {
+    override lazy val toModel: WIOModel.Recovery                                 = WIOModel.Recovery()
+    override def map[NewState](f: State => Option[NewState]): Recovery[NewState] =
+      Recovery(result.flatMap(_.traverse(f)))
+  }
+
   def fromModel(model: WIOModel): WIOExecutionProgress[Nothing]                                               = model match {
     case x: WIOModel.Interruption                       => fromModelInterruption(x)
     case WIOModel.Sequence(steps)                       => Sequence(steps.map(fromModel))
@@ -117,6 +134,9 @@ object WIOExecutionProgress {
     case WIOModel.Pure(meta)                            => Pure(meta, None)
     case WIOModel.Loop(base, onRestart, meta)           => Loop(base, onRestart, meta, Seq.empty)
     case WIOModel.Fork(branches, meta)                  => Fork(branches.map(fromModel), meta, None)
+    case WIOModel.Parallel(elems)                       => Parallel(elems.map(fromModel), None)
+    case WIOModel.Checkpoint(base)                      => Checkpoint(fromModel(base), None)
+    case WIOModel.Recovery()                            => Recovery(None)
     case WIOModel.Interruptible(base, trigger, handler) =>
       Interruptible(fromModel(base), fromModelInterruption(trigger), handler.map(fromModel), None)
   }

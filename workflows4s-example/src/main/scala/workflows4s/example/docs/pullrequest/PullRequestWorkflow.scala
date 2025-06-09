@@ -1,13 +1,15 @@
 package workflows4s.example.docs.pullrequest
 
 import java.io.File
-
 import cats.effect.IO
 import org.camunda.bpm.model.bpmn.Bpmn
-import workflows4s.bpmn.BPMNConverter
-import workflows4s.runtime.InMemorySyncRuntime
+import workflows4s.bpmn.BpmnRenderer
+import workflows4s.runtime.{InMemorySyncRuntime, InMemorySyncWorkflowInstance}
 import workflows4s.wio.{SignalDef, WorkflowContext}
 
+import scala.annotation.nowarn
+
+@nowarn("msg=unused explicit parameter")
 object PullRequestWorkflow {
 
   // start_state
@@ -64,7 +66,7 @@ object PullRequestWorkflow {
       .using[Any]
       .purely((in, req) => PREvent.Created(req.commit))
       .handleEventWithError((in, evt) =>
-        if (evt.commit.length > 8) Left(PRError.CommitNotFound)
+        if evt.commit.length > 8 then Left(PRError.CommitNotFound)
         else Right(PRState.Initiated(evt.commit)),
       )
       .voidResponse
@@ -76,7 +78,7 @@ object PullRequestWorkflow {
     WIO
       .runIO[PRState.Initiated](in => IO(PREvent.Checked("<Some tests results>")))
       .handleEventWithError((in, evt) =>
-        if (evt.pipelineResults.contains("error")) Left(PRError.PipelineFailed)
+        if evt.pipelineResults.contains("error") then Left(PRError.PipelineFailed)
         else Right(PRState.Checked(in.commit, evt.pipelineResults)),
       )
       .autoNamed
@@ -87,7 +89,7 @@ object PullRequestWorkflow {
       .using[PRState.Checked]
       .purely((in, req) => PREvent.Reviewed(req.approve))
       .handleEventWithError((in, evt) =>
-        if (evt.approved) Right(PRState.Reviewed(in.commit, in.pipelineResults, evt.approved))
+        if evt.approved then Right(PRState.Reviewed(in.commit, in.pipelineResults, evt.approved))
         else Left(PRError.ReviewRejected),
       )
       .voidResponse
@@ -108,15 +110,16 @@ object PullRequestWorkflow {
   ).handleErrorWith(closePR)
   // end_steps_3
 
-  def main(args: Array[String]): Unit = {
+  @nowarn("msg=unused value")
+  def run: InMemorySyncWorkflowInstance[Ctx] = {
     // start_render
-    val bpmnModel = BPMNConverter.convert(workflow.toProgress.toModel, "process")
+    val bpmnModel = BpmnRenderer.renderWorkflow(workflow.toProgress.toModel, "process")
     Bpmn.writeModelToFile(new File(s"pr.bpmn").getAbsoluteFile, bpmnModel)
     // end_render
 
     // start_execution
-    val runtime    = InMemorySyncRuntime.default[Context.Ctx](workflow, PRState.Empty)
-    val wfInstance = runtime.createInstance(())
+    val runtime    = InMemorySyncRuntime.default[Context.Ctx, String](workflow, PRState.Empty)
+    val wfInstance = runtime.createInstance("id")
 
     wfInstance.deliverSignal(Signals.createPR, Signals.CreateRequest("some-sha"))
     println(wfInstance.queryState())
@@ -128,11 +131,12 @@ object PullRequestWorkflow {
     // end_execution
 
     // start_recovery
-    val recoveredInstance = runtime.createInstance((), PRState.Empty)
+    val recoveredInstance = runtime.createInstance("id")
     recoveredInstance.recover(wfInstance.getEvents)
     assert(wfInstance.queryState() == recoveredInstance.queryState())
     // end_recovery
 
+    wfInstance
   }
 
 }

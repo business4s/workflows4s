@@ -1,104 +1,73 @@
 package workflows4s.doobie
 
-import cats.Applicative
+import cats.Monad
+import cats.data.Kleisli
 import cats.effect.{IO, LiftIO, Sync}
 import cats.syntax.all.*
+import com.typesafe.scalalogging.StrictLogging
 import doobie.ConnectionIO
 import doobie.implicits.*
-import workflows4s.runtime.WorkflowInstance
-import workflows4s.runtime.WorkflowInstance.UnexpectedSignal
+import workflows4s.runtime.WorkflowInstanceBase
+import workflows4s.runtime.registry.WorkflowRegistry
 import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.wio.*
-import workflows4s.wio.model.WIOExecutionProgress
 
 import java.time.{Clock, Instant}
-import scala.annotation.tailrec
+
+private type Result[T] = Kleisli[ConnectionIO, LiftIO[ConnectionIO], T]
 
 class DbWorkflowInstance[Ctx <: WorkflowContext, Id](
     id: Id,
     baseWorkflow: ActiveWorkflow[Ctx],
-    storage: WorkflowStorage[Id],
-    liftIO: LiftIO[ConnectionIO],
-    eventCodec: EventCodec[WCEvent[Ctx]],
-    clock: Clock,
-    knockerUpper: KnockerUpper.Agent[Id],
-) extends WorkflowInstance[ConnectionIO, WCState[Ctx]] {
+    storage: WorkflowStorage[Id, WCEvent[Ctx]],
+    protected val clock: Clock,
+    knockerUpperForId: KnockerUpper.Agent[Id],
+    registryAgent: WorkflowRegistry.Agent[Id],
+) extends WorkflowInstanceBase[Result, Ctx]
+    with StrictLogging {
 
-  override def getProgress: ConnectionIO[WIOExecutionProgress[WCState[Ctx]]] = restoreWorkflow.map(_.wio.toProgress)
+  override protected def fMonad: Monad[Result]                         = summon
+  override protected lazy val knockerUpper: KnockerUpper.Agent.Curried = knockerUpperForId.curried(id)
+  override protected lazy val registry: WorkflowRegistry.Agent.Curried = registryAgent.curried(id)
 
-  def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): ConnectionIO[Either[UnexpectedSignal, Resp]] = {
-    storage
-      .lockWorkflow(id)
-      .use(_ =>
-        for {
-          wf     <- restoreWorkflow
-          now    <- Sync[ConnectionIO].delay(clock.instant())
-          result <- wf.handleSignal(signalDef)(req, now) match {
-                      case Some(eventIO) =>
-                        for {
-                          (event, resp) <- liftIO.liftIO(eventIO)
-                          _             <- storage.saveEvent(id, eventCodec.write(event))
-                          newWf          = handleEvents(wf, List(event), now)
-                          _             <- proceed(newWf, now)
-                        } yield resp.asRight
-                      case None          => Sync[ConnectionIO].pure(UnexpectedSignal(signalDef).asLeft)
-                    }
-        } yield result,
-      )
-  }
-
-  def queryState(): ConnectionIO[WCState[Ctx]] = {
+  override protected def getWorkflow: Result[ActiveWorkflow[Ctx]] = {
+    def recoveredState(now: Instant): ConnectionIO[ActiveWorkflow[Ctx]] =
+      storage
+        .getEvents(id)
+        .compile
+        .fold(baseWorkflow)((state, event) =>
+          state.handleEvent(event, now) match {
+            case Some(value) => value
+            case None        =>
+              logger.warn(s"Ignored event ${}")
+              state
+          },
+        )
     for {
-      wf  <- restoreWorkflow
-      now <- Sync[ConnectionIO].delay(clock.instant())
-    } yield wf.liveState(now)
+      now    <- currentTime
+      result <- Kleisli(_ => recoveredState(now))
+    } yield result
   }
 
-  def wakeup(): ConnectionIO[Unit] = {
-    storage
-      .lockWorkflow(id)
-      .use(_ =>
-        for {
-          wf  <- restoreWorkflow
-          now <- Sync[ConnectionIO].delay(clock.instant())
-          _   <- proceed(wf, now)
-        } yield (),
-      )
+  override protected def lockAndUpdateState[T](update: ActiveWorkflow[Ctx] => Result[LockOutcome[T]]): Result[StateUpdate[T]] = {
+    for {
+      oldState    <- getWorkflow
+      lockResult  <- update(oldState)
+      now         <- Sync[Result].delay(clock.instant())
+      stateUpdate <- lockResult match {
+                       case LockOutcome.NewEvent(event, result) =>
+                         Kleisli(_ =>
+                           for {
+                             _       <- storage.saveEvent(id, event)
+                             newState = processLiveEvent(event, oldState, now)
+                           } yield StateUpdate.Updated(oldState, newState, result),
+                         )
+                       case LockOutcome.NoOp(result)            => StateUpdate.NoOp(oldState, result).pure[Result]
+                     }
+    } yield stateUpdate
   }
 
-  private def proceed(wf: ActiveWorkflow[Ctx], now: Instant): ConnectionIO[Unit] = {
-    wf.proceed(now) match {
-      case Some(eventIO) =>
-        for {
-          event <- liftIO.liftIO(eventIO)
-          _     <- storage.saveEvent(id, eventCodec.write(event))
-          newWf  = handleEvents(wf, List(event), now)
-          _     <- if (newWf.wakeupAt != wf.wakeupAt)
-                     liftIO.liftIO(knockerUpper.updateWakeup(id, newWf.wakeupAt)) // TODO should we really rollback tx is this fails?
-                   else Sync[ConnectionIO].unit
-          _     <- proceed(newWf, now)
-        } yield ()
-      case None          => Applicative[ConnectionIO].pure(())
-    }
-  }
-
-  private def queryEvents: ConnectionIO[List[WCEvent[Ctx]]] = {
-    storage.getEvents(id).flatMap(_.traverse(eventBytes => Sync[ConnectionIO].fromTry(eventCodec.read(eventBytes))))
-  }
-
-  private def restoreWorkflow: ConnectionIO[ActiveWorkflow[Ctx]] = for {
-    events <- queryEvents
-    now    <- Sync[ConnectionIO].delay(clock.instant())
-  } yield handleEvents(baseWorkflow, events, now)
-
-  @tailrec
-  private def handleEvents(wf: ActiveWorkflow[Ctx], events: List[WCEvent[Ctx]], now: Instant): ActiveWorkflow[Ctx] = {
-    if (events.isEmpty) wf
-    else {
-      wf.handleEvent(events.head, now) match {
-        case Some(newWf) => handleEvents(newWf, events.tail, now)
-        case None        => wf
-      }
-    }
+  override protected def liftIO: LiftIO[Result] = new LiftIO[Result] {
+    override def liftIO[A](ioa: IO[A]): Result[A] = Kleisli(liftIO => liftIO.liftIO(ioa))
   }
 }

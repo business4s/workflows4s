@@ -9,7 +9,7 @@ class WIOEndTest extends AnyFreeSpec with Matchers {
 
   import TestCtx.*
 
-  "WIO.Pure" - {
+  "WIO.End" - {
 
     "state" in {
       val wf: ActiveWorkflow[Ctx] = WIO.end.toWorkflow("initialState")
@@ -18,8 +18,6 @@ class WIOEndTest extends AnyFreeSpec with Matchers {
 
       assert(state == "initialState")
     }
-
-    // TODO error case
 
     "proceed no-op" in {
       val wf: ActiveWorkflow[Ctx] = WIO.end.toWorkflow("initialState")

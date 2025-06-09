@@ -1,8 +1,9 @@
 package workflows4s.wio.internal
 
-import cats.implicits.catsSyntaxOptionId
+import cats.implicits.{catsSyntaxOptionId, toTraverseOps}
 import workflows4s.wio.WIO.HandleInterruption.{InterruptionStatus, InterruptionType}
 import workflows4s.wio.*
+import workflows4s.wio.WIO.Loop.State
 
 abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](
     wio: WIO[In, Err, Out, Ctx],
@@ -107,46 +108,54 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
     }
   }
 
-  def onLoop[Out1 <: WCState[Ctx]](wio: WIO.Loop[Ctx, In, Err, Out1, Out]): Result = {
+  def onLoop[BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx], ReturnIn](wio: WIO.Loop[Ctx, In, Err, Out, BodyIn, BodyOut, ReturnIn]): Result = {
     // TODO all the `.provideInput` here are not good, they enlarge the graph unnecessarily.
     //  alternatively we could maybe take the input from the last history entry
     val lastState = wio.history.lastOption.flatMap(_.output.toOption).getOrElse(lastSeenState)
-    recurse(wio.current, input, lastState).map({
-      case WFExecution.Complete(newWio) =>
-        newWio.output match {
-          case Left(err)    => WFExecution.complete(wio.copy(history = wio.history :+ newWio), Left(err), input)
-          case Right(value) =>
-            if (wio.isReturning) {
-              WFExecution.Partial(wio.copy(current = wio.loop.provideInput(value), isReturning = false, history = wio.history :+ newWio))
-            } else {
-              wio.stopCondition(value) match {
-                case Some(value1) =>
-                  // TODO wio.current should be "emptied" somehow, current marking as executed feel like hack
-                  WFExecution.complete(
-                    wio.copy(history = wio.history :+ newWio, current = WIO.Executed(wio.current, Right(value), input)),
-                    Right(value1),
-                    input,
-                  )
-                case None         =>
-                  wio.onRestart match {
-                    case Some(onRestart) =>
-                      WFExecution.Partial(wio.copy(current = onRestart.provideInput(value), isReturning = true, history = wio.history :+ newWio))
-                    case None            =>
-                      WFExecution.Partial(wio.copy(current = wio.loop.provideInput(value), isReturning = true, history = wio.history :+ newWio))
-                  }
+    wio.current match {
+      case State.Finished(_)          =>
+        None // TODO better error, this should never happen
+      case State.Forward(currentWio)  =>
+        recurse(currentWio, input, lastState).map({
+          case WFExecution.Complete(newWio) =>
+            newWio.output match {
+              case Left(err)    => WFExecution.complete(wio.copy(history = wio.history :+ newWio), Left(err), input)
+              case Right(value) =>
+                wio.stopCondition(value) match {
+                  case Right(value1)  =>
+                    WFExecution.complete(
+                      wio.copy(history = wio.history :+ newWio, current = WIO.Loop.State.Finished(WIO.Executed(currentWio, Right(value), input))),
+                      Right(value1),
+                      input,
+                    )
+                  case Left(returnIn) =>
+                    WFExecution.Partial(
+                      wio.copy(current = WIO.Loop.State.Backward(wio.onRestart.provideInput(returnIn)), history = wio.history :+ newWio),
+                    )
+                }
 
-              }
             }
-        }
-      case WFExecution.Partial(newWio)  => WFExecution.Partial(wio.copy(current = newWio))
-    })
+          case WFExecution.Partial(newWio)  => WFExecution.Partial(wio.copy(current = State.Forward(newWio)))
+        })
+      case State.Backward(currentWio) =>
+        recurse(currentWio, input, lastState).map({
+          case WFExecution.Complete(newWio) =>
+            newWio.output match {
+              case Left(err)    => WFExecution.complete(wio.copy(history = wio.history :+ newWio), Left(err), input)
+              case Right(value) =>
+                WFExecution.Partial(wio.copy(current = WIO.Loop.State.Forward(wio.body.provideInput(value)), history = wio.history :+ newWio))
+            }
+          case WFExecution.Partial(newWio)  => WFExecution.Partial(wio.copy(current = State.Backward(newWio)))
+        })
+    }
+
   }
 
   def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result = {
     def updateSelectedBranch[I](selected: Matching[I]): WIO.Fork[Ctx, In, Err, Out] = {
       wio.copy(
         branches = wio.branches.zipWithIndex.map((branch, idx) => {
-          if (idx == selected.idx) WIO.Branch.selected(selected.input, selected.wio, branch.name)
+          if idx == selected.idx then WIO.Branch.selected(selected.input, selected.wio, branch.name)
           else branch
         }),
         selected = Some(selected.idx),
@@ -211,6 +220,56 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
       case InterruptionStatus.TimerStarted => runInterruption.orElse(runBase)
       case InterruptionStatus.Pending      => runInterruption.orElse(runBase)
     }
+  }
+
+  override def onParallel[InterimState <: WCState[Ctx]](
+      wio: WIO.Parallel[Ctx, In, Err, Out, InterimState],
+  ): Option[NewWf] = {
+    // Try to handle the event in one branch – the first branch that accepts it.
+    // We update that branch and leave the others unchanged.
+    var branchHandled: Option[(Int, WIO[In, Err, WCState[Ctx], Ctx])] = None
+
+    val updatedElements = wio.elements.zipWithIndex.map { case (elem, idx) =>
+      if branchHandled.isEmpty then {
+        // Try to process the event on this branch using our recurse helper.
+        recurse(elem.wio, input, lastSeenState) match {
+          case Some(newBranch) =>
+            branchHandled = Some((idx, newBranch.wio))
+            // Replace the branch with the updated branch.
+            elem.copy(wio = newBranch.wio)
+          case None            =>
+            // This branch does not accept the event.
+            elem
+        }
+      } else {
+        // A branch has already handled the event; leave this branch unchanged.
+        elem
+      }
+    }
+    if branchHandled.isEmpty then return None
+
+    val maybeStates: Either[Err, Seq[Option[WCState[Ctx]]]] = updatedElements.traverse(elem => elem.wio.asExecuted.traverse(_.output))
+    val newWio                                              = wio.copy(elements = updatedElements)
+    maybeStates match {
+      case Left(err)   => Some(WFExecution.complete(newWio, Left(err), input))
+      case Right(opts) =>
+        opts.sequence match {
+          case Some(states) => Some(WFExecution.complete(newWio, Right(wio.formResult(states)), input))
+          case None         => Some(WFExecution.Partial(newWio))
+        }
+    }
+  }
+
+  def handleCheckpointBase[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): Option[NewWf] = {
+    recurse(wio.base, input, lastSeenState)
+      .map({
+        case WFExecution.Complete(newWio) =>
+          newWio.output match {
+            case Left(err) => WFExecution.complete(wio.copy(base = newWio), Left(err), input)
+            case Right(_)  => WFExecution.Partial(wio.copy(base = newWio))
+          }
+        case WFExecution.Partial(newWio)  => WFExecution.Partial(wio.copy(base = newWio))
+      })
   }
 
   def recurse[I1, E1, O1 <: WCState[Ctx]](

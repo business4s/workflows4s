@@ -36,7 +36,7 @@ const config: Config = {
             {
                 docs: {
                     sidebarPath: './sidebars.ts',
-                    editUrl: 'https://github.com/business4s/workflows4s/webstie',
+                    editUrl: 'https://github.com/business4s/workflows4s/tree/main/website',
                     beforeDefaultRemarkPlugins: [
                         [
                             require('remark-code-snippets'),
@@ -124,9 +124,6 @@ const config: Config = {
             darkTheme: prismThemes.dracula,
             additionalLanguages: ['java', 'scala', "json"]
         },
-        customFields: {
-            workflows4sVersion: "unreleased",
-        },
         algolia: {
             appId: 'IMCN9UXKWU',
             apiKey: '6abd8b572e53e72a85a9283c552438b7',
@@ -134,6 +131,9 @@ const config: Config = {
             searchPagePath: 'search',
         },
     } satisfies Preset.ThemeConfig,
+    customFields: {
+        workflows4sVersion: process.env.WORKFLOWS4S_VERSION,
+    },
 };
 
 export default config;
