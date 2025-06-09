@@ -23,7 +23,7 @@ object GetStateEvaluator {
 
     def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result = wio.output match {
       // this is potentitally suboptimal. We could cache the state at the moment of emitting the error within Executed
-      case Left(value) => recurse(wio.original, wio.input)
+      case Left(value)  => recurse(wio.original, wio.input)
       case Right(value) => value.some
     }
 

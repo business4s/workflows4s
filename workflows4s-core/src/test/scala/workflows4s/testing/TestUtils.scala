@@ -12,7 +12,7 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.util.Random
 
 object TestUtils {
-  
+
   type Error = String
 
   def createInstance(wio: WIO.Initial[TestCtx.Ctx]): (TestClock, InMemorySyncWorkflowInstance[TestCtx.Ctx]) = {
@@ -38,7 +38,7 @@ object TestUtils {
     (clock, instance)
   }
 
-  def pure: (StepId, WIO[TestState, Nothing, TestState, TestCtx2.Ctx])         = {
+  def pure: (StepId, WIO[TestState, Nothing, TestState, TestCtx2.Ctx])        = {
     import TestCtx2.*
     val stepId = StepId.random
     (stepId, WIO.pure.makeFrom[TestState].value(_.addExecuted(stepId)).done)
@@ -83,7 +83,7 @@ object TestUtils {
     val signalDef = SignalDef[Int, Int](id = UUID.randomUUID().toString)
     case class SignalErrored(req: Int, error: String) extends TestCtx2.Event
     val error = s"error-${UUID.randomUUID()}"
-    val wio    = WIO
+    val wio   = WIO
       .handleSignal(signalDef)
       .using[TestState]
       .purely((_, req) => SignalErrored(req, error))

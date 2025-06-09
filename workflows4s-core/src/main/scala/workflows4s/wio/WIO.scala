@@ -219,7 +219,7 @@ object WIO {
   case class Executed[Ctx <: WorkflowContext, +Err, +Out <: WCState[Ctx], In](original: WIO[In, ?, ?, Ctx], output: Either[Err, Out], input: In)
       extends WIO[Any, Err, Out, Ctx] {
     def lastState(prevState: WCState[Ctx]): Option[WCState[Ctx]] = output match {
-      case Left(_) => GetStateEvaluator.extractLastState(original, input, prevState)
+      case Left(_)      => GetStateEvaluator.extractLastState(original, input, prevState)
       case Right(value) => value.some
     }
   }

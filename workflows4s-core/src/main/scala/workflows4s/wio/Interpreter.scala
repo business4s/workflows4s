@@ -19,7 +19,7 @@ object Interpreter {
 
   object EventResponse {
     case class Ok[Ctx <: WorkflowContext](newFlow: WIO.Initial[Ctx]) extends EventResponse[Ctx]
-    case class UnexpectedEvent[Ctx <: WorkflowContext]()                extends EventResponse[Ctx]
+    case class UnexpectedEvent[Ctx <: WorkflowContext]()             extends EventResponse[Ctx]
   }
 
   sealed trait ProceedResponse[Ctx <: WorkflowContext] {
@@ -146,7 +146,7 @@ sealed trait WFExecution[C <: WorkflowContext, -I, +E, +O <: WCState[C]] {
 }
 
 object WFExecution {
-  
+
   case class Complete[C <: WorkflowContext, E, O <: WCState[C], I](wio: WIO.Executed[C, E, O, I]) extends WFExecution[C, I, E, O]
 
   case class Partial[C <: WorkflowContext, I, E, O <: WCState[C]](wio: WIO[I, E, O, C]) extends WFExecution[C, I, E, O]
