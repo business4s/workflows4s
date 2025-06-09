@@ -21,7 +21,11 @@ object GetStateEvaluator {
   ) extends Visitor[Ctx, In, Err, Out](wio) {
     override type Result = Option[WCState[Ctx]]
 
-    def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result = wio.output.toOption
+    def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result = wio.output match {
+      // this is potentitally suboptimal. We could cache the state at the moment of emitting the error within Executed
+      case Left(value) => recurse(wio.original, wio.input)
+      case Right(value) => value.some
+    }
 
     def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result = None
     def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result                               = None
@@ -44,7 +48,7 @@ object GetStateEvaluator {
       wio.first.asExecuted match {
         case Some(firstExecuted) =>
           firstExecuted.output match {
-            case Left(_)      => None
+            case Left(_)      => recurse(wio.first, input)
             case Right(value) => recurse(wio.second, value, value).getOrElse(value).some
           }
         case None                => recurse(wio.first, input)

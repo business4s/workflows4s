@@ -29,8 +29,9 @@ case class ActiveWorkflow[Ctx <: WorkflowContext](wio: WIO.Initial[Ctx], initial
   def handleEvent(event: WCEvent[Ctx], now: Instant): Option[ActiveWorkflow[Ctx]] = {
     val wf = effectlessProceed(now).getOrElse(this)
     EventEvaluator
-      .handleEvent(event, wf.wio, wf.staticState)
+      .handleEvent(event, wf.wio, initialState)
       .newWorkflow
+      .map(newWio => this.copy(wio = newWio))
       .map(x => x.effectlessProceed(now).getOrElse(x))
   }
 
@@ -44,7 +45,8 @@ case class ActiveWorkflow[Ctx <: WorkflowContext](wio: WIO.Initial[Ctx], initial
   // moves forward as far as possible
   private def effectlessProceed(now: Instant): Option[ActiveWorkflow[Ctx]] =
     ProceedEvaluator
-      .proceed(wio, staticState, now)
+      .proceed(wio, initialState, now)
       .newFlow
+      .map(newWio => this.copy(wio = newWio))
       .map(x => x.effectlessProceed(now).getOrElse(x))
 }
