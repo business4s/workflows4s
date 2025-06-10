@@ -13,6 +13,8 @@ import scala.util.Random
 
 object TestUtils {
 
+  type Error = String
+
   def createInstance(wio: WIO.Initial[TestCtx.Ctx]): (TestClock, InMemorySyncWorkflowInstance[TestCtx.Ctx]) = {
     val clock                                               = new TestClock()
     import cats.effect.unsafe.implicits.global
@@ -36,17 +38,17 @@ object TestUtils {
     (clock, instance)
   }
 
-  def pure: (StepId, WIO[TestState, Nothing, TestState, TestCtx2.Ctx])         = {
+  def pure: (StepId, WIO[TestState, Nothing, TestState, TestCtx2.Ctx])        = {
     import TestCtx2.*
     val stepId = StepId.random
     (stepId, WIO.pure.makeFrom[TestState].value(_.addExecuted(stepId)).done)
   }
-  def error: (String, WIO[Any, String, Nothing, TestCtx2.Ctx])                 = {
+  def error: (Error, WIO[Any, String, Nothing, TestCtx2.Ctx])                 = {
     import TestCtx2.*
     val error = s"error-${UUID.randomUUID()}"
     (error, WIO.pure.error(error).done)
   }
-  def errorIO: (String, WIO[Any, String, Nothing, TestCtx2.Ctx])               = {
+  def errorIO: (Error, WIO[Any, String, Nothing, TestCtx2.Ctx])               = {
     import TestCtx2.*
     val error = s"error-${UUID.randomUUID()}"
     case class RunIOErrored(error: String) extends TestCtx2.Event
@@ -56,7 +58,7 @@ object TestUtils {
       .done
     (error, wio)
   }
-  def errorHandler: WIO[(TestState, String), Nothing, TestState, TestCtx2.Ctx] = {
+  def errorHandler: WIO[(TestState, Error), Nothing, TestState, TestCtx2.Ctx] = {
     import TestCtx2.*
     WIO.pure.makeFrom[(TestState, String)].value((st, err) => st.addError(err)).done
   }
@@ -74,6 +76,21 @@ object TestUtils {
       .produceResponse((_, evt) => evt.req)
       .done
     (signalDef, stepId, wio)
+  }
+
+  def signalError: (SignalDef[Int, Int], Error, WIO.IHandleSignal[TestState, Error, TestState, TestCtx2.Ctx]) = {
+    import TestCtx2.*
+    val signalDef = SignalDef[Int, Int](id = UUID.randomUUID().toString)
+    case class SignalErrored(req: Int, error: String) extends TestCtx2.Event
+    val error = s"error-${UUID.randomUUID()}"
+    val wio   = WIO
+      .handleSignal(signalDef)
+      .using[TestState]
+      .purely((_, req) => SignalErrored(req, error))
+      .handleEventWithError((_, evt) => Left(evt.error))
+      .produceResponse((_, evt) => evt.req)
+      .done
+    (signalDef, error, wio)
   }
 
   def timer(secs: Int = Random.nextInt(10) + 1): (FiniteDuration, WIO[TestState, Nothing, TestState, TestCtx2.Ctx]) = {
