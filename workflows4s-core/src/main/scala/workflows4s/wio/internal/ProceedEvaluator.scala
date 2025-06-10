@@ -15,10 +15,10 @@ object ProceedEvaluator {
       now: Instant,
   ): Response[Ctx] = {
     val visitor: ProceedVisitor[Ctx, Any, Nothing, WCState[Ctx]] = new ProceedVisitor(wio, state, state, now)
-    Response(visitor.run.map(_.toActiveWorkflow(state)))
+    Response(visitor.run.map(_.wio))
   }
 
-  case class Response[Ctx <: WorkflowContext](newFlow: Option[ActiveWorkflow[Ctx]])
+  case class Response[Ctx <: WorkflowContext](newFlow: Option[WIO.Initial[Ctx]])
 
   private class ProceedVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](
       wio: WIO[In, Err, Out, Ctx],

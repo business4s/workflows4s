@@ -19,7 +19,7 @@ object StepId {
   def random: StepId = scala.util.Random.alphanumeric.take(8).mkString
 }
 
-case class TestState(executed: List[StepId], errors: List[String]) {
+case class TestState(executed: List[StepId], errors: List[String] = List()) {
   def addExecuted(id: StepId): TestState = this.copy(executed = this.executed.appended(id))
   def addError(err: String): TestState   = this.copy(errors = this.errors.appended(err))
 
