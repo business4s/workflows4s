@@ -11,7 +11,7 @@ class WIOHandleErrorTest extends AnyFreeSpec with Matchers with EitherValues {
 
   "WIO.HandleError" - {
 
-    "from pure" in {
+    "pure base" in {
       val (step1Id, step1) = TestUtils.pure
       val (error, step2)   = TestUtils.error
       val handler          = TestUtils.errorHandler
@@ -22,7 +22,7 @@ class WIOHandleErrorTest extends AnyFreeSpec with Matchers with EitherValues {
       assert(wf.queryState() === TestState(executed = List(step1Id), errors = List(error)))
     }
 
-    "from proceed" in {
+    "effectful base" in {
       val (step1Id, step1) = TestUtils.runIO
       val (error, step2)   = TestUtils.error
       val handler          = TestUtils.errorHandler
@@ -34,7 +34,7 @@ class WIOHandleErrorTest extends AnyFreeSpec with Matchers with EitherValues {
       assert(wf.queryState() === TestState(executed = List(step1Id), errors = List(error)))
     }
 
-    "from signal" in {
+    "signal base" in {
       val (signal1, error, step1)   = TestUtils.signalError
       val (signal2, step2Id, step2) = TestUtils.signal
       val (_, step3)                = TestUtils.pure
@@ -50,6 +50,20 @@ class WIOHandleErrorTest extends AnyFreeSpec with Matchers with EitherValues {
       val response2 = wf.deliverSignal(signal2, 44).value
       assert(response2 === 44)
       assert(wf.queryState() === TestState(executed = List(step2Id), errors = List(error)))
+    }
+
+    "effectful handler" in {
+      val (step1Id, step1) = TestUtils.pure
+      val (error, step2)   = TestUtils.error
+      val (step3id, step3) = TestUtils.runIO
+
+      val handler = step3.transformInput[(TestState, TestUtils.Error)]((st, err) => st.addError(err))
+      val wio     = (step1 >>> step2).handleErrorWith(handler)
+      val (_, wf) = TestUtils.createInstance2(wio)
+
+      assert(wf.queryState() === TestState(executed = List(step1Id), errors = List()))
+      wf.wakeup()
+      assert(wf.queryState() === TestState(executed = List(step1Id, step3id), errors = List(error)))
     }
 
   }

@@ -1,26 +1,25 @@
 package workflows4s.wio
 
-import java.time.Instant
-import scala.util.chaining.scalaUtilChainingOps
 import cats.effect.IO
 import workflows4s.wio.Interpreter.SignalResponse
 import workflows4s.wio.internal.*
 import workflows4s.wio.model.WIOExecutionProgress
+
+import java.time.Instant
 
 case class ActiveWorkflow[Ctx <: WorkflowContext](wio: WIO.Initial[Ctx], initialState: WCState[Ctx]) {
   lazy val wakeupAt: Option[Instant] = GetWakeupEvaluator.extractNearestWakeup(wio)
 
   lazy val staticState: WCState[Ctx] = GetStateEvaluator.extractLastState(wio, (), initialState).getOrElse(initialState)
 
-  def liveState(now: Instant): WCState[Ctx] =
-    effectlessProceed(now)
-      .getOrElse(this)
-      .staticState
+  def liveState(now: Instant): WCState[Ctx] = {
+    val wf = effectlessProceed(now).getOrElse(this)
+    wf.staticState
+  }
 
   def handleSignal[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req, now: Instant): Option[IO[(WCEvent[Ctx], Resp)]] = {
-    effectlessProceed(now)
-      .getOrElse(this)
-      .pipe(x => SignalEvaluator.handleSignal(signalDef, req, x.wio, x.staticState)) match {
+    val wf = effectlessProceed(now).getOrElse(this)
+    SignalEvaluator.handleSignal(signalDef, req, wf.wio, wf.staticState) match {
       case SignalResponse.Ok(value)          => Some(value)
       case SignalResponse.UnexpectedSignal() => None
     }
