@@ -156,4 +156,33 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
       case other => fail(s"Expected WIOExecutionProgress.Loop, got ${other.getClass.getSimpleName} ($other)")
     }
   }
+
+  "WIO.Loop body 2 steps" in {
+    val step1 = WIO.pure("step1").autoNamed
+    val step2 = WIO.pure.makeFrom[String].value(s => s"$s >>> step2").autoNamed
+
+    val loopBody: WIO[String, Nothing, String] = step1 >>> step2
+
+    val restartStep = WIO.pure.makeFrom[String].value(identity).autoNamed
+
+    val stopCondition: String => Boolean = bodyOutputState => {
+      bodyOutputState.size > 100
+    }
+
+    val repeatedWio: WIO[String, Nothing, String] = WIO
+      .repeat(loopBody)
+      .until(stopCondition)
+      .onRestart(restartStep)
+      .done
+
+    val (_, wf)      = TestUtils.createInstance(repeatedWio.provideInput("init"))
+    val loopProgress = wf.getProgress
+
+    loopProgress match {
+      case lp @ WIOExecutionProgress.Loop(_, _, meta, history) =>
+        history.size shouldBe 3 // 3: iter1, restart, iter2
+
+      case other => fail(s"Expected WIOExecutionProgress.Loop, got ${other.getClass.getSimpleName} ($other)")
+    }
+  }
 }
