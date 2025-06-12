@@ -10,9 +10,9 @@ lazy val `workflows4s` = (project in file("."))
     `workflows4s-doobie`,
     `workflows4s-filesystem`,
     `workflows4s-quartz`,
-    `workflows4s-web-ui`, 
-    `workflows4s-web-ui`, 
-    `workflows4s-web-api`,  
+    `workflows4s-web-ui`,
+    `workflows4s-web-api-shared`,   
+    `workflows4s-web-api-server`,
   )
 
 lazy val `workflows4s-core` = (project in file("workflows4s-core"))
@@ -127,22 +127,29 @@ lazy val `workflows4s-web-ui` = (project in file("workflows4s-web-ui"))
     publish / skip := true,
   )
   .dependsOn(`workflows4s-core`)
-
-lazy val `workflows4s-web-api` = (project in file("workflows4s-web-api"))
+lazy val `workflows4s-web-api-shared` = (project in file("workflows4s-web-api-shared"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "com.softwaremill.sttp.tapir" %% "tapir-core"               % tapirVersion,
-      "com.softwaremill.sttp.tapir" %% "tapir-json-circe"         % tapirVersion,
-      "com.softwaremill.sttp.tapir" %% "tapir-pekko-http-server"  % tapirVersion,
-      "com.softwaremill.sttp.tapir" %% "tapir-swagger-ui-bundle"  % tapirVersion,
-      "com.softwaremill.sttp.tapir" %% "tapir-openapi-docs"       % tapirVersion,
-      "org.apache.pekko"           %% "pekko-http"                % pekkoHttpVersion,
-      "org.apache.pekko"           %% "pekko-actor-typed"         % pekkoVersion,      
-      "org.apache.pekko"           %% "pekko-stream"              % pekkoVersion,    
+      "com.softwaremill.sttp.tapir" %% "tapir-core"       % tapirVersion,
+      "com.softwaremill.sttp.tapir" %% "tapir-json-circe" % tapirVersion,
     ),
   )
   .dependsOn(`workflows4s-core`)
+
+lazy val `workflows4s-web-api-server` = (project in file("workflows4s-web-api-server"))
+  .settings(commonSettings)
+  .settings(
+    libraryDependencies ++= Seq(
+      "com.softwaremill.sttp.tapir" %% "tapir-pekko-http-server"  % tapirVersion,
+      "com.softwaremill.sttp.tapir" %% "tapir-swagger-ui-bundle"  % tapirVersion,
+      "com.softwaremill.sttp.tapir" %% "tapir-openapi-docs"       % tapirVersion,
+      "org.apache.pekko"           %% "pekko-actor-typed"         % pekkoVersion,
+      "org.apache.pekko"           %% "pekko-stream"              % pekkoVersion, 
+    ),
+  )
+  .dependsOn(`workflows4s-web-api-shared`)
+
 
 lazy val commonSettings = Seq(
   scalaVersion      := "3.7.0",
