@@ -26,7 +26,7 @@ class DatabaseRuntime[Ctx <: WorkflowContext, WorkflowId](
     IO {
       val base = new DbWorkflowInstance(
         id,
-        ActiveWorkflow(workflow, initialState, -1),
+        ActiveWorkflow(workflow, initialState),
         storage,
         clock,
         knockerUpper,
