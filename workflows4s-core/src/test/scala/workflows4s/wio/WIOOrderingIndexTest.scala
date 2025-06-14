@@ -100,73 +100,59 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
     }
   }
 
-  // "WIO.Loop " in {
-  //
-  //   val (_, loopBody) = TestUtils.pure
-  //
-  //   val restartStep = TestUtils.pure
-  //
-  //   val stopCondition: String => Boolean = bodyOutputState => {
-  //     val parts = bodyOutputState.split('_')
-  //     val count = parts.last.toInt
-  //     count >= 2
-  //   }
-  //
-  //   val repeatedWio: WIO[String, Nothing, String] = WIO
-  //     .repeat(loopBody)
-  //     .until(stopCondition)
-  //     .onRestart(restartStep)
-  //     .done
-  //
-  //   val (_, wf)      = TestUtils.createInstance2(repeatedWio.provideInput(initialStateForLoopWIO))
-  //   val loopProgress = wf.getProgress
-  //
-  //   loopProgress match {
-  //     case lp @ WIOExecutionProgress.Loop(_, _, meta, history) =>
-  //       history.size shouldBe 3 // 3: iter1, restart, iter2
-  //
-  //       //iter1
-  //       history.head.result.flatMap(_.value.toOption) shouldBe Some(s"${baseText}_iter1_1")
-  //       history.head.result.map(_.index) shouldBe Some(0)
-  //
-  //       //restart
-  //       history(1).result.flatMap(_.value.toOption) shouldBe Some(s"step_iter1_1")
-  //       history(1).result.map(_.index) shouldBe Some(1)
-  //
-  //       //iter2
-  //       history.last.result.flatMap(_.value.toOption) shouldBe Some(s"${baseText}_iter1_iter2_2")
-  //       history.last.result.map(_.index) shouldBe Some(2)
-  //
-  //     case other => fail(s"Expected WIOExecutionProgress.Loop, got ${other.getClass.getSimpleName} ($other)")
-  //   }
-  // }
-  //
-  // "WIO.Loop body 2 steps" in {
-  //   val step1 = WIO.pure("step1").autoNamed
-  //   val step2 = WIO.pure.makeFrom[String].value(s => s"$s >>> step2").autoNamed
-  //
-  //   val loopBody: WIO[String, Nothing, String] = step1 >>> step2
-  //
-  //   val restartStep = WIO.pure.makeFrom[String].value(identity).autoNamed
-  //
-  //   val stopCondition: String => Boolean = bodyOutputState => {
-  //     bodyOutputState.size > 100
-  //   }
-  //
-  //   val repeatedWio: WIO[String, Nothing, String] = WIO
-  //     .repeat(loopBody)
-  //     .until(stopCondition)
-  //     .onRestart(restartStep)
-  //     .done
-  //
-  //   val (_, wf)      = TestUtils.createInstance(repeatedWio.provideInput("init"))
-  //   val loopProgress = wf.getProgress
-  //
-  //   loopProgress match {
-  //     case lp @ WIOExecutionProgress.Loop(_, _, meta, history) =>
-  //       history.size shouldBe 3 // 3: iter1, restart, iter2
-  //
-  //     case other => fail(s"Expected WIOExecutionProgress.Loop, got ${other.getClass.getSimpleName} ($other)")
-  //   }
-  // }
+  "WIO.Loop" in {
+    val (_, loopBody) = TestUtils.pure
+
+    val (_, restartStep) = TestUtils.pure
+
+    val stopCondition: TestState => Boolean = state => {
+      state.executed.size == 5
+    }
+
+    val repeatedWio = TestCtx2.WIO
+      .repeat(loopBody)
+      .until(stopCondition)
+      .onRestart(restartStep)
+      .done
+
+    val (_, wf)      = TestUtils.createInstance2(repeatedWio)
+    val loopProgress = wf.getProgress
+
+    loopProgress match {
+      case lp @ WIOExecutionProgress.Loop(_, _, meta, history) =>
+        history.size shouldBe 5
+
+        history.flatMap(_.result.map(_.index)).toList shouldBe List(0, 1, 2, 3, 4) // indices are in sync with history indices
+
+      case other => fail(s"Expected WIOExecutionProgress.Loop, got ${other.getClass.getSimpleName} ($other)")
+    }
+  }
+
+  "WIO.Loop loopBody: 2 steps, restart: 1 step" in {
+    val loopBody = TestUtils.pure._2 >>> TestUtils.pure._2
+
+    val (_, restartStep) = TestUtils.pure
+
+    val stopCondition: TestState => Boolean = state => {
+      state.executed.size > 2
+    }
+
+    val repeatedWio = TestCtx2.WIO
+      .repeat(loopBody)
+      .until(stopCondition)
+      .onRestart(restartStep)
+      .done
+
+    val (_, wf)      = TestUtils.createInstance2(repeatedWio)
+    val loopProgress = wf.getProgress
+
+    loopProgress match {
+      case lp @ WIOExecutionProgress.Loop(_, _, meta, history) =>
+        history.size shouldBe 3
+
+        history.flatMap(_.result.map(_.index)).toList shouldBe List(1, 2, 4) // Seq(0,1), Restart(2), Seq(3, 4)
+
+      case other => fail(s"Expected WIOExecutionProgress.Loop, got ${other.getClass.getSimpleName} ($other)")
+    }
+  }
 }

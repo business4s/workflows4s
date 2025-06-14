@@ -119,11 +119,12 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
     // TODO all the `.provideInput` here are not good, they enlarge the graph unnecessarily.
     //  alternatively we could maybe take the input from the last history entry
     val lastHistoryState = wio.history.flatMap(_.lastState(lastSeenState)).lastOption.getOrElse(lastSeenState)
+    val nextIndex = wio.history.lastOption.map(result => result.index + 1).getOrElse(index)
     wio.current match {
       case State.Finished(_)          =>
         None // TODO better error, this should never happen
       case State.Forward(currentWio)  =>
-        recurse(currentWio, input, lastHistoryState).map({
+        recurse(currentWio, input, lastHistoryState, nextIndex).map({
           case WFExecution.Complete(newWio) =>
             newWio.output match {
               case Left(err)    => WFExecution.complete(wio.copy(history = wio.history :+ newWio), Left(err), input, newWio.index)
@@ -146,7 +147,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
           case WFExecution.Partial(newWio)  => WFExecution.Partial(wio.copy(current = State.Forward(newWio)))
         })
       case State.Backward(currentWio) =>
-        recurse(currentWio, input, lastHistoryState).map({
+        recurse(currentWio, input, lastHistoryState, nextIndex).map({
           case WFExecution.Complete(newWio) =>
             newWio.output match {
               case Left(err)    => WFExecution.complete(wio.copy(history = wio.history :+ newWio), Left(err), input, newWio.index)
