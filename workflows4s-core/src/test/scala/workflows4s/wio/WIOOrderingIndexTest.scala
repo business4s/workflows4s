@@ -55,16 +55,18 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
 
       val (id2, step2) = TestUtils.error
 
-      val step3 = TestUtils.errorHandler
+      val (id3, step3) = TestUtils.pure
 
-      val compositeWIO = (step1 >>> step2).handleErrorWith(step3)
+      val step4 = TestUtils.errorHandler >>> step3
+
+      val compositeWIO = (step1 >>> step2).handleErrorWith(step4)
       val (_, wfInstance)                         = TestUtils.createInstance2(compositeWIO)
 
       val progress = wfInstance.getProgress
 
       progress match {
         case WIOExecutionProgress.HandleError(base, handler, _, step3Result) =>
-          step3Result.map(_.index) shouldBe Some(2)
+          step3Result.map(_.index) shouldBe Some(3)
           base match {
             case WIOExecutionProgress.Sequence(steps) =>
               steps.forall(_.isExecuted) shouldBe true
