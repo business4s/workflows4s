@@ -5,7 +5,7 @@ import org.scalatest.matchers.should.Matchers
 import workflows4s.testing.TestUtils
 import workflows4s.wio.model.WIOExecutionProgress
 
-//TODO: WIO.Parallel, Loop with internal WIO.Sequence
+//TODO: WIO.Parallel
 
 class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
 
@@ -128,7 +128,7 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
     }
   }
 
-  "WIO.Loop loopBody: 2 steps, restart: 1 step" in {
+  "WIO.Loop loopBody with internal Sequence, restart: 1 step" in {
     val loopBody = TestUtils.pure._2 >>> TestUtils.pure._2
 
     val (_, restartStep) = TestUtils.pure
