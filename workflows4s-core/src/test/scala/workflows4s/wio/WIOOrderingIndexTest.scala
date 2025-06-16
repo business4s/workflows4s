@@ -4,9 +4,10 @@ import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 import workflows4s.testing.TestUtils
 import workflows4s.wio.model.WIOExecutionProgress
+import org.scalatest.compatible.Assertion
 
 //TODO: WIO.Parallel
-/* Mermaid chart of PullRequestWorkflow example: 
+/* Mermaid chart of PullRequestWorkflow example:
  * https://mermaid.live/edit#pako:eNqdkkFzmzAQhf-KZnsFDwIEWIdMZuzJrR2P21NLDwostjpCokIkaR3_98pgk7RxLznqzX5P-550gMrUCBwaZR6rvbCOfFmXWnsx4pzjE1aDw_r2QPq96JCTStpKYUCUuEfFSQmfnYdKOE4QvQr1TtRyaF9RjeCNCFE_oDIdkpVF4ZBs8eeA_YtbRMLwhoy-kxB_K-E8u9mSqITvr-47bzAz8SQkntkOmmxkh0pqJPQaFs9YMgnp-5Js8UHi45skyWyfTgLzW22sqbDvL0x8ba90BtkkZB78iHY3NhCespwN58FsEvJTV8r042Dyn8yL8Ob5kuHeKEdWpm2lI5-MI3dm0HUJz6NpPud4g8zF3gmp8F-CXSHmkn5g5f4iKiX6fo0NuWxKGqkU_xBhVGoIYGdlDdzZAQNo0bbidIRDqYl_CrfHFks4vUqNjRiU77_UR491Qn81pr2Q1gy7Pfh1VO9PQ1f7D7WWYmfFywjqGu3KV-CAs9EB-AGegCfZghbRsshzxpYsXRYB_AJOs0VCi4zmNEoZjdkyPQbwe7wzWuRRwmJWpDROMkpTdvwDedQljw
  */
 class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
@@ -14,8 +15,8 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
   "WIO.Index" - {
     "single step" in {
       val (id, wio) = TestUtils.pure
-      val (_, wf)    = TestUtils.createInstance2(wio)
-      val progress   = wf.getProgress
+      val (_, wf)   = TestUtils.createInstance2(wio)
+      val progress  = wf.getProgress
       assert(progress.result.get.index == 0)
     }
 
@@ -33,7 +34,6 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
         case _                                    => fail("Progress was not a Sequence")
       }
     }
-
 
     "3 steps" in {
       val (id1, step1) = TestUtils.pure
@@ -53,7 +53,7 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
     }
 
     "2 steps with error handling" in {
-      val (id1, step1)= TestUtils.pure
+      val (id1, step1) = TestUtils.pure
 
       val (id2, step2) = TestUtils.error
 
@@ -61,8 +61,8 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
 
       val step4 = TestUtils.errorHandler >>> step3
 
-      val compositeWIO = (step1 >>> step2).handleErrorWith(step4)
-      val (_, wfInstance)                         = TestUtils.createInstance2(compositeWIO)
+      val compositeWIO    = (step1 >>> step2).handleErrorWith(step4)
+      val (_, wfInstance) = TestUtils.createInstance2(compositeWIO)
 
       val progress = wfInstance.getProgress
 
@@ -84,8 +84,8 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
     }
 
     "WIO.FlatMap" in {
-      val (_, wioA) = TestUtils.pure
-      val (_, wioB) = TestUtils.pure
+      val (_, wioA)     = TestUtils.pure
+      val (_, wioB)     = TestUtils.pure
       val flatMappedWio = wioA.flatMap(_ => wioB)
 
       val (_, wf)  = TestUtils.createInstance2(flatMappedWio)
@@ -156,5 +156,48 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
 
       case other => fail(s"Expected WIOExecutionProgress.Loop, got ${other.getClass.getSimpleName} ($other)")
     }
+  }
+
+  "WIO.Parallel" in {
+    import TestCtx2.*
+
+    val (_, initialStep) = TestUtils.pure
+
+    val (signal1, id1, step1) = TestUtils.signal
+    val (signal2, id2, step2) = TestUtils.signal
+
+    val wio = WIO.parallel
+      .taking[TestState]
+      .withInterimState[TestState](identity)
+      .withElement(step1, _ ++ _)
+      .withElement(step2, _ ++ _)
+      .producingOutputWith((a, b) => (a ++ b).addExecuted(StepId.random))
+
+    val (_, instance) = TestUtils.createInstance2(initialStep >>> wio)
+
+    def assertIndex(id: StepId, expectedIndex: Int): Assertion = {
+      instance.getProgress match {
+        case WIOExecutionProgress.Sequence(steps) =>
+          steps(1) match {
+            case WIOExecutionProgress.Parallel(elements, result) =>
+              val targetResult = elements.map(_.result).find(_.exists(_.value.exists(_.executed.contains(id)))).get.get
+              val maxIndex = elements.flatMap(_.result.map(_.index)).max
+              assert(targetResult.index == expectedIndex)
+              assert(result.forall(_.index == maxIndex)) // if Parralel is complete, its index = max index of elements
+              
+            case other @ _                                  =>
+              fail()
+          }
+
+        case other @ _ =>
+          fail()
+      }
+    }
+
+    instance.deliverSignal(signal2, 2)
+    assertIndex(id2, 1)
+
+    instance.deliverSignal(signal1, 1)
+    assertIndex(id1, 2)
   }
 }
