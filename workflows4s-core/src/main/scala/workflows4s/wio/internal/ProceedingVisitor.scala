@@ -132,7 +132,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
                 wio.stopCondition(value) match {
                   case Right(value1)  =>
                     WFExecution.complete(
-                      wio.copy(history = wio.history :+ newWio, current = WIO.Loop.State.Finished(WIO.Executed(currentWio, Right(value), input, 0))),
+                      wio.copy(history = wio.history :+ newWio, current = WIO.Loop.State.Finished(WIO.Executed(currentWio, Right(value), input, newWio.index))),
                       Right(value1),
                       input,
                       newWio.index
