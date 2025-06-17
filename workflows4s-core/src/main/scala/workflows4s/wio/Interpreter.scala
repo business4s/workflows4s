@@ -9,7 +9,7 @@ import scala.annotation.nowarn
 object Interpreter {
 
   sealed trait EventResponse[Ctx <: WorkflowContext] {
-    def newWorkflow: Option[ActiveWorkflow[Ctx]] = this match {
+    def newWorkflow: Option[WIO.Initial[Ctx]] = this match {
       case EventResponse.Ok(newFlow)       => newFlow.some
       // TODO event is silently ignored here and runtimes have to log it.
       //   Would be good to commonize this behavior
@@ -18,13 +18,8 @@ object Interpreter {
   }
 
   object EventResponse {
-    case class Ok[Ctx <: WorkflowContext](newFlow: ActiveWorkflow[Ctx]) extends EventResponse[Ctx]
-    case class UnexpectedEvent[Ctx <: WorkflowContext]()                extends EventResponse[Ctx]
-
-    def fromOption[Ctx <: WorkflowContext](o: Option[ActiveWorkflow[Ctx]]): EventResponse[Ctx] = o match {
-      case Some(value) => Ok(value)
-      case None        => UnexpectedEvent()
-    }
+    case class Ok[Ctx <: WorkflowContext](newFlow: WIO.Initial[Ctx]) extends EventResponse[Ctx]
+    case class UnexpectedEvent[Ctx <: WorkflowContext]()             extends EventResponse[Ctx]
   }
 
   sealed trait ProceedResponse[Ctx <: WorkflowContext] {
@@ -154,11 +149,6 @@ sealed trait WFExecution[C <: WorkflowContext, -I, +E, +O <: WCState[C]] {
 
 object WFExecution {
 
-  extension [C <: WorkflowContext](wfe: WFExecution[C, Any, Nothing, WCState[C]]) {
-    def toActiveWorkflow(initialState: WCState[C]): ActiveWorkflow[C] = {
-      ActiveWorkflow(wfe.wio, initialState)
-    }
-  }
   case class Complete[C <: WorkflowContext, E, O <: WCState[C], I](wio: WIO.Executed[C, E, O, I]) extends WFExecution[C, I, E, O]
 
   case class Partial[C <: WorkflowContext, I, E, O <: WCState[C]](wio: WIO[I, E, O, C]) extends WFExecution[C, I, E, O]

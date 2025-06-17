@@ -57,7 +57,7 @@ lazy val `workflows4s-doobie` = (project in file("workflows4s-doobie"))
       "org.tpolecat"  %% "doobie-core"                     % "1.0.0-RC9",
       "com.dimafeng"  %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
       "com.dimafeng"  %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
-      "org.postgresql" % "postgresql"                      % "42.7.6"                   % Test,
+      "org.postgresql" % "postgresql"                      % "42.7.7"                   % Test,
     ),
   )
   .dependsOn(`workflows4s-core` % "compile->compile;test->test")
@@ -98,7 +98,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "org.apache.pekko"     %% "pekko-actor-testkit-typed"       % pekkoVersion               % Test,
       "com.dimafeng"         %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
       "com.dimafeng"         %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
-      "org.postgresql"        % "postgresql"                      % "42.7.6"                   % Test,
+      "org.postgresql"        % "postgresql"                      % "42.7.7"                   % Test,
     ),
     Test / parallelExecution := false, // otherwise akka clusters clash
     publish / skip           := true,
@@ -113,7 +113,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
   )
 
 lazy val commonSettings = Seq(
-  scalaVersion      := "3.7.0",
+  scalaVersion      := "3.7.1",
   scalacOptions ++= Seq("-no-indent", "-Xmax-inlines", "64", "-explain-cyclic", "-Ydebug-cyclic"),
   libraryDependencies ++= Seq(
     "org.scalatest" %% "scalatest" % "3.2.19" % Test,
