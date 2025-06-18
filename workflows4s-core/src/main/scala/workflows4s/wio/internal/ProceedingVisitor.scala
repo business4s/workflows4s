@@ -239,7 +239,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
     var branchHandled: Option[(Int, WIO[In, Err, WCState[Ctx], Ctx])] = None
 
     // calculate index based on previous executed elements (using .max), if executed elements are empty, use this.index
-    val nextIndex = wio.elements.flatMap(_.wio.asExecuted.map(_.index)).maxOption.map(_ + 1).getOrElse(index)
+    val nextIndex = GetIndexEvaluator.findMaxIndex(wio).map(_ + 1).getOrElse(index)
 
     val updatedElements = wio.elements.zipWithIndex.map { case (elem, idx) =>
       if branchHandled.isEmpty then {

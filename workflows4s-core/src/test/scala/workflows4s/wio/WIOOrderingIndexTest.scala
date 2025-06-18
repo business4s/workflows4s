@@ -243,4 +243,51 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
     }
   }
 
+
+  "WIO.Parallel pure -> signal" in {
+    import TestCtx2.*
+
+    val (signal1, _, stepSignal1) = TestUtils.signal // the signal won't be delivered to keep step1 pending
+    val (signal2, _, stepSignal2) = TestUtils.signal // the signal won't be delivered to keep step1 pending
+
+    val (_, pure1) = TestUtils.pure
+    val (_, pure2) = TestUtils.pure
+
+    val step1 = pure1 >>> stepSignal1
+    val step2 = pure2 >>> stepSignal2
+
+    val parallel = WIO.parallel
+      .taking[TestState]
+      .withInterimState[TestState](identity)
+      .withElement(step1, _ ++ _)
+      .withElement(step2, _ ++ _)
+      .producingOutputWith((a, b) => (a ++ b).addExecuted(StepId.random))
+
+    val (_, instance) = TestUtils.createInstance2(parallel)
+
+  //  instance.deliverSignal(signal1, 1)
+    //instance.deliverSignal(signal2, 2)
+
+    instance.getProgress match {
+       case WIOExecutionProgress.Parallel(elements, parallelResult) =>
+         //DEBUG this
+    // todo the first WIO.HandleSignal has index 1, which is wrong, find out why
+      instance.deliverSignal(signal1, 1)
+      assert(parallelResult.exists(_.index == 3))
+
+       case other @ _ =>
+          fail()
+    }
+    instance.getProgress match {
+       case WIOExecutionProgress.Parallel(elements, parallelResult) =>
+         //DEBUG this
+
+      instance.deliverSignal(signal2, 2)
+
+       case other @ _ =>
+          fail()
+    }
+  }
+  
+
 }
