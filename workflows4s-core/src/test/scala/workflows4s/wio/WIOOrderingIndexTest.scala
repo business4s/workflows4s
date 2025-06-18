@@ -5,6 +5,7 @@ import org.scalatest.matchers.should.Matchers
 import workflows4s.testing.TestUtils
 import workflows4s.wio.model.WIOExecutionProgress
 import org.scalatest.compatible.Assertion
+import workflows4s.wio.model.WIOExecutionProgress.Sequence
 
 /* Mermaid chart of PullRequestWorkflow example:
  * https://mermaid.live/edit#pako:eNqdkkFzmzAQhf-KZnsFDwIEWIdMZuzJrR2P21NLDwostjpCokIkaR3_98pgk7RxLznqzX5P-550gMrUCBwaZR6rvbCOfFmXWnsx4pzjE1aDw_r2QPq96JCTStpKYUCUuEfFSQmfnYdKOE4QvQr1TtRyaF9RjeCNCFE_oDIdkpVF4ZBs8eeA_YtbRMLwhoy-kxB_K-E8u9mSqITvr-47bzAz8SQkntkOmmxkh0pqJPQaFs9YMgnp-5Js8UHi45skyWyfTgLzW22sqbDvL0x8ba90BtkkZB78iHY3NhCespwN58FsEvJTV8r042Dyn8yL8Ob5kuHeKEdWpm2lI5-MI3dm0HUJz6NpPud4g8zF3gmp8F-CXSHmkn5g5f4iKiX6fo0NuWxKGqkU_xBhVGoIYGdlDdzZAQNo0bbidIRDqYl_CrfHFks4vUqNjRiU77_UR491Qn81pr2Q1gy7Pfh1VO9PQ1f7D7WWYmfFywjqGu3KV-CAs9EB-AGegCfZghbRsshzxpYsXRYB_AJOs0VCi4zmNEoZjdkyPQbwe7wzWuRRwmJWpDROMkpTdvwDedQljw
@@ -275,6 +276,38 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
        case other @ _ =>
           fail()
     }
+  }
+
+  "WIO.Fork" in {
+    val initStep = TestCtx2.WIO.pure
+      .makeFrom[Int]
+      .value(_ => TestState.empty)
+      .done
+
+    val (_, pureStep) = TestUtils.pure
+    val oddPath = initStep >>> pureStep
+    val evenPath = initStep >>> pureStep >>> pureStep// selected path
+
+    val fork  = TestCtx2.WIO
+      .fork[Int]
+      .matchCondition(_ % 2 != 0, "is input a odd number?")(
+        oddPath,
+        evenPath
+      )
+
+    val (_, instance) = TestUtils.createInstance2(fork.provideInput(42))
+    instance.getProgress match {
+      case WIOExecutionProgress.Fork(branches, meta, selected) =>
+        selected.map(branches) match {
+          case Some(WIOExecutionProgress.Sequence(steps)) =>
+            assert(steps.size == 3)
+          case _ =>
+            fail("expect WIOExecutionProgress.Sequence")
+        }
+      case _ =>
+        fail("expect WIOExecutionProgress.Fork")
+    }
+
   }
   
 

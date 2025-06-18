@@ -45,13 +45,12 @@ private[workflows4s] object GetIndexEvaluator {
     def onLoop[BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx], ReturnIn](
         wio: WIO.Loop[Ctx, In, Err, Out, BodyIn, BodyOut, ReturnIn],
     ): Result =
-      // find index in current wio first, if empty then check history 
+      // find index in current wio first, if empty then check history
       recurse(wio.current.wio).orElse(wio.history.lastOption.map(_.index))
     
 
     def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result =
-      // TODO: quick implementation, need double check
-      wio.branches.flatMap(b => recurse(b.wio)).maxOption
+      wio.selected.flatMap(idx => recurse(wio.branches(idx).wio))
 
     def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result =
       // TODO: quick implementation, need double check
