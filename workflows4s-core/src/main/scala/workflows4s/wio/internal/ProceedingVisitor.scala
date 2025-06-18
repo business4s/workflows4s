@@ -281,7 +281,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
       .map({
         case WFExecution.Complete(newWio) =>
           newWio.output match {
-            case Left(err) => WFExecution.complete(wio.copy(base = newWio), Left(err), input, index)
+            case Left(err) => WFExecution.complete(wio.copy(base = newWio), Left(err), input, newWio.index)
             case Right(_)  => WFExecution.Partial(wio.copy(base = newWio))
           }
         case WFExecution.Partial(newWio)  => WFExecution.Partial(wio.copy(base = newWio))

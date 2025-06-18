@@ -16,7 +16,6 @@ private[workflows4s] object GetIndexEvaluator {
 
     def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result = Some(wio.index)
 
-    // Leaf nodes
     def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result = None
     def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result                               = None
     def onNoop(wio: WIO.End[Ctx]): Result                                                          = None
@@ -26,7 +25,6 @@ private[workflows4s] object GetIndexEvaluator {
     def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): Result                         = None
     def onDiscarded[In1](wio: WIO.Discarded[Ctx, In1]): Result                                     = recurse(wio.original)
 
-    // Traversable nodes
     def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result          = recurse(wio.base)
     def onTransform[In1, Out1 <: WCState[Ctx], Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Result   = recurse(wio.base)
     def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result = recurse(wio.base)
@@ -35,7 +33,6 @@ private[workflows4s] object GetIndexEvaluator {
         _ <: WCState[InnerCtx],
     ] <: WCState[Ctx]](wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput]): Result = GetIndexEvaluator.findMaxIndex(wio.inner)
 
-    // Nodes with multiple branches
     def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result =
       recurse(wio.second).orElse(recurse(wio.first))
 
@@ -53,7 +50,6 @@ private[workflows4s] object GetIndexEvaluator {
       wio.selected.flatMap(idx => recurse(wio.branches(idx).wio))
 
     def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result =
-      // TODO: quick implementation, need double check
       (recurse(wio.base) ++ recurse(wio.interruption)).maxOption
 
     def onParallel[InterimState <: WCState[Ctx]](wio: WIO.Parallel[Ctx, In, Err, Out, InterimState]): Result =
