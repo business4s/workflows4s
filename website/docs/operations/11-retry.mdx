@@ -1,6 +1,7 @@
 # Retry Operations
 
-Retries enable workflows to automatically recover from transient technical failures by reattempting failed operations after a delay.
+Retries enable workflows
+to automatically recover from transient technical failures by reattempting failed operations after a delay.
 
 ## Error Types: Technical vs Business
 
@@ -16,36 +17,18 @@ Use [error handling](/docs/operations/handle-errors) for managing business error
 When a workflow is resumed (e.g. via `wakeup` on `WorkflowInstance`) and the operation fails:
 
 - **Without retry**: the error is propagated to the caller.
-- **With retry**: the error is swallowed, and a `KnockerUpper` schedules a future wakeup based on retry logic.
+- **With retry**: the error is swallowed, and a [`KnockerUpper`](/docs/runtimes/knocker-uppers/) schedules a future wakeup based on retry logic.
 
 ## Retry Strategies
 
 ### 1. Simple Retry with Fixed Delay
 
-```scala 3
-val operation = WIO.runIO( /* some operation that might fail */ )
-val withRetry = operation.retryIn {
-  case _: NetworkException => Duration.ofSeconds(30)
-  case _: TimeoutException => Duration.ofMinutes(1)
-}
-
+```scala file=./main/scala/workflows4s/example/docs/RetryExample.scala start=start_doc_simple end=end_doc_simple
 ```
 
 ### 2. Advanced Retry with Custom Logic
 
-```scala 3
-val operation = WIO.runIO( /* some operation that might fail */ )
-val withRetry = operation.retry { (error, state, now) =>
-  error match {
-    case _: NetworkException =>
-      IO.pure(Some(now.plus(Duration.ofSeconds(30))))
-    case _: TimeoutException =>
-      IO.pure(Some(now.plus(Duration.ofMinutes(1))))
-    case _                   =>
-      IO.pure(None) // Don't retry other errors
-  }
-}
-
+```scala file=./main/scala/workflows4s/example/docs/RetryExample.scala start=start_doc_full end=end_doc_full
 ```
 
 ## Caveats
@@ -65,8 +48,6 @@ To support such logic, you can:
 
 ### Choose the Right Layer
 
-Use workflow-level retries for:
-- Recovering from long-lived or external failures (e.g., service unavailability)
-- Retry schedules spanning **minutes to hours or days**
+Use workflow-level retries for retry schedules spanning **minutes to hours or days**
 
 For short-lived retries (e.g., retrying within milliseconds or seconds), prefer handling them directly inside the `IO` operation using libraries like [`cats-retry`](https://github.com/cats-effect/cats-retry).
