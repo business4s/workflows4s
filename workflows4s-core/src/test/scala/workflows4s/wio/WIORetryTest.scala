@@ -31,7 +31,7 @@ class WIORetryTest extends AnyFreeSpec with Matchers with OptionValues with Eith
 
       assert(runtime.knockerUpper.lastRegisteredWakeup(()) == None)
       retryingInstance.wakeup()
-      assert(runtime.knockerUpper.lastRegisteredWakeup == Some(runtime.clock.instant.plus(retryDelay)))
+      assert(runtime.knockerUpper.lastRegisteredWakeup(()) == Some(runtime.clock.instant.plus(retryDelay)))
     }
 
     "should rethrow when onError returns None" in {
@@ -67,7 +67,7 @@ class WIORetryTest extends AnyFreeSpec with Matchers with OptionValues with Eith
 
         // wakeup didnt throw but wakeup
         instance.wakeup()
-        assert(runtime.knockerUpper.lastRegisteredWakeup == Some(runtime.clock.instant.plus(interruptionDelay)))
+        assert(runtime.knockerUpper.lastRegisteredWakeup(()) == Some(runtime.clock.instant.plus(interruptionDelay)))
 
       }
       "should overwrite later one" in {
@@ -85,7 +85,7 @@ class WIORetryTest extends AnyFreeSpec with Matchers with OptionValues with Eith
 
         // wakeup didnt throw but wakeup
         instance.wakeup()
-        assert(runtime.knockerUpper.lastRegisteredWakeup == Some(runtime.clock.instant.plus(retryDelay)))
+        assert(runtime.knockerUpper.lastRegisteredWakeup(()) == Some(runtime.clock.instant.plus(retryDelay)))
 
       }
     }
