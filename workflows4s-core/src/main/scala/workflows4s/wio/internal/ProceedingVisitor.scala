@@ -73,7 +73,8 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
         baseExecuted.output match {
           case Left(err)    =>
             val state = baseExecuted.lastState(lastSeenState).getOrElse(lastSeenState)
-            recurse(wio.handleError, (state, err), index = baseExecuted.index + 1).map(handlerResult => {
+            val handlerIndex = Math.max(index, baseExecuted.index + 1)
+            recurse(wio.handleError, (state, err), index = handlerIndex).map(handlerResult => {
               def updateHandler(newHandler: WIO[(WCState[Ctx], ErrIn), Err, Out, Ctx]) = wio.copy(handleError = newHandler)
               handlerResult match {
                 case WFExecution.Complete(newHandler) => WFExecution.complete(updateHandler(newHandler), newHandler.output, input, newHandler.index)
@@ -103,7 +104,8 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
         firstExecuted.output match {
           case Left(err)    => WFExecution.complete(wio, Left(err), input, firstExecuted.index).some
           case Right(value) =>
-            recurse(wio.second, value, value, firstExecuted.index + 1).map({
+            val secondIndex = Math.max(index, firstExecuted.index + 1) //in case this AndThen is inside a parallel, index can be larger than firstExecuted.index + 1
+            recurse(wio.second, value, value, secondIndex).map({
               case WFExecution.Complete(newWio) =>
                 WFExecution.complete(
                   WIO.AndThen(wio.first, newWio), newWio.output, input, newWio.index)
@@ -119,7 +121,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
     // TODO all the `.provideInput` here are not good, they enlarge the graph unnecessarily.
     //  alternatively we could maybe take the input from the last history entry
     val lastHistoryState = wio.history.flatMap(_.lastState(lastSeenState)).lastOption.getOrElse(lastSeenState)
-    val nextIndex = wio.history.lastOption.map(result => result.index + 1).getOrElse(index)
+    val nextIndex        = wio.history.lastOption.map(result => Math.max(index, result.index + 1)).getOrElse(index)
     wio.current match {
       case State.Finished(_)          =>
         None // TODO better error, this should never happen
@@ -238,7 +240,6 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
     // We update that branch and leave the others unchanged.
     var branchHandled: Option[(Int, WIO[In, Err, WCState[Ctx], Ctx])] = None
 
-    // calculate index based on previous executed elements (using .max), if executed elements are empty, use this.index
     val nextIndex = GetIndexEvaluator.findMaxIndex(wio).map(_ + 1).getOrElse(index)
 
     val updatedElements = wio.elements.zipWithIndex.map { case (elem, idx) =>
