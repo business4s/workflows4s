@@ -25,7 +25,7 @@ class PostgresRuntimeAdapter[Ctx <: WorkflowContext](xa: Transactor[IO], eventCo
     val storage = PostgresWorkflowStorage()(using eventCodec)
     val runtime =
       DatabaseRuntime.default[Ctx, WorkflowId](workflow, state, xa, knockerUpper, storage, clock, registryAgent)
-    val id = WorkflowId(Random.nextLong())
+    val id      = WorkflowId(Random.nextLong())
     Actor(id, runtime.createInstance(id))
   }
 
@@ -33,7 +33,9 @@ class PostgresRuntimeAdapter[Ctx <: WorkflowContext](xa: Transactor[IO], eventCo
     first // in this runtime there is no in-memory state, hence no recovery.
   }
 
-  case class Actor(id: WorkflowId, base: IO[WorkflowInstance[IO, WCState[Ctx]]]) extends WorkflowInstance[Id, WCState[Ctx]] with Identifiable[WorkflowId]  {
+  case class Actor(id: WorkflowId, base: IO[WorkflowInstance[IO, WCState[Ctx]]])
+      extends WorkflowInstance[Id, WCState[Ctx]]
+      with Identifiable[WorkflowId] {
     import cats.effect.unsafe.implicits.global
 
     override def queryState(): WCState[Ctx] = base.flatMap(_.queryState()).unsafeRunSync()

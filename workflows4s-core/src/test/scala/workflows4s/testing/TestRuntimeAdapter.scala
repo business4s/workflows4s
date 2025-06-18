@@ -14,7 +14,7 @@ import java.time.Clock
 trait TestRuntimeAdapter[Ctx <: WorkflowContext, WfId] {
 
   protected val knockerUpper = FakeKnockerUpper[WfId]()
-  val clock: TestClock = TestClock()
+  val clock: TestClock       = TestClock()
 
   type Actor <: WorkflowInstance[Id, WCState[Ctx]] & Identifiable[WfId]
 
@@ -61,8 +61,9 @@ object TestRuntimeAdapter {
         events: Seq[WCEvent[Ctx]],
         registryAgent: WorkflowRegistry.Agent[Unit],
     ) extends WorkflowInstance[Id, WCState[Ctx]]
-        with EventIntrospection[WCEvent[Ctx]] with Identifiable[Unit] {
-      def id = ()
+        with EventIntrospection[WCEvent[Ctx]]
+        with Identifiable[Unit] {
+      def id                                      = ()
       val base: InMemorySyncWorkflowInstance[Ctx] = {
         val runtime =
           new InMemorySyncRuntime[Ctx, Unit](initialWorkflow, state, clock, knockerUpper, registryAgent)(using
@@ -100,7 +101,8 @@ object TestRuntimeAdapter {
         events: Seq[WCEvent[Ctx]],
         registryAgent: WorkflowRegistry.Agent[Unit],
     ) extends WorkflowInstance[Id, WCState[Ctx]]
-        with EventIntrospection[WCEvent[Ctx]] with Identifiable[Unit]  {
+        with EventIntrospection[WCEvent[Ctx]]
+        with Identifiable[Unit] {
       import cats.effect.unsafe.implicits.global
       val base = {
         val runtime = InMemoryRuntime.default[Ctx, Unit](workflow, state, knockerUpper, clock, registryAgent).unsafeRunSync()
@@ -109,7 +111,7 @@ object TestRuntimeAdapter {
         inst
       }
 
-      def id: Unit = ()
+      def id: Unit                                                                                                                          = ()
       override def getProgress: Id[WIOExecutionProgress[WCState[Ctx]]]                                                                      = base.getProgress.unsafeRunSync()
       override def queryState(): Id[WCState[Ctx]]                                                                                           = base.queryState().unsafeRunSync()
       override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): Id[Either[WorkflowInstance.UnexpectedSignal, Resp]] =
