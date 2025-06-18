@@ -21,7 +21,6 @@ case class WorkflowInstance(
   id: String,
   definitionId: String,
   status: InstanceStatus,
-  currentStep: Option[String],
   state: Option[Json] = None   
 )
 
@@ -351,9 +350,6 @@ object Main extends TyrianIOApp[Msg, Model] {
               )(
                 instanceField("Status", statusBadge(instance.status)),
                 instanceField("Definition", span(instance.definitionId)),
-                instance.currentStep.map(step => 
-                  instanceField("Current Step", span(step))
-                ).getOrElse(div())
               )
             ),
             
@@ -434,7 +430,6 @@ object Main extends TyrianIOApp[Msg, Model] {
       "id" -> instance.id,
       "definitionId" -> instance.definitionId,
       "status" -> instance.status.toString,
-      "currentStep" -> instance.currentStep.getOrElse("None"),
       "state" -> Map(
         "example" -> "This would contain the actual workflow state",
         "variables" -> Map(
@@ -561,11 +556,7 @@ object Main extends TyrianIOApp[Msg, Model] {
     )(status.toString)
   }
 
-  // private def formatInstant(instant: String): Html[Msg] = {
-  //   span(
-  //     style := "color: #6c757d; font-family: monospace; font-size: 0.9rem;"
-  //   )(instant.take(19).replace("T", " "))
-  // }
+  
 
   private val loadingView: Html[Msg] = {
     div(

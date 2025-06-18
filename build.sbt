@@ -127,31 +127,23 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
     ),
     publish / skip := true
   )
-  lazy val `workflows4s-web-api-server` = (project in file("workflows4s-web-api-server"))
-  .enablePlugins(JavaAppPackaging)
+
+lazy val `workflows4s-web-api-server` = (project in file("workflows4s-web-api-server"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.apache.pekko" %% "pekko-actor-typed" % pekkoVersion,
-      "org.apache.pekko" %% "pekko-http" % pekkoHttpVersion,
-      "org.apache.pekko" %% "pekko-stream" % pekkoVersion,
-      "com.softwaremill.sttp.tapir" %% "tapir-pekko-http-server" % tapirVersion,
-      "com.softwaremill.sttp.tapir" %% "tapir-swagger-ui-bundle" % tapirVersion,
+      "org.http4s" %% "http4s-ember-server" % "0.23.23",
+      "org.http4s" %% "http4s-dsl" % "0.23.23",
+      "com.softwaremill.sttp.tapir" %% "tapir-http4s-server" % tapirVersion,
       "com.softwaremill.sttp.tapir" %% "tapir-json-circe" % tapirVersion,
-      "org.apache.pekko" %% "pekko-http-cors" % pekkoHttpVersion,
-      "io.circe" %% "circe-core" % circeVersion,
       "io.circe" %% "circe-generic" % circeVersion,
-      "ch.qos.logback" % "logback-classic" % "1.4.14",
-   
-    ),
-    publish / skip := true
+      "io.circe" %% "circe-parser" % circeVersion
+    )
   )
   .dependsOn(
     `workflows4s-core`,
     `workflows4s-web-api-shared`,  
     `workflows4s-example`,
-    `workflows4s-pekko`,
-    `workflows4s-example`   
   )
  lazy val `workflows4s-web-ui` = (project in file("workflows4s-web-ui"))
   .enablePlugins(ScalaJSPlugin)

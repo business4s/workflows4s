@@ -11,7 +11,6 @@ case class WorkflowDefinition(
 case class WorkflowInstance(
   id: String,
   definitionId: String,
-  currentStep: Option[String],
   state: Option[Json] = None   
 ) derives Codec.AsObject
  

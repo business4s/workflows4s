@@ -1,10 +1,10 @@
- package workflows4s.web.api.endpoints
+package workflows4s.web.api.endpoints
 
 import sttp.tapir.*
 import sttp.tapir.generic.auto.*
 import sttp.tapir.json.circe.*
 import workflows4s.web.api.model.*
- 
+
 object WorkflowEndpoints {
 
   private val baseEndpoint = endpoint
@@ -27,22 +27,7 @@ object WorkflowEndpoints {
       .out(jsonBody[WorkflowDefinition])
       .description("Get workflow definition by ID")
 
-  //Commented out as it is not needed for now.
-  // // GET /api/v1/definitions/{id}/instances?status=Running&limit=10&offset=0
-  // val listInstances: PublicEndpoint[(String, Option[String], Option[Long], Option[Long], Option[Int], Option[Int]), String, PaginatedResponse[WorkflowInstance], Any] =
-  //   baseEndpoint
-  //     .get
-  //     .in("definitions" / path[String]("id") / "instances")
-  //     .in(query[Option[String]]("status"))
-  //     .in(query[Option[Long]]("createdAfter"))
-  //     .in(query[Option[Long]]("createdBefore"))
-  //     .in(query[Option[Int]]("limit"))
-  //     .in(query[Option[Int]]("offset"))
-  //     .out(jsonBody[PaginatedResponse[WorkflowInstance]])
-  //     .description("List workflow instances with filtering and pagination")
-
   // POST /api/v1/definitions/{workflowId}/instances/test
-
   val createTestInstanceEndpoint: PublicEndpoint[String, String, WorkflowInstance, Any] =
     baseEndpoint
       .post
@@ -56,7 +41,7 @@ object WorkflowEndpoints {
       .get
       .in("definitions" / path[String]("defId") / "instances" / path[String]("instanceId"))
       .out(jsonBody[WorkflowInstance])
-      .description("Get specific workflow instance by definition ID and instance ID")
+      .description("Get workflow instance by definition ID and instance ID")
 
   val allEndpoints = List(listDefinitions, getDefinition, getInstance, createTestInstanceEndpoint)
 }
