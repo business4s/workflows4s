@@ -19,7 +19,7 @@ lazy val `workflows4s-core` = (project in file("workflows4s-core"))
       "org.typelevel"              %% "cats-effect"     % "3.6.1",
       "co.fs2"                     %% "fs2-core"        % "3.12.0",
       "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.5",
-      "io.circe"                   %% "circe-core"      % "0.14.13", // for model serialization
+      "io.circe"                   %% "circe-core"      % "0.14.14", // for model serialization
       "io.circe"                   %% "circe-generic"   % "0.14.13", // for model serialization
       "com.lihaoyi"                %% "sourcecode"      % "0.4.2", // for auto naming
       "ch.qos.logback"              % "logback-classic" % "1.5.18" % Test,
