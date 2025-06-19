@@ -6,13 +6,13 @@ import workflows4s.testing.TestUtils
 import workflows4s.wio.TestState
 import workflows4s.wio.WIO
 import scala.util.Random
-/**
- * 2 options:
- *     - create instance, execute WIO and get progress, extract WIO from progress: invole unreleated part like Rutime,...
- *     - construct WIO structure manually: need specific builders for testing situation only
- */
+
+/** 2 options:
+  *   - Create instance, execute WIO and get progress, extract WIO from progress.
+  *   - Construct WIO structure manually: need specific builders for testing situation only
+  */
 class GetIndexEvaluatorTest extends AnyFreeSpec with Matchers {
-  import workflows4s.wio.TestCtx2.{WIO => TWIO}
+  import workflows4s.wio.TestCtx2.WIO as TWIO
 
   "GetIndexEvaluator" - {
 
@@ -25,8 +25,8 @@ class GetIndexEvaluatorTest extends AnyFreeSpec with Matchers {
       "should return the index if the node is Executed" in {
         val index = Random.nextInt()
         val state = TestState(Nil, Nil)
-        val pure = TWIO.pure(state).done
-        val wio = WIO.Executed(pure, Right(state), state, index)
+        val pure  = TWIO.pure(state).done
+        val wio   = WIO.Executed(pure, Right(state), state, index)
         GetIndexEvaluator.findMaxIndex(wio) shouldBe Some(index)
       }
     }
@@ -35,7 +35,7 @@ class GetIndexEvaluatorTest extends AnyFreeSpec with Matchers {
       "AndThen partially executed" in {
         val index = Random.nextInt()
         val state = TestState(Nil, Nil)
-        val pure = TWIO.pure(state).done
+        val pure  = TWIO.pure(state).done
 
         val step1 = WIO.Executed(pure, Right(state), state, index)
         val step2 = TestUtils.pure._2
@@ -47,8 +47,4 @@ class GetIndexEvaluatorTest extends AnyFreeSpec with Matchers {
     }
   }
 
-  // private def createExecutedNode(original: WIO[?, ?, ?, ?], input: TestState, output: Either[Nothing, TestState], index: Int): WIO.Executed[?, ?, ?, ?] = {
-  //       WIO.Executed(original, output, input, index)
-  // }
-
-} 
+}
