@@ -81,6 +81,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
   def onParallel[InterimState <: WCState[Ctx]](wio: WIO.Parallel[Ctx, In, Err, Out, InterimState]): Result
   def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): Result
   def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): Result
+  def onRetry(wio: WIO.Retry[Ctx, In, Err, Out]): Result
 
   @nowarn("msg=the type test for workflows4s.wio.WIO.Embedded")
   def run: Result = {
@@ -109,6 +110,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
       case x: WIO.Parallel[?, ?, ?, ? <: State, ? <: State]            => onParallel(x)
       case x: WIO.Checkpoint[?, ?, ?, ? <: State, ?]                   => onCheckpoint(x)
       case x: WIO.Recovery[?, ?, ?, ?, ?]                              => onRecovery(x)
+      case x: WIO.Retry[?, ?, ?, ?]                                    => onRetry(x)
     }
   }
 

@@ -200,6 +200,11 @@ object WIO {
     )
   }
 
+  case class Retry[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]](
+      base: WIO[In, Err, Out, Ctx],
+      onError: (Throwable, WCState[Ctx], Instant) => IO[Option[Instant]],
+  ) extends WIO[In, Err, Out, Ctx]
+
   // -----
 
   def build[Ctx <: WorkflowContext]: AllBuilders[Ctx] = new AllBuilders[Ctx] {}

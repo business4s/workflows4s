@@ -10,8 +10,8 @@ import org.apache.pekko.util.Timeout
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import workflows4s.runtime.WorkflowInstance
 import workflows4s.runtime.registry.WorkflowRegistry
-import workflows4s.runtime.wakeup.NoOpKnockerUpper
 import workflows4s.testing.TestRuntimeAdapter
+import workflows4s.testing.TestRuntimeAdapter.Identifiable
 import workflows4s.wio.*
 import workflows4s.wio.model.WIOExecutionProgress
 
@@ -33,7 +33,6 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(impli
   override def runWorkflow(
       workflow: WIO.Initial[Ctx],
       state: WCState[Ctx],
-      clock: Clock,
       registryAgent: WorkflowRegistry.Agent[String],
   ): Actor = {
     // we create unique type key per workflow, so we can ensure we get right actor/behavior/input
@@ -71,16 +70,16 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(impli
   }
 
   case class Actor(entityRef: EntityRef[Cmd], clock: Clock, registryAgent: WorkflowRegistry.Agent.Curried)
-      extends WorkflowInstance[Id, WCState[Ctx]] {
+      extends WorkflowInstance[Id, WCState[Ctx]]
+      with Identifiable[String] {
     val base =
-      PekkoWorkflowInstance(entityRef, NoOpKnockerUpper.Agent, clock, registryAgent, stateQueryTimeout = Timeout(1.second))
+      PekkoWorkflowInstance(entityRef, knockerUpper.curried(id), clock, registryAgent, stateQueryTimeout = Timeout(1.second))
 
+    def id: String                              = entityRef.entityId
     override def queryState(): Id[WCState[Ctx]] = base.queryState().await
 
     override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): Id[Either[WorkflowInstance.UnexpectedSignal, Resp]] = {
-      val resp = base.deliverSignal(signalDef, req).await
-      wakeup()
-      resp
+      base.deliverSignal(signalDef, req).await
     }
 
     override def getProgress: Id[WIOExecutionProgress[WCState[Ctx]]] = base.getProgress.await

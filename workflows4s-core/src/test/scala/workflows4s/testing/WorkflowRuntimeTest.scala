@@ -63,7 +63,7 @@ object WorkflowRuntimeTest {
 
           expectRegistryEntry(ExecutionStatus.Awaiting)
 
-          clock.advanceBy(duration)
+          runtime.clock.advanceBy(duration)
           wf.wakeup()
 
           expectRegistryEntry(ExecutionStatus.Finished)
@@ -73,8 +73,7 @@ object WorkflowRuntimeTest {
 
       trait Fixture {
         val runtime  = getRuntime
-        val clock    = new TestClock
-        val registry = InMemoryWorkflowRegistry[WfId](clock).unsafeRunSync()
+        val registry = InMemoryWorkflowRegistry[WfId](runtime.clock).unsafeRunSync()
         val wfType   = "wf1"
 
         def expectRegistryEntry(status: ExecutionStatus)                     = {
@@ -83,7 +82,7 @@ object WorkflowRuntimeTest {
           assert(registeredWorkflows.head.status == status)
         }
         def createInstance(wio: TestCtx2.WIO[TestState, Nothing, TestState]) = {
-          runtime.runWorkflow(wio.provideInput(TestState.empty), TestState.empty, clock, registry.getAgent(wfType))
+          runtime.runWorkflow(wio.provideInput(TestState.empty), TestState.empty, registry.getAgent(wfType))
         }
       }
 
