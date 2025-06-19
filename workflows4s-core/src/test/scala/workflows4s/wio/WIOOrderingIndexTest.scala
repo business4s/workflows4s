@@ -328,12 +328,61 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
     }
   }
 
-  "WIO.HandleInteruption" in {
-    //TODO:
+  "WIO.HandleInterruption" in {
+    // 1. Setup a base workflow that waits for a signal
+    val (_, _, handleSignalA) = TestUtils.signal
+
+    // 2. Setup an interruption that fires after a timer and executes a simple step
+    val (timerDuration, timer) = TestUtils.timer()
+    val (interruptionStepId, interruptionStep) = TestUtils.pure
+    val timerInterruption = timer.toInterruption.andThen(_ >>> interruptionStep)
+
+    // 3. Create the interruptible workflow
+    val wio = handleSignalA.interruptWith(timerInterruption)
+    val (clock, instance) = TestUtils.createInstance2(wio)
+
+    // 4. Trigger the interruption by advancing the clock
+    instance.wakeup() // Starts the timer
+    clock.advanceBy(timerDuration)
+    instance.wakeup() // Processes the timer firing, which runs the interruption step
+
+    // 5. Verify the execution progress and indices
+    instance.getProgress match {
+      case WIOExecutionProgress.Interruptible(base, trigger, handlerOpt, result) =>
+        trigger.result.map(_.index) shouldBe Some(0)
+
+        val handler = handlerOpt.getOrElse(fail("Handler was not defined"))
+        handler.result.map(_.index) shouldBe Some(1)
+
+        result.map(_.index) shouldBe Some(1)
+
+        // The base logic should not have been executed
+        base.isExecuted shouldBe false
+
+      case other => fail(s"Expected WIOExecutionProgress.Interruptible")
+    }
+
+    instance.queryState().executed shouldBe List(interruptionStepId)
   }
   
-  "WIO.RunIO" in {
-    //TODO:
+  "WIO.RunIO (index is implemented in EventEvaluator)" in {
+    val (pureStepId, pureStep) = TestUtils.pure
+    val (runIoStepId, runIoStep) = TestUtils.runIO
+
+    val wio = pureStep >>> runIoStep
+    val (_, instance) = TestUtils.createInstance2(wio)
+
+    instance.wakeup()
+
+    instance.getProgress match {
+      case WIOExecutionProgress.Sequence(steps) =>
+        steps.size shouldBe 2
+        steps(0).result.map(_.index) shouldBe Some(0)
+        steps(1).result.map(_.index) shouldBe Some(1)
+      case other => fail(s"Expected WIOExecutionProgress.Sequence, got $other")
+    }
+
+    instance.queryState().executed shouldBe List(pureStepId, runIoStepId)
   }
 
 }
