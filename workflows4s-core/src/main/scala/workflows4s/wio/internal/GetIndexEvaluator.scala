@@ -44,7 +44,6 @@ private[workflows4s] object GetIndexEvaluator {
     ): Result =
       // find index in current wio first, if empty then check history
       recurse(wio.current.wio).orElse(wio.history.lastOption.map(_.index))
-    
 
     def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result =
       wio.selected.flatMap(idx => recurse(wio.branches(idx).wio))
@@ -59,4 +58,3 @@ private[workflows4s] object GetIndexEvaluator {
       new GetIndexVisitor(wio).run
   }
 }
-

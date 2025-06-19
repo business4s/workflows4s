@@ -9,7 +9,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
     wio: WIO[In, Err, Out, Ctx],
     input: In,
     lastSeenState: WCState[Ctx],
-    index: Int
+    index: Int,
 ) extends Visitor[Ctx, In, Err, Out](wio) {
   type NewWf           = WFExecution[Ctx, In, Err, Out]
   override type Result = Option[NewWf]
@@ -36,7 +36,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
           WIO.Transform(newWio, wio.contramapInput, wio.mapOutput),
           wio.mapOutput(input, newWio.output),
           input,
-          newWio.index
+          newWio.index,
         )
       case WFExecution.Partial(newWio)  =>
         WFExecution.Partial[Ctx, In, Err, Out](WIO.Transform(newWio, wio.contramapInput, (_, out) => wio.mapOutput(input, out)))
@@ -72,7 +72,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
       case Some(baseExecuted) =>
         baseExecuted.output match {
           case Left(err)    =>
-            val state = baseExecuted.lastState(lastSeenState).getOrElse(lastSeenState)
+            val state        = baseExecuted.lastState(lastSeenState).getOrElse(lastSeenState)
             val handlerIndex = Math.max(index, baseExecuted.index + 1)
             recurse(wio.handleError, (state, err), index = handlerIndex).map(handlerResult => {
               def updateHandler(newHandler: WIO[(WCState[Ctx], ErrIn), Err, Out, Ctx]) = wio.copy(handleError = newHandler)
@@ -104,11 +104,11 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
         firstExecuted.output match {
           case Left(err)    => WFExecution.complete(wio, Left(err), input, firstExecuted.index).some
           case Right(value) =>
-            val secondIndex = Math.max(index, firstExecuted.index + 1) //in case this AndThen is inside a parallel, index can be larger than firstExecuted.index + 1
+            val secondIndex =
+              Math.max(index, firstExecuted.index + 1) // in case this AndThen is inside a parallel, index can be larger than firstExecuted.index + 1
             recurse(wio.second, value, value, secondIndex).map({
               case WFExecution.Complete(newWio) =>
-                WFExecution.complete(
-                  WIO.AndThen(wio.first, newWio), newWio.output, input, newWio.index)
+                WFExecution.complete(WIO.AndThen(wio.first, newWio), newWio.output, input, newWio.index)
               case WFExecution.Partial(newWio)  => WFExecution.Partial(WIO.AndThen(firstExecuted, newWio))
             })
         }
@@ -134,10 +134,13 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
                 wio.stopCondition(value) match {
                   case Right(value1)  =>
                     WFExecution.complete(
-                      wio.copy(history = wio.history :+ newWio, current = WIO.Loop.State.Finished(WIO.Executed(currentWio, Right(value), input, newWio.index))),
+                      wio.copy(
+                        history = wio.history :+ newWio,
+                        current = WIO.Loop.State.Finished(WIO.Executed(currentWio, Right(value), input, newWio.index)),
+                      ),
                       Right(value1),
                       input,
-                      newWio.index
+                      newWio.index,
                     )
                   case Left(returnIn) =>
                     WFExecution.Partial(
@@ -178,13 +181,15 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
         val branch    = wio.branches(selectedIdx)
         val branchOut = branch.condition(input).get
         recurse(branch.wio, branchOut).map({
-          case WFExecution.Complete(wio) => WFExecution.complete(updateSelectedBranch(Matching(selectedIdx, branchOut, wio)), wio.output, input, wio.index)
+          case WFExecution.Complete(wio) =>
+            WFExecution.complete(updateSelectedBranch(Matching(selectedIdx, branchOut, wio)), wio.output, input, wio.index)
           case WFExecution.Partial(wio)  => WFExecution.Partial(updateSelectedBranch(Matching(selectedIdx, branchOut, wio)))
         })
       case None              =>
         selectMatching(wio, input).flatMap({ selected =>
           recurse(selected.wio, selected.input).map({
-            case WFExecution.Complete(newWio) => WFExecution.complete(updateSelectedBranch(selected.copy(wio = newWio)), newWio.output, input, newWio.index)
+            case WFExecution.Complete(newWio) =>
+              WFExecution.complete(updateSelectedBranch(selected.copy(wio = newWio)), newWio.output, input, newWio.index)
             case WFExecution.Partial(newWio)  => WFExecution.Partial(updateSelectedBranch(selected.copy(wio = newWio)))
           })
         })
@@ -263,14 +268,15 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
 
     val maybeStates: Either[Err, Seq[Option[WCState[Ctx]]]] = updatedElements.traverse(elem => elem.wio.asExecuted.traverse(_.output))
     val newWio                                              = wio.copy(elements = updatedElements)
-    val maybeLastIndex = branchHandled.flatMap(_._2.asExecuted.map(_.index)) // in case of completion, index for WIO.Parallel will be the index of last executed element
+    val maybeLastIndex                                      =
+      branchHandled.flatMap(_._2.asExecuted.map(_.index)) // in case of completion, index for WIO.Parallel will be the index of last executed element
     maybeStates match {
-      case Left(err)   => 
+      case Left(err)   =>
         Some(WFExecution.complete(newWio, Left(err), input, maybeLastIndex.get)) // is .get safe?
       case Right(opts) =>
         opts.sequence match {
-          case Some(states) => 
-            Some(WFExecution.complete(newWio, Right(wio.formResult(states)), input, maybeLastIndex.get)) // is .get safe? 
+          case Some(states) =>
+            Some(WFExecution.complete(newWio, Right(wio.formResult(states)), input, maybeLastIndex.get)) // is .get safe?
           case None         => Some(WFExecution.Partial(newWio))
         }
     }
@@ -292,6 +298,6 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
       wio: WIO[I1, E1, O1, Ctx],
       in: I1,
       state: WCState[Ctx] = lastSeenState,
-      index: Int = index
+      index: Int = index,
   ): Option[WFExecution[Ctx, I1, E1, O1]]
 }

@@ -9,7 +9,7 @@ object EventEvaluator {
   def handleEvent[Ctx <: WorkflowContext](
       event: WCEvent[Ctx],
       wio: WIO[Any, Nothing, WCState[Ctx], Ctx],
-      state: WCState[Ctx]
+      state: WCState[Ctx],
   ): EventResponse[Ctx] = {
     val visitor: EventVisitor[Ctx, Any, Nothing, WCState[Ctx]] = new EventVisitor(wio, event, state, state, 0)
     visitor.run
@@ -22,7 +22,7 @@ object EventEvaluator {
       event: WCEvent[Ctx],
       input: In,
       lastSeenState: WCState[Ctx],
-      index: Int
+      index: Int,
   ) extends ProceedingVisitor[Ctx, In, Err, Out](wio, input, lastSeenState, index) {
 
     def doHandle[Evt](handler: EventHandler[In, Either[Err, Out], WCEvent[Ctx], Evt]): Result =
@@ -60,7 +60,12 @@ object EventEvaluator {
       doHandle(wio.eventHandler.map(_.asRight)).orElse(handleCheckpointBase(wio))
     }
 
-    def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], in: I1, state: WCState[Ctx], index: Int): EventVisitor[Ctx, I1, E1, O1]#Result =
+    def recurse[I1, E1, O1 <: WCState[Ctx]](
+        wio: WIO[I1, E1, O1, Ctx],
+        in: I1,
+        state: WCState[Ctx],
+        index: Int,
+    ): EventVisitor[Ctx, I1, E1, O1]#Result =
       new EventVisitor(wio, event, in, state, index).run
 
   }

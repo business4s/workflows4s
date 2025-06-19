@@ -12,7 +12,7 @@ object ProceedEvaluator {
   def proceed[Ctx <: WorkflowContext](
       wio: WIO[Any, Nothing, WCState[Ctx], Ctx],
       state: WCState[Ctx],
-      now: Instant
+      now: Instant,
   ): Response[Ctx] = {
     val visitor: ProceedVisitor[Ctx, Any, Nothing, WCState[Ctx]] = new ProceedVisitor(wio, state, state, now, 0)
     Response(visitor.run.map(_.wio))
@@ -49,7 +49,12 @@ object ProceedEvaluator {
       handleCheckpointBase(wio)
     }
 
-    def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], in: I1, state: WCState[Ctx], index: Int): Option[WFExecution[Ctx, I1, E1, O1]] =
+    def recurse[I1, E1, O1 <: WCState[Ctx]](
+        wio: WIO[I1, E1, O1, Ctx],
+        in: I1,
+        state: WCState[Ctx],
+        index: Int,
+    ): Option[WFExecution[Ctx, I1, E1, O1]] =
       new ProceedVisitor(wio, in, state, now, index).run
 
   }

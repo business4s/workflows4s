@@ -131,7 +131,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
             wio.copy(inner = newWio),
             newWio.output.map(wio.embedding.convertState(_, input)),
             input,
-            newWio.index
+            newWio.index,
           ),
         )
       case WFExecution.Partial(newWio)  =>

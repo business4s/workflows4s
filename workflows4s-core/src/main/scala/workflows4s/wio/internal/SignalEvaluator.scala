@@ -33,7 +33,7 @@ object SignalEvaluator {
 
     def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result = {
       if signalDef.id == wio.sigDef.id then {
-        val expectedReqOpt = wio.sigDef.reqCt.unapply(req)
+        val expectedReqOpt      = wio.sigDef.reqCt.unapply(req)
         if expectedReqOpt.isEmpty then {
           logger.warn(
             s"""Request passed to signal handler doesn't have the type expected by the handler. This should not happen, please report it as a bug.
@@ -44,7 +44,7 @@ object SignalEvaluator {
         }
         val castedLastSeenState = lastSeenState.asInstanceOf[In]
 
-        val responseOpt    = expectedReqOpt
+        val responseOpt = expectedReqOpt
           .map(wio.sigHandler.handle(castedLastSeenState, _))
           .map(evtIo =>
             for {

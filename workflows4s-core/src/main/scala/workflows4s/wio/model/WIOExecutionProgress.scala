@@ -14,16 +14,15 @@ sealed trait WIOExecutionProgress[+State] {
 object WIOExecutionProgress {
 
   case class ExecutedResult[+State](
-    value: Either[Any, State],  // Left = error, Right = successful state
-    index: Int               // Sequence number of this execution step
+      value: Either[Any, State],
+      index: Int,
   ) {
     def mapValue[NewState](f: State => Option[NewState]): Option[ExecutedResult[NewState]] = {
       value.traverse(f).map(newValue => copy(value = newValue))
     }
 
   }
-  
-  // type ExecutionResult[+State] = Option[Either[Any, State]]
+
   type ExecutionResult[+State] = Option[ExecutedResult[State]]
 
   sealed trait Interruption[+State] extends WIOExecutionProgress[State] {
@@ -49,15 +48,15 @@ object WIOExecutionProgress {
   case class RunIO[State](meta: WIOMeta.RunIO, result: ExecutionResult[State]) extends WIOExecutionProgress[State] {
     override lazy val toModel: WIOModel                                                      = WIOModel.RunIO(meta)
     override def map[NewState](f: State => Option[NewState]): WIOExecutionProgress[NewState] =
-       RunIO(meta, result.flatMap(_.mapValue(f)))
-    
+      RunIO(meta, result.flatMap(_.mapValue(f)))
+
   }
 
   case class HandleSignal[State](meta: WIOMeta.HandleSignal, result: ExecutionResult[State])
       extends WIOExecutionProgress[State]
       with Interruption[State] {
     override lazy val toModel: WIOModel.Interruption                                 = WIOModel.HandleSignal(meta)
-    override def map[NewState](f: State => Option[NewState]): Interruption[NewState] = 
+    override def map[NewState](f: State => Option[NewState]): Interruption[NewState] =
       HandleSignal(meta, result.flatMap(_.mapValue(f)))
   }
 
