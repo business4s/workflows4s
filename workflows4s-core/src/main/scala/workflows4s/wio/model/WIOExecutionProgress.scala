@@ -13,7 +13,17 @@ sealed trait WIOExecutionProgress[+State] {
 
 object WIOExecutionProgress {
 
-  type ExecutionResult[+State] = Option[Either[Any, State]]
+  case class ExecutedResult[+State](
+      value: Either[Any, State],
+      index: Int,
+  ) {
+    def mapValue[NewState](f: State => Option[NewState]): Option[ExecutedResult[NewState]] = {
+      value.traverse(f).map(newValue => copy(value = newValue))
+    }
+
+  }
+
+  type ExecutionResult[+State] = Option[ExecutedResult[State]]
 
   sealed trait Interruption[+State] extends WIOExecutionProgress[State] {
     def toModel: WIOModel.Interruption
@@ -37,14 +47,17 @@ object WIOExecutionProgress {
 
   case class RunIO[State](meta: WIOMeta.RunIO, result: ExecutionResult[State]) extends WIOExecutionProgress[State] {
     override lazy val toModel: WIOModel                                                      = WIOModel.RunIO(meta)
-    override def map[NewState](f: State => Option[NewState]): WIOExecutionProgress[NewState] = RunIO(meta, result.flatMap(_.traverse(f)))
+    override def map[NewState](f: State => Option[NewState]): WIOExecutionProgress[NewState] =
+      RunIO(meta, result.flatMap(_.mapValue(f)))
+
   }
 
   case class HandleSignal[State](meta: WIOMeta.HandleSignal, result: ExecutionResult[State])
       extends WIOExecutionProgress[State]
       with Interruption[State] {
     override lazy val toModel: WIOModel.Interruption                                 = WIOModel.HandleSignal(meta)
-    override def map[NewState](f: State => Option[NewState]): Interruption[NewState] = HandleSignal(meta, result.flatMap(_.traverse(f)))
+    override def map[NewState](f: State => Option[NewState]): Interruption[NewState] =
+      HandleSignal(meta, result.flatMap(_.mapValue(f)))
   }
 
   case class HandleError[State](
@@ -55,18 +68,18 @@ object WIOExecutionProgress {
   ) extends WIOExecutionProgress[State] {
     override lazy val toModel: WIOModel                                                      = WIOModel.HandleError(base.toModel, handler.toModel, meta)
     override def map[NewState](f: State => Option[NewState]): WIOExecutionProgress[NewState] =
-      HandleError(base.map(f), handler.map(f), meta, result.flatMap(_.traverse(f)))
+      HandleError(base.map(f), handler.map(f), meta, result.flatMap(_.mapValue(f)))
   }
 
   case class End[State](result: ExecutionResult[State]) extends WIOExecutionProgress[State] {
     override lazy val toModel: WIOModel = WIOModel.End
 
-    override def map[NewState](f: State => Option[NewState]): WIOExecutionProgress[NewState] = End(result.flatMap(_.traverse(f)))
+    override def map[NewState](f: State => Option[NewState]): WIOExecutionProgress[NewState] = End(result.flatMap(_.mapValue(f)))
   }
 
   case class Pure[State](meta: WIOMeta.Pure, result: ExecutionResult[State]) extends WIOExecutionProgress[State] {
     override lazy val toModel: WIOModel                                                      = WIOModel.Pure(meta)
-    override def map[NewState](f: State => Option[NewState]): WIOExecutionProgress[NewState] = Pure(meta, result.flatMap(_.traverse(f)))
+    override def map[NewState](f: State => Option[NewState]): WIOExecutionProgress[NewState] = Pure(meta, result.flatMap(_.mapValue(f)))
   }
 
   case class Loop[State](
@@ -99,29 +112,29 @@ object WIOExecutionProgress {
     assert(!(base.isExecuted && trigger.isExecuted), "only one of base and trigger should be executed")
     override lazy val toModel: WIOModel                                               = WIOModel.Interruptible(base.toModel, trigger.toModel, handler.map(_.toModel))
     override def map[NewState](f: State => Option[NewState]): Interruptible[NewState] =
-      Interruptible(base.map(f), trigger.map(f), handler.map(_.map(f)), result.flatMap(_.traverse(f)))
+      Interruptible(base.map(f), trigger.map(f), handler.map(_.map(f)), result.flatMap(_.mapValue(f)))
   }
 
   case class Timer[State](meta: WIOMeta.Timer, result: ExecutionResult[State]) extends WIOExecutionProgress[State] with Interruption[State] {
     override lazy val toModel: WIOModel.Interruption                          = WIOModel.Timer(meta)
-    override def map[NewState](f: State => Option[NewState]): Timer[NewState] = Timer(meta, result.flatMap(_.traverse(f)))
+    override def map[NewState](f: State => Option[NewState]): Timer[NewState] = Timer(meta, result.flatMap(_.mapValue(f)))
   }
 
   case class Parallel[State](elements: Seq[WIOExecutionProgress[State]], result: ExecutionResult[State]) extends WIOExecutionProgress[State] {
     override lazy val toModel: WIOModel.Parallel                                 = WIOModel.Parallel(elements.map(_.toModel))
     override def map[NewState](f: State => Option[NewState]): Parallel[NewState] =
-      Parallel(elements.map(_.map(f)), result.flatMap(_.traverse(f)))
+      Parallel(elements.map(_.map(f)), result.flatMap(_.mapValue(f)))
   }
 
   case class Checkpoint[State](base: WIOExecutionProgress[State], result: ExecutionResult[State]) extends WIOExecutionProgress[State] {
     override lazy val toModel: WIOModel.Checkpoint                                 = WIOModel.Checkpoint(base.toModel)
     override def map[NewState](f: State => Option[NewState]): Checkpoint[NewState] =
-      Checkpoint(base.map(f), result.flatMap(_.traverse(f)))
+      Checkpoint(base.map(f), result.flatMap(_.mapValue(f)))
   }
   case class Recovery[State](result: ExecutionResult[State])                                      extends WIOExecutionProgress[State] {
     override lazy val toModel: WIOModel.Recovery                                 = WIOModel.Recovery()
     override def map[NewState](f: State => Option[NewState]): Recovery[NewState] =
-      Recovery(result.flatMap(_.traverse(f)))
+      Recovery(result.flatMap(_.mapValue(f)))
   }
 
   def fromModel(model: WIOModel): WIOExecutionProgress[Nothing]                                               = model match {

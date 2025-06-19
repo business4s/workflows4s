@@ -100,7 +100,7 @@ object DebugRenderer {
       case x: WIOExecutionProgress.Checkpoint[?]    => renderChildren("base" -> x.base)
       case x: WIOExecutionProgress.Recovery[?]      => Seq()
     }
-    val effectiveDescription = if model.isExecuted then s"Executed: ${model.result.get.merge}" else description.getOrElse("")
+    val effectiveDescription = if model.isExecuted then s"Executed: ${model.result.get.value.merge}" else description.getOrElse("")
     val effectiveChildren    = if model.isExecuted then Seq() else children
     formatNode(s"$tpe", name.getOrElse("no-name"), effectiveDescription, effectiveChildren)
   }
