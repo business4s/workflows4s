@@ -14,10 +14,10 @@ Use [error handling](/docs/operations/handle-errors) for managing business error
 
 ## How Retry Works
 
-When a workflow is resumed (e.g. via `wakeup` on `WorkflowInstance`) and the operation fails:
+When the `WorkflowInstance#wakeup` is called and the underlying operation fails:
 
 - **Without retry**: the error is propagated to the caller.
-- **With retry**: the error is swallowed, and a [`KnockerUpper`](/docs/runtimes/knocker-uppers/) schedules a future wakeup based on retry logic.
+- **With retry**: the error is swallowed, and a future wakeup is registered within [`KnockerUpper`](/docs/runtimes/knocker-uppers/) based on retry logic.
 
 ## Retry Strategies
 
@@ -41,10 +41,13 @@ This means you can't directly express rules like:
 
 - "Retry at most 5 times"
 - "Stop after 1 day"
+- "Increase backoff time exponentially"
 
 To support such logic, you can:
 - Use custom persistent state to track retry metadata and query it in the retry handler.
 - Manually clear the scheduled wakeup time via the `KnockerUpper` to stop future retries.
+
+If you see it as a major limitation, please reach out.
 
 ### Choose the Right Layer
 
