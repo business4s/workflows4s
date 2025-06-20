@@ -1,44 +1,41 @@
  package workflows4s.web.api.server
 
 import sttp.tapir.server.ServerEndpoint
-import workflows4s.web.api.endpoints.WorkflowEndpoints
-import workflows4s.web.api.service.WorkflowApiService
-import workflows4s.web.api.model.*
-import java.time.Instant
-import scala.concurrent.Future
+import cats.effect.IO
+import workflows4s.web.api.endpoints.WorkflowEndpoints  
+import workflows4s.web.api.service.RealWorkflowService 
+import workflows4s.web.api.model.WorkflowInstance       
+import io.circe.Json                                   
 
-class WorkflowServerEndpoints(service: WorkflowApiService) {
-  
-  // Helper function to parse query parameters
-  private def parseInstancesQuery(id: String, status: Option[String], createdAfter: Option[Long], 
-                                 createdBefore: Option[Long], limit: Option[Int], offset: Option[Int]) = {
-    val parsedStatus = status.flatMap(s => InstanceStatus.values.find(_.toString.equalsIgnoreCase(s)))
-    val filter = InstancesFilter(
-      status = parsedStatus,
-      createdAfter = createdAfter.map(Instant.ofEpochMilli),
-      createdBefore = createdBefore.map(Instant.ofEpochMilli),
-      limit = limit,
-      offset = offset
+class WorkflowServerEndpoints(workflowService: RealWorkflowService) {
+
+  private def createTestInstanceLogic(workflowId: String): Either[String, WorkflowInstance] = {
+    val state = Json.obj(
+      "workflow_id" -> Json.fromString(workflowId),
+      "timestamp" -> Json.fromString(java.time.Instant.now().toString),
+      "test_data" -> Json.fromBoolean(true),
+      "status" -> Json.fromString("initialized")
     )
-    service.listInstances(id, filter)
+
+    Right(WorkflowInstance(
+      id = s"test-instance-${System.currentTimeMillis()}",
+      definitionId = workflowId,
+      state = Some(state)
+    ))
   }
 
-  def endpoints: List[ServerEndpoint[Any, Future]] = List(
-    // First endpoint: List all definitions
-    WorkflowEndpoints.listDefinitions.serverLogic(_ => service.listDefinitions()),
-    
-    // Second endpoint: Get definition by ID
-    WorkflowEndpoints.getDefinition.serverLogic(id => service.getDefinition(id)),
-    
-    // Third endpoint: List instances with filtering
-    WorkflowEndpoints.listInstances.serverLogic { 
-      case (id, status, createdAfter, createdBefore, limit, offset) => 
-        parseInstancesQuery(id, status, createdAfter, createdBefore, limit, offset)
-    },
-    
-    // Fourth endpoint: Get specific instance
-    WorkflowEndpoints.getInstance.serverLogic { 
-      case (defId, instanceId) => service.getInstance(defId, instanceId) 
-    }
+  val endpoints: List[ServerEndpoint[Any, IO]] = List(
+    WorkflowEndpoints.listDefinitions.serverLogic(_ => workflowService.listDefinitions()),
+    WorkflowEndpoints.getDefinition.serverLogic(workflowId => workflowService.getDefinition(workflowId)),
+    WorkflowEndpoints.getInstance.serverLogic((workflowId, instanceId) => {
+      if (instanceId.startsWith("test-instance-")) {
+        IO.pure(createTestInstanceLogic(workflowId).map(instance => instance.copy(id = instanceId)))
+      } else {
+        workflowService.getInstance(workflowId, instanceId)
+      }
+    }),
+    WorkflowEndpoints.createTestInstanceEndpoint.serverLogic(workflowId => {
+      IO.pure(createTestInstanceLogic(workflowId))
+    })
   )
 }
