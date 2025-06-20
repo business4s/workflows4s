@@ -1,10 +1,11 @@
 package workflows4s.wio
 
 import cats.effect.IO
+import cats.implicits.catsSyntaxOptionId
 import workflows4s.wio.WIO.HandleInterruption.InterruptionType
 import workflows4s.wio.WIO.Timer.DurationSource
 import workflows4s.wio.builders.AllBuilders
-import workflows4s.wio.internal.{EventHandler, SignalHandler, WorkflowEmbedding}
+import workflows4s.wio.internal.{EventHandler, GetStateEvaluator, SignalHandler, WorkflowEmbedding}
 
 import java.time.{Duration, Instant}
 import scala.language.implicitConversions
@@ -163,6 +164,9 @@ object WIO {
       val releaseTime   = started.at.plus(awaitDuration)
       releaseTime
     }
+
+    def toInterruption(using ev: WCState[Ctx] <:< In): Interruption[Ctx, Err, Out] =
+      WIO.Interruption(ev.substituteContra[[t] =>> WIO[t, Err, Out, Ctx]](this), InterruptionType.Timer)
   }
 
   case class AwaitingTime[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]](
@@ -216,7 +220,12 @@ object WIO {
   }
 
   case class Executed[Ctx <: WorkflowContext, +Err, +Out <: WCState[Ctx], In](original: WIO[In, ?, ?, Ctx], output: Either[Err, Out], input: In)
-      extends WIO[Any, Err, Out, Ctx]
+      extends WIO[Any, Err, Out, Ctx] {
+    def lastState(prevState: WCState[Ctx]): Option[WCState[Ctx]] = output match {
+      case Left(_)      => GetStateEvaluator.extractLastState(original, input, prevState)
+      case Right(value) => value.some
+    }
+  }
 
   case class Discarded[Ctx <: WorkflowContext, In](original: WIO[In, ?, ?, Ctx], input: In) extends WIO[Any, Nothing, Nothing, Ctx]
 

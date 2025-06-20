@@ -68,7 +68,8 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
       case Some(baseExecuted) =>
         baseExecuted.output match {
           case Left(err)    =>
-            recurse(wio.handleError, (lastSeenState, err)).map(handlerResult => {
+            val state = baseExecuted.lastState(lastSeenState).getOrElse(lastSeenState)
+            recurse(wio.handleError, (state, err)).map(handlerResult => {
               def updateHandler(newHandler: WIO[(WCState[Ctx], ErrIn), Err, Out, Ctx]) = wio.copy(handleError = newHandler)
               handlerResult match {
                 case WFExecution.Complete(newHandler) => WFExecution.complete(updateHandler(newHandler), newHandler.output, input)
@@ -111,12 +112,12 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
   def onLoop[BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx], ReturnIn](wio: WIO.Loop[Ctx, In, Err, Out, BodyIn, BodyOut, ReturnIn]): Result = {
     // TODO all the `.provideInput` here are not good, they enlarge the graph unnecessarily.
     //  alternatively we could maybe take the input from the last history entry
-    val lastState = wio.history.lastOption.flatMap(_.output.toOption).getOrElse(lastSeenState)
+    val lastHistoryState = wio.history.flatMap(_.lastState(lastSeenState)).lastOption.getOrElse(lastSeenState)
     wio.current match {
       case State.Finished(_)          =>
         None // TODO better error, this should never happen
       case State.Forward(currentWio)  =>
-        recurse(currentWio, input, lastState).map({
+        recurse(currentWio, input, lastHistoryState).map({
           case WFExecution.Complete(newWio) =>
             newWio.output match {
               case Left(err)    => WFExecution.complete(wio.copy(history = wio.history :+ newWio), Left(err), input)
@@ -138,7 +139,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
           case WFExecution.Partial(newWio)  => WFExecution.Partial(wio.copy(current = State.Forward(newWio)))
         })
       case State.Backward(currentWio) =>
-        recurse(currentWio, input, lastState).map({
+        recurse(currentWio, input, lastHistoryState).map({
           case WFExecution.Complete(newWio) =>
             newWio.output match {
               case Left(err)    => WFExecution.complete(wio.copy(history = wio.history :+ newWio), Left(err), input)

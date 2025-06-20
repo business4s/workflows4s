@@ -13,8 +13,7 @@ object EventEvaluator {
   ): EventResponse[Ctx] = {
     val visitor: EventVisitor[Ctx, Any, Nothing, WCState[Ctx]] = new EventVisitor(wio, event, state, state)
     visitor.run
-      .map(wf => wf.toActiveWorkflow(state))
-      .map(EventResponse.Ok(_))
+      .map(execution => EventResponse.Ok(execution.wio))
       .getOrElse(EventResponse.UnexpectedEvent())
   }
 
