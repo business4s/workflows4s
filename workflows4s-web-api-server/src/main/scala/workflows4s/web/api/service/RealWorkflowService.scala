@@ -1,12 +1,11 @@
 package workflows4s.web.api.service
 
-import cats.effect.IO  
-import workflows4s.web.api.model.*
-import workflows4s.runtime.WorkflowRuntime
-import workflows4s.wio.WorkflowContext
-import io.circe.Encoder
-import io.circe.Json
+import cats.effect.IO
 import cats.syntax.either.*
+import io.circe.Encoder
+import workflows4s.runtime.WorkflowRuntime
+import workflows4s.web.api.model.*
+import workflows4s.wio.WorkflowContext
 
 class RealWorkflowService(
   workflowEntries: List[RealWorkflowService.WorkflowEntry[?, ?]]
@@ -44,42 +43,25 @@ class RealWorkflowService(
     }
   }
 
-  private def getRealInstance(
-    entry: RealWorkflowService.WorkflowEntry[?, ?], 
+  private def getRealInstance[WorkflowId, Ctx <: WorkflowContext](
+    entry: RealWorkflowService.WorkflowEntry[WorkflowId, Ctx], 
     instanceId: String
   ): IO[Either[String, WorkflowInstance]] = {
-    
-    val typedEntry = entry.asInstanceOf[RealWorkflowService.WorkflowEntry[String, WorkflowContext]]
-    
+    val parsedId = entry.parseId(instanceId)
     val ioResult = for {
-      workflowInstance <- typedEntry.runtime.createInstance(instanceId)
+      workflowInstance <- entry.runtime.createInstance(parsedId)
       currentState <- workflowInstance.queryState()
-      progress <- workflowInstance.getProgress
     } yield {
       WorkflowInstance(
         id = instanceId,
         definitionId = entry.id,
-        state = Some(serializeStateToJson(currentState, typedEntry.stateEncoder.asInstanceOf[Encoder[Any]]))
+        state = Some(entry.stateEncoder(currentState))
       )
     }  
     
     ioResult.attempt.map(_.leftMap(_.getMessage))  
   }
 
- 
-
-  private def serializeStateToJson(state: Any, encoder: Encoder[Any]): Json = {
-    try {
-      encoder(state)
-    } catch {
-      case ex: Exception => 
-        Json.obj(
-          "error" -> Json.fromString("Failed to serialize state"),
-          "state_type" -> Json.fromString(state.getClass.getSimpleName),
-          "raw_state" -> Json.fromString(state.toString)
-        )
-    }
-  }
 }
 
 object RealWorkflowService {
