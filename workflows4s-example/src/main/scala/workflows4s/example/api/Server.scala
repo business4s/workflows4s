@@ -1,4 +1,4 @@
- package workflows4s.web.api
+ package workflows4s.example.api
 
 import cats.effect.{IO, IOApp}
 import com.comcast.ip4s._
@@ -15,7 +15,7 @@ import workflows4s.example.courseregistration.CourseRegistrationWorkflow
 import workflows4s.example.docs.pullrequest.PullRequestWorkflow
 import io.circe.{Encoder, Json}
 
-object Main extends IOApp.Simple {
+object Server extends IOApp.Simple {
 
   given courseRegistrationStateEncoder: Encoder[CourseRegistrationWorkflow.CourseRegistrationState] =
     Encoder.instance { state =>

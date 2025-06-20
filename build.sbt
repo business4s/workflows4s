@@ -113,6 +113,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
     `workflows4s-doobie` % "compile->compile;test->test",
     `workflows4s-filesystem`,
     `workflows4s-quartz`,
+    `workflows4s-web-api-server` 
 
   )
 
@@ -142,8 +143,7 @@ lazy val `workflows4s-web-api-server` = (project in file("workflows4s-web-api-se
   )
   .dependsOn(
     `workflows4s-core`,
-    `workflows4s-web-api-shared`,  
-    `workflows4s-example`,
+    `workflows4s-web-api-shared`
   )
  lazy val `workflows4s-web-ui` = (project in file("workflows4s-web-ui"))
   .enablePlugins(ScalaJSPlugin)
