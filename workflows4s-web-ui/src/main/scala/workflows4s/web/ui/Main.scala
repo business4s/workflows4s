@@ -1,150 +1,254 @@
-package workflows4s.web.ui
+ package workflows4s.web.ui
 
 import cats.effect.IO
+import sttp.client4.*
+import sttp.client4.circe.*
+import sttp.client4.impl.cats.FetchCatsBackend
 import tyrian.Html.*
 import tyrian.*
-import scala.scalajs.js.annotation.*
+import workflows4s.web.ui.components.*
+import workflows4s.web.ui.models.*
 
-type Model = Int
-
-enum Msg {
-  case NoOp
-}
+import scala.scalajs.js.annotation.JSExportTopLevel
 
 @JSExportTopLevel("TyrianApp")
 object Main extends TyrianIOApp[Msg, Model] {
 
-  def router: Location => Msg =
-    Routing.none(Msg.NoOp)
+  def router: Location => Msg = Routing.none(Msg.NoOp)
 
   def init(flags: Map[String, String]): (Model, Cmd[IO, Msg]) =
-    (0, Cmd.None)
+    (Model.initial, Cmd.emit(Msg.LoadWorkflows))
 
-  def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = { case Msg.NoOp =>
-    (model, Cmd.None)
+  def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
+    case Msg.NoOp => (model, Cmd.None)
+
+    case Msg.LoadWorkflows =>
+      (model.loadingWorkflows, Http.loadWorkflows)
+
+    case Msg.WorkflowsLoadedSuccess(workflows) =>
+      (model.workflowsReady(workflows), Cmd.None)
+
+    case Msg.WorkflowsLoadedFailure(reason) =>
+      (model.workflowsFailed(reason), Cmd.None)
+
+    case Msg.WorkflowSelected(workflowId) =>
+      (model.withSelectedWorkflow(Some(workflowId)), Cmd.None)
+
+    case Msg.InstanceIdChanged(text) =>
+      (model.withInstanceIdInput(text), Cmd.None)
+
+    case Msg.LoadInstance =>
+      model.selectedWorkflowId match {
+        case Some(wfId) if model.instanceIdInput.nonEmpty =>
+          (model.loadingInstance, Http.loadInstance(wfId, model.instanceIdInput))
+        case _ =>
+          (model.withInstanceError("Select a workflow and provide an instance ID."), Cmd.None)
+      }
+
+    case Msg.InstanceLoadedSuccess(instance) =>
+      (model.withInstance(instance), Cmd.None)
+
+    case Msg.InstanceLoadedFailure(reason) =>
+      (model.withInstanceError(reason), Cmd.None)
+
+    case Msg.ToggleJsonState =>
+      (model.toggleJsonState, Cmd.None)
   }
 
-  def view(model: Model): Html[Msg] = {
+ 
+
+  def view(model: Model): Html[Msg] =
     div(
       style := """
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+        background-color: #f4f7f9;
         min-height: 100vh;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        margin: 0;
-        padding: 2rem;
-      """,
+        color: #333;
+      """
     )(
+      ReusableViews.headerView,
+      main(
+        style := """
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 0 2rem;
+        """
+      )(
+        model.appState match {
+          case AppState.Initializing | AppState.LoadingWorkflows =>
+            ReusableViews.loadingSpinner("Fetching workflow definitions...")
+          case AppState.Ready(maybeError) =>
+            div(
+              maybeError.map(ReusableViews.errorView).getOrElse(div()),
+              workflowsView(model),
+              instanceView(model),
+            )
+          case AppState.LoadingInstance =>
+            div(
+              workflowsView(model),
+              ReusableViews.loadingSpinner("Fetching instance details..."),
+            )
+        },
+      ),
+    )
+
+  private def workflowsView(model: Model): Html[Msg] =
+    section(
+      h2(style("color", "#495057"))("Available Workflows"),
       div(
         style := """
-          background: rgba(255, 255, 255, 0.95);
-          padding: 3rem;
-          border-radius: 20px;
-          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-          text-align: center;
-          backdrop-filter: blur(10px);
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          animation: float 3s ease-in-out infinite;
-        """,
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+          gap: 1.5rem;
+          margin-bottom: 2rem;
+        """
       )(
-        h1(
-          style := """
-            font-size: 3.5rem;
-            margin: 0 0 1rem 0;
-            background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1);
-            background-size: 200% 200%;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            animation: gradient 3s ease infinite;
-            font-weight: 700;
-          """,
-        )("workflows4s"),
-        p(
-          style := """
-            font-size: 1.2rem;
-            color: #666;
-            margin: 1rem 0 2rem 0;
-            line-height: 1.6;
-          """,
-        )("🚀 Tyrian template is working!"),
-        div(
-          style := """
-            display: flex;
-            gap: 1rem;
-            justify-content: center;
-            flex-wrap: wrap;
-          """,
-        )(
-          div(
-            style := """
-              background: #ff6b6b;
-              color: white;
-              padding: 0.8rem 1.5rem;
-              border-radius: 25px;
-              font-weight: 600;
-              box-shadow: 0 5px 15px rgba(255, 107, 107, 0.3);
-              animation: pulse 2s infinite;
-            """,
-          )("🎯 Workflows"),
-          div(
-            style := """
-              background: #4ecdc4;
-              color: white;
-              padding: 0.8rem 1.5rem;
-              border-radius: 25px;
-              font-weight: 600;
-              box-shadow: 0 5px 15px rgba(78, 205, 196, 0.3);
-              animation: pulse 2s infinite 0.5s;
-            """,
-          )("⚡ Fast"),
-          div(
-            style := """
-              background: #45b7d1;
-              color: white;
-              padding: 0.8rem 1.5rem;
-              border-radius: 25px;
-              font-weight: 600;
-              box-shadow: 0 5px 15px rgba(69, 183, 209, 0.3);
-              animation: pulse 2s infinite 1s;
-            """,
-          )("🎨 Beautiful"),
-        ),
-        div(
-          style := """
-            margin-top: 2rem;
-            font-size: 0.9rem;
-            color: #888;
-          """,
-        )("Ready for backend developers who want pretty UIs! 🎉"),
+        model.workflows.map(wf => WorkflowCard.view(wf, model.selectedWorkflowId.contains(wf.id))),
       ),
-      style()("""
-        @keyframes gradient {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
+    )
+
+  private def instanceView(model: Model): Html[Msg] =
+    section(
+      h2(style("color", "#495057"))("Workflow Instance"),
+      div(
+        style := """
+          background: white;
+          padding: 1.5rem 2rem;
+          border-radius: 12px;
+          box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        """
+      )(
+        instanceInputView(model),
+        model.instanceError.map(ReusableViews.errorView).getOrElse(div()),
+        model.currentInstance.map(instanceDetailsView(model, _)).getOrElse(div()),
+      ),
+    )
+
+  private def instanceInputView(model: Model): Html[Msg] =
+    div(
+      style := """
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        align-items: flex-end;
+        margin-bottom: 1rem;
+      """
+    )(
+      div(style("flex-grow", "1"))(
+        label(
+          style := """
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+          """
+        )("Instance ID"),
+        input(
+          placeholder := "Enter instance ID",
+          value       := model.instanceIdInput,
+          onInput(Msg.InstanceIdChanged(_)),
+          style := """
+            width: 100%;
+            padding: 0.75rem;
+            border-radius: 8px;
+            border: 1px solid #ced4da;
+            box-sizing: border-box;
+          """
+        ),
+      ),
+      button(
+        onClick(Msg.LoadInstance),
+        disabled(model.appState == AppState.LoadingInstance),
+        style := """
+          background: #667eea;
+          color: white;
+          border: none;
+          padding: 0.75rem 1.5rem;
+          border-radius: 8px;
+          cursor: pointer;
+          font-weight: 500;
+          transition: background-color 0.2s;
+        """
+      )(if (model.appState == AppState.LoadingInstance) "Loading..." else "Load"),
+    )
+
+  private def instanceDetailsView(model: Model, instance: WorkflowInstance): Html[Msg] =
+    div(
+      style("margin-top", "1.5rem")
+    )(
+      h3(style("margin-top", "0"))(s"Details for: ${instance.id}"),
+      ReusableViews.instanceField("Definition", span(instance.definitionId)),
+      ReusableViews.instanceField("Status", ReusableViews.statusBadge(instance.status)),
+      button(
+        style := """
+          margin-top: 1rem;
+          background: #007bff;
+          color: white;
+          border: none;
+          padding: 0.5rem 1rem;
+          border-radius: 5px;
+          cursor: pointer;
+        """,
+        onClick(Msg.ToggleJsonState),
+      )(if (model.showJsonState) "Hide State" else "Show State"),
+      if (model.showJsonState) jsonStateViewer(instance) else div(),
+    )
+
+  private def jsonStateViewer(instance: WorkflowInstance): Html[Msg] =
+    pre(
+      style := """
+        background: #2d3748;
+        color: #e2e8f0;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-top: 1rem;
+        overflow-x: auto;
+        font-family: monospace;
+      """
+    )(
+      code(instance.state.map(_.spaces2).getOrElse("No state available.")),
+    )
+
+  def subscriptions(model: Model): Sub[IO, Msg] = Sub.None
+}
+
+ 
+
+// HTTP calls in a separate object for clarity
+object Http {
+  private val backend = FetchCatsBackend[IO]()
+  private val baseUri = uri"http://localhost:8081/api/v1"
+
+  def loadWorkflows: Cmd[IO, Msg] = {
+    val request = basicRequest
+      .get(baseUri.addPath("definitions"))
+      .response(asJson[List[WorkflowDefinition]])
+
+    Cmd.Run(
+      backend
+        .send(request)
+        .map(_.body)
+        .map {
+          case Right(workflows) => Msg.WorkflowsLoadedSuccess(workflows)
+          case Left(error)      => Msg.WorkflowsLoadedFailure(s"Failed to decode: $error")
         }
-        
-        @keyframes float {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-10px); }
-        }
-        
-        @keyframes pulse {
-          0%, 100% { transform: scale(1); }
-          50% { transform: scale(1.05); }
-        }
-        
-        body {
-          margin: 0;
-          padding: 0;
-        }
-      """),
+        .handleError(err => Msg.WorkflowsLoadedFailure(err.getMessage)),
     )
   }
 
-  def subscriptions(model: Model): Sub[IO, Msg] =
-    Sub.None
+  def loadInstance(workflowId: String, instanceId: String): Cmd[IO, Msg] = {
+    val request = basicRequest
+      .get(baseUri.addPath("definitions", workflowId, "instances", instanceId))
+      .response(asJson[WorkflowInstance])
+
+    Cmd.Run(
+      backend
+        .send(request)
+        .map(_.body)
+        .map {
+          case Right(instance) => Msg.InstanceLoadedSuccess(instance)
+          case Left(error)     => Msg.InstanceLoadedFailure(s"Failed to decode: $error")
+        }
+        .handleError(err => Msg.InstanceLoadedFailure(err.getMessage)),
+    )
+  }
 }

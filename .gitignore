@@ -8,4 +8,10 @@ node_modules
 .metals/
 .bloop/
 project/metals.sbt
-.vscode/
+.vscode/package-lock.json
+**/package-lock.json
+# Scala.js generated files
+workflows4s-web-ui/src/main.js
+workflows4s-web-ui/src/main.js.map
+**/target/
+**/*.js.map

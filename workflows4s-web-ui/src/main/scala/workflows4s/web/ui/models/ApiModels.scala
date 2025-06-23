@@ -1,13 +1,13 @@
-package workflows4s.web.api.model
+package workflows4s.web.ui.models
 
 import io.circe.{Codec, Json}
 
-case class WorkflowDefinition(
+final case class WorkflowDefinition(
     id: String,
     name: String,
 ) derives Codec.AsObject
 
-case class WorkflowInstance(
+final case class WorkflowInstance(
     id: String,
     definitionId: String,
     status: InstanceStatus,
@@ -15,5 +15,5 @@ case class WorkflowInstance(
 ) derives Codec.AsObject
 
 enum InstanceStatus derives Codec.AsObject {
-  case Running, Completed, Failed
+  case Running, Completed, Failed, Paused
 }
