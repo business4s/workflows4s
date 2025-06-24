@@ -31,6 +31,8 @@ object Main extends IOApp {
               WithdrawalData.Empty,
               knockerUpper,
             )
+          _ <- knockerUpper.initialize(wokeup => IO.println(s"Woke up! $wokeup"))
+          _                        <- IO(runtime.initializeShard())
           withdrawalWorkflowService = WithdrawalWorkflowService.Impl(journal, runtime)
           routes                    = HttpRoutes(withdrawalWorkflowService)
           _                        <- runHttpServer(routes)
