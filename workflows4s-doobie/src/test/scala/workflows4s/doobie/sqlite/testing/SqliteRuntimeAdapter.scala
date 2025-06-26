@@ -15,7 +15,7 @@ import java.nio.file.Path
 import java.time.Clock
 import scala.util.Random
 
-class SqliteRuntimeAdapter[Ctx <: WorkflowContext](dbPath: Path, eventCodec: ByteCodec[WCEvent[Ctx]]) extends TestRuntimeAdapter[Ctx, String] {
+class SqliteRuntimeAdapter[Ctx <: WorkflowContext](workdir: Path, eventCodec: ByteCodec[WCEvent[Ctx]]) extends TestRuntimeAdapter[Ctx, String] {
 
   override def runWorkflow(
       workflow: WIO.Initial[Ctx],
@@ -24,7 +24,7 @@ class SqliteRuntimeAdapter[Ctx <: WorkflowContext](dbPath: Path, eventCodec: Byt
       registryAgent: WorkflowRegistry.Agent[String],
   ): Actor = {
     val runtime =
-      SqliteRuntime.default[Ctx](workflow, state, eventCodec, NoOpKnockerUpper.Agent, dbPath, clock)
+      SqliteRuntime.default[Ctx](workflow, state, eventCodec, NoOpKnockerUpper.Agent, workdir, clock)
     Actor(runtime.createInstance(s"workflow-${Random.nextLong()}"))
   }
 

@@ -1,6 +1,6 @@
 package workflows4s.doobie.sqlite
 
-import java.nio.file.Path
+import java.nio.file.{Files, Path}
 import java.time.Clock
 import java.util.Properties
 
@@ -24,48 +24,69 @@ class SqliteRuntime[Ctx <: WorkflowContext](
     clock: Clock,
     knockerUpper: KnockerUpper.Agent[String],
     eventCodec: ByteCodec[WCEvent[Ctx]],
-    dbFile: Path,
+    workdir: Path,
 ) extends WorkflowRuntime[IO, Ctx, String] {
 
-  val dbUrl: String = s"jdbc:sqlite:${dbFile.toString}"
+  // Ensure workdir exists
+  Files.createDirectories(workdir)
 
-  private val properties = {
-    val props = Properties()
-    props.put("transaction_mode", "IMMEDIATE")
-    props
+  private def sanitizeWorkflowId(id: String): String = {
+    // Replace characters that might be problematic in filenames
+    id.replaceAll("[^a-zA-Z0-9._-]", "_")
   }
 
-  val xa: Transactor[IO] = Transactor.fromDriverManager[IO](
-    driver = "org.sqlite.JDBC",
-    url = dbUrl,
-    info = properties,
-    logHandler = None,
-  )
+  private def getDatabasePath(workflowId: String): Path = {
+    workdir.resolve(s"${sanitizeWorkflowId(workflowId)}.db")
+  }
 
-  private def initSchema(): IO[Unit] = for {
+  private def createTransactor(dbPath: Path): Transactor[IO] = {
+    val dbUrl = s"jdbc:sqlite:${dbPath.toAbsolutePath}"
+
+    val properties = new Properties()
+    // IMMEDIATE transaction mode ensures we get a write lock when we start a transaction
+    properties.put("transaction_mode", "IMMEDIATE")
+
+    Transactor.fromDriverManager[IO](
+      driver = "org.sqlite.JDBC",
+      url = dbUrl,
+      info = properties,
+      logHandler = None,
+    )
+  }
+
+  private def initSchema(xa: Transactor[IO]): IO[Unit] = for {
     ddl <- IO.blocking(scala.io.Source.fromResource("schema/sqlite-schema.sql").mkString)
     _   <- Fragment.const(ddl).update.run.transact(xa).void
   } yield ()
 
   override def createInstance(id: String): IO[WorkflowInstance[IO, State[Ctx]]] = {
-    initSchema() >> IO {
-      given ByteCodec[WCEvent[Ctx]] = eventCodec
-      val registryAgent             = NoOpWorkflowRegistry.Agent
-      val base                      = new DbWorkflowInstance(
-        id,
-        ActiveWorkflow(workflow, initialState),
-        SqliteWorkflowStorage[WCEvent[Ctx]](),
-        clock,
-        knockerUpper,
-        registryAgent,
-      )
-      new MappedWorkflowInstance(
-        base,
-        [t] =>
-          (connIo: Kleisli[ConnectionIO, LiftIO[ConnectionIO], t]) =>
-            WeakAsync.liftIO[ConnectionIO].use(liftIO => xa.trans.apply(connIo.apply(liftIO))),
-      )
-    }
+    val dbPath = getDatabasePath(id)
+    val xa     = createTransactor(dbPath)
+
+    for {
+      _        <- initSchema(xa)
+      instance <- IO {
+                    given ByteCodec[WCEvent[Ctx]] = eventCodec
+                    val registryAgent             = NoOpWorkflowRegistry.Agent
+                    val storage                   = SqliteWorkflowStorage[WCEvent[Ctx]]()
+
+                    val base = new DbWorkflowInstance(
+                      (),                       // Storage doesn't need ID since each DB has one workflow
+                      ActiveWorkflow(workflow, initialState),
+                      storage,
+                      clock,
+                      knockerUpper.curried(id), // We still need the ID for the knocker upper
+                      registryAgent.curried(id), // And for the registry
+                    )
+
+                    new MappedWorkflowInstance(
+                      base,
+                      [t] =>
+                        (connIo: Kleisli[ConnectionIO, LiftIO[ConnectionIO], t]) =>
+                          WeakAsync.liftIO[ConnectionIO].use(liftIO => xa.trans.apply(connIo.apply(liftIO))),
+                    )
+                  }
+    } yield instance
   }
 }
 
@@ -75,7 +96,7 @@ object SqliteRuntime {
       initialState: WCState[Ctx],
       eventCodec: ByteCodec[WCEvent[Ctx]],
       knockerUpper: KnockerUpper.Agent[String],
-      dbFile: Path,
+      workdir: Path,
       clock: Clock = Clock.systemUTC(),
   ): SqliteRuntime[Ctx] =
     new SqliteRuntime[Ctx](
@@ -83,7 +104,7 @@ object SqliteRuntime {
       initialState = initialState,
       eventCodec = eventCodec,
       knockerUpper = knockerUpper,
-      dbFile = dbFile,
+      workdir = workdir,
       clock = clock,
     )
 }
