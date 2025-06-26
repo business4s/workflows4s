@@ -6,7 +6,7 @@ import doobie.*
 import doobie.implicits.*
 import workflows4s.doobie.{ByteCodec, WorkflowStorage}
 
-class SqliteWorkflowStorage[Event](tableName: String = "workflow_journal")(using eventCodec: ByteCodec[Event])
+class SqliteWorkflowStorage[Event]()(using eventCodec: ByteCodec[Event])
     extends WorkflowStorage[String, Event] {
   override def getEvents(id: String): fs2.Stream[ConnectionIO, Event] =
     sql"SELECT event_data FROM workflow_journal"

@@ -4,12 +4,14 @@ import java.nio.file.Path
 import java.time.Clock
 import java.util.Properties
 
-import cats.effect.IO
+import cats.data.Kleisli
+import cats.effect.{IO, LiftIO}
 import doobie.implicits.*
 import doobie.util.fragment.Fragment
 import doobie.util.transactor.Transactor
 import doobie.{ConnectionIO, WeakAsync}
-import workflows4s.doobie.{DbWorkflowInstance, EventCodec}
+import workflows4s.doobie.{ByteCodec, DbWorkflowInstance}
+import workflows4s.runtime.registry.NoOpWorkflowRegistry
 import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.runtime.{MappedWorkflowInstance, WorkflowInstance, WorkflowRuntime}
 import workflows4s.wio.WIO.Initial
@@ -21,7 +23,7 @@ class SqliteRuntime[Ctx <: WorkflowContext](
     initialState: WCState[Ctx],
     clock: Clock,
     knockerUpper: KnockerUpper.Agent[String],
-    eventCodec: EventCodec[WCEvent[Ctx]],
+    eventCodec: ByteCodec[WCEvent[Ctx]],
     dbFile: Path,
 ) extends WorkflowRuntime[IO, Ctx, String] {
 
@@ -46,21 +48,24 @@ class SqliteRuntime[Ctx <: WorkflowContext](
   } yield ()
 
   override def createInstance(id: String): IO[WorkflowInstance[IO, State[Ctx]]] = {
-    WeakAsync
-      .liftIO[ConnectionIO]
-      .use { liftIo =>
-        val base = new DbWorkflowInstance(
-          id,
-          ActiveWorkflow(workflow, initialState),
-          SqliteWorkflowStorage(),
-          liftIo,
-          eventCodec,
-          clock,
-          knockerUpper,
-        )
-        initSchema() >>
-          IO(new MappedWorkflowInstance(base, xa.trans))
-      }
+    initSchema() >> IO {
+      given ByteCodec[WCEvent[Ctx]] = eventCodec
+      val registryAgent = NoOpWorkflowRegistry.Agent
+      val base = new DbWorkflowInstance(
+        id,
+        ActiveWorkflow(workflow, initialState),
+        SqliteWorkflowStorage[WCEvent[Ctx]](),
+        clock,
+        knockerUpper,
+        registryAgent,
+      )
+      new MappedWorkflowInstance(
+        base,
+        [t] =>
+          (connIo: Kleisli[ConnectionIO, LiftIO[ConnectionIO], t]) =>
+            WeakAsync.liftIO[ConnectionIO].use(liftIO => xa.trans.apply(connIo.apply(liftIO))),
+      )
+    }
   }
 }
 
@@ -68,7 +73,7 @@ object SqliteRuntime {
   def default[Ctx <: WorkflowContext](
       workflow: Initial[Ctx],
       initialState: WCState[Ctx],
-      eventCodec: EventCodec[WCEvent[Ctx]],
+      eventCodec: ByteCodec[WCEvent[Ctx]],
       knockerUpper: KnockerUpper.Agent[String],
       dbFile: Path,
       clock: Clock = Clock.systemUTC(),
