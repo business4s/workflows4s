@@ -13,33 +13,33 @@ import workflows4s.example.withdrawal.checks.{CheckResult, ChecksInput, ChecksSt
 import io.circe.generic.auto.*
 
 class HttpRoutes(service: WithdrawalWorkflowService)(using ioRuntime: IORuntime) extends FailFastCirceSupport {
-  given checksInput: Encoder[ChecksInput]                             = Encoder.instance(_.checks.keys.map(_.value).asJson)
-  given checksResult: Encoder[CheckResult]                            = Encoder.instance(_ => Json.Null)
-  given checksResultFinished: Encoder[CheckResult.Finished]           = Encoder.instance(_ => Json.Null)
-  given Encoder[ChecksState]                      = Encoder.instance{
+  given checksInput: Encoder[ChecksInput]                   = Encoder.instance(_.checks.keys.map(_.value).asJson)
+  given checksResult: Encoder[CheckResult]                  = Encoder.instance(_ => Json.Null)
+  given checksResultFinished: Encoder[CheckResult.Finished] = Encoder.instance(_ => Json.Null)
+  given Encoder[ChecksState]                                = Encoder.instance {
     case inProgress: ChecksState.InProgress =>
       inProgress.asJson
-    case decided: ChecksState.Decided =>
+    case decided: ChecksState.Decided       =>
       decided.asJson
   }
 
   given Encoder[WithdrawalData] = Encoder.instance {
-     case empty: WithdrawalData.Empty =>
-       empty.asJson
-     case initiated: WithdrawalData.Initiated =>
-       initiated.asJson
-     case validated: WithdrawalData.Validated =>
-       validated.asJson
-     case checking: WithdrawalData.Checking =>
-       checking.asJson
-     case checked: WithdrawalData.Checked =>
-       checked.asJson
-     case executed: WithdrawalData.Executed =>
-       executed.asJson
-     case completed: WithdrawalData.Completed =>
-       Json.fromString("Completed") 
- }
-  val routes: Route = {
+    case empty: WithdrawalData.Empty         =>
+      empty.asJson
+    case initiated: WithdrawalData.Initiated =>
+      initiated.asJson
+    case validated: WithdrawalData.Validated =>
+      validated.asJson
+    case checking: WithdrawalData.Checking   =>
+      checking.asJson
+    case checked: WithdrawalData.Checked     =>
+      checked.asJson
+    case executed: WithdrawalData.Executed   =>
+      executed.asJson
+    case completed: WithdrawalData.Completed =>
+      Json.fromString("Completed")
+  }
+  val routes: Route             = {
     path("withdrawals") {
       get {
         onSuccess(service.listWorkflows.unsafeToFuture()) { list =>
