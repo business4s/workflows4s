@@ -319,9 +319,7 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
         base match {
           case WIOExecutionProgress.Sequence(steps) =>
             steps.size shouldBe 3
-            steps(0).result.map(_.index) shouldBe Some(0)
-            steps(1).result.map(_.index) shouldBe Some(1)
-            steps(2).result.map(_.index) shouldBe Some(2)
+            steps.map(_.result.map(_.index).get) shouldBe List(0, 1, 2)
           case other                                => fail(s"Expected WIOExecutionProgress.Sequence inside Checkpoint")
         }
       case other                                         => fail(s"Expected WIOExecutionProgress.Checkpoint")
