@@ -50,8 +50,8 @@ class SqliteRuntime[Ctx <: WorkflowContext](
   override def createInstance(id: String): IO[WorkflowInstance[IO, State[Ctx]]] = {
     initSchema() >> IO {
       given ByteCodec[WCEvent[Ctx]] = eventCodec
-      val registryAgent = NoOpWorkflowRegistry.Agent
-      val base = new DbWorkflowInstance(
+      val registryAgent             = NoOpWorkflowRegistry.Agent
+      val base                      = new DbWorkflowInstance(
         id,
         ActiveWorkflow(workflow, initialState),
         SqliteWorkflowStorage[WCEvent[Ctx]](),
