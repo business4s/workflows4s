@@ -73,7 +73,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
         baseExecuted.output match {
           case Left(err)    =>
             val state        = baseExecuted.lastState(lastSeenState).getOrElse(lastSeenState)
-            val handlerIndex = Math.max(index, baseExecuted.index + 1)
+            val handlerIndex = baseExecuted.index + 1
             recurse(wio.handleError, (state, err), index = handlerIndex).map(handlerResult => {
               def updateHandler(newHandler: WIO[(WCState[Ctx], ErrIn), Err, Out, Ctx]) = wio.copy(handleError = newHandler)
               handlerResult match {
@@ -104,8 +104,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
         firstExecuted.output match {
           case Left(err)    => WFExecution.complete(wio, Left(err), input, firstExecuted.index).some
           case Right(value) =>
-            val secondIndex =
-              Math.max(index, firstExecuted.index + 1) // in case this AndThen is inside a parallel, index can be larger than firstExecuted.index + 1
+            val secondIndex = firstExecuted.index + 1
             recurse(wio.second, value, value, secondIndex).map({
               case WFExecution.Complete(newWio) =>
                 WFExecution.complete(WIO.AndThen(wio.first, newWio), newWio.output, input, newWio.index)
@@ -121,7 +120,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
     // TODO all the `.provideInput` here are not good, they enlarge the graph unnecessarily.
     //  alternatively we could maybe take the input from the last history entry
     val lastHistoryState = wio.history.flatMap(_.lastState(lastSeenState)).lastOption.getOrElse(lastSeenState)
-    val nextIndex        = wio.history.lastOption.map(result => Math.max(index, result.index + 1)).getOrElse(index)
+    val nextIndex        = wio.history.lastOption.map(result => result.index + 1).getOrElse(index)
     wio.current match {
       case State.Finished(_)          =>
         None // TODO better error, this should never happen

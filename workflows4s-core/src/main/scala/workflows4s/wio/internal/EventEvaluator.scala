@@ -65,8 +65,11 @@ object EventEvaluator {
         in: I1,
         state: WCState[Ctx],
         index: Int,
-    ): EventVisitor[Ctx, I1, E1, O1]#Result =
-      new EventVisitor(wio, event, in, state, index).run
+    ): EventVisitor[Ctx, I1, E1, O1]#Result ={
+      val nextIndex = Math.max(index, this.index) // handle parallel case
+      new EventVisitor(wio, event, in, state, nextIndex).run
+    }
+
 
   }
 }

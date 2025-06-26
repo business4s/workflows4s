@@ -54,8 +54,10 @@ object ProceedEvaluator {
         in: I1,
         state: WCState[Ctx],
         index: Int,
-    ): Option[WFExecution[Ctx, I1, E1, O1]] =
-      new ProceedVisitor(wio, in, state, now, index).run
+    ): Option[WFExecution[Ctx, I1, E1, O1]] = {
+      val nextIndex = Math.max(index, this.index) // handle parallel case
+      new ProceedVisitor(wio, in, state, now, nextIndex).run
+    }
 
   }
 
