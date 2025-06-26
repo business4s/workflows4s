@@ -6,6 +6,7 @@ import workflows4s.testing.TestUtils
 import workflows4s.wio.model.WIOExecutionProgress
 import org.scalatest.compatible.Assertion
 import workflows4s.wio.model.WIOExecutionProgress.Sequence
+import cats.implicits.toTraverseOps
 
 /* Mermaid chart of PullRequestWorkflow example:
  * https://mermaid.live/edit#pako:eNqdkkFzmzAQhf-KZnsFDwIEWIdMZuzJrR2P21NLDwostjpCokIkaR3_98pgk7RxLznqzX5P-550gMrUCBwaZR6rvbCOfFmXWnsx4pzjE1aDw_r2QPq96JCTStpKYUCUuEfFSQmfnYdKOE4QvQr1TtRyaF9RjeCNCFE_oDIdkpVF4ZBs8eeA_YtbRMLwhoy-kxB_K-E8u9mSqITvr-47bzAz8SQkntkOmmxkh0pqJPQaFs9YMgnp-5Js8UHi45skyWyfTgLzW22sqbDvL0x8ba90BtkkZB78iHY3NhCespwN58FsEvJTV8r042Dyn8yL8Ob5kuHeKEdWpm2lI5-MI3dm0HUJz6NpPud4g8zF3gmp8F-CXSHmkn5g5f4iKiX6fo0NuWxKGqkU_xBhVGoIYGdlDdzZAQNo0bbidIRDqYl_CrfHFks4vUqNjRiU77_UR491Qn81pr2Q1gy7Pfh1VO9PQ1f7D7WWYmfFywjqGu3KV-CAs9EB-AGegCfZghbRsshzxpYsXRYB_AJOs0VCi4zmNEoZjdkyPQbwe7wzWuRRwmJWpDROMkpTdvwDedQljw
@@ -239,8 +240,8 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
     val (signal1, _, stepSignal1) = TestUtils.signal
     val (signal2, _, stepSignal2) = TestUtils.signal
 
-    val (_, pure1) = TestUtils.pure
-    val (_, pure2) = TestUtils.pure
+    val (_, pure1) = TestUtils.pure //executed index: 0
+    val (_, pure2) = TestUtils.pure //executed index: 1
 
     val step1 = pure1 >>> stepSignal1
     val step2 = pure2 >>> stepSignal2
@@ -254,13 +255,14 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
 
     val (_, instance) = TestUtils.createInstance2(parallel)
 
-    instance.deliverSignal(signal1, 1)
-    instance.deliverSignal(signal2, 2)
+    instance.deliverSignal(signal1, 1) //executed index: 2
+    instance.deliverSignal(signal2, 2) //executed index: 3
 
     instance.getProgress match {
       case WIOExecutionProgress.Parallel(elements, parallelResult) =>
-        assert(parallelResult.exists(_.index == 3))
-
+        parallelResult.map(_.index) shouldBe Some(3)
+        val sequenceELements = elements.collect { case sq: WIOExecutionProgress.Sequence[?] => sq }
+        sequenceELements.flatMap(_.steps.map(_.result.map(_.index))).sequence `shouldBe` Some(List(0, 2, 1, 3))
       case _ =>
         fail("expected WIOExecutionProgress.Parallel")
     }
