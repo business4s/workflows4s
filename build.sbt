@@ -94,7 +94,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "io.r2dbc"              % "r2dbc-h2"                        % "1.0.0.RELEASE",
       "com.github.pjfanning" %% "pekko-http-circe"                % "3.2.1",
       "ch.qos.logback"        % "logback-classic"                 % "1.5.18",
-      "org.scalamock"        %% "scalamock"                       % "7.3.2"                    % Test,
+      "org.scalamock"        %% "scalamock"                       % "7.3.3"                    % Test,
       "org.apache.pekko"     %% "pekko-actor-testkit-typed"       % pekkoVersion               % Test,
       "com.dimafeng"         %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
       "com.dimafeng"         %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
