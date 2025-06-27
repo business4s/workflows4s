@@ -99,6 +99,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "com.dimafeng"         %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
       "com.dimafeng"         %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
       "org.postgresql"        % "postgresql"                      % "42.7.7"                   % Test,
+      "org.xerial"            % "sqlite-jdbc"                     % "3.47.1.0"                 % Test,
     ),
     Test / parallelExecution := false, // otherwise akka clusters clash
     publish / skip           := true,
