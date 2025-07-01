@@ -8,6 +8,9 @@ import tyrian.Html.*
 import tyrian.*
 import workflows4s.web.ui.components.*
 import workflows4s.web.ui.models.*
+import workflows4s.web.ui.components.SidebarView
+
+
 
 import scala.scalajs.js.annotation.JSExportTopLevel
 
@@ -56,62 +59,47 @@ object Main extends TyrianIOApp[Msg, Model] {
       (model.toggleJsonState, Cmd.None)
   }
 
-  def view(model: Model): Html[Msg] =
-    div(
-      ReusableViews.headerView,
-      main(
-        div(cls := "container")(
+def view(model: Model): Html[Msg] =
+  div(
+    ReusableViews.headerView,
+    main(
+      div(cls := "container")(
+        model.appState match {
+          case AppState.Initializing | AppState.LoadingWorkflows =>
+            section(cls := "section is-medium has-text-centered")(
+              p(cls := "title is-4")("Fetching workflow definitions..."),
+            )
+          case _ =>
+            div(cls := "columns")(
+              SidebarView.view(model.workflows, model.selectedWorkflowId),
+              mainContentView(model),
+            )
+        },
+      ),
+    ),
+  )
+
+
+private def mainContentView(model: Model): Html[Msg] =
+  div(cls := "column")(
+    model.selectedWorkflowId match {
+      case None =>
+        div(cls := "box has-text-centered p-6")(
+          p("Select a workflow from the menu to get started."),
+        )
+      case Some(_) =>
+        div(
           model.appState match {
-            case AppState.Initializing | AppState.LoadingWorkflows =>
+            case AppState.LoadingInstance =>
               section(cls := "section is-medium has-text-centered")(
-                p(cls := "title is-4")("Fetching workflow definitions..."),
+                p(cls := "title is-4")("Fetching instance details..."),
               )
             case _ =>
-              div(cls := "columns")(
-                sidebarView(model),
-                mainContentView(model),
-              )
+              instanceView(model)
           },
-        ),
-      ),
-    )
-
-  private def sidebarView(model: Model): Html[Msg] =
-    aside(cls := "column is-one-quarter")(
-      nav(cls := "menu p-4")(
-        p(cls := "menu-label")("Available Workflows"),
-        ul(cls := "menu-list")(
-          model.workflows.map { wf =>
-            li(
-              a(
-                cls     := (if (model.selectedWorkflowId.contains(wf.id)) "is-active" else ""),
-                onClick(Msg.WorkflowSelected(wf.id)),
-              )(wf.name),
-            )
-          },
-        ),
-      ),
-    )
-  private def mainContentView(model: Model): Html[Msg] =
-    div(cls := "column")(
-      model.selectedWorkflowId match {
-        case None =>
-          div(cls := "box has-text-centered p-6")(
-            p("Select a workflow from the menu to get started."),
-          )
-        case Some(_) =>
-          div(
-            model.appState match {
-              case AppState.LoadingInstance =>
-                section(cls := "section is-medium has-text-centered")(
-                  p(cls := "title is-4")("Fetching instance details..."),
-                )
-              case _ =>
-                instanceView(model)
-            },
-          )
-      },
-    )
+        )
+    },
+  )
 
 
   // private def workflowsView(model: Model): Html[Msg] =
