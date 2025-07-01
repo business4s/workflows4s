@@ -1,4 +1,4 @@
- package workflows4s.web.ui
+package workflows4s.web.ui
 
 import cats.effect.IO
 import sttp.client4.*
@@ -10,6 +10,7 @@ import workflows4s.web.ui.components.*
 import workflows4s.web.ui.models.*
 
 import scala.scalajs.js.annotation.JSExportTopLevel
+
 
 @JSExportTopLevel("TyrianApp")
 object Main extends TyrianIOApp[Msg, Model] {
@@ -55,69 +56,76 @@ object Main extends TyrianIOApp[Msg, Model] {
       (model.toggleJsonState, Cmd.None)
   }
 
- 
-
   def view(model: Model): Html[Msg] =
     div(
-      style := """
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
-        background-color: #f4f7f9;
-        min-height: 100vh;
-        color: #333;
-      """
-    )(
       ReusableViews.headerView,
       main(
-        style := """
-          max-width: 1200px;
-          margin: 0 auto;
-          padding: 0 2rem;
-        """
-      )(
-        model.appState match {
-          case AppState.Initializing | AppState.LoadingWorkflows =>
-            ReusableViews.loadingSpinner("Fetching workflow definitions...")
-          case AppState.Ready(maybeError) =>
-            div(
-              maybeError.map(ReusableViews.errorView).getOrElse(div()),
-              workflowsView(model),
-              instanceView(model),
-            )
-          case AppState.LoadingInstance =>
-            div(
-              workflowsView(model),
-              ReusableViews.loadingSpinner("Fetching instance details..."),
-            )
-        },
+        div(cls := "container")(
+          model.appState match {
+            case AppState.Initializing | AppState.LoadingWorkflows =>
+              section(cls := "section is-medium has-text-centered")(
+                p(cls := "title is-4")("Fetching workflow definitions..."),
+              )
+            case _ =>
+              div(cls := "columns")(
+                sidebarView(model),
+                mainContentView(model),
+              )
+          },
+        ),
       ),
     )
 
-  private def workflowsView(model: Model): Html[Msg] =
-    section(
-      h2(style("color", "#495057"))("Available Workflows"),
-      div(
-        style := """
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-          gap: 1.5rem;
-          margin-bottom: 2rem;
-        """
-      )(
-        model.workflows.map(wf => WorkflowCard.view(wf, model.selectedWorkflowId.contains(wf.id))),
+  private def sidebarView(model: Model): Html[Msg] =
+    aside(cls := "column is-one-quarter")(
+      nav(cls := "menu p-4")(
+        p(cls := "menu-label")("Available Workflows"),
+        ul(cls := "menu-list")(
+          model.workflows.map { wf =>
+            li(
+              a(
+                cls     := (if (model.selectedWorkflowId.contains(wf.id)) "is-active" else ""),
+                onClick(Msg.WorkflowSelected(wf.id)),
+              )(wf.name),
+            )
+          },
+        ),
       ),
     )
+  private def mainContentView(model: Model): Html[Msg] =
+    div(cls := "column")(
+      model.selectedWorkflowId match {
+        case None =>
+          div(cls := "box has-text-centered p-6")(
+            p("Select a workflow from the menu to get started."),
+          )
+        case Some(_) =>
+          div(
+            model.appState match {
+              case AppState.LoadingInstance =>
+                section(cls := "section is-medium has-text-centered")(
+                  p(cls := "title is-4")("Fetching instance details..."),
+                )
+              case _ =>
+                instanceView(model)
+            },
+          )
+      },
+    )
+
+
+  // private def workflowsView(model: Model): Html[Msg] =
+  //   section(cls := "section")(
+  //     h2(cls := "title is-2")("Available Workflows"),
+  //     div(cls := "columns is-multiline")(
+  //       model.workflows.map(wf => WorkflowCard.view(wf, model.selectedWorkflowId.contains(wf.id))),
+  //     ),
+  //   )
 
   private def instanceView(model: Model): Html[Msg] =
-    section(
-      h2(style("color", "#495057"))("Workflow Instance"),
-      div(
-        style := """
-          background: white;
-          padding: 1.5rem 2rem;
-          border-radius: 12px;
-          box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        """
-      )(
+    section(cls := "section")(
+      h2(cls := "title is-2")("Workflow Instance"),
+      div(cls := "box")(
         instanceInputView(model),
         model.instanceError.map(ReusableViews.errorView).getOrElse(div()),
         model.currentInstance.map(instanceDetailsView(model, _)).getOrElse(div()),
@@ -125,69 +133,33 @@ object Main extends TyrianIOApp[Msg, Model] {
     )
 
   private def instanceInputView(model: Model): Html[Msg] =
-    div(
-      style := """
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1rem;
-        align-items: flex-end;
-        margin-bottom: 1rem;
-      """
-    )(
-      div(style("flex-grow", "1"))(
-        label(
-          style := """
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 500;
-          """
-        )("Instance ID"),
+    div(cls := "field is-grouped")(
+      div(cls := "control is-expanded")(
+        label(cls := "label")("Instance ID"),
         input(
+          cls     := "input",
           placeholder := "Enter instance ID",
           value       := model.instanceIdInput,
           onInput(Msg.InstanceIdChanged(_)),
-          style := """
-            width: 100%;
-            padding: 0.75rem;
-            border-radius: 8px;
-            border: 1px solid #ced4da;
-            box-sizing: border-box;
-          """
         ),
       ),
-      button(
-        onClick(Msg.LoadInstance),
-        disabled(model.appState == AppState.LoadingInstance),
-        style := """
-          background: #667eea;
-          color: white;
-          border: none;
-          padding: 0.75rem 1.5rem;
-          border-radius: 8px;
-          cursor: pointer;
-          font-weight: 500;
-          transition: background-color 0.2s;
-        """
-      )(if (model.appState == AppState.LoadingInstance) "Loading..." else "Load"),
+      div(cls := "control")(
+        label(cls := "label")(" "), // Empty label for alignment
+        button(
+          cls    := s"button is-primary ${if (model.appState == AppState.LoadingInstance) "is-loading" else ""}",
+          onClick(Msg.LoadInstance),
+          disabled(model.appState == AppState.LoadingInstance),
+        )("Load"),
+      ),
     )
 
   private def instanceDetailsView(model: Model, instance: WorkflowInstance): Html[Msg] =
-    div(
-      style("margin-top", "1.5rem")
-    )(
-      h3(style("margin-top", "0"))(s"Details for: ${instance.id}"),
+    div(cls := "content")(
+      h3(s"Details for: ${instance.id}"),
       ReusableViews.instanceField("Definition", span(instance.definitionId)),
       ReusableViews.instanceField("Status", ReusableViews.statusBadge(instance.status)),
       button(
-        style := """
-          margin-top: 1rem;
-          background: #007bff;
-          color: white;
-          border: none;
-          padding: 0.5rem 1rem;
-          border-radius: 5px;
-          cursor: pointer;
-        """,
+        cls     := "button is-info is-small mt-4",
         onClick(Msg.ToggleJsonState),
       )(if (model.showJsonState) "Hide State" else "Show State"),
       if (model.showJsonState) jsonStateViewer(instance) else div(),
@@ -195,23 +167,11 @@ object Main extends TyrianIOApp[Msg, Model] {
 
   private def jsonStateViewer(instance: WorkflowInstance): Html[Msg] =
     pre(
-      style := """
-        background: #2d3748;
-        color: #e2e8f0;
-        padding: 1rem;
-        border-radius: 8px;
-        margin-top: 1rem;
-        overflow-x: auto;
-        font-family: monospace;
-      """
-    )(
       code(instance.state.map(_.spaces2).getOrElse("No state available.")),
     )
 
   def subscriptions(model: Model): Sub[IO, Msg] = Sub.None
 }
-
- 
 
 // HTTP calls in a separate object for clarity
 object Http {
