@@ -16,6 +16,7 @@ sbt
 ```sh
 cd workflows4s-web-ui
 npm install
+npm run dev
 ```
 
 Now navigate to [http://localhost:3000/](http://localhost:5173/) to see your site running.
