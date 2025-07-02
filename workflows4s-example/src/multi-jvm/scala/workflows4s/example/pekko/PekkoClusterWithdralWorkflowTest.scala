@@ -59,12 +59,12 @@ abstract class AbstractSpec extends MultiNodeSpec(Config) with WithdrawalWorkflo
       Cluster(system).subscribe(testActor, classOf[MemberUp])
       expectMsgClass(classOf[CurrentClusterState])
 
-      val firstAddress = node(Config.node1).address
-      val secondAddress = node(Config.node2).address
+      val node1Address = node(Config.node1).address
+      val node2Address = node(Config.node2).address
 
-      Cluster(system).join(firstAddress) // all nodes join firstAddress. Join secondAddress instead will result an error
+      Cluster(system).join(node1Address) // all nodes join node1. Join node2Address instead will result an error
 
-      receiveN(2).collect { case MemberUp(m) => m.address }.toSet shouldBe Set(firstAddress, secondAddress)
+      receiveN(2).collect { case MemberUp(m) => m.address }.toSet shouldBe Set(node1Address, node2Address)
 
       Cluster(system).unsubscribe(testActor)
 
