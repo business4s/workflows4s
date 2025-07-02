@@ -1,202 +1,70 @@
 package workflows4s.web.ui
 
 import cats.effect.IO
-import sttp.client4.*
-import sttp.client4.circe.*
-import sttp.client4.impl.cats.FetchCatsBackend
 import tyrian.Html.*
 import tyrian.*
-import workflows4s.web.ui.components.*
-import workflows4s.web.ui.models.*
-import workflows4s.web.ui.components.SidebarView
-
-
+import workflows4s.web.ui.components.ReusableViews
+import workflows4s.web.ui.subs.{InstancesManager, WorkflowsManager}
 
 import scala.scalajs.js.annotation.JSExportTopLevel
 
+// MAIN MODEL
+final case class Model(
+    workflows: WorkflowsManager.Model,
+    instances: InstancesManager.Model,
+)
+
+object Model {
+  def initial: Model = Model(WorkflowsManager.Model(), InstancesManager.Model())
+}
+
+// MAIN MSG 
+sealed trait Msg
+case object NoOp                                     extends Msg
+case class ForWorkflows(msg: WorkflowsManager.Msg)   extends Msg
+case class ForInstances(msg: InstancesManager.Msg)   extends Msg
 
 @JSExportTopLevel("TyrianApp")
 object Main extends TyrianIOApp[Msg, Model] {
 
-  def router: Location => Msg = Routing.none(Msg.NoOp)
+  def router: Location => Msg = Routing.none(NoOp)
 
   def init(flags: Map[String, String]): (Model, Cmd[IO, Msg]) =
-    (Model.initial, Cmd.emit(Msg.LoadWorkflows))
+    (Model.initial, WorkflowsManager.Http.loadWorkflows.map(ForWorkflows.apply))
 
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
-    case Msg.NoOp => (model, Cmd.None)
+    case NoOp => (model, Cmd.None)
 
-    case Msg.LoadWorkflows =>
-      (model.loadingWorkflows, Http.loadWorkflows)
+    case ForWorkflows(wmMsg) =>
+      val (updatedWorkflowsModel, cmd) = model.workflows.update(wmMsg)
+      val newModel                     = model.copy(workflows = updatedWorkflowsModel)
 
-    case Msg.WorkflowsLoadedSuccess(workflows) =>
-      (model.workflowsReady(workflows), Cmd.None)
-
-    case Msg.WorkflowsLoadedFailure(reason) =>
-      (model.workflowsFailed(reason), Cmd.None)
-
-    case Msg.WorkflowSelected(workflowId) =>
-      (model.withSelectedWorkflow(Some(workflowId)), Cmd.None)
-
-    case Msg.InstanceIdChanged(text) =>
-      (model.withInstanceIdInput(text), Cmd.None)
-
-    case Msg.LoadInstance =>
-      model.selectedWorkflowId match {
-        case Some(wfId) if model.instanceIdInput.nonEmpty =>
-          (model.loadingInstance, Http.loadInstance(wfId, model.instanceIdInput))
-        case _ =>
-          (model.withInstanceError("Select a workflow and provide an instance ID."), Cmd.None)
+      // When a new workflow is selected, reset the instance manager
+      val instanceResetCmd = wmMsg match {
+        case WorkflowsManager.Msg.Select(_) => Cmd.emit(ForInstances(InstancesManager.Msg.Reset))
+        case _                              => Cmd.None
       }
 
-    case Msg.InstanceLoadedSuccess(instance) =>
-      (model.withInstance(instance), Cmd.None)
+      (newModel, Cmd.Batch(cmd.map(ForWorkflows.apply), instanceResetCmd))
 
-    case Msg.InstanceLoadedFailure(reason) =>
-      (model.withInstanceError(reason), Cmd.None)
-
-    case Msg.ToggleJsonState =>
-      (model.toggleJsonState, Cmd.None)
+    case ForInstances(imMsg) =>
+      val (updatedInstancesModel, cmd) = model.instances.update(imMsg)
+      (model.copy(instances = updatedInstancesModel), cmd.map(ForInstances.apply))
   }
 
-def view(model: Model): Html[Msg] =
-  div(
-    ReusableViews.headerView,
-    main(
-      div(cls := "container")(
-        model.appState match {
-          case AppState.Initializing | AppState.LoadingWorkflows =>
-            section(cls := "section is-medium has-text-centered")(
-              p(cls := "title is-4")("Fetching workflow definitions..."),
-            )
-          case _ =>
-            div(cls := "columns")(
-              SidebarView.view(model.workflows, model.selectedWorkflowId),
-              mainContentView(model),
-            )
-        },
-      ),
-    ),
-  )
-
-
-private def mainContentView(model: Model): Html[Msg] =
-  div(cls := "column")(
-    model.selectedWorkflowId match {
-      case None =>
-        div(cls := "box has-text-centered p-6")(
-          p("Select a workflow from the menu to get started."),
-        )
-      case Some(_) =>
-        div(
-          model.appState match {
-            case AppState.LoadingInstance =>
-              section(cls := "section is-medium has-text-centered")(
-                p(cls := "title is-4")("Fetching instance details..."),
-              )
-            case _ =>
-              instanceView(model)
-          },
-        )
-    },
-  )
-
-
-  // private def workflowsView(model: Model): Html[Msg] =
-  //   section(cls := "section")(
-  //     h2(cls := "title is-2")("Available Workflows"),
-  //     div(cls := "columns is-multiline")(
-  //       model.workflows.map(wf => WorkflowCard.view(wf, model.selectedWorkflowId.contains(wf.id))),
-  //     ),
-  //   )
-
-  private def instanceView(model: Model): Html[Msg] =
-    section(cls := "section")(
-      h2(cls := "title is-2")("Workflow Instance"),
-      div(cls := "box")(
-        instanceInputView(model),
-        model.instanceError.map(ReusableViews.errorView).getOrElse(div()),
-        model.currentInstance.map(instanceDetailsView(model, _)).getOrElse(div()),
-      ),
-    )
-
-  private def instanceInputView(model: Model): Html[Msg] =
-    div(cls := "field is-grouped")(
-      div(cls := "control is-expanded")(
-        label(cls := "label")("Instance ID"),
-        input(
-          cls     := "input",
-          placeholder := "Enter instance ID",
-          value       := model.instanceIdInput,
-          onInput(Msg.InstanceIdChanged(_)),
+  def view(model: Model): Html[Msg] =
+    div(
+      ReusableViews.headerView,
+      main(
+        div(cls := "container")(
+          div(cls := "columns")(
+            WorkflowsManager.view(model.workflows).map(ForWorkflows.apply),
+            InstancesManager.view(model.instances, model.workflows.selectedWorkflowId).map(ForInstances.apply),
+          ),
         ),
       ),
-      div(cls := "control")(
-        label(cls := "label")(" "), // Empty label for alignment
-        button(
-          cls    := s"button is-primary ${if (model.appState == AppState.LoadingInstance) "is-loading" else ""}",
-          onClick(Msg.LoadInstance),
-          disabled(model.appState == AppState.LoadingInstance),
-        )("Load"),
-      ),
-    )
-
-  private def instanceDetailsView(model: Model, instance: WorkflowInstance): Html[Msg] =
-    div(cls := "content")(
-      h3(s"Details for: ${instance.id}"),
-      ReusableViews.instanceField("Definition", span(instance.definitionId)),
-      ReusableViews.instanceField("Status", ReusableViews.statusBadge(instance.status)),
-      button(
-        cls     := "button is-info is-small mt-4",
-        onClick(Msg.ToggleJsonState),
-      )(if (model.showJsonState) "Hide State" else "Show State"),
-      if (model.showJsonState) jsonStateViewer(instance) else div(),
-    )
-
-  private def jsonStateViewer(instance: WorkflowInstance): Html[Msg] =
-    pre(
-      code(instance.state.map(_.spaces2).getOrElse("No state available.")),
     )
 
   def subscriptions(model: Model): Sub[IO, Msg] = Sub.None
-}
-
-// HTTP calls in a separate object for clarity
-object Http {
-  private val backend = FetchCatsBackend[IO]()
-  private val baseUri = uri"http://localhost:8081/api/v1"
-
-  def loadWorkflows: Cmd[IO, Msg] = {
-    val request = basicRequest
-      .get(baseUri.addPath("definitions"))
-      .response(asJson[List[WorkflowDefinition]])
-
-    Cmd.Run(
-      backend
-        .send(request)
-        .map(_.body)
-        .map {
-          case Right(workflows) => Msg.WorkflowsLoadedSuccess(workflows)
-          case Left(error)      => Msg.WorkflowsLoadedFailure(s"Failed to decode: $error")
-        }
-        .handleError(err => Msg.WorkflowsLoadedFailure(err.getMessage)),
-    )
-  }
-
-  def loadInstance(workflowId: String, instanceId: String): Cmd[IO, Msg] = {
-    val request = basicRequest
-      .get(baseUri.addPath("definitions", workflowId, "instances", instanceId))
-      .response(asJson[WorkflowInstance])
-
-    Cmd.Run(
-      backend
-        .send(request)
-        .map(_.body)
-        .map {
-          case Right(instance) => Msg.InstanceLoadedSuccess(instance)
-          case Left(error)     => Msg.InstanceLoadedFailure(s"Failed to decode: $error")
-        }
-        .handleError(err => Msg.InstanceLoadedFailure(err.getMessage)),
-    )
-  }
+  // TODO: Add subscriptions (timers, websockets, etc.) if needed in the future
 }
