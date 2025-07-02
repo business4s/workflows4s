@@ -53,7 +53,7 @@ abstract class AbstractSpec extends MultiNodeSpec(Config) with WithdrawalWorkflo
 
   def initialParticipants = 2
 
-  "Pekko Cluster Runtime" - {
+  "Pekko Cluster Withdrawal" - {
 
     "cluster has 2 nodes" in within(15.seconds) {
       Cluster(system).subscribe(testActor, classOf[MemberUp])
@@ -62,7 +62,7 @@ abstract class AbstractSpec extends MultiNodeSpec(Config) with WithdrawalWorkflo
       val firstAddress = node(Config.node1).address
       val secondAddress = node(Config.node2).address
 
-      Cluster(system).join(firstAddress) // all nodes join firstAddress
+      Cluster(system).join(firstAddress) // all nodes join firstAddress. Join secondAddress instead will result an error
 
       receiveN(2).collect { case MemberUp(m) => m.address }.toSet shouldBe Set(firstAddress, secondAddress)
 
