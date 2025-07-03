@@ -9,57 +9,39 @@ import tyrian.*
 import workflows4s.web.ui.components.ReusableViews
 import workflows4s.web.ui.models.WorkflowInstance
 
-object InstancesManager {
+// Renamed from Model to InstancesManager
+final case class InstancesManager(
+    instanceIdInput: String,
+    state: InstancesManager.State,
+    showJsonState: Boolean,
+) {
+  def update(msg: InstancesManager.Msg): (InstancesManager, Cmd[IO, InstancesManager.Msg]) = msg match {
+    case InstancesManager.Msg.InstanceIdChanged(id) =>
+      (this.copy(instanceIdInput = id), Cmd.None)
 
-  // MODEL
-  final case class Model(
-      instanceIdInput: String = "",
-      state: State = State.Ready,
-      showJsonState: Boolean = false,
-  ) {
-    def update(msg: Msg): (Model, Cmd[IO, Msg]) = msg match {
-      case Msg.InstanceIdChanged(id) =>
-        (this.copy(instanceIdInput = id), Cmd.None)
+    case InstancesManager.Msg.LoadInstance(workflowId) =>
+      if (instanceIdInput.trim.isEmpty) {
+        (this.copy(state = InstancesManager.State.Failed("Instance ID cannot be empty.")), Cmd.None)
+      } else {
+        (this.copy(state = InstancesManager.State.Loading), InstancesManager.Http.loadInstance(workflowId, instanceIdInput))
+      }
 
-      case Msg.LoadInstance(workflowId) =>
-        if (instanceIdInput.trim.isEmpty) {
-          (this.copy(state = State.Failed("Instance ID cannot be empty.")), Cmd.None)
-        } else {
-          (this.copy(state = State.Loading), Http.loadInstance(workflowId, instanceIdInput))
-        }
+    case InstancesManager.Msg.InstanceLoaded(Right(instance)) =>
+      (this.copy(state = InstancesManager.State.Success(instance)), Cmd.None)
 
-      case Msg.InstanceLoaded(Right(instance)) =>
-        (this.copy(state = State.Success(instance)), Cmd.None)
+    case InstancesManager.Msg.InstanceLoaded(Left(err)) =>
+      (this.copy(state = InstancesManager.State.Failed(err)), Cmd.None)
 
-      case Msg.InstanceLoaded(Left(err)) =>
-        (this.copy(state = State.Failed(err)), Cmd.None)
+    case InstancesManager.Msg.ToggleJsonState =>
+      (this.copy(showJsonState = !showJsonState), Cmd.None)
 
-      case Msg.ToggleJsonState =>
-        (this.copy(showJsonState = !showJsonState), Cmd.None)
+    case InstancesManager.Msg.Reset =>
+        (InstancesManager.initial._1, Cmd.None)
 
-      case Msg.Reset =>
-        (Model(), Cmd.None)
-    }
   }
 
-  enum State {
-    case Ready
-    case Loading
-    case Failed(reason: String)
-    case Success(instance: WorkflowInstance)
-  }
-
-  // MSG
-  enum Msg {
-    case InstanceIdChanged(id: String)
-    case LoadInstance(workflowId: String)
-    case InstanceLoaded(result: Either[String, WorkflowInstance])
-    case ToggleJsonState
-    case Reset
-  }
-
-  // VIEW
-  def view(model: Model, selectedWorkflowId: Option[String]): Html[Msg] =
+  // Moved view from companion object to the class
+  def view(selectedWorkflowId: Option[String]): Html[InstancesManager.Msg] =
     div(cls := "column")(
       selectedWorkflowId match {
         case None =>
@@ -68,60 +50,92 @@ object InstancesManager {
           )
         case Some(wfId) =>
           div(cls := "box")(
-            instanceInputView(model, wfId),
-            model.state match {
-              case State.Loading =>
+            instanceInputView(wfId),
+            state match {
+              case InstancesManager.State.Loading =>
                 section(cls := "section is-medium has-text-centered")(
                   p(cls := "title is-4")("Fetching instance details..."),
                 )
-              case State.Failed(reason) =>
+              case InstancesManager.State.Failed(reason) =>
                 div(cls := "notification is-danger is-light mt-4")(text(reason))
-              case State.Success(instance) =>
-                instanceDetailsView(model, instance)
-              case State.Ready =>
+              case InstancesManager.State.Success(instance) =>
+                instanceDetailsView(instance)
+              case InstancesManager.State.Ready =>
                 div()
             },
           )
       },
     )
 
-  private def instanceInputView(model: Model, workflowId: String): Html[Msg] =
+  private def instanceInputView(workflowId: String): Html[InstancesManager.Msg] =
     div(cls := "field is-grouped")(
       div(cls := "control is-expanded")(
         label(cls := "label")("Instance ID"),
         input(
           cls         := "input",
           placeholder := "Enter instance ID",
-          value       := model.instanceIdInput,
-          onInput(Msg.InstanceIdChanged(_)),
+          value       := instanceIdInput,
+          onInput(InstancesManager.Msg.InstanceIdChanged(_)),
         ),
       ),
       div(cls := "control")(
         label(cls := "label")(" "), // Empty label for alignment
         button(
-          cls     := s"button is-primary ${if (model.state == State.Loading) "is-loading" else ""}",
-          onClick(Msg.LoadInstance(workflowId)),
-          disabled(model.state == State.Loading),
+          cls     := s"button is-primary ${if (state == InstancesManager.State.Loading) "is-loading" else ""}",
+          onClick(InstancesManager.Msg.LoadInstance(workflowId)),
+          disabled(state == InstancesManager.State.Loading),
         )("Load"),
       ),
     )
 
-  private def instanceDetailsView(model: Model, instance: WorkflowInstance): Html[Msg] =
+  private def instanceDetailsView(instance: WorkflowInstance): Html[InstancesManager.Msg] =
     div(cls := "content mt-4")(
       h3(s"Details for: ${instance.id}"),
       ReusableViews.instanceField("Definition", span(instance.definitionId)),
       ReusableViews.instanceField("Status", ReusableViews.statusBadge(instance.status)),
       button(
         cls     := "button is-info is-small mt-4",
-        onClick(Msg.ToggleJsonState),
-      )(if (model.showJsonState) "Hide State" else "Show State"),
-      if (model.showJsonState) jsonStateViewer(instance) else div(),
+        onClick(InstancesManager.Msg.ToggleJsonState),
+      )(if (showJsonState) "Hide State" else "Show State"),
+      if (showJsonState) jsonStateViewer(instance) else div(),
     )
 
-  private def jsonStateViewer(instance: WorkflowInstance): Html[Msg] =
+  private def jsonStateViewer(instance: WorkflowInstance): Html[InstancesManager.Msg] =
     pre(
       code(instance.state.map(_.spaces2).getOrElse("No state available.")),
     )
+}
+
+object InstancesManager {
+
+  def initial: (InstancesManager, Cmd[IO, Nothing]) = {
+    val manager = InstancesManager(
+      instanceIdInput = "",
+      state = State.Ready,
+      showJsonState = false
+    )
+    (manager, Cmd.None)
+  }
+
+  // Initialize with a way to map messages to parent's message type
+  def initialWithMsg[A](toMsg: Msg => A): (InstancesManager, Cmd[IO, A]) = {
+    val (manager, _) = initial
+    (manager, Cmd.None.map(_ => toMsg(Msg.Reset))) 
+  }
+  enum State {
+    case Ready
+    case Loading
+    case Failed(reason: String)
+    case Success(instance: WorkflowInstance)
+  }
+
+  enum Msg {
+    case InstanceIdChanged(id: String)
+    case LoadInstance(workflowId: String)
+    case InstanceLoaded(result: Either[String, WorkflowInstance])
+    case ToggleJsonState
+    case Reset
+  }
 
   // HTTP
   object Http {

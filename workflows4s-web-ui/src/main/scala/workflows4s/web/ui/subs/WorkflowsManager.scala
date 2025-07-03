@@ -8,27 +8,61 @@ import tyrian.Html.*
 import tyrian.*
 import workflows4s.web.ui.models.WorkflowDefinition
 
+// Renamed from Model to WorkflowsManager (the class represents the entire subsystem)
+final case class WorkflowsManager(
+    workflows: List[WorkflowDefinition],
+    state: WorkflowsManager.State,
+    selectedWorkflowId: Option[String],
+) {
+  def update(msg: WorkflowsManager.Msg): (WorkflowsManager, Cmd[IO, WorkflowsManager.Msg]) = msg match {
+    case WorkflowsManager.Msg.Load =>
+      (this.copy(state = WorkflowsManager.State.Loading), WorkflowsManager.Http.loadWorkflows)
+
+    case WorkflowsManager.Msg.Loaded(Right(wfs)) =>
+      (this.copy(state = WorkflowsManager.State.Ready, workflows = wfs), Cmd.None)
+
+    case WorkflowsManager.Msg.Loaded(Left(err)) =>
+      (this.copy(state = WorkflowsManager.State.Failed(err)), Cmd.None)
+
+    case WorkflowsManager.Msg.Select(workflowId) =>
+      (this.copy(selectedWorkflowId = Some(workflowId)), Cmd.None)
+  }
+
+  // Moved view from companion object to the class
+  def view: Html[WorkflowsManager.Msg] =
+    aside(cls := "column is-one-quarter")(
+      nav(cls := "menu p-4")(
+        p(cls := "menu-label")("Available Workflows"),
+        state match {
+          case WorkflowsManager.State.Initializing | WorkflowsManager.State.Loading =>
+            p(cls := "menu-list")("Loading workflows...")
+          case WorkflowsManager.State.Failed(reason) =>
+            div(cls := "notification is-danger is-light")(text(reason))
+          case WorkflowsManager.State.Ready =>
+            ul(cls := "menu-list")(
+              workflows.map { wf =>
+                li(
+                  a(
+                    cls     := (if (selectedWorkflowId.contains(wf.id)) "is-active" else ""),
+                    onClick(WorkflowsManager.Msg.Select(wf.id)),
+                  )(wf.name),
+                )
+              },
+            )
+        },
+      ),
+    )
+}
+
 object WorkflowsManager {
-
-  // MODEL
-  final case class Model(
-      workflows: List[WorkflowDefinition] = Nil,
-      state: State = State.Initializing,
-      selectedWorkflowId: Option[String] = None,
-  ) {
-    def update(msg: Msg): (Model, Cmd[IO, Msg]) = msg match {
-      case Msg.Load =>
-        (this.copy(state = State.Loading), Http.loadWorkflows)
-
-      case Msg.Loaded(Right(wfs)) =>
-        (this.copy(state = State.Ready, workflows = wfs), Cmd.None)
-
-      case Msg.Loaded(Left(err)) =>
-        (this.copy(state = State.Failed(err)), Cmd.None)
-
-      case Msg.Select(workflowId) =>
-        (this.copy(selectedWorkflowId = Some(workflowId)), Cmd.None)
-    }
+  def initial[A](toMsg: Msg => A): (WorkflowsManager, Cmd[IO, A]) = {
+    val manager = WorkflowsManager(
+      workflows = Nil,
+      state = State.Initializing,
+      selectedWorkflowId = None
+    )
+    val loadCmd = Http.loadWorkflows.map(toMsg)
+    (manager, loadCmd)
   }
 
   enum State {
@@ -38,37 +72,11 @@ object WorkflowsManager {
     case Failed(reason: String)
   }
 
-  // MSG
   enum Msg {
     case Load
     case Loaded(result: Either[String, List[WorkflowDefinition]])
     case Select(workflowId: String)
   }
-
-  // VIEW
-  def view(model: Model): Html[Msg] =
-    aside(cls := "column is-one-quarter")(
-      nav(cls := "menu p-4")(
-        p(cls := "menu-label")("Available Workflows"),
-        model.state match {
-          case State.Initializing | State.Loading =>
-            p(cls := "menu-list")("Loading workflows...")
-          case State.Failed(reason) =>
-            div(cls := "notification is-danger is-light")(text(reason))
-          case State.Ready =>
-            ul(cls := "menu-list")(
-              model.workflows.map { wf =>
-                li(
-                  a(
-                    cls     := (if (model.selectedWorkflowId.contains(wf.id)) "is-active" else ""),
-                    onClick(Msg.Select(wf.id)),
-                  )(wf.name),
-                )
-              },
-            )
-        },
-      ),
-    )
 
   // HTTP
   object Http {
