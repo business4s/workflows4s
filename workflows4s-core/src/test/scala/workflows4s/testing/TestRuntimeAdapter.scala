@@ -2,6 +2,7 @@ package workflows4s.testing
 
 import cats.Id
 import cats.effect.unsafe.IORuntime
+import com.typesafe.scalalogging.StrictLogging
 import workflows4s.runtime.registry.{NoOpWorkflowRegistry, WorkflowRegistry}
 import workflows4s.runtime.{InMemoryRuntime, InMemorySyncRuntime, InMemorySyncWorkflowInstance, WorkflowInstance}
 import workflows4s.testing.TestRuntimeAdapter.Identifiable
@@ -11,7 +12,7 @@ import workflows4s.wio.model.WIOExecutionProgress
 import java.time.Clock
 
 // Adapt various runtimes to a single interface for tests
-trait TestRuntimeAdapter[Ctx <: WorkflowContext, WfId] {
+trait TestRuntimeAdapter[Ctx <: WorkflowContext, WfId] extends StrictLogging {
 
   protected val knockerUpper = FakeKnockerUpper[WfId]()
   val clock: TestClock       = TestClock()
@@ -27,7 +28,9 @@ trait TestRuntimeAdapter[Ctx <: WorkflowContext, WfId] {
   def recover(first: Actor): Actor
 
   final def executeDueWakup(actor: Actor): Unit = {
-    if knockerUpper.lastRegisteredWakeup(actor.id).exists(_.isBefore(clock.instant()))
+    val wakeup = knockerUpper.lastRegisteredWakeup(actor.id)
+    logger.debug(s"Executing due wakeup for actor ${actor.id}. Last registered wakeup: ${wakeup}")
+    if wakeup.exists(_.isBefore(clock.instant()))
     then actor.wakeup()
   }
 
