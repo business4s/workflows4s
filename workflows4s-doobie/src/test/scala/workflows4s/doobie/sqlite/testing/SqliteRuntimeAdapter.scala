@@ -14,6 +14,7 @@ import workflows4s.wio.*
 import java.nio.file.Path
 import java.time.Clock
 import scala.util.Random
+import cats.effect.unsafe.implicits.global
 
 class SqliteRuntimeAdapter[Ctx <: WorkflowContext](workdir: Path, eventCodec: ByteCodec[WCEvent[Ctx]]) extends TestRuntimeAdapter[Ctx, String] {
 
@@ -24,7 +25,7 @@ class SqliteRuntimeAdapter[Ctx <: WorkflowContext](workdir: Path, eventCodec: By
       registryAgent: WorkflowRegistry.Agent[String],
   ): Actor = {
     val runtime =
-      SqliteRuntime.default[Ctx](workflow, state, eventCodec, NoOpKnockerUpper.Agent, workdir, clock)
+      SqliteRuntime.default[Ctx](workflow, state, eventCodec, NoOpKnockerUpper.Agent, workdir, clock, registryAgent).unsafeRunSync()
     Actor(runtime.createInstance(s"workflow-${Random.nextLong()}"))
   }
 
@@ -33,7 +34,6 @@ class SqliteRuntimeAdapter[Ctx <: WorkflowContext](workdir: Path, eventCodec: By
   }
 
   case class Actor(base: IO[WorkflowInstance[IO, WCState[Ctx]]]) extends WorkflowInstance[Id, WCState[Ctx]] {
-    import cats.effect.unsafe.implicits.global
 
     override def queryState(): WCState[Ctx] = base.flatMap(_.queryState()).unsafeRunSync()
 

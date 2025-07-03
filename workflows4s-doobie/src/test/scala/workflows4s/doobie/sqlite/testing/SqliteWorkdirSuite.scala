@@ -1,8 +1,8 @@
-package workflows4s.example.testuitls
-
-import java.nio.file.{Files, Path}
+package workflows4s.doobie.sqlite.testing
 
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Suite}
+
+import java.nio.file.{Files, Path}
 
 trait SqliteWorkdirSuite extends BeforeAndAfterAll with BeforeAndAfterEach { self: Suite =>
 

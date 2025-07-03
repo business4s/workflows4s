@@ -3,7 +3,6 @@ package workflows4s.doobie.sqlite
 import java.nio.file.{Files, Path}
 import java.time.Clock
 import java.util.Properties
-
 import cats.data.Kleisli
 import cats.effect.{IO, LiftIO}
 import doobie.implicits.*
@@ -11,7 +10,7 @@ import doobie.util.fragment.Fragment
 import doobie.util.transactor.Transactor
 import doobie.{ConnectionIO, WeakAsync}
 import workflows4s.doobie.{ByteCodec, DbWorkflowInstance}
-import workflows4s.runtime.registry.NoOpWorkflowRegistry
+import workflows4s.runtime.registry.{NoOpWorkflowRegistry, WorkflowRegistry}
 import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.runtime.{MappedWorkflowInstance, WorkflowInstance, WorkflowRuntime}
 import workflows4s.wio.WIO.Initial
@@ -25,10 +24,35 @@ class SqliteRuntime[Ctx <: WorkflowContext](
     knockerUpper: KnockerUpper.Agent[String],
     eventCodec: ByteCodec[WCEvent[Ctx]],
     workdir: Path,
+    registryAgent: WorkflowRegistry.Agent[String],
 ) extends WorkflowRuntime[IO, Ctx, String] {
 
-  // Ensure workdir exists
-  Files.createDirectories(workdir)
+  private val storage = SqliteWorkflowStorage[WCEvent[Ctx]](eventCodec)
+
+  override def createInstance(id: String): IO[WorkflowInstance[IO, State[Ctx]]] = {
+    val dbPath = getDatabasePath(id)
+    val xa     = createTransactor(dbPath)
+
+    for {
+      _ <- initSchema(xa)
+    } yield {
+      val base = new DbWorkflowInstance(
+        (),                       // Storage doesn't need ID since each DB has one workflow
+        ActiveWorkflow(workflow, initialState),
+        storage,
+        clock,
+        knockerUpper.curried(id), // We still need the ID for the knocker upper
+        registryAgent.curried(id), // And for the registry
+      )
+
+      new MappedWorkflowInstance(
+        base,
+        [t] =>
+          (connIo: Kleisli[ConnectionIO, LiftIO[ConnectionIO], t]) =>
+            WeakAsync.liftIO[ConnectionIO].use(liftIO => xa.trans.apply(connIo.apply(liftIO))),
+      )
+    }
+  }
 
   private def sanitizeWorkflowId(id: String): String = {
     // Replace characters that might be problematic in filenames
@@ -36,6 +60,7 @@ class SqliteRuntime[Ctx <: WorkflowContext](
   }
 
   private def getDatabasePath(workflowId: String): Path = {
+    // TODO, two workflow ids might clash due to sanitization. For now its good enough but maybe we should hash instead?
     workdir.resolve(s"${sanitizeWorkflowId(workflowId)}.db")
   }
 
@@ -59,35 +84,6 @@ class SqliteRuntime[Ctx <: WorkflowContext](
     _   <- Fragment.const(ddl).update.run.transact(xa).void
   } yield ()
 
-  override def createInstance(id: String): IO[WorkflowInstance[IO, State[Ctx]]] = {
-    val dbPath = getDatabasePath(id)
-    val xa     = createTransactor(dbPath)
-
-    for {
-      _        <- initSchema(xa)
-      instance <- IO {
-                    given ByteCodec[WCEvent[Ctx]] = eventCodec
-                    val registryAgent             = NoOpWorkflowRegistry.Agent
-                    val storage                   = SqliteWorkflowStorage[WCEvent[Ctx]]()
-
-                    val base = new DbWorkflowInstance(
-                      (),                       // Storage doesn't need ID since each DB has one workflow
-                      ActiveWorkflow(workflow, initialState),
-                      storage,
-                      clock,
-                      knockerUpper.curried(id), // We still need the ID for the knocker upper
-                      registryAgent.curried(id), // And for the registry
-                    )
-
-                    new MappedWorkflowInstance(
-                      base,
-                      [t] =>
-                        (connIo: Kleisli[ConnectionIO, LiftIO[ConnectionIO], t]) =>
-                          WeakAsync.liftIO[ConnectionIO].use(liftIO => xa.trans.apply(connIo.apply(liftIO))),
-                    )
-                  }
-    } yield instance
-  }
 }
 
 object SqliteRuntime {
@@ -98,13 +94,20 @@ object SqliteRuntime {
       knockerUpper: KnockerUpper.Agent[String],
       workdir: Path,
       clock: Clock = Clock.systemUTC(),
-  ): SqliteRuntime[Ctx] =
-    new SqliteRuntime[Ctx](
+      registry: WorkflowRegistry.Agent[String] = NoOpWorkflowRegistry.Agent,
+  ): IO[SqliteRuntime[Ctx]] = {
+
+    for {
+      _ <- IO(Files.createDirectories(workdir))
+    } yield new SqliteRuntime[Ctx](
       workflow = workflow,
       initialState = initialState,
       eventCodec = eventCodec,
       knockerUpper = knockerUpper,
       workdir = workdir,
       clock = clock,
+      registryAgent = registry,
     )
+
+  }
 }
