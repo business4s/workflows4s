@@ -141,7 +141,7 @@ object WorkflowRuntimeTest {
       .handleEvent((st, _) => st)
       .done
   }
-  
+
   private def failOnCancel = IO.raiseError(new Exception("Fiber cancelled"))
 
 }
