@@ -29,7 +29,7 @@ object WorkflowRuntimeTest {
 
       s"runtime should not allow interrupting a process while another step is running" in new Fixture {
         for { i <- 1.to(100) } {
-          println(s"Running ${i} iteration")
+          println(s"Running $i iteration")
           import TestCtx2.*
           val longRunningStartedSem                         = new Semaphore(0)
           val (longRunningStepId, longRunningStep, unblock) = {
@@ -41,7 +41,7 @@ object WorkflowRuntimeTest {
           }
           @unused
           var signalStarted                                 = false
-          val (signal, signalStepId, signalStep)            = TestUtils.signalCustom(IO({
+          val (signal, _, signalStep)            = TestUtils.signalCustom(IO({
             signalStarted = true
           }))
 

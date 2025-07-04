@@ -50,6 +50,8 @@ class SqliteRuntime[Ctx <: WorkflowContext](
         base,
         [t] =>
           (connIo: Kleisli[ConnectionIO, LiftIO[ConnectionIO], t]) =>
+            // we use rawTrans because locking manages transactions itself.
+            // And querying events without locking doesn't require any kind of transaction.
             WeakAsync.liftIO[ConnectionIO].use(liftIO => xa.rawTrans.apply(connIo.apply(liftIO))),
       )
     }
