@@ -92,7 +92,7 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(impli
   }
 
   override def recover(first: Actor): Actor = {
-    given Timeout = Timeout(1.second)
+    given Timeout = Timeout(1.seconds)
 
     val isStopped = first.entityRef.ask(replyTo => Stop(replyTo))
     Await.result(isStopped, 3.second)
