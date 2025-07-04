@@ -18,24 +18,6 @@ jobs:
       - uses: sbt/setup-sbt@v1
       - name: Test workflows4s-core
         run: sbt "project workflows4s-core" test
-
-      - name: Test workflows4s-bpmn
-        run: sbt "project workflows4s-bpmn" test
-
-      - name: Test workflows4s-pekko
-        run: sbt "project workflows4s-pekko" test
-
-      - name: Test workflows4s-doobie
-        run: sbt "project workflows4s-doobie" test
-
-      - name: Test workflows4s-filesystem
-        run: sbt "project workflows4s-filesystem" test
-
-      - name: Test workflows4s-quartz
-        run: sbt "project workflows4s-quartz" test
-
-      - name: Test workflows4s-example
-        run: sbt "project workflows4s-example" test
       - name: Build and Test
         run: sbt test
       - name: scalafmt check
