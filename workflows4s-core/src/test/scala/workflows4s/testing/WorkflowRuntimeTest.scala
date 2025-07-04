@@ -59,10 +59,10 @@ object WorkflowRuntimeTest {
           assert(wf.queryState() == TestState.empty)
 
           unblock()
-          wakupFiber.joinWithNever.unsafeRunSync()
+          wakupFiber.joinWith(failOnCancel).unsafeRunSync()
           assert(wf.queryState() == TestState(List(longRunningStepId)))
 
-          val signalResult = signalFiber.joinWithNever.attempt.unsafeRunSync()
+          val signalResult = signalFiber..joinWith(failOnCancel).attempt.unsafeRunSync()
           // this is the most important part of the test.
           // We cannot allow for sideeffect to even start running, if workflow is already locked
           assert(!signalStarted)
@@ -141,5 +141,7 @@ object WorkflowRuntimeTest {
       .handleEvent((st, _) => st)
       .done
   }
+  
+  private def failOnCancel = IO.raiseError(new Exception("Fiber cancelled"))
 
 }
