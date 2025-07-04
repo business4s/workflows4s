@@ -41,7 +41,7 @@ object WorkflowRuntimeTest {
           }
           @unused
           var signalStarted                                 = false
-          val (signal, _, signalStep)            = TestUtils.signalCustom(IO({
+          val (signal, _, signalStep)                       = TestUtils.signalCustom(IO({
             signalStarted = true
           }))
 

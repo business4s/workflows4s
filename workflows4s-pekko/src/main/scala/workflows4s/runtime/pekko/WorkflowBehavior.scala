@@ -114,7 +114,8 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
         logger.warn(s"Tried to unlock with ${cmd.id} but the state is $state")
     }
     // regardless of the state, we conclude unlocking as "done" because the lock with that id is no longer kept
-    Effect.reply(cmd.replyTo)(())
+    Effect
+      .reply(cmd.replyTo)(())
       .thenUnstashAll()
   }
 
