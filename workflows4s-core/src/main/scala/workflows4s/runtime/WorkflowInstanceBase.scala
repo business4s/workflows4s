@@ -66,10 +66,10 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
       result <- state.proceed(now) match {
                   case Some(resultIO) =>
                     for {
-                      _     <- registerRunningInstance
-                      event <- liftIO.liftIO(resultIO)
-                      _      = logger.debug(s"Waking up the instance. Produced event: ${event}")
-                    } yield event match {
+                      _            <- registerRunningInstance
+                      retryOrEvent <- liftIO.liftIO(resultIO)
+                      _             = logger.debug(s"Waking up the instance. Produced event: ${retryOrEvent}")
+                    } yield retryOrEvent match {
                       case Left(retryTime) => LockOutcome.NoOp(Some(retryTime))
                       case Right(event)    => LockOutcome.NewEvent(event, None)
                     }
