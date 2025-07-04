@@ -1,0 +1,34 @@
+import SbtDependency from '@site/src/components/SbtDependency';
+
+# SQLite Runtime
+
+`SQLiteRuntime` is a specialized runtime that follows the [extreme sharding](https://stackoverflow.com/questions/128919/extreme-sharding-one-sqlite-database-per-user) pattern, where a separate SQLite database is created for each workflow.
+
+It stores events similarly to [`DatabaseRuntime`](02-database.mdx), but does not require any external infrastructure. The only requirement is access to the local file system.
+
+## Usage
+
+To use `SQLiteRuntime`, add the following dependency:
+
+<SbtDependency moduleName={"workflows4s-doobie"}/>
+
+Then refer to the example below:
+
+```scala file=./main/scala/workflows4s/example/docs/doobie/SQLiteExample.scala start=sqlite_start end=sqlite_end
+```
+
+## Scaling
+`SQLiteRuntime` has the theoretical ability to scale almost indefinitely due to its per-workflow sharding model.
+However, the current implementation is not optimized for large-scale deployments.
+
+1. **Use a network file system** (e.g., NFS, EFS) to enable shared access across machines.
+2. **Distribute workflows into subdirectories** to avoid filesystem limits on the number of files in a single directory.
+3. **Implement cleanup mechanisms** to delete or archive finished workflows over time.
+4. **Use the [`WorkflowRegistry`](05-workflow-registry.mdx)** to keep track of workflow instances outside the filesystem. This component is already available and can help mitigate some discovery and indexing challenges.
+5. **Consider volume sharding**, where workflows are distributed across multiple network-mounted volumes. This can help reduce contention and improve I/O scalability under high load.
+6. **Plan for observability and monitoring** — with thousands of independent databases, getting system-wide visibility becomes non-trivial.
+
+These enhancements are not yet implemented. If you're exploring large-scale usage or have relevant needs, please reach out — we’d love to collaborate.
+
+
+

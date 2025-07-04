@@ -41,4 +41,18 @@ object DatabaseExample {
     // doc_postgres_end
   }
 
+
+  {
+    // sqlite_start
+    val workflow: WIO.Initial                        = ???
+    val initialState: State                          = ???
+    val transactor: Transactor[IO]                   = ???
+    val storage: WorkflowStorage[WorkflowId, Event]  = ???
+    val knockerUpper: KnockerUpper.Agent[WorkflowId] = ???
+
+    val runtime: DatabaseRuntime[Ctx, WorkflowId]          = DatabaseRuntime.default(workflow, initialState, transactor, knockerUpper, storage)
+    val wfInstance: IO[WorkflowInstance[IO, WCState[Ctx]]] = runtime.createInstance(WorkflowId(1L))
+    // sqlite_end
+  }
+
 }
