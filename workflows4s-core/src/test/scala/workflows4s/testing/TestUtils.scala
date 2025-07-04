@@ -11,6 +11,25 @@ import java.util.UUID
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.util.Random
 
+class TestRuntime {
+  val clock        = TestClock()
+  val knockerUpper = FakeKnockerUpper[Unit]()
+
+  def createInstance(wio: WIO[TestState, Nothing, TestState, TestCtx2.Ctx]): InMemorySyncWorkflowInstance[TestCtx2.Ctx] = {
+    import cats.effect.unsafe.implicits.global
+    val instance: InMemorySyncWorkflowInstance[TestCtx2.Ctx] =
+      new InMemorySyncRuntime[TestCtx2.Ctx, Unit](
+        wio.provideInput(TestState.empty),
+        TestState.empty,
+        clock,
+        knockerUpper,
+        NoOpWorkflowRegistry.Agent,
+      )
+        .createInstance(())
+    instance
+  }
+}
+
 object TestUtils {
 
   type Error = String
@@ -30,17 +49,22 @@ object TestUtils {
     (clock, instance)
   }
 
-  def pure: (StepId, WIO[TestState, Nothing, TestState, TestCtx2.Ctx])        = {
+  def pure: (StepId, WIO[TestState, Nothing, TestState, TestCtx2.Ctx]) = {
     import TestCtx2.*
     val stepId = StepId.random
     (stepId, WIO.pure.makeFrom[TestState].value(_.addExecuted(stepId)).done)
   }
-  def error: (Error, WIO[Any, String, Nothing, TestCtx2.Ctx])                 = {
+  def error: (Error, WIO[Any, String, Nothing, TestCtx2.Ctx])          = {
     import TestCtx2.*
     val error = s"error-${UUID.randomUUID()}"
     (error, WIO.pure.error(error).done)
   }
-  def errorIO: (Error, WIO[Any, String, Nothing, TestCtx2.Ctx])               = {
+
+  def runIO: (StepId, WIO[TestState, Nothing, TestState, TestCtx2.Ctx]) = {
+    runIOCustom(IO.unit)
+  }
+
+  def errorIO: (Error, WIO[Any, String, Nothing, TestCtx2.Ctx]) = {
     import TestCtx2.*
     val error = s"error-${UUID.randomUUID()}"
     case class RunIOErrored(error: String) extends TestCtx2.Event
@@ -50,6 +74,18 @@ object TestUtils {
       .done
     (error, wio)
   }
+
+  def runIOCustom(logic: IO[Unit]): (StepId, WIO[TestState, Nothing, TestState, TestCtx2.Ctx]) = {
+    import TestCtx2.*
+    case class RunIODone(stepId: StepId) extends TestCtx2.Event
+    val stepId = StepId.random
+    val wio    = WIO
+      .runIO[TestState](_ => logic.as(RunIODone(stepId)))
+      .handleEvent((st, evt) => st.addExecuted(evt.stepId))
+      .done
+    (stepId, wio)
+  }
+
   def errorHandler: WIO[(TestState, Error), Nothing, TestState, TestCtx2.Ctx] = {
     import TestCtx2.*
     WIO.pure.makeFrom[(TestState, String)].value((st, err) => st.addError(err)).done
@@ -98,16 +134,4 @@ object TestUtils {
       .done
     (duration.plus(1.milli), wio)
   }
-
-  def runIO: (StepId, WIO[TestState, Nothing, TestState, TestCtx2.Ctx]) = {
-    import TestCtx2.*
-    case class RunIODone(stepId: StepId) extends TestCtx2.Event
-    val stepId = StepId.random
-    val wio    = WIO
-      .runIO[TestState](_ => IO.pure(RunIODone(stepId)))
-      .handleEvent((st, evt) => st.addExecuted(evt.stepId))
-      .done
-    (stepId, wio)
-  }
-
 }
