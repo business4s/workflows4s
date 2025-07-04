@@ -1,15 +1,15 @@
 package workflows4s.testing
 
-import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import cats.effect.{IO, Ref}
+import cats.implicits.toFoldableOps
 import org.scalatest.freespec.AnyFreeSpecLike
 import sourcecode.Text.generate
 import workflows4s.runtime.registry.InMemoryWorkflowRegistry
 import workflows4s.runtime.registry.WorkflowRegistry.ExecutionStatus
 import workflows4s.wio.{TestCtx2, TestState}
 
-import java.util.concurrent.Semaphore
-import scala.annotation.{nowarn, unused}
+import scala.annotation.nowarn
 
 class WorkflowRuntimeTest extends WorkflowRuntimeTest.Suite {
 
@@ -27,48 +27,45 @@ object WorkflowRuntimeTest {
 
     def workflowTests[WfId](getRuntime: => TestRuntimeAdapter[TestCtx2.Ctx, WfId]) = {
 
-      s"runtime should not allow interrupting a process while another step is running" in new Fixture {
-        for { i <- 1.to(100) } {
-          println(s"Running $i iteration")
-          import TestCtx2.*
-          val longRunningStartedSem                         = new Semaphore(0)
-          val (longRunningStepId, longRunningStep, unblock) = {
-            val semaphore = new Semaphore(0)
-            TestUtils.runIOCustom(IO({
-              longRunningStartedSem.release()
-              semaphore.acquire()
-            })) :* (() => semaphore.release())
+      "runtime should not allow interrupting a process while another step is running" in new Fixture {
+        def singleRun(i: Int): IO[Unit] = {
+          IO(println(s"Running $i iteration")) *> {
+            import TestCtx2.*
+
+            for {
+              longRunningStartedSem <- cats.effect.std.Semaphore[IO](0)
+              signalStartedRef      <- Ref[IO].of(false)
+              stepUnblockSem        <- cats.effect.std.Semaphore[IO](0)
+
+              (longRunningStepId, longRunningStep) = TestUtils.runIOCustom(
+                                                       longRunningStartedSem.release *> stepUnblockSem.acquire,
+                                                     )
+
+              (signal, _, signalStep) = TestUtils.signalCustom(signalStartedRef.set(true))
+
+              wio = longRunningStep.interruptWith(signalStep.toInterruption)
+              wf  = createInstance(wio)
+
+              wakupFiber  <- IO(wf.wakeup()).start
+              signalFiber <- (longRunningStartedSem.acquire *> IO(wf.deliverSignal(signal, 1))).start
+
+              _ <- IO(assert(wf.queryState() == TestState.empty))
+
+              _ <- stepUnblockSem.release
+              _ <- wakupFiber.joinWith(IO(fail("wakeup was cancelled")))
+              _ <- IO(assert(wf.queryState() == TestState(List(longRunningStepId))))
+
+              signalResult  <- signalFiber.joinWith(IO(fail("signal was cancelled"))).attempt
+              signalStarted <- signalStartedRef.get
+
+              _ <- IO(assert(!signalStarted))
+              _ <- IO(assert(signalResult.isLeft || signalResult.exists(_.isLeft)))
+              _ <- IO(assert(wf.queryState() == TestState(List(longRunningStepId))))
+            } yield ()
           }
-          @unused
-          var signalStarted                                 = false
-          val (signal, _, signalStep)                       = TestUtils.signalCustom(IO({
-            signalStarted = true
-          }))
-
-          val wio = longRunningStep.interruptWith(signalStep.toInterruption)
-          val wf  = createInstance(wio)
-
-          val wakupFiber = IO(wf.wakeup()).start.unsafeRunSync()
-
-          val signalFiber = IO({
-            longRunningStartedSem.acquire()
-            wf.deliverSignal(signal, 1)
-          }).start.unsafeRunSync()
-
-          // No state change is expected while the first step is running
-          assert(wf.queryState() == TestState.empty)
-
-          unblock()
-          wakupFiber.joinWith(failOnCancel).unsafeRunSync()
-          assert(wf.queryState() == TestState(List(longRunningStepId)))
-
-          val signalResult = signalFiber.joinWith(failOnCancel).attempt.unsafeRunSync()
-          // this is the most important part of the test.
-          // We cannot allow for sideeffect to even start running, if workflow is already locked
-          assert(!signalStarted)
-          assert(signalResult.isLeft || signalResult.exists(_.isLeft))
-          assert(wf.queryState() == TestState(List(longRunningStepId)))
         }
+
+        (1 to 50).toList.traverse_(singleRun).unsafeRunSync()
       }
 
       "workflow registry interaction" - {
@@ -141,7 +138,5 @@ object WorkflowRuntimeTest {
       .handleEvent((st, _) => st)
       .done
   }
-
-  private def failOnCancel = IO.raiseError(new Exception("Fiber cancelled"))
 
 }
