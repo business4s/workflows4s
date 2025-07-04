@@ -41,7 +41,6 @@ object DatabaseExample {
     // doc_postgres_end
   }
 
-
   {
     // sqlite_start
     val workflow: WIO.Initial                        = ???
