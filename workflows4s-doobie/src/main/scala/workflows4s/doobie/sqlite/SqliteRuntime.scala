@@ -5,6 +5,7 @@ import java.time.Clock
 import java.util.Properties
 import cats.data.Kleisli
 import cats.effect.{IO, LiftIO}
+import com.typesafe.scalalogging.StrictLogging
 import doobie.implicits.*
 import doobie.util.fragment.Fragment
 import doobie.util.transactor.Transactor
@@ -25,16 +26,16 @@ class SqliteRuntime[Ctx <: WorkflowContext](
     eventCodec: ByteCodec[WCEvent[Ctx]],
     workdir: Path,
     registryAgent: WorkflowRegistry.Agent[String],
-) extends WorkflowRuntime[IO, Ctx, String] {
+) extends WorkflowRuntime[IO, Ctx, String]
+    with StrictLogging {
 
   private val storage = SqliteWorkflowStorage[WCEvent[Ctx]](eventCodec)
 
   override def createInstance(id: String): IO[WorkflowInstance[IO, State[Ctx]]] = {
     val dbPath = getDatabasePath(id)
     val xa     = createTransactor(dbPath)
-
     for {
-      _ <- initSchema(xa)
+      _ <- initSchema(xa, dbPath)
     } yield {
       val base = new DbWorkflowInstance(
         (),                       // Storage doesn't need ID since each DB has one workflow
@@ -49,7 +50,7 @@ class SqliteRuntime[Ctx <: WorkflowContext](
         base,
         [t] =>
           (connIo: Kleisli[ConnectionIO, LiftIO[ConnectionIO], t]) =>
-            WeakAsync.liftIO[ConnectionIO].use(liftIO => xa.trans.apply(connIo.apply(liftIO))),
+            WeakAsync.liftIO[ConnectionIO].use(liftIO => xa.rawTrans.apply(connIo.apply(liftIO))),
       )
     }
   }
@@ -67,21 +68,23 @@ class SqliteRuntime[Ctx <: WorkflowContext](
   private def createTransactor(dbPath: Path): Transactor[IO] = {
     val dbUrl = s"jdbc:sqlite:${dbPath.toAbsolutePath}"
 
-    val properties = new Properties()
-    // IMMEDIATE transaction mode ensures we get a write lock when we start a transaction
-    properties.put("transaction_mode", "IMMEDIATE")
-
     Transactor.fromDriverManager[IO](
       driver = "org.sqlite.JDBC",
       url = dbUrl,
-      info = properties,
+      info = new Properties(),
       logHandler = None,
     )
   }
 
-  private def initSchema(xa: Transactor[IO]): IO[Unit] = for {
-    ddl <- IO.blocking(scala.io.Source.fromResource("schema/sqlite-schema.sql").mkString)
-    _   <- Fragment.const(ddl).update.run.transact(xa).void
+  private def initSchema(xa: Transactor[IO], dbPath: Path): IO[Unit] = for {
+    dbExists <- IO(Files.exists(dbPath))
+    _        <- if !dbExists then {
+                  for {
+                    _   <- IO(logger.info(s"Initializing DB at ${dbPath}"))
+                    ddl <- IO.blocking(scala.io.Source.fromResource("schema/sqlite-schema.sql").mkString)
+                    _   <- Fragment.const(ddl).update.run.transact(xa).void
+                  } yield ()
+                } else IO.unit
   } yield ()
 
 }

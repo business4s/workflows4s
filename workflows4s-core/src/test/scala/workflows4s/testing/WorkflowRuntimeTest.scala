@@ -8,7 +8,8 @@ import workflows4s.runtime.registry.InMemoryWorkflowRegistry
 import workflows4s.runtime.registry.WorkflowRegistry.ExecutionStatus
 import workflows4s.wio.{TestCtx2, TestState}
 
-import scala.annotation.nowarn
+import java.util.concurrent.Semaphore
+import scala.annotation.{nowarn, unused}
 
 class WorkflowRuntimeTest extends WorkflowRuntimeTest.Suite {
 
@@ -26,6 +27,50 @@ object WorkflowRuntimeTest {
 
     def workflowTests[WfId](getRuntime: => TestRuntimeAdapter[TestCtx2.Ctx, WfId]) = {
 
+      s"runtime should not allow interrupting a process while another step is running" in new Fixture {
+        for { i <- 1.to(100) } {
+          println(s"Running ${i} iteration")
+          import TestCtx2.*
+          val longRunningStartedSem                         = new Semaphore(0)
+          val (longRunningStepId, longRunningStep, unblock) = {
+            val semaphore = new Semaphore(0)
+            TestUtils.runIOCustom(IO({
+              longRunningStartedSem.release()
+              semaphore.acquire()
+            })) :* (() => semaphore.release())
+          }
+          @unused
+          var signalStarted                                 = false
+          val (signal, signalStepId, signalStep)            = TestUtils.signalCustom(IO({
+            signalStarted = true
+          }))
+
+          val wio = longRunningStep.interruptWith(signalStep.toInterruption)
+          val wf  = createInstance(wio)
+
+          val wakupFiber = IO(wf.wakeup()).start.unsafeRunSync()
+
+          val signalFiber = IO({
+            longRunningStartedSem.acquire()
+            wf.deliverSignal(signal, 1)
+          }).start.unsafeRunSync()
+
+          // No state change is expected while the first step is running
+          assert(wf.queryState() == TestState.empty)
+
+          unblock()
+          wakupFiber.joinWithNever.unsafeRunSync()
+          assert(wf.queryState() == TestState(List(longRunningStepId)))
+
+          val signalResult = signalFiber.joinWithNever.attempt.unsafeRunSync()
+          // this is the most important part of the test.
+          // We cannot allow for sideeffect to even start running, if workflow is already locked
+          assert(!signalStarted)
+          assert(signalResult.isLeft || signalResult.exists(_.isLeft))
+          assert(wf.queryState() == TestState(List(longRunningStepId)))
+        }
+      }
+
       "workflow registry interaction" - {
         "register execution status for io" in new Fixture {
 
@@ -34,7 +79,7 @@ object WorkflowRuntimeTest {
           var failing   = true
           val ioLogic   = IO(if failing then throw exception else ())
 
-          val wf = createInstance(failingRunIO(ioLogic))
+          val wf = createInstance(runSpecificIO(ioLogic))
 
           val thrown = intercept[Exception](wf.wakeup())
           assert(thrown == exception)
@@ -89,7 +134,7 @@ object WorkflowRuntimeTest {
     }
   }
 
-  private def failingRunIO(effect: IO[Any]) = {
+  private def runSpecificIO(effect: IO[Any]) = {
     import TestCtx2.*
     WIO
       .runIO[TestState](_ => effect.as(TestCtx2.SimpleEvent("")))

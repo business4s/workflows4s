@@ -4,7 +4,6 @@ import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import doobie.*
 import doobie.implicits.*
-import doobie.free.connection.raw
 import workflows4s.doobie.{ByteCodec, WorkflowStorage}
 
 class SqliteWorkflowStorage[Event](eventCodec: ByteCodec[Event]) extends WorkflowStorage[Unit, Event] {
@@ -22,8 +21,8 @@ class SqliteWorkflowStorage[Event](eventCodec: ByteCodec[Event]) extends Workflo
   override def lockWorkflow(id: Unit): Resource[ConnectionIO, Unit] = {
     // SQLite locks the entire database with BEGIN IMMEDIATE
     // This acquires a write lock on the database preventing other connections from writing
-    val acquire = raw(conn => conn.prepareStatement("BEGIN IMMEDIATE").execute()).void
-    val release = raw(conn => conn.prepareStatement("COMMIT").execute()).void
+    val acquire = sql"BEGIN IMMEDIATE".update.run.void
+    val release = sql"COMMIT".update.run.void
     Resource.make(acquire)(_ => release)
   }
 }
