@@ -73,7 +73,7 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(impli
       extends WorkflowInstance[Id, WCState[Ctx]]
       with Identifiable[String] {
     val base =
-      PekkoWorkflowInstance(entityRef, knockerUpper.curried(id), clock, registryAgent, stateQueryTimeout = Timeout(1.second))
+      PekkoWorkflowInstance(entityRef, knockerUpper.curried(id), clock, registryAgent, stateQueryTimeout = Timeout(3.seconds))
 
     def id: String                              = entityRef.entityId
     override def queryState(): Id[WCState[Ctx]] = base.queryState().await
