@@ -17,7 +17,7 @@ jobs:
       - uses: nanasess/setup-chromedriver@v2
       - uses: sbt/setup-sbt@v1
       - name: Build and Test
-        run: sbt test
+        run: sbt workflows4s-pekko/test
       - name: scalafmt check
         run: sbt scalafmtCheckAll
       - name: Check for uncommitted changes
