@@ -24,6 +24,7 @@ lazy val `workflows4s-core` = (project in file("workflows4s-core"))
       "com.lihaoyi"                %% "sourcecode"      % "0.4.2", // for auto naming
       "ch.qos.logback"              % "logback-classic" % "1.5.18" % Test,
     ),
+    Test / parallelExecution := false
   )
 
 lazy val `workflows4s-bpmn` = (project in file("workflows4s-bpmn"))
