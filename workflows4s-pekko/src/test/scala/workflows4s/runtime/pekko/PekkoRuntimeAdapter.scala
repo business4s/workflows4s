@@ -87,7 +87,7 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(impli
     override def wakeup(): Id[Unit] = base.wakeup().await
 
     extension [T](f: Future[T]) {
-      def await: T = Await.result(f, 2.seconds)
+      def await: T = Await.result(f, 3.seconds)
     }
   }
 
