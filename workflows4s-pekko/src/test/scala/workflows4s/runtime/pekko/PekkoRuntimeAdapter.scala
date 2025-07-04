@@ -92,10 +92,10 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(impli
   }
 
   override def recover(first: Actor): Actor = {
-    given Timeout = Timeout(1.seconds)
+    given Timeout = Timeout(3.seconds)
 
     val isStopped = first.entityRef.ask(replyTo => Stop(replyTo))
-    Await.result(isStopped, 3.second)
+    Await.result(isStopped, 3.seconds)
     Thread.sleep(100) // this is terrible but sometimes akka gives us already terminated actor if we ask for it too fast.
     val entityRef = sharding.entityRefFor(first.entityRef.typeKey, first.entityRef.entityId)
     logger.debug(s"""Original Actor: ${first.entityRef}
