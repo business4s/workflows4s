@@ -24,25 +24,24 @@ class SqliteRuntimeAdapter[Ctx <: WorkflowContext](workdir: Path, eventCodec: By
   ): Actor = {
     val id      = s"sqlruntime-workflow-${Random.nextLong()}"
     logger.debug(s"Creating instance $id")
-    val runtime =
-      SqliteRuntime.default[Ctx](workflow, state, eventCodec, knockerUpper, workdir, clock, registryAgent).unsafeRunSync()
-    Actor(id, runtime.createInstance(id))
+    val runtime = SqliteRuntime.default[Ctx](workflow, state, eventCodec, knockerUpper, workdir, clock, registryAgent).unsafeRunSync()
+    Actor(id, runtime.createInstance(id).unsafeRunSync())
   }
 
   override def recover(first: Actor): Actor = {
     first // in this runtime there is no in-memory state, hence no recovery.
   }
 
-  case class Actor(id: String, base: IO[WorkflowInstance[IO, WCState[Ctx]]]) extends WorkflowInstance[Id, WCState[Ctx]] with Identifiable[String] {
+  case class Actor(id: String, base: WorkflowInstance[IO, WCState[Ctx]]) extends WorkflowInstance[Id, WCState[Ctx]] with Identifiable[String] {
 
-    override def queryState(): WCState[Ctx] = base.flatMap(_.queryState()).unsafeRunSync()
+    override def queryState(): WCState[Ctx] = base.queryState().unsafeRunSync()
 
     override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): Either[WorkflowInstance.UnexpectedSignal, Resp] =
-      base.flatMap(_.deliverSignal(signalDef, req)).unsafeRunSync()
+      base.deliverSignal(signalDef, req).unsafeRunSync()
 
-    override def wakeup(): Id[Unit] = base.flatMap(_.wakeup()).unsafeRunSync()
+    override def wakeup(): Id[Unit] = base.wakeup().unsafeRunSync()
 
-    override def getProgress: Id[WIOExecutionProgress[WCState[Ctx]]] = base.flatMap(_.getProgress).unsafeRunSync()
+    override def getProgress: Id[WIOExecutionProgress[WCState[Ctx]]] = base.getProgress.unsafeRunSync()
   }
 
 }

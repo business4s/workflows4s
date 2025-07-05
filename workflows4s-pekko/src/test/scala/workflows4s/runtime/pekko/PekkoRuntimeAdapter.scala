@@ -73,7 +73,7 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(impli
       extends WorkflowInstance[Id, WCState[Ctx]]
       with Identifiable[String] {
     val base =
-      PekkoWorkflowInstance(entityRef, knockerUpper.curried(id), clock, registryAgent, stateQueryTimeout = Timeout(1.second))
+      PekkoWorkflowInstance(entityRef, knockerUpper.curried(id), clock, registryAgent, stateQueryTimeout = Timeout(3.seconds))
 
     def id: String                              = entityRef.entityId
     override def queryState(): Id[WCState[Ctx]] = base.queryState().await
@@ -87,15 +87,15 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(impli
     override def wakeup(): Id[Unit] = base.wakeup().await
 
     extension [T](f: Future[T]) {
-      def await: T = Await.result(f, 2.seconds)
+      def await: T = Await.result(f, 3.seconds)
     }
   }
 
   override def recover(first: Actor): Actor = {
-    given Timeout = Timeout(1.second)
+    given Timeout = Timeout(3.seconds)
 
     val isStopped = first.entityRef.ask(replyTo => Stop(replyTo))
-    Await.result(isStopped, 1.second)
+    Await.result(isStopped, 3.seconds)
     Thread.sleep(100) // this is terrible but sometimes akka gives us already terminated actor if we ask for it too fast.
     val entityRef = sharding.entityRefFor(first.entityRef.typeKey, first.entityRef.entityId)
     logger.debug(s"""Original Actor: ${first.entityRef}

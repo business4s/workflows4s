@@ -1,5 +1,6 @@
 package workflows4s.runtime
 
+import cats.effect.std.AtomicCell
 import cats.effect.{Deferred, IO, Ref}
 import workflows4s.runtime.registry.{NoOpWorkflowRegistry, WorkflowRegistry}
 import workflows4s.runtime.wakeup.KnockerUpper
@@ -28,7 +29,7 @@ class InMemoryRuntime[Ctx <: WorkflowContext, WorkflowId](
           for {
             runningWfRef <- Deferred[IO, InMemoryWorkflowInstance[Ctx]]
             initialWf     = ActiveWorkflow(workflow, initialState)
-            stateRef     <- Ref[IO].of(initialWf)
+            stateRef     <- AtomicCell[IO].of(initialWf)
             eventsRef    <- Ref[IO].of(Vector[WCEvent[Ctx]]())
             runningWf     = InMemoryWorkflowInstance[Ctx](stateRef, eventsRef, clock, knockerUpper.curried(id), registry.curried(id))
             _            <- runningWfRef.complete(runningWf)

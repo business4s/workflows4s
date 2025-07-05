@@ -107,12 +107,16 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
   }
   private def handleUnlock(cmd: Command.UnlockState[Ctx], processingState: AtomicReference[ProcessingState]): Effect[Event, St]        = {
     processingState.get() match {
-      case ProcessingState.Locked(cmd.id) => processingState.set(ProcessingState.Free)
+      case ProcessingState.Locked(cmd.id) =>
+        processingState.set(ProcessingState.Free)
+        logger.trace(s"Unlocked ${cmd.id}")
       case state                          =>
         logger.warn(s"Tried to unlock with ${cmd.id} but the state is $state")
     }
     // regardless of the state, we conclude unlocking as "done" because the lock with that id is no longer kept
-    Effect.reply(cmd.replyTo)(())
+    Effect
+      .reply(cmd.replyTo)(())
+      .thenUnstashAll()
   }
 
   private def handleUpdateState(cmd: Command.UpdateState[Ctx], processingState: AtomicReference[ProcessingState]) = {

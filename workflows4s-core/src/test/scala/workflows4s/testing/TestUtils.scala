@@ -92,15 +92,20 @@ object TestUtils {
   }
 
   // inline assures two calls get different events
-  inline def signal: (SignalDef[Int, Int], StepId, WIO.IHandleSignal[TestState, Nothing, TestState, TestCtx2.Ctx]) = {
+  inline def signal: (SignalDef[Int, Int], StepId, WIO.IHandleSignal[TestState, Nothing, TestState, TestCtx2.Ctx]) = signalCustom(IO.unit)
+
+  // inline assures two calls get different events
+  inline def signalCustom(logic: IO[Unit]): (SignalDef[Int, Int], StepId, WIO.IHandleSignal[TestState, Nothing, TestState, TestCtx2.Ctx]) = {
     import TestCtx2.*
     val signalDef = SignalDef[Int, Int](id = UUID.randomUUID().toString)
-    class SigEvent(val req: Int) extends TestCtx2.Event with Serializable
+    class SigEvent(val req: Int) extends TestCtx2.Event with Serializable {
+      override def toString: String = s"SigEvent(${req})"
+    }
     val stepId = StepId.random
-    val wio    = WIO
+    val wio = WIO
       .handleSignal(signalDef)
       .using[TestState]
-      .purely((_, req) => SigEvent(req))
+      .withSideEffects((_, req) => logic.as(SigEvent(req)))
       .handleEvent((st, _) => st.addExecuted(stepId))
       .produceResponse((_, evt) => evt.req)
       .done

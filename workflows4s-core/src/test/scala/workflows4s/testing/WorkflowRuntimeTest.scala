@@ -1,7 +1,9 @@
 package workflows4s.testing
 
-import cats.effect.IO
+import cats.effect.std.Semaphore
 import cats.effect.unsafe.implicits.global
+import cats.effect.{IO, Ref}
+import cats.implicits.toFoldableOps
 import org.scalatest.freespec.AnyFreeSpecLike
 import sourcecode.Text.generate
 import workflows4s.runtime.registry.InMemoryWorkflowRegistry
@@ -26,6 +28,45 @@ object WorkflowRuntimeTest {
 
     def workflowTests[WfId](getRuntime: => TestRuntimeAdapter[TestCtx2.Ctx, WfId]) = {
 
+      "runtime should not allow interrupting a process while another step is running" in new Fixture {
+        def singleRun(i: Int): IO[Unit] = {
+          IO(println(s"Running $i iteration")) *> {
+            import TestCtx2.*
+
+            for {
+              longRunningStartedSem  <- Semaphore[IO](0)
+              longrunningFinishedSem <- Semaphore[IO](0)
+              signalStartedRef       <- Ref[IO].of(false)
+
+              (longRunningStepId, longRunningStep) = TestUtils.runIOCustom(longRunningStartedSem.release *> longrunningFinishedSem.acquire)
+
+              (signal, _, signalStep) = TestUtils.signalCustom(signalStartedRef.set(true))
+
+              wio = longRunningStep.interruptWith(signalStep.toInterruption)
+              wf  = createInstance(wio)
+
+              wakeupFiber <- IO(wf.wakeup()).start
+              signalFiber <- (longRunningStartedSem.acquire *> IO(wf.deliverSignal(signal, 1))).start
+
+              _ = assert(wf.queryState() == TestState.empty)
+
+              _ <- longrunningFinishedSem.release
+              _ <- wakeupFiber.joinWith(IO(fail("wakeup was cancelled")))
+              _  = assert(wf.queryState() == TestState(List(longRunningStepId)))
+
+              signalResult  <- signalFiber.joinWith(IO(fail("signal was cancelled"))).attempt
+              signalStarted <- signalStartedRef.get
+
+              _ <- IO(assert(!signalStarted))
+              _ <- IO(assert(signalResult.isLeft || signalResult.exists(_.isLeft)))
+              _ <- IO(assert(wf.queryState() == TestState(List(longRunningStepId))))
+            } yield ()
+          }
+        }
+
+        (1 to 50).toList.traverse_(singleRun).unsafeRunSync()
+      }
+
       "workflow registry interaction" - {
         "register execution status for io" in new Fixture {
 
@@ -34,7 +75,7 @@ object WorkflowRuntimeTest {
           var failing   = true
           val ioLogic   = IO(if failing then throw exception else ())
 
-          val wf = createInstance(failingRunIO(ioLogic))
+          val wf = createInstance(runSpecificIO(ioLogic))
 
           val thrown = intercept[Exception](wf.wakeup())
           assert(thrown == exception)
@@ -89,7 +130,7 @@ object WorkflowRuntimeTest {
     }
   }
 
-  private def failingRunIO(effect: IO[Any]) = {
+  private def runSpecificIO(effect: IO[Any]) = {
     import TestCtx2.*
     WIO
       .runIO[TestState](_ => effect.as(TestCtx2.SimpleEvent("")))

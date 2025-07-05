@@ -46,6 +46,7 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
         case Some(resultIO) =>
           for {
             result       <- liftIO.liftIO(resultIO)
+            _             = logger.debug(s"Delivering signal produced result: ${result}")
             (event, resp) = result
           } yield LockOutcome.NewEvent(event, resp.asRight)
         case None           =>
@@ -68,7 +69,7 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
                     for {
                       _            <- registerRunningInstance
                       retryOrEvent <- liftIO.liftIO(resultIO)
-                      _             = logger.debug(s"Waking up the instance. Produced event: ${retryOrEvent}")
+                      _             = logger.debug(s"Waking up the instance produced an event: ${retryOrEvent}")
                     } yield retryOrEvent match {
                       case Left(retryTime) => LockOutcome.NoOp(Some(retryTime))
                       case Right(event)    => LockOutcome.NewEvent(event, None)
@@ -82,6 +83,8 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
     } yield result
 
     for {
+      _           <- fMonad.unit
+      _            = logger.trace(s"Waking up the instance.")
       stateUpdate <- lockAndUpdateState(processWakeup)
       _           <- postEventActions(stateUpdate)
     } yield ()

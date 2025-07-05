@@ -13,7 +13,6 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.util.chaining.scalaUtilChainingOps
 
-// TODO this could be made thread-safe using java primitives
 class InMemorySyncWorkflowInstance[Ctx <: WorkflowContext](
     initialState: ActiveWorkflow[Ctx],
     protected val clock: Clock,
@@ -36,7 +35,8 @@ class InMemorySyncWorkflowInstance[Ctx <: WorkflowContext](
   override protected def fMonad: Monad[Id]                                = cats.Invariant.catsInstancesForId
   override protected def getWorkflow: workflows4s.wio.ActiveWorkflow[Ctx] = wf
 
-  override protected def lockAndUpdateState[T](update: ActiveWorkflow[Ctx] => LockOutcome[T]): StateUpdate[T] = {
+  private val lock                                                                                            = new Object
+  override protected def lockAndUpdateState[T](update: ActiveWorkflow[Ctx] => LockOutcome[T]): StateUpdate[T] = lock.synchronized {
     val oldState = wf
     update(oldState) match {
       case LockOutcome.NewEvent(event, result) =>

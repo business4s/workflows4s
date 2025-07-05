@@ -1,6 +1,7 @@
 package workflows4s.runtime.registry
 
 import cats.effect.{IO, Ref}
+import com.typesafe.scalalogging.StrictLogging
 import workflows4s.runtime.registry.WorkflowRegistry.ExecutionStatus
 
 import java.time.{Clock, Instant}
@@ -26,11 +27,14 @@ object InMemoryWorkflowRegistry {
   private class Impl[WorkflowId](
       stateRef: Ref[IO, Map[(String, WorkflowId), Data[WorkflowId]]],
       clock: Clock,
-  ) extends InMemoryWorkflowRegistry[WorkflowId] {
+  ) extends InMemoryWorkflowRegistry[WorkflowId]
+      with StrictLogging {
 
     override def getAgent(workflowType: String): WorkflowRegistry.Agent[WorkflowId] = new WorkflowRegistry.Agent[WorkflowId] {
       override def upsertInstance(id: WorkflowId, executionStatus: ExecutionStatus): IO[Unit] = {
-        println("Updating workflow registry for " + workflowType + " with id " + id + " to status " + executionStatus + " at " + Instant.now(clock))
+        logger.info(
+          "Updating workflow registry for " + workflowType + " with id " + id + " to status " + executionStatus + " at " + Instant.now(clock),
+        )
         for {
           now <- IO(Instant.now(clock))
           _   <- stateRef.update { state =>
