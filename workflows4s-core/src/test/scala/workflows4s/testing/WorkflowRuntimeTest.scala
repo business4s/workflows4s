@@ -1,5 +1,6 @@
 package workflows4s.testing
 
+import cats.effect.std.Semaphore
 import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Ref}
 import cats.implicits.toFoldableOps
@@ -33,27 +34,25 @@ object WorkflowRuntimeTest {
             import TestCtx2.*
 
             for {
-              longRunningStartedSem <- cats.effect.std.Semaphore[IO](0)
-              signalStartedRef      <- Ref[IO].of(false)
-              stepUnblockSem        <- cats.effect.std.Semaphore[IO](0)
+              longRunningStartedSem  <- Semaphore[IO](0)
+              longrunningFinishedSem <- Semaphore[IO](0)
+              signalStartedRef       <- Ref[IO].of(false)
 
-              (longRunningStepId, longRunningStep) = TestUtils.runIOCustom(
-                                                       longRunningStartedSem.release *> stepUnblockSem.acquire,
-                                                     )
+              (longRunningStepId, longRunningStep) = TestUtils.runIOCustom(longRunningStartedSem.release *> longrunningFinishedSem.acquire)
 
               (signal, _, signalStep) = TestUtils.signalCustom(signalStartedRef.set(true))
 
               wio = longRunningStep.interruptWith(signalStep.toInterruption)
               wf  = createInstance(wio)
 
-              wakupFiber  <- IO(wf.wakeup()).start
+              wakeupFiber <- IO(wf.wakeup()).start
               signalFiber <- (longRunningStartedSem.acquire *> IO(wf.deliverSignal(signal, 1))).start
 
-              _ <- IO(assert(wf.queryState() == TestState.empty))
+              _ = assert(wf.queryState() == TestState.empty)
 
-              _ <- stepUnblockSem.release
-              _ <- wakupFiber.joinWith(IO(fail("wakeup was cancelled")))
-              _ <- IO(assert(wf.queryState() == TestState(List(longRunningStepId))))
+              _ <- longrunningFinishedSem.release
+              _ <- wakeupFiber.joinWith(IO(fail("wakeup was cancelled")))
+              _  = assert(wf.queryState() == TestState(List(longRunningStepId)))
 
               signalResult  <- signalFiber.joinWith(IO(fail("signal was cancelled"))).attempt
               signalStarted <- signalStartedRef.get
