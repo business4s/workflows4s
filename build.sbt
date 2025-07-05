@@ -85,6 +85,8 @@ lazy val `workflows4s-quartz` = (project in file("workflows4s-quartz"))
   .dependsOn(`workflows4s-core`)
 
 lazy val `workflows4s-example` = (project in file("workflows4s-example"))
+  .enablePlugins(MultiJvmPlugin)
+  .configs(MultiJvm)
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
@@ -98,6 +100,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "ch.qos.logback"        % "logback-classic"                 % "1.5.18",
       "org.scalamock"        %% "scalamock"                       % "7.4.0"                    % Test,
       "org.apache.pekko"     %% "pekko-actor-testkit-typed"       % pekkoVersion               % Test,
+      "org.apache.pekko"     %% "pekko-multi-node-testkit"        % pekkoVersion               % Test,
       "com.dimafeng"         %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
       "com.dimafeng"         %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
       "org.postgresql"        % "postgresql"                      % "42.7.7"                   % Test,
