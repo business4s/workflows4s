@@ -7,28 +7,33 @@ import sttp.client4.impl.cats.FetchCatsBackend
 import tyrian.Html.*
 import tyrian.*
 import workflows4s.web.ui.models.WorkflowDefinition
+import workflows4s.web.ui.Msg as RootMsg
 
-// Renamed from Model to WorkflowsManager (the class represents the entire subsystem)
 final case class WorkflowsManager(
     workflows: List[WorkflowDefinition],
     state: WorkflowsManager.State,
     selectedWorkflowId: Option[String],
 ) {
-  def update(msg: WorkflowsManager.Msg): (WorkflowsManager, Cmd[IO, WorkflowsManager.Msg]) = msg match {
+  def update(msg: WorkflowsManager.Msg): (WorkflowsManager, Cmd[IO, RootMsg]) = msg match {
     case WorkflowsManager.Msg.Load =>
-      (this.copy(state = WorkflowsManager.State.Loading), WorkflowsManager.Http.loadWorkflows)
+      val updated = this.copy(state = WorkflowsManager.State.Loading)
+      val cmd     = WorkflowsManager.Http.loadWorkflows.map(RootMsg.ForWorkflows.apply)
+      (updated, cmd)
 
     case WorkflowsManager.Msg.Loaded(Right(wfs)) =>
-      (this.copy(state = WorkflowsManager.State.Ready, workflows = wfs), Cmd.None)
+      val updated = this.copy(state = WorkflowsManager.State.Ready, workflows = wfs)
+      (updated, Cmd.None)
 
     case WorkflowsManager.Msg.Loaded(Left(err)) =>
-      (this.copy(state = WorkflowsManager.State.Failed(err)), Cmd.None)
+      val updated = this.copy(state = WorkflowsManager.State.Failed(err))
+      (updated, Cmd.None)
 
     case WorkflowsManager.Msg.Select(workflowId) =>
-      (this.copy(selectedWorkflowId = Some(workflowId)), Cmd.None)
+      val updated = this.copy(selectedWorkflowId = Some(workflowId))
+      val cmd     = Cmd.emit(RootMsg.ForInstances(InstancesManager.Msg.Reset))
+      (updated, cmd)
   }
 
-  // Moved view from companion object to the class
   def view: Html[WorkflowsManager.Msg] =
     aside(cls := "column is-one-quarter")(
       nav(cls := "menu p-4")(
@@ -36,14 +41,16 @@ final case class WorkflowsManager(
         state match {
           case WorkflowsManager.State.Initializing | WorkflowsManager.State.Loading =>
             p(cls := "menu-list")("Loading workflows...")
+
           case WorkflowsManager.State.Failed(reason) =>
             div(cls := "notification is-danger is-light")(text(reason))
+
           case WorkflowsManager.State.Ready =>
             ul(cls := "menu-list")(
               workflows.map { wf =>
                 li(
                   a(
-                    cls     := (if (selectedWorkflowId.contains(wf.id)) "is-active" else ""),
+                    cls := (if selectedWorkflowId.contains(wf.id) then "is-active" else ""),
                     onClick(WorkflowsManager.Msg.Select(wf.id)),
                   )(wf.name),
                 )
@@ -55,11 +62,11 @@ final case class WorkflowsManager(
 }
 
 object WorkflowsManager {
-  def initial[A](toMsg: Msg => A): (WorkflowsManager, Cmd[IO, A]) = {
+  def initial(toMsg: Msg => RootMsg): (WorkflowsManager, Cmd[IO, RootMsg]) = {
     val manager = WorkflowsManager(
       workflows = Nil,
       state = State.Initializing,
-      selectedWorkflowId = None
+      selectedWorkflowId = None,
     )
     val loadCmd = Http.loadWorkflows.map(toMsg)
     (manager, loadCmd)
@@ -78,7 +85,6 @@ object WorkflowsManager {
     case Select(workflowId: String)
   }
 
-  // HTTP
   object Http {
     private val backend = FetchCatsBackend[IO]()
     private val baseUri = uri"http://localhost:8081/api/v1"

@@ -9,7 +9,6 @@ import tyrian.*
 import workflows4s.web.ui.components.ReusableViews
 import workflows4s.web.ui.models.WorkflowInstance
 
-// Renamed from Model to InstancesManager
 final case class InstancesManager(
     instanceIdInput: String,
     state: InstancesManager.State,
@@ -20,7 +19,7 @@ final case class InstancesManager(
       (this.copy(instanceIdInput = id), Cmd.None)
 
     case InstancesManager.Msg.LoadInstance(workflowId) =>
-      if (instanceIdInput.trim.isEmpty) {
+      if instanceIdInput.trim.isEmpty then {
         (this.copy(state = InstancesManager.State.Failed("Instance ID cannot be empty.")), Cmd.None)
       } else {
         (this.copy(state = InstancesManager.State.Loading), InstancesManager.Http.loadInstance(workflowId, instanceIdInput))
@@ -36,11 +35,9 @@ final case class InstancesManager(
       (this.copy(showJsonState = !showJsonState), Cmd.None)
 
     case InstancesManager.Msg.Reset =>
-        (InstancesManager.initial._1, Cmd.None)
-
+      (InstancesManager.initial, Cmd.None)
   }
 
-  // Moved view from companion object to the class
   def view(selectedWorkflowId: Option[String]): Html[InstancesManager.Msg] =
     div(cls := "column")(
       selectedWorkflowId match {
@@ -48,6 +45,7 @@ final case class InstancesManager(
           div(cls := "box has-text-centered p-6")(
             p("Select a workflow from the menu to get started."),
           )
+
         case Some(wfId) =>
           div(cls := "box")(
             instanceInputView(wfId),
@@ -56,10 +54,13 @@ final case class InstancesManager(
                 section(cls := "section is-medium has-text-centered")(
                   p(cls := "title is-4")("Fetching instance details..."),
                 )
+
               case InstancesManager.State.Failed(reason) =>
                 div(cls := "notification is-danger is-light mt-4")(text(reason))
+
               case InstancesManager.State.Success(instance) =>
                 instanceDetailsView(instance)
+
               case InstancesManager.State.Ready =>
                 div()
             },
@@ -79,9 +80,9 @@ final case class InstancesManager(
         ),
       ),
       div(cls := "control")(
-        label(cls := "label")(" "), // Empty label for alignment
+        label(cls := "label")(" "),
         button(
-          cls     := s"button is-primary ${if (state == InstancesManager.State.Loading) "is-loading" else ""}",
+          cls := s"button is-primary ${if state == InstancesManager.State.Loading then "is-loading" else ""}",
           onClick(InstancesManager.Msg.LoadInstance(workflowId)),
           disabled(state == InstancesManager.State.Loading),
         )("Load"),
@@ -94,10 +95,10 @@ final case class InstancesManager(
       ReusableViews.instanceField("Definition", span(instance.definitionId)),
       ReusableViews.instanceField("Status", ReusableViews.statusBadge(instance.status)),
       button(
-        cls     := "button is-info is-small mt-4",
+        cls := "button is-info is-small mt-4",
         onClick(InstancesManager.Msg.ToggleJsonState),
-      )(if (showJsonState) "Hide State" else "Show State"),
-      if (showJsonState) jsonStateViewer(instance) else div(),
+      )(if showJsonState then "Hide State" else "Show State"),
+      if showJsonState then jsonStateViewer(instance) else div(),
     )
 
   private def jsonStateViewer(instance: WorkflowInstance): Html[InstancesManager.Msg] =
@@ -107,21 +108,13 @@ final case class InstancesManager(
 }
 
 object InstancesManager {
-
-  def initial: (InstancesManager, Cmd[IO, Nothing]) = {
-    val manager = InstancesManager(
+  def initial: InstancesManager =
+    InstancesManager(
       instanceIdInput = "",
       state = State.Ready,
-      showJsonState = false
+      showJsonState = false,
     )
-    (manager, Cmd.None)
-  }
 
-  // Initialize with a way to map messages to parent's message type
-  def initialWithMsg[A](toMsg: Msg => A): (InstancesManager, Cmd[IO, A]) = {
-    val (manager, _) = initial
-    (manager, Cmd.None.map(_ => toMsg(Msg.Reset))) 
-  }
   enum State {
     case Ready
     case Loading
@@ -137,7 +130,6 @@ object InstancesManager {
     case Reset
   }
 
-  // HTTP
   object Http {
     private val backend = FetchCatsBackend[IO]()
     private val baseUri = uri"http://localhost:8081/api/v1"
