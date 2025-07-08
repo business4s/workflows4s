@@ -29,7 +29,7 @@ object DatabaseExample {
     val knockerUpper: KnockerUpper.Agent[WorkflowId] = ???
 
     val runtime: DatabaseRuntime[Ctx, WorkflowId]          = DatabaseRuntime.default(workflow, initialState, transactor, knockerUpper, storage)
-    val wfInstance: IO[WorkflowInstance[IO, WCState[Ctx]]] = runtime.createInstance(WorkflowId(1L))
+    val wfInstance: IO[WorkflowInstance[IO, WCState[Ctx]]] = runtime.createInstance(WorkflowId("1"))
     // doc_end
   }
 
@@ -50,7 +50,7 @@ object DatabaseExample {
     val knockerUpper: KnockerUpper.Agent[WorkflowId] = ???
 
     val runtime: DatabaseRuntime[Ctx, WorkflowId]          = DatabaseRuntime.default(workflow, initialState, transactor, knockerUpper, storage)
-    val wfInstance: IO[WorkflowInstance[IO, WCState[Ctx]]] = runtime.createInstance(WorkflowId(1L))
+    val wfInstance: IO[WorkflowInstance[IO, WCState[Ctx]]] = runtime.createInstance(WorkflowId("1"))
     // sqlite_end
   }
 
