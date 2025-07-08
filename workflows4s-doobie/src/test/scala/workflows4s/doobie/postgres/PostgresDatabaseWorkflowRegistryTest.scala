@@ -12,7 +12,6 @@ import org.scalatest.BeforeAndAfterEach
 import workflows4s.doobie.postgres.testing.PostgresSuite
 
 import scala.concurrent.duration.DurationInt
-import scala.util.Random
 
 class PostgresDatabaseWorkflowRegistryTest extends AnyFreeSpec with PostgresSuite with Matchers with BeforeAndAfterEach {
 
@@ -31,7 +30,7 @@ class PostgresDatabaseWorkflowRegistryTest extends AnyFreeSpec with PostgresSuit
       val agent1 = registry.getAgent(wfType1)
       val agent2 = registry.getAgent(wfType2)
 
-      val List(id1, id2, id3, id4) = List.fill(4)(WorkflowId(Random.nextLong()))
+      val List(id1, id2, id3, id4) = List.fill(4)(WorkflowId.generate())
 
       agent1.upsertInstance(id1, ExecutionStatus.Running).unsafeRunSync()
       agent1.upsertInstance(id2, ExecutionStatus.Awaiting).unsafeRunSync()
@@ -54,7 +53,7 @@ class PostgresDatabaseWorkflowRegistryTest extends AnyFreeSpec with PostgresSuit
       val wfType   = "test-workflow-1"
       val agent    = registry.getAgent(wfType)
 
-      val List(id1, id2) = List.fill(2)(WorkflowId(Random.nextLong()))
+      val List(id1, id2) = List.fill(2)(WorkflowId.generate())
 
       agent.upsertInstance(id1, ExecutionStatus.Running).unsafeRunSync()
       agent.upsertInstance(id2, ExecutionStatus.Running).unsafeRunSync()
@@ -77,7 +76,7 @@ class PostgresDatabaseWorkflowRegistryTest extends AnyFreeSpec with PostgresSuit
       val wfType   = "test-workflow-1"
       val agent    = registry.getAgent(wfType)
 
-      val List(id1, id2, id3) = List.fill(3)(WorkflowId(Random.nextLong()))
+      val List(id1, id2, id3) = List.fill(3)(WorkflowId.generate())
 
       agent.upsertInstance(id1, ExecutionStatus.Running).unsafeRunSync()
       agent.upsertInstance(id2, ExecutionStatus.Running).unsafeRunSync()
@@ -103,7 +102,7 @@ class PostgresDatabaseWorkflowRegistryTest extends AnyFreeSpec with PostgresSuit
       val agent1   = registry.getAgent(wfType1)
       val agent2   = registry.getAgent(wfType2)
 
-      val id = WorkflowId(1)
+      val id = WorkflowId("1")
 
       agent1.upsertInstance(id, ExecutionStatus.Running).unsafeRunSync()
       agent2.upsertInstance(id, ExecutionStatus.Running).unsafeRunSync()

@@ -25,10 +25,10 @@ class PostgresWorkflowStorage[Event](tableName: String = "workflow_journal")(usi
 
   override def lockWorkflow(id: WorkflowId): Resource[ConnectionIO, Unit] = {
     // Acquires transaction-level exclusive lock
-    val acquire = sql"select pg_try_advisory_xact_lock(${id})"
+    val acquire = sql"select pg_try_advisory_xact_lock(${id.lockKey()})"
       .query[Boolean]
       .unique
-      .flatMap(lockAcquired => Sync[ConnectionIO].raiseWhen(!lockAcquired)(new Exception(s"Couldn't acquire lock for ${id}")))
+      .flatMap(lockAcquired => Sync[ConnectionIO].raiseWhen(!lockAcquired)(new Exception(s"Couldn't acquire lock ${id.lockKey()} for ${id}")))
     Resource.eval(acquire)
   }
 }

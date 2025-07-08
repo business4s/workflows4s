@@ -12,8 +12,6 @@ import workflows4s.testing.TestRuntimeAdapter.Identifiable
 import workflows4s.wio.*
 import workflows4s.wio.model.WIOExecutionProgress
 
-import scala.util.Random
-
 class PostgresRuntimeAdapter[Ctx <: WorkflowContext](xa: Transactor[IO], eventCodec: ByteCodec[WCEvent[Ctx]])
     extends TestRuntimeAdapter[Ctx, WorkflowId] {
 
@@ -25,7 +23,7 @@ class PostgresRuntimeAdapter[Ctx <: WorkflowContext](xa: Transactor[IO], eventCo
     val storage = PostgresWorkflowStorage()(using eventCodec)
     val runtime =
       DatabaseRuntime.default[Ctx, WorkflowId](workflow, state, xa, knockerUpper, storage, clock, registryAgent)
-    val id      = WorkflowId(Random.nextLong())
+    val id      = WorkflowId.generate()
     import cats.effect.unsafe.implicits.global
     Actor(id, runtime.createInstance(id).unsafeRunSync())
   }
