@@ -2,11 +2,12 @@ package workflows4s.example.docs.doobie
 
 import cats.effect.IO
 import doobie.util.transactor.Transactor
-import workflows4s.doobie.postgres.{PostgresWorkflowStorage, WorkflowId}
+import workflows4s.doobie.postgres.PostgresWorkflowStorage
 import workflows4s.doobie.{ByteCodec, DatabaseRuntime, WorkflowStorage}
 import workflows4s.runtime.WorkflowInstance
 import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.wio.{WCState, WorkflowContext}
+import workflows4s.example.docs.doobie.WorkflowId
 
 import scala.annotation.nowarn
 
@@ -37,7 +38,7 @@ object DatabaseExample {
     // doc_postgres_start
     given eventCodec: ByteCodec[Event] = ???
 
-    val storage: WorkflowStorage[WorkflowId, Event] = new PostgresWorkflowStorage[Event]()
+    val storage: WorkflowStorage[WorkflowId, Event] = new PostgresWorkflowStorage[WorkflowId, Event]()
     // doc_postgres_end
   }
 

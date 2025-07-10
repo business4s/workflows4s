@@ -13,6 +13,7 @@ import java.sql.Timestamp
 import scala.concurrent.duration.FiniteDuration
 
 type WorkflowType = String
+type WorkflowId   = String
 
 trait PostgresWorkflowRegistry[WorkflowId] {
 
@@ -41,13 +42,13 @@ object PostgresWorkflowRegistry {
         _   <- executionStatus match {
                  case ExecutionStatus.Running                             =>
                    sql"""INSERT INTO $tableNameFr (workflow_id, workflow_type, updated_at)
-                      |VALUES (${id.value}, $workflowType, ${Timestamp.from(now)})
+                      |VALUES (${id}, $workflowType, ${Timestamp.from(now)})
                       |ON CONFLICT (workflow_id, workflow_type)
                       |DO UPDATE SET updated_at = ${Timestamp.from(now)}
                       |WHERE $tableNameFr.updated_at <= ${Timestamp.from(now)}""".stripMargin.update.run.void
                  case ExecutionStatus.Finished | ExecutionStatus.Awaiting =>
                    sql"""DELETE FROM $tableNameFr
-                      |WHERE workflow_id = ${id.value}
+                      |WHERE workflow_id = ${id}
                       |  and workflow_type = $workflowType
                       |  and $tableNameFr.updated_at <= ${Timestamp.from(now)}""".stripMargin.update.run.void
                }
