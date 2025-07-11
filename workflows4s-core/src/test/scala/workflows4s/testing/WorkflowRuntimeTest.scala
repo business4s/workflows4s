@@ -122,7 +122,7 @@ object WorkflowRuntimeTest {
           assert(registeredWorkflows.head.status == status)
         }
         def createInstance(wio: TestCtx2.WIO[TestState, Nothing, TestState]) = {
-          runtime.runWorkflow(wio.provideInput(TestState.empty), TestState.empty, registry.agent)
+          runtime.runWorkflow(wio.provideInput(TestState.empty), TestState.empty, registry)
         }
       }
 

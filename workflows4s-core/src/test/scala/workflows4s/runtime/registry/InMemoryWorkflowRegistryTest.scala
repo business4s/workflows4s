@@ -14,14 +14,13 @@ class InMemoryWorkflowRegistryTest extends AnyFreeSpec with Matchers {
     "should store and retrieve workflow instances" in {
       val clock    = TestClock()
       val registry = InMemoryWorkflowRegistry(clock).unsafeRunSync()
-      val agent    = registry.agent
 
       val List(id1, id2, id3) = List.fill(3)(TestUtils.randomWfId())
 
       (for {
-        _         <- agent.upsertInstance(id1, ExecutionStatus.Running)
-        _         <- agent.upsertInstance(id2, ExecutionStatus.Awaiting)
-        _         <- agent.upsertInstance(id3, ExecutionStatus.Finished)
+        _         <- registry.upsertInstance(id1, ExecutionStatus.Running)
+        _         <- registry.upsertInstance(id2, ExecutionStatus.Awaiting)
+        _         <- registry.upsertInstance(id3, ExecutionStatus.Finished)
         workflows <- registry.getWorkflows()
       } yield {
         assert(
@@ -41,8 +40,8 @@ class InMemoryWorkflowRegistryTest extends AnyFreeSpec with Matchers {
       val List(id1, id2) = List.fill(2)(TestUtils.randomWfId())
       val initialTime    = clock.instant
 
-      registry.agent.upsertInstance(id1, ExecutionStatus.Running).unsafeRunSync()
-      registry.agent.upsertInstance(id2, ExecutionStatus.Running).unsafeRunSync()
+      registry.upsertInstance(id1, ExecutionStatus.Running).unsafeRunSync()
+      registry.upsertInstance(id2, ExecutionStatus.Running).unsafeRunSync()
 
       assert(
         registry.getWorkflows().unsafeRunSync() == List(
@@ -52,7 +51,7 @@ class InMemoryWorkflowRegistryTest extends AnyFreeSpec with Matchers {
       )
 
       clock.advanceBy(1.second)
-      registry.agent.upsertInstance(id1, ExecutionStatus.Finished).unsafeRunSync()
+      registry.upsertInstance(id1, ExecutionStatus.Finished).unsafeRunSync()
 
       assert(
         registry.getWorkflows().unsafeRunSync() == List(

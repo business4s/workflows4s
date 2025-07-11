@@ -16,9 +16,7 @@ import scala.concurrent.duration.FiniteDuration
 type WorkflowType = String
 type WorkflowId   = String
 
-trait PostgresWorkflowRegistry {
-
-  def agent: WorkflowRegistry.Agent
+trait PostgresWorkflowRegistry extends WorkflowRegistry.Agent {
 
   // returns all the workflows that were last seen as running and were not updated for at least `notUpdatedFor`
   def getExecutingWorkflows(notUpdatedFor: FiniteDuration): fs2.Stream[ConnectionIO, WorkflowInstanceId]
@@ -37,7 +35,7 @@ object PostgresWorkflowRegistry {
 
     val tableNameFr = Fragment.const(tableName)
 
-    override val agent: WorkflowRegistry.Agent = (id: WorkflowInstanceId, executionStatus: ExecutionStatus) => {
+    override def upsertInstance(id: WorkflowInstanceId, executionStatus: ExecutionStatus): IO[Unit] = {
       val query = for {
         now <- Sync[ConnectionIO].delay(Instant.now(clock))
         _   <- executionStatus match {

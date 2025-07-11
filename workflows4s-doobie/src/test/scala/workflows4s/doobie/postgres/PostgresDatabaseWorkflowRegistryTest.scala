@@ -30,10 +30,10 @@ class PostgresDatabaseWorkflowRegistryTest extends AnyFreeSpec with PostgresSuit
       val List(id1, id2, id3, id4) =
         List.fill(4)(WorkflowInstanceId(StringUtils.randomAlphanumericString(4), StringUtils.randomAlphanumericString(4)))
 
-      registry.agent.upsertInstance(id1, ExecutionStatus.Running).unsafeRunSync()
-      registry.agent.upsertInstance(id2, ExecutionStatus.Awaiting).unsafeRunSync()
-      registry.agent.upsertInstance(id3, ExecutionStatus.Finished).unsafeRunSync()
-      registry.agent.upsertInstance(id4, ExecutionStatus.Running).unsafeRunSync()
+      registry.upsertInstance(id1, ExecutionStatus.Running).unsafeRunSync()
+      registry.upsertInstance(id2, ExecutionStatus.Awaiting).unsafeRunSync()
+      registry.upsertInstance(id3, ExecutionStatus.Finished).unsafeRunSync()
+      registry.upsertInstance(id4, ExecutionStatus.Running).unsafeRunSync()
 
       val workflows = registry.getExecutingWorkflows(0.seconds).drainUnsafe
 
@@ -46,11 +46,11 @@ class PostgresDatabaseWorkflowRegistryTest extends AnyFreeSpec with PostgresSuit
 
       val List(id1, id2) = List.fill(2)(WorkflowInstanceId(StringUtils.randomAlphanumericString(4), StringUtils.randomAlphanumericString(4)))
 
-      registry.agent.upsertInstance(id1, ExecutionStatus.Running).unsafeRunSync()
-      registry.agent.upsertInstance(id2, ExecutionStatus.Running).unsafeRunSync()
+      registry.upsertInstance(id1, ExecutionStatus.Running).unsafeRunSync()
+      registry.upsertInstance(id2, ExecutionStatus.Running).unsafeRunSync()
 
       clock.advanceBy(2.second)
-      registry.agent.upsertInstance(id1, ExecutionStatus.Running).unsafeRunSync()
+      registry.upsertInstance(id1, ExecutionStatus.Running).unsafeRunSync()
 
       val workflows = registry.getExecutingWorkflows(notUpdatedFor = 1.seconds).drainUnsafe
 
@@ -63,12 +63,12 @@ class PostgresDatabaseWorkflowRegistryTest extends AnyFreeSpec with PostgresSuit
 
       val List(id1, id2, id3) = List.fill(3)(WorkflowInstanceId(StringUtils.randomAlphanumericString(4), StringUtils.randomAlphanumericString(4)))
 
-      registry.agent.upsertInstance(id1, ExecutionStatus.Running).unsafeRunSync()
-      registry.agent.upsertInstance(id2, ExecutionStatus.Running).unsafeRunSync()
-      registry.agent.upsertInstance(id3, ExecutionStatus.Running).unsafeRunSync()
+      registry.upsertInstance(id1, ExecutionStatus.Running).unsafeRunSync()
+      registry.upsertInstance(id2, ExecutionStatus.Running).unsafeRunSync()
+      registry.upsertInstance(id3, ExecutionStatus.Running).unsafeRunSync()
 
-      registry.agent.upsertInstance(id2, ExecutionStatus.Finished).unsafeRunSync()
-      registry.agent.upsertInstance(id3, ExecutionStatus.Awaiting).unsafeRunSync()
+      registry.upsertInstance(id2, ExecutionStatus.Finished).unsafeRunSync()
+      registry.upsertInstance(id3, ExecutionStatus.Awaiting).unsafeRunSync()
 
       val workflows = registry.getExecutingWorkflows(notUpdatedFor = 0.seconds).drainUnsafe
 
@@ -82,8 +82,8 @@ class PostgresDatabaseWorkflowRegistryTest extends AnyFreeSpec with PostgresSuit
       val id1 = WorkflowInstanceId("a", "1")
       val id2 = WorkflowInstanceId("b", "1")
 
-      registry.agent.upsertInstance(id1, ExecutionStatus.Running).unsafeRunSync()
-      registry.agent.upsertInstance(id2, ExecutionStatus.Running).unsafeRunSync()
+      registry.upsertInstance(id1, ExecutionStatus.Running).unsafeRunSync()
+      registry.upsertInstance(id2, ExecutionStatus.Running).unsafeRunSync()
 
       val workflows = registry.getExecutingWorkflows(notUpdatedFor = 0.seconds).drainUnsafe
       assert(workflows === List(id1, id2))

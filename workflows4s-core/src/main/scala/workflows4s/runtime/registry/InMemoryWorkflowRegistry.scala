@@ -7,9 +7,7 @@ import workflows4s.runtime.registry.WorkflowRegistry.ExecutionStatus
 
 import java.time.{Clock, Instant}
 
-trait InMemoryWorkflowRegistry {
-
-  def agent: WorkflowRegistry.Agent
+trait InMemoryWorkflowRegistry extends WorkflowRegistry.Agent {
 
   def getWorkflows(): IO[List[InMemoryWorkflowRegistry.Data]]
 
@@ -31,18 +29,10 @@ object InMemoryWorkflowRegistry {
   ) extends InMemoryWorkflowRegistry
       with StrictLogging {
 
-    override val agent: WorkflowRegistry.Agent = AgentImpl(stateRef, clock)
-
-    override def getWorkflows(): IO[List[Data]] = stateRef.get.map(_.values.toList)
-  }
-
-  private class AgentImpl(stateRef: Ref[IO, Map[WorkflowInstanceId, Data]], clock: Clock) extends WorkflowRegistry.Agent with StrictLogging {
     override def upsertInstance(id: WorkflowInstanceId, executionStatus: ExecutionStatus): IO[Unit] = {
-      logger.info(
-        s"Updating workflow registry for ${id} to status $executionStatus at ${Instant.now(clock)}",
-      )
       for {
         now <- IO(Instant.now(clock))
+        _    = logger.info(s"Updating workflow registry for ${id} to status $executionStatus at $now")
         _   <- stateRef.update { state =>
                  state.get(id) match {
                    case Some(existing) =>
@@ -54,6 +44,8 @@ object InMemoryWorkflowRegistry {
                }
       } yield ()
     }
+
+    override def getWorkflows(): IO[List[Data]] = stateRef.get.map(_.values.toList)
   }
 
 }
