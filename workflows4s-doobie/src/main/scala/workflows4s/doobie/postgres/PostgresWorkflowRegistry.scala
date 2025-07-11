@@ -13,9 +13,6 @@ import java.time.{Clock, Instant}
 import java.sql.Timestamp
 import scala.concurrent.duration.FiniteDuration
 
-type WorkflowType = String
-type WorkflowId   = String
-
 trait PostgresWorkflowRegistry extends WorkflowRegistry.Agent {
 
   // returns all the workflows that were last seen as running and were not updated for at least `notUpdatedFor`
@@ -40,15 +37,15 @@ object PostgresWorkflowRegistry {
         now <- Sync[ConnectionIO].delay(Instant.now(clock))
         _   <- executionStatus match {
                  case ExecutionStatus.Running                             =>
-                   sql"""INSERT INTO $tableNameFr (workflow_id, workflow_type, updated_at)
+                   sql"""INSERT INTO $tableNameFr (instance_id, runtime_id, updated_at)
                       |VALUES (${id.instanceId}, ${id.runtimeId}, ${Timestamp.from(now)})
-                      |ON CONFLICT (workflow_id, workflow_type)
+                      |ON CONFLICT (instance_id, runtime_id)
                       |DO UPDATE SET updated_at = ${Timestamp.from(now)}
                       |WHERE $tableNameFr.updated_at <= ${Timestamp.from(now)}""".stripMargin.update.run.void
                  case ExecutionStatus.Finished | ExecutionStatus.Awaiting =>
                    sql"""DELETE FROM $tableNameFr
-                      |WHERE workflow_id = ${id.instanceId}
-                      |  and workflow_type = ${id.runtimeId}
+                      |WHERE instance_id = ${id.instanceId}
+                      |  and runtime_id = ${id.runtimeId}
                       |  and $tableNameFr.updated_at <= ${Timestamp.from(now)}""".stripMargin.update.run.void
                }
       } yield ()
@@ -60,10 +57,10 @@ object PostgresWorkflowRegistry {
       for {
         now       <- fs2.Stream.eval(Sync[ConnectionIO].delay(Instant.now(clock)))
         cutoffTime = now.minusMillis(notUpdatedFor.toMillis)
-        elem      <- sql"""SELECT workflow_type, workflow_id
+        elem      <- sql"""SELECT runtime_id, instance_id
                      |FROM ${tableNameFr}
                      |WHERE updated_at <= ${Timestamp.from(cutoffTime)}""".stripMargin
-                       .query[(WorkflowType, WorkflowId)]
+                       .query[(String, String)]
                        .stream
       } yield WorkflowInstanceId(elem._1, elem._2)
     }

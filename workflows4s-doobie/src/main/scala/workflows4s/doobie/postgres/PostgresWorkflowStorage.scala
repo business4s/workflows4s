@@ -13,7 +13,7 @@ class PostgresWorkflowStorage[Event](tableName: String = "workflow_journal")(usi
   val tableNameFr = Fragment.const(tableName)
 
   override def getEvents(id: WorkflowInstanceId): fs2.Stream[ConnectionIO, Event] = {
-    sql"select event_data from ${tableNameFr} where workflow_id = ${id.instanceId} and runtime_id = ${id.runtimeId} order by event_id"
+    sql"select event_data from ${tableNameFr} where instance_id = ${id.instanceId} and runtime_id = ${id.runtimeId} order by event_id"
       .query[Array[Byte]]
       .stream
       .evalMap(bytes => Sync[ConnectionIO].fromTry(evenCodec.read(IArray.unsafeFromArray(bytes))))
@@ -21,7 +21,7 @@ class PostgresWorkflowStorage[Event](tableName: String = "workflow_journal")(usi
 
   override def saveEvent(id: WorkflowInstanceId, event: Event): ConnectionIO[Unit] = {
     val bytes = IArray.genericWrapArray(evenCodec.write(event)).toArray
-    sql"insert into ${tableNameFr} (workflow_id, runtime_id, event_data) values (${id.instanceId}, ${id.runtimeId}, $bytes)".update.run.void
+    sql"insert into ${tableNameFr} (instance_id, runtime_id, event_data) values (${id.instanceId}, ${id.runtimeId}, $bytes)".update.run.void
   }
 
   override def lockWorkflow(id: WorkflowInstanceId): Resource[ConnectionIO, Unit] = {
