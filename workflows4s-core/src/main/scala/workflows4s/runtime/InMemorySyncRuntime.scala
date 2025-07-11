@@ -24,7 +24,7 @@ class InMemorySyncRuntime[Ctx <: WorkflowContext](
       id,
       { _ =>
         val activeWf: ActiveWorkflow[Ctx] = ActiveWorkflow(workflow, initialState)
-        val instanceId = WorkflowInstanceId(runtimeId, id)
+        val instanceId                    = WorkflowInstanceId(runtimeId, id)
         new InMemorySyncWorkflowInstance[Ctx](instanceId, activeWf, clock, knockerUpperAgent, registryAgent)
       },
     )

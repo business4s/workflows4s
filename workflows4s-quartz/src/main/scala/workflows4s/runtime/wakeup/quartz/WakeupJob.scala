@@ -12,7 +12,7 @@ class WakeupJob extends Job {
     val id        = context.getJobDetail.getJobDataMap.getString(workflowIdKey)
     val runtimeId = context.getJobDetail.getJobDataMap.getString(runtimeIdKey)
     val wakeupCtx = context.getScheduler.getWakeupContext
-    wakeup(WorkflowInstanceId(id, runtimeId), wakeupCtx.get)
+    wakeup(WorkflowInstanceId(runtimeId, id), wakeupCtx.get)
   }
 
   private def wakeup(id: WorkflowInstanceId, ctx: WakeupJob.Context): Unit = {
@@ -47,7 +47,7 @@ extension (scheduler: Scheduler) {
 
     ctxOpt match {
       case Some(_) => Failure(new RuntimeException(s"Wakeup context already set"))
-      case None        =>
+      case None    =>
         scheduler.getContext.put(wakeupContextsKey, ctx)
         Success(())
     }

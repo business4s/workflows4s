@@ -24,7 +24,7 @@ class PekkoRuntimeImpl[Ctx <: WorkflowContext](
     clock: Clock,
     knockerUpper: KnockerUpper.Agent,
     registry: WorkflowRegistry.Agent,
-    val runtimeId: String
+    val runtimeId: String,
 )(using system: ActorSystem[?])
     extends PekkoRuntime[Ctx] {
   private val sharding: ClusterSharding = ClusterSharding(system)

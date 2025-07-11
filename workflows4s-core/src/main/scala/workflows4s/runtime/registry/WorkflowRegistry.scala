@@ -12,7 +12,7 @@ object WorkflowRegistry {
   trait Agent {
 
     def upsertInstance(id: WorkflowInstanceId, executionStatus: ExecutionStatus): IO[Unit]
-    
+
   }
 
 }

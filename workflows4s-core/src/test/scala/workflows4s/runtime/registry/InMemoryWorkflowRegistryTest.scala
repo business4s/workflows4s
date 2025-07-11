@@ -3,11 +3,9 @@ package workflows4s.runtime.registry
 import cats.effect.unsafe.implicits.global
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
-import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.runtime.registry.WorkflowRegistry.ExecutionStatus
 import workflows4s.testing.{TestClock, TestUtils}
 
-import java.util.UUID
 import scala.concurrent.duration.DurationInt
 
 class InMemoryWorkflowRegistryTest extends AnyFreeSpec with Matchers {
@@ -16,7 +14,7 @@ class InMemoryWorkflowRegistryTest extends AnyFreeSpec with Matchers {
     "should store and retrieve workflow instances" in {
       val clock    = TestClock()
       val registry = InMemoryWorkflowRegistry(clock).unsafeRunSync()
-      val agent = registry.agent
+      val agent    = registry.agent
 
       val List(id1, id2, id3) = List.fill(3)(TestUtils.randomWfId())
 

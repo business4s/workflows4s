@@ -28,7 +28,7 @@ class DbWorkflowInstance[Ctx <: WorkflowContext](
 ) extends WorkflowInstanceBase[Result, Ctx]
     with StrictLogging {
 
-  override protected def fMonad: Monad[Result]                         = summon
+  override protected def fMonad: Monad[Result] = summon
 
   private val connIOToResult: ConnectionIO ~> Result = new FunctionK {
     override def apply[A](fa: ConnectionIO[A]): Result[A] = Kleisli(_ => fa)

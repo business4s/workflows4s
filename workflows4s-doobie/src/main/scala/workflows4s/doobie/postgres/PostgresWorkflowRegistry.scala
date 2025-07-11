@@ -43,13 +43,13 @@ object PostgresWorkflowRegistry {
         _   <- executionStatus match {
                  case ExecutionStatus.Running                             =>
                    sql"""INSERT INTO $tableNameFr (workflow_id, workflow_type, updated_at)
-                      |VALUES (${id.runtimeId}, ${id.runtimeId}, ${Timestamp.from(now)})
+                      |VALUES (${id.instanceId}, ${id.runtimeId}, ${Timestamp.from(now)})
                       |ON CONFLICT (workflow_id, workflow_type)
                       |DO UPDATE SET updated_at = ${Timestamp.from(now)}
                       |WHERE $tableNameFr.updated_at <= ${Timestamp.from(now)}""".stripMargin.update.run.void
                  case ExecutionStatus.Finished | ExecutionStatus.Awaiting =>
                    sql"""DELETE FROM $tableNameFr
-                      |WHERE workflow_id = ${id}
+                      |WHERE workflow_id = ${id.instanceId}
                       |  and workflow_type = ${id.runtimeId}
                       |  and $tableNameFr.updated_at <= ${Timestamp.from(now)}""".stripMargin.update.run.void
                }
