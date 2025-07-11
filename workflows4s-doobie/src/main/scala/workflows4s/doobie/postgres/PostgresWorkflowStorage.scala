@@ -35,11 +35,6 @@ class PostgresWorkflowStorage[WorkflowId <: String, Event](tableName: String = "
 
   /** Postgres locks are identified with a single bigint. We use a SHA-256 hash of the string to generate a unique bigint You may override this method
     * to use a different lock key computation
-    *
-    * @param id
-    *   the workflow id
-    * @return
-    *   the lock key
     */
   protected def computeLockKey(id: String): Long = StringUtils.stringToLong(id)
 }
