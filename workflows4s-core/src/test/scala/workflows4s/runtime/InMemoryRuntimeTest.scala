@@ -12,8 +12,7 @@ class InMemoryRuntimeTest extends AnyFreeSpec {
 
     "should return the same workflow instance for the same id" in {
       val workflow: WIO.Initial = WIO.pure("myValue").done
-      val runtime               = InMemoryRuntime
-        .default[Ctx, String](
+      val runtime               = InMemoryRuntime.default[Ctx](
           workflow = workflow,
           initialState = "initialState",
           knockerUpper = NoOpKnockerUpper.Agent,

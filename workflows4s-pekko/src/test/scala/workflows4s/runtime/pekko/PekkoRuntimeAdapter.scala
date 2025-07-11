@@ -8,10 +8,9 @@ import org.apache.pekko.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity
 import org.apache.pekko.persistence.typed.PersistenceId
 import org.apache.pekko.util.Timeout
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
-import workflows4s.runtime.WorkflowInstance
+import workflows4s.runtime.{WorkflowInstance, WorkflowInstanceId}
 import workflows4s.runtime.registry.WorkflowRegistry
 import workflows4s.testing.TestRuntimeAdapter
-import workflows4s.testing.TestRuntimeAdapter.Identifiable
 import workflows4s.wio.*
 import workflows4s.wio.model.WIOExecutionProgress
 
@@ -20,7 +19,7 @@ import java.util.UUID
 import scala.concurrent.{Await, Future}
 
 class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(implicit actorSystem: ActorSystem[?])
-    extends TestRuntimeAdapter[Ctx, String]
+    extends TestRuntimeAdapter[Ctx]
     with StrictLogging {
 
   val sharding = ClusterSharding(actorSystem)
@@ -33,7 +32,7 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(impli
   override def runWorkflow(
       workflow: WIO.Initial[Ctx],
       state: WCState[Ctx],
-      registryAgent: WorkflowRegistry.Agent[String],
+      registryAgent: WorkflowRegistry.Agent,
   ): Actor = {
     // we create unique type key per workflow, so we can ensure we get right actor/behavior/input
     // with single shard region its tricky to inject input into behavior creation
@@ -66,16 +65,21 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(impli
     )
     val persistenceId = UUID.randomUUID().toString
     val entityRef     = sharding.entityRefFor(typeKey, persistenceId)
-    Actor(entityRef, clock, registryAgent.curried(persistenceId))
+    Actor(entityRef, clock, registryAgent)
   }
 
-  case class Actor(entityRef: EntityRef[Cmd], clock: Clock, registryAgent: WorkflowRegistry.Agent.Curried)
-      extends WorkflowInstance[Id, WCState[Ctx]]
-      with Identifiable[String] {
+  case class Actor(entityRef: EntityRef[Cmd], clock: Clock, registryAgent: WorkflowRegistry.Agent) extends WorkflowInstance[Id, WCState[Ctx]] {
     val base =
-      PekkoWorkflowInstance(entityRef, knockerUpper.curried(id), clock, registryAgent, stateQueryTimeout = Timeout(3.seconds))
+      PekkoWorkflowInstance(
+        WorkflowInstanceId("", entityRef.entityId),
+        entityRef,
+        knockerUpper,
+        clock,
+        registryAgent,
+        stateQueryTimeout = Timeout(3.seconds),
+      )
 
-    def id: String                              = entityRef.entityId
+    def id: WorkflowInstanceId                  = base.id
     override def queryState(): Id[WCState[Ctx]] = base.queryState().await
 
     override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): Id[Either[WorkflowInstance.UnexpectedSignal, Resp]] = {

@@ -14,10 +14,11 @@ import scala.collection.mutable.ListBuffer
 import scala.util.chaining.scalaUtilChainingOps
 
 class InMemorySyncWorkflowInstance[Ctx <: WorkflowContext](
+    val id: WorkflowInstanceId,
     initialState: ActiveWorkflow[Ctx],
     protected val clock: Clock,
-    protected val knockerUpper: KnockerUpper.Agent.Curried,
-    protected val registry: WorkflowRegistry.Agent.Curried,
+    protected val knockerUpper: KnockerUpper.Agent,
+    protected val registry: WorkflowRegistry.Agent,
 )(implicit
     IORuntime: IORuntime,
 ) extends WorkflowInstanceBase[Id, Ctx]

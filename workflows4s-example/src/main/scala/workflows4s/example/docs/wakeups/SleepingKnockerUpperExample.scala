@@ -13,11 +13,11 @@ object SleepingKnockerUpperExample {
   import workflows4s.runtime.wakeup.SleepingKnockerUpper
 
   // all sleeps will be canceled on release
-  val knockerUpperResource: ResourceIO[SleepingKnockerUpper[MyWorkflowId]] = SleepingKnockerUpper.create()
+  val knockerUpperResource: ResourceIO[SleepingKnockerUpper] = SleepingKnockerUpper.create()
 
   knockerUpperResource.use(knockerUpper => {
-    val runtime: WorkflowRuntime[IO, MyWorkflowCtx, MyWorkflowId] = createRuntime(knockerUpper)
-    val init: IO[Unit]                                            = knockerUpper.initialize(id => runtime.createInstance(id).flatMap(_.wakeup()))
+    val runtime: WorkflowRuntime[IO, MyWorkflowCtx] = createRuntime(knockerUpper)
+    val init: IO[Unit]                              = knockerUpper.initialize(id => runtime.createInstance(id.instanceId).flatMap(_.wakeup()))
     ???
   })
   // docs_end

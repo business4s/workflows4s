@@ -17,9 +17,8 @@ object MinimalWorkflow {
     val workflow = hello >>> world
 
     println(MermaidRenderer.renderWorkflow(workflow.toProgress).toViewUrl)
-    // https://mermaid.live/edit#pako:flowchart+TD%0Anode0%40%7B+shape%3A+circle%2C+label%3A+%22Start%22%7D%0Anode1%5B%22Hello%22%5D%0Anode0+--%3E+node1%0Anode2%5B%22World%22%5D%0Anode1+--%3E+node2%0A
 
-    val runtime    = InMemorySyncRuntime.default[Context.Ctx, String](workflow, "")
+    val runtime    = InMemorySyncRuntime.default[Context.Ctx](workflow, "")
     val wfInstance = runtime.createInstance("id")
 
     wfInstance.wakeup()

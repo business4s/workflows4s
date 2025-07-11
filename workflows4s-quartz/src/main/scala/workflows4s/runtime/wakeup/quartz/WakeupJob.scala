@@ -1,24 +1,23 @@
 package workflows4s.runtime.wakeup.quartz
 
 import scala.util.{Failure, Success, Try}
-
 import cats.effect.IO
 import cats.effect.std.Dispatcher
 import org.quartz.{Job, JobExecutionContext, Scheduler}
-import workflows4s.runtime.wakeup.quartz.QuartzKnockerUpper.RuntimeId
+import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.runtime.wakeup.quartz.WakeupJob.{runtimeIdKey, wakeupContextsKey, workflowIdKey}
 
 class WakeupJob extends Job {
   override def execute(context: JobExecutionContext): Unit = {
     val id        = context.getJobDetail.getJobDataMap.getString(workflowIdKey)
     val runtimeId = context.getJobDetail.getJobDataMap.getString(runtimeIdKey)
-    val wakeupCtx = context.getScheduler.getWakeupContext(RuntimeId(runtimeId))
-    wakeup(id, wakeupCtx.get)
+    val wakeupCtx = context.getScheduler.getWakeupContext
+    wakeup(WorkflowInstanceId(id, runtimeId), wakeupCtx.get)
   }
 
-  private def wakeup[T](id: String, ctx: WakeupJob.Context[T]): Unit = {
+  private def wakeup(id: WorkflowInstanceId, ctx: WakeupJob.Context): Unit = {
     ctx.dispatcher.unsafeRunSync(for {
-      _ <- ctx.wakeup(ctx.idCodec.decode(id))
+      _ <- ctx.wakeup(id)
     } yield ())
   }
 }
@@ -28,29 +27,29 @@ object WakeupJob {
   val workflowIdKey     = "workflows-id"
   val runtimeIdKey      = "runtime-id"
 
-  case class Context[Id](wakeup: Id => IO[Unit], idCodec: StringCodec[Id], dispatcher: Dispatcher[IO])
+  case class Context(wakeup: WorkflowInstanceId => IO[Unit], dispatcher: Dispatcher[IO])
 
 }
 
 extension (scheduler: Scheduler) {
 
-  def getWakeupContext(runtimeId: RuntimeId): Try[WakeupJob.Context[?]] = {
+  def getWakeupContext: Try[WakeupJob.Context] = {
     Option(scheduler.getContext.get(wakeupContextsKey))
-      .map(_.asInstanceOf[Map[String, WakeupJob.Context[?]]])
-      .flatMap(_.get(runtimeId)) match {
+      .map(_.asInstanceOf[WakeupJob.Context]) match {
       case Some(ctx) => Success(ctx)
-      case None      => Failure(new RuntimeException(s"No wakeup context for runtime $runtimeId"))
+      case None      => Failure(new RuntimeException(s"No wakeup context available"))
     }
   }
 
-  def setWakeupContext(runtimeId: RuntimeId, ctx: WakeupJob.Context[?]): Try[Unit] = {
-    val map = Option(scheduler.getContext.get(wakeupContextsKey))
-      .map(_.asInstanceOf[Map[String, WakeupJob.Context[?]]])
-      .getOrElse(Map())
-    if map.contains(runtimeId) then Failure(new RuntimeException(s"Wakeup context for runtime $runtimeId already set"))
-    else {
-      scheduler.getContext.put(wakeupContextsKey, map.updated(runtimeId, ctx))
-      Success(())
+  def setWakeupContext(ctx: WakeupJob.Context): Try[Unit] = {
+    val ctxOpt = Option(scheduler.getContext.get(wakeupContextsKey))
+      .map(_.asInstanceOf[WakeupJob.Context])
+
+    ctxOpt match {
+      case Some(_) => Failure(new RuntimeException(s"Wakeup context already set"))
+      case None        =>
+        scheduler.getContext.put(wakeupContextsKey, ctx)
+        Success(())
     }
   }
 

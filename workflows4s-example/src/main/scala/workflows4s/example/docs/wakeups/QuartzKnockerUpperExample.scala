@@ -17,12 +17,11 @@ object QuartzKnockerUpperExample {
   scheduler.start()
 
   // allows matching wakeups between restarts
-  val runtimeId    = QuartzKnockerUpper.RuntimeId("my-runtime")
-  val knockerUpper = new QuartzKnockerUpper(runtimeId, scheduler, dispatcher)
+  val knockerUpper = new QuartzKnockerUpper(scheduler, dispatcher)
 
-  val runtime: WorkflowRuntime[IO, MyWorkflowCtx, MyWorkflowId] = createRuntime(knockerUpper)
+  val runtime: WorkflowRuntime[IO, MyWorkflowCtx] = createRuntime(knockerUpper)
 
-  val initialization: IO[Unit] = knockerUpper.initialize(id => runtime.createInstance(id).flatMap(_.wakeup()))
+  val initialization: IO[Unit] = knockerUpper.initialize(id => runtime.createInstance(id.instanceId).flatMap(_.wakeup()))
 // docs_end
 
 }

@@ -5,6 +5,8 @@ import workflows4s.wio.SignalDef
 import workflows4s.wio.model.WIOExecutionProgress
 
 trait WorkflowInstance[F[_], State] {
+  
+  def id: WorkflowInstanceId
 
   def queryState(): F[State]
 

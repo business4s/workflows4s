@@ -81,8 +81,7 @@ lazy val `workflows4s-quartz` = (project in file("workflows4s-quartz"))
       "org.quartz-scheduler" % "quartz"          % "2.5.0",
       "ch.qos.logback"       % "logback-classic" % "1.5.14" % Test,
     ),
-  )
-  .dependsOn(`workflows4s-core`)
+  ).dependsOn(`workflows4s-core` % "compile->compile;test->test")
 
 lazy val `workflows4s-example` = (project in file("workflows4s-example"))
   .settings(commonSettings)
