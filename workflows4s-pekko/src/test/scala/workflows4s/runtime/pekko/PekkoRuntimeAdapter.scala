@@ -8,11 +8,10 @@ import org.apache.pekko.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity
 import org.apache.pekko.persistence.typed.PersistenceId
 import org.apache.pekko.util.Timeout
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
-import workflows4s.runtime.{WorkflowInstance, WorkflowInstanceId}
 import workflows4s.runtime.registry.WorkflowRegistry
+import workflows4s.runtime.{DelegateWorkflowInstance, MappedWorkflowInstance, WorkflowInstance, WorkflowInstanceId}
 import workflows4s.testing.TestRuntimeAdapter
 import workflows4s.wio.*
-import workflows4s.wio.model.WIOExecutionProgress
 
 import java.time.Clock
 import java.util.UUID
@@ -68,7 +67,8 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(impli
     Actor(entityRef, clock, registryAgent)
   }
 
-  case class Actor(entityRef: EntityRef[Cmd], clock: Clock, registryAgent: WorkflowRegistry.Agent) extends WorkflowInstance[Id, WCState[Ctx]] {
+  case class Actor(entityRef: EntityRef[Cmd], clock: Clock, registryAgent: WorkflowRegistry.Agent)
+      extends DelegateWorkflowInstance[Id, WCState[Ctx]] {
     val base =
       PekkoWorkflowInstance(
         WorkflowInstanceId("", entityRef.entityId),
@@ -79,20 +79,7 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(impli
         stateQueryTimeout = Timeout(3.seconds),
       )
 
-    def id: WorkflowInstanceId                  = base.id
-    override def queryState(): Id[WCState[Ctx]] = base.queryState().await
-
-    override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): Id[Either[WorkflowInstance.UnexpectedSignal, Resp]] = {
-      base.deliverSignal(signalDef, req).await
-    }
-
-    override def getProgress: Id[WIOExecutionProgress[WCState[Ctx]]] = base.getProgress.await
-
-    override def wakeup(): Id[Unit] = base.wakeup().await
-
-    extension [T](f: Future[T]) {
-      def await: T = Await.result(f, 3.seconds)
-    }
+    val delegate: WorkflowInstance[Id, WCState[Ctx]] = MappedWorkflowInstance(base, [t] => (x: Future[t]) => Await.result(x, 3.seconds))
   }
 
   override def recover(first: Actor): Actor = {
