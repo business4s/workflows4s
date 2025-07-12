@@ -1,20 +1,19 @@
 package workflows4s.runtime.wakeup.quartz
 
 import cats.effect.IO
-import java.util.UUID
-import java.time.Instant
 import cats.effect.std.Dispatcher
 import cats.effect.unsafe.implicits.global
+import com.typesafe.scalalogging.StrictLogging
 import org.quartz.Scheduler
 import org.quartz.impl.StdSchedulerFactory
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.concurrent.Eventually.eventually
+import org.scalatest.concurrent.Eventually.{PatienceConfig, eventually}
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
-import workflows4s.runtime.wakeup.quartz.QuartzKnockerUpper.RuntimeId
-import org.scalatest.concurrent.Eventually.PatienceConfig
 import org.scalatest.time.{Millis, Seconds, Span}
-import com.typesafe.scalalogging.StrictLogging
+import workflows4s.testing.TestUtils
+
+import java.time.Instant
 
 class QuartzKnockerUpperTest extends AnyFreeSpec with Matchers with BeforeAndAfterAll with StrictLogging {
 
@@ -24,7 +23,7 @@ class QuartzKnockerUpperTest extends AnyFreeSpec with Matchers with BeforeAndAft
 
     "should schedule a wakeup at a specified time" in withQuartzKnockerUpper { knockerUpper =>
       var wokenUpAt: Instant                = null
-      val testId                            = "test-id"
+      val testId                            = TestUtils.randomWfId()
       knockerUpper
         .initialize(id =>
           IO {
@@ -50,7 +49,7 @@ class QuartzKnockerUpperTest extends AnyFreeSpec with Matchers with BeforeAndAft
 
     "should allow rescheduling a wakeup" in withQuartzKnockerUpper { knockerUpper =>
       var wokenUpAt: Instant = null
-      val testId             = "test-id"
+      val testId             = TestUtils.randomWfId()
       knockerUpper.initialize(id => IO { if id == testId then wokenUpAt = Instant.now() }).unsafeRunSync()
       val wakeupAt1          = Instant.now().plusMillis(100)
       val wakeupAt2          = Instant.now().plusMillis(200)
@@ -65,7 +64,7 @@ class QuartzKnockerUpperTest extends AnyFreeSpec with Matchers with BeforeAndAft
 
     "should allow canceling a wakeup" in withQuartzKnockerUpper { knockerUpper =>
       var wokenUpAt: Instant = null
-      val testId             = "test-id"
+      val testId             = TestUtils.randomWfId()
       knockerUpper
         .initialize(id =>
           IO {
@@ -102,10 +101,10 @@ class QuartzKnockerUpperTest extends AnyFreeSpec with Matchers with BeforeAndAft
     } finally scheduler.shutdown()
   }
 
-  def withQuartzKnockerUpper(testCode: QuartzKnockerUpper[String] => Any) = {
+  def withQuartzKnockerUpper(testCode: QuartzKnockerUpper => Any) = {
     withDispatcher(dispatcher => {
       withQuartzScheduler(scheduler => {
-        testCode(new QuartzKnockerUpper[String](RuntimeId(UUID.randomUUID().toString), scheduler, dispatcher))
+        testCode(new QuartzKnockerUpper(scheduler, dispatcher))
       })
     })
   }

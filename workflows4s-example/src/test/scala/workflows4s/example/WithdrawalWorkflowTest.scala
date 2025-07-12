@@ -50,7 +50,7 @@ object WithdrawalWorkflowTest {
 
   trait Suite extends AnyFreeSpecLike with MockFactory {
 
-    def withdrawalTests[WfId](getRuntime: => TestRuntimeAdapter[WithdrawalWorkflow.Context.Ctx, WfId]) = {
+    def withdrawalTests(getRuntime: => TestRuntimeAdapter[WithdrawalWorkflow.Context.Ctx]) = {
 
       "happy path" in new Fixture {
         assert(actor.queryData() == WithdrawalData.Empty)

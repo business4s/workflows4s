@@ -38,7 +38,7 @@ object ChecksEngineTest {
 
   trait Suite extends AnyFreeSpecLike {
 
-    def checkEngineTests(getRuntime: => TestRuntimeAdapter[ChecksEngine.Context, ?]) = {
+    def checkEngineTests(getRuntime: => TestRuntimeAdapter[ChecksEngine.Context]) = {
 
       "re-run pending checks until complete" in new Fixture {
         val check: Check[Unit] { def runNum: Int } = new Check[Unit] {

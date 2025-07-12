@@ -5,8 +5,8 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxOptionId
 import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.freespec.AnyFreeSpec
-import workflows4s.runtime.wakeup.filesystem.FilesystemKnockerUpper.StringCodec
-import workflows4s.testing.TestClock
+import workflows4s.runtime.WorkflowInstanceId
+import workflows4s.testing.{TestClock, TestUtils}
 
 import java.nio.file.Files
 import scala.concurrent.duration.*
@@ -17,11 +17,11 @@ class FilesystemKnockerUpperTest extends AnyFreeSpec {
     val clock = new TestClock
 
     withTemporaryDirectory(tempDir => {
-      val scheduler             = new PollingFsScheduler(tempDir, clock, 100.millis)
-      var wakeups: Vector[Long] = Vector()
-      val knockerUpper          = new FilesystemKnockerUpper[Long](scheduler)
+      val scheduler                           = new PollingFsScheduler(tempDir, clock, 100.millis)
+      var wakeups: Vector[WorkflowInstanceId] = Vector()
+      val knockerUpper                        = new FilesystemKnockerUpper(scheduler)
 
-      val (id1, id2) = (1L, 2L)
+      val (id1, id2) = (TestUtils.randomWfId(), TestUtils.randomWfId())
       val now        = clock.instant
       val t1         = now.plusSeconds(1)
       val t2         = now.plusSeconds(2)
@@ -49,11 +49,11 @@ class FilesystemKnockerUpperTest extends AnyFreeSpec {
     val clock = new TestClock
 
     withTemporaryDirectory(tempDir => {
-      val scheduler             = new PollingFsScheduler(tempDir, clock, 100.millis)
-      var wakeups: Vector[Long] = Vector()
-      val knockerUpper          = new FilesystemKnockerUpper[Long](scheduler)
+      val scheduler                           = new PollingFsScheduler(tempDir, clock, 100.millis)
+      var wakeups: Vector[WorkflowInstanceId] = Vector()
+      val knockerUpper                        = new FilesystemKnockerUpper(scheduler)
 
-      val id1 = 1L
+      val id1 = TestUtils.randomWfId()
       val now = clock.instant
       val t1  = now.plusSeconds(1)
       knockerUpper.updateWakeup(id1, t1.some).unsafeRunSync()
@@ -86,9 +86,4 @@ class FilesystemKnockerUpperTest extends AnyFreeSpec {
     }
   }
 
-  given StringCodec[Long] with {
-    override def encode(value: Long): String = value.toString
-
-    override def decode(value: String): Long = value.toLong
-  }
 }

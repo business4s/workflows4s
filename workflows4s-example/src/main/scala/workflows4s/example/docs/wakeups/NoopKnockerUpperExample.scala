@@ -10,7 +10,7 @@ object NoopKnockerUpperExample {
   import workflows4s.runtime.wakeup.NoOpKnockerUpper
   val knockerUpper = NoOpKnockerUpper.Agent
 
-  val runtime: WorkflowRuntime[IO, MyWorkflowCtx, MyWorkflowId] = createRuntime(knockerUpper)
+  val runtime: WorkflowRuntime[IO, MyWorkflowCtx] = createRuntime(knockerUpper)
   // docs_end
 
 }

@@ -116,7 +116,7 @@ object CourseRegistrationWorkflow {
     // end_render
 
     // start_execution
-    val runtime    = InMemorySyncRuntime.default[Context.Ctx, String](workflow, RegistrationState.Empty)
+    val runtime    = InMemorySyncRuntime.default[Context.Ctx](workflow, RegistrationState.Empty)
     val wfInstance = runtime.createInstance("student-123")
 
     println("=== Course Registration Workflow ===")

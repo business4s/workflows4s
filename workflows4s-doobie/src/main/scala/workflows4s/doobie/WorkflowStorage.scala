@@ -2,13 +2,14 @@ package workflows4s.doobie
 
 import cats.effect.kernel.Resource
 import doobie.*
+import workflows4s.runtime.WorkflowInstanceId
 
-trait WorkflowStorage[Id, Event] {
+trait WorkflowStorage[Event] {
 
-  def getEvents(id: Id): fs2.Stream[ConnectionIO, Event]
-  def saveEvent(id: Id, event: Event): ConnectionIO[Unit]
+  def getEvents(id: WorkflowInstanceId): fs2.Stream[ConnectionIO, Event]
+  def saveEvent(id: WorkflowInstanceId, event: Event): ConnectionIO[Unit]
 
   // Resource because some locking mechanisms might require an explicit release
-  def lockWorkflow(id: Id): Resource[ConnectionIO, Unit]
+  def lockWorkflow(id: WorkflowInstanceId): Resource[ConnectionIO, Unit]
 
 }

@@ -26,7 +26,7 @@ class WorkflowRuntimeTest extends WorkflowRuntimeTest.Suite {
 object WorkflowRuntimeTest {
   trait Suite extends AnyFreeSpecLike {
 
-    def workflowTests[WfId](getRuntime: => TestRuntimeAdapter[TestCtx2.Ctx, WfId]) = {
+    def workflowTests(getRuntime: => TestRuntimeAdapter[TestCtx2.Ctx]) = {
 
       "runtime should not allow interrupting a process while another step is running" in new Fixture {
         def singleRun(i: Int): IO[Unit] = {
@@ -114,8 +114,7 @@ object WorkflowRuntimeTest {
 
       trait Fixture {
         val runtime  = getRuntime
-        val registry = InMemoryWorkflowRegistry[WfId](runtime.clock).unsafeRunSync()
-        val wfType   = "wf1"
+        val registry = InMemoryWorkflowRegistry(runtime.clock).unsafeRunSync()
 
         def expectRegistryEntry(status: ExecutionStatus)                     = {
           val registeredWorkflows = registry.getWorkflows().unsafeRunSync()
@@ -123,7 +122,7 @@ object WorkflowRuntimeTest {
           assert(registeredWorkflows.head.status == status)
         }
         def createInstance(wio: TestCtx2.WIO[TestState, Nothing, TestState]) = {
-          runtime.runWorkflow(wio.provideInput(TestState.empty), TestState.empty, registry.getAgent(wfType))
+          runtime.runWorkflow(wio.provideInput(TestState.empty), TestState.empty, registry)
         }
       }
 

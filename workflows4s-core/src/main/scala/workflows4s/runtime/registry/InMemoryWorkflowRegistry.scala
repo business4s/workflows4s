@@ -2,56 +2,50 @@ package workflows4s.runtime.registry
 
 import cats.effect.{IO, Ref}
 import com.typesafe.scalalogging.StrictLogging
+import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.runtime.registry.WorkflowRegistry.ExecutionStatus
 
 import java.time.{Clock, Instant}
 
-trait InMemoryWorkflowRegistry[WorkflowId] {
+trait InMemoryWorkflowRegistry extends WorkflowRegistry.Agent {
 
-  def getAgent(workflowType: String): WorkflowRegistry.Agent[WorkflowId]
-
-  def getWorkflows(): IO[List[InMemoryWorkflowRegistry.Data[WorkflowId]]]
+  def getWorkflows(): IO[List[InMemoryWorkflowRegistry.Data]]
 
 }
 
 object InMemoryWorkflowRegistry {
 
-  case class Data[WorkflowId](id: WorkflowId, workflowType: String, createdAt: Instant, updatedAt: Instant, status: ExecutionStatus)
+  case class Data(id: WorkflowInstanceId, createdAt: Instant, updatedAt: Instant, status: ExecutionStatus)
 
-  def apply[WorkflowId](clock: Clock = Clock.systemUTC()): IO[InMemoryWorkflowRegistry[WorkflowId]] = {
-    Ref[IO].of(Map.empty[(String, WorkflowId), Data[WorkflowId]]).map { stateRef =>
-      new Impl[WorkflowId](stateRef, clock)
+  def apply(clock: Clock = Clock.systemUTC()): IO[InMemoryWorkflowRegistry] = {
+    Ref[IO].of(Map.empty[WorkflowInstanceId, Data]).map { stateRef =>
+      new Impl(stateRef, clock)
     }
   }
 
-  private class Impl[WorkflowId](
-      stateRef: Ref[IO, Map[(String, WorkflowId), Data[WorkflowId]]],
+  private class Impl(
+      stateRef: Ref[IO, Map[WorkflowInstanceId, Data]],
       clock: Clock,
-  ) extends InMemoryWorkflowRegistry[WorkflowId]
+  ) extends InMemoryWorkflowRegistry
       with StrictLogging {
 
-    override def getAgent(workflowType: String): WorkflowRegistry.Agent[WorkflowId] = new WorkflowRegistry.Agent[WorkflowId] {
-      override def upsertInstance(id: WorkflowId, executionStatus: ExecutionStatus): IO[Unit] = {
-        logger.info(
-          "Updating workflow registry for " + workflowType + " with id " + id + " to status " + executionStatus + " at " + Instant.now(clock),
-        )
-        for {
-          now <- IO(Instant.now(clock))
-          _   <- stateRef.update { state =>
-                   state.get((workflowType, id)) match {
-                     case Some(existing) =>
-                       if existing.updatedAt.isAfter(now) then state
-                       else state + ((workflowType, id) -> existing.copy(updatedAt = now, status = executionStatus))
-                     case None           =>
-                       state + ((workflowType, id) -> Data(id, workflowType, now, now, executionStatus))
-                   }
+    override def upsertInstance(id: WorkflowInstanceId, executionStatus: ExecutionStatus): IO[Unit] = {
+      for {
+        now <- IO(Instant.now(clock))
+        _    = logger.info(s"Updating workflow registry for ${id} to status $executionStatus at $now")
+        _   <- stateRef.update { state =>
+                 state.get(id) match {
+                   case Some(existing) =>
+                     if existing.updatedAt.isAfter(now) then state
+                     else state + (id -> existing.copy(updatedAt = now, status = executionStatus))
+                   case None           =>
+                     state + (id -> Data(id, now, now, executionStatus))
                  }
-        } yield ()
-      }
+               }
+      } yield ()
     }
 
-    override def getWorkflows(): IO[List[Data[WorkflowId]]] = {
-      stateRef.get.map(_.values.toList)
-    }
+    override def getWorkflows(): IO[List[Data]] = stateRef.get.map(_.values.toList)
   }
+
 }

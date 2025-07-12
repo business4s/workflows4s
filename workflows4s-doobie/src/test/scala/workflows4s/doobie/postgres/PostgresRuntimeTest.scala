@@ -24,7 +24,7 @@ class PostgresRuntimeTest extends AnyFreeSpec with PostgresSuite with WorkflowRu
         .done
 
       val storage          = PostgresWorkflowStorage()(using noopCodec(Event()))
-      val runtime          = DatabaseRuntime.default(wio, State(), xa, NoOpKnockerUpper.Agent, storage)
+      val runtime          = DatabaseRuntime.default(wio, State(), xa, NoOpKnockerUpper.Agent, storage, "workflow")
       val workflowInstance = runtime.createInstance("1").unsafeRunSync()
 
       // this used to throw due to leaked LiftIO

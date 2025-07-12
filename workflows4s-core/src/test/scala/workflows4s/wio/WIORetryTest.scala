@@ -29,9 +29,10 @@ class WIORetryTest extends AnyFreeSpec with Matchers with OptionValues with Eith
       val retryingWIO      = failingWIO.retryIn({ case _ => retryDelay })
       val retryingInstance = runtime.createInstance(retryingWIO)
 
-      assert(runtime.knockerUpper.lastRegisteredWakeup(()) == None)
+      assert(runtime.knockerUpper.lastRegisteredWakeup(failingInstance.id) == None)
+      assert(runtime.knockerUpper.lastRegisteredWakeup(retryingInstance.id) == None)
       retryingInstance.wakeup()
-      assert(runtime.knockerUpper.lastRegisteredWakeup(()) == Some(runtime.clock.instant.plus(retryDelay)))
+      assert(runtime.knockerUpper.lastRegisteredWakeup(retryingInstance.id) == Some(runtime.clock.instant.plus(retryDelay)))
     }
 
     "should rethrow when onError returns None" in {
@@ -42,12 +43,12 @@ class WIORetryTest extends AnyFreeSpec with Matchers with OptionValues with Eith
       val retryingWIO = failingWIO.retry((_, _, _) => IO(None))
       val instance    = runtime.createInstance(retryingWIO)
 
-      assert(runtime.knockerUpper.lastRegisteredWakeup(()) == None)
+      assert(runtime.knockerUpper.lastRegisteredWakeup(instance.id) == None)
       val receivedException = intercept[RuntimeException] {
         instance.wakeup()
       }
       assert(receivedException == exception)
-      assert(runtime.knockerUpper.lastRegisteredWakeup(()) == None)
+      assert(runtime.knockerUpper.lastRegisteredWakeup(instance.id) == None)
     }
 
     "when another wakeup is present" - {
@@ -67,7 +68,7 @@ class WIORetryTest extends AnyFreeSpec with Matchers with OptionValues with Eith
 
         // wakeup didnt throw but wakeup
         instance.wakeup()
-        assert(runtime.knockerUpper.lastRegisteredWakeup(()) == Some(runtime.clock.instant.plus(interruptionDelay)))
+        assert(runtime.knockerUpper.lastRegisteredWakeup(instance.id) == Some(runtime.clock.instant.plus(interruptionDelay)))
 
       }
       "should overwrite later one" in {
@@ -85,7 +86,7 @@ class WIORetryTest extends AnyFreeSpec with Matchers with OptionValues with Eith
 
         // wakeup didnt throw but wakeup
         instance.wakeup()
-        assert(runtime.knockerUpper.lastRegisteredWakeup(()) == Some(runtime.clock.instant.plus(retryDelay)))
+        assert(runtime.knockerUpper.lastRegisteredWakeup(instance.id) == Some(runtime.clock.instant.plus(retryDelay)))
 
       }
     }

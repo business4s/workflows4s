@@ -6,11 +6,10 @@ import cats.implicits.{catsSyntaxApplicativeError, catsSyntaxApplicativeId}
 import org.apache.pekko.actor.typed.scaladsl.AskPattern.*
 import org.apache.pekko.actor.typed.{ActorSystem, RecipientRef}
 import org.apache.pekko.util.Timeout
-import workflows4s.runtime.WorkflowInstanceBase
+import workflows4s.runtime.{WorkflowInstanceBase, WorkflowInstanceId}
 import workflows4s.runtime.pekko.WorkflowBehavior.{LockExpired, StateLockId}
 import workflows4s.runtime.registry.WorkflowRegistry
 import workflows4s.runtime.wakeup.KnockerUpper
-import workflows4s.runtime.wakeup.KnockerUpper.Agent.Curried
 import workflows4s.wio.{ActiveWorkflow, WorkflowContext}
 
 import java.time.Clock
@@ -18,10 +17,11 @@ import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
 class PekkoWorkflowInstance[Ctx <: WorkflowContext](
+    val id: WorkflowInstanceId,
     actorRef: RecipientRef[WorkflowBehavior.Command[Ctx]],
-    protected val knockerUpper: KnockerUpper.Agent.Curried,
+    protected val knockerUpper: KnockerUpper.Agent,
     protected val clock: Clock,
-    protected val registry: WorkflowRegistry.Agent.Curried,
+    protected val registry: WorkflowRegistry.Agent,
     stateQueryTimeout: Timeout = Timeout(100.millis),
     lockTimeout: Timeout = Timeout(5.seconds),
 )(using system: ActorSystem[?])

@@ -10,6 +10,7 @@ import workflows4s.testing.TestClock
 import doobie.implicits.given
 import org.scalatest.BeforeAndAfterEach
 import workflows4s.doobie.postgres.testing.PostgresSuite
+import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.utils.StringUtils
 
 import scala.concurrent.duration.DurationInt
@@ -25,96 +26,67 @@ class PostgresDatabaseWorkflowRegistryTest extends AnyFreeSpec with PostgresSuit
     "should store and retrieve workflow instances" in {
       val clock    = TestClock()
       val registry = PostgresWorkflowRegistry(xa = xa, clock = clock).unsafeRunSync()
-      val wfType1  = "test-workflow-1"
-      val wfType2  = "test-workflow-2"
 
-      val agent1 = registry.getAgent(wfType1)
-      val agent2 = registry.getAgent(wfType2)
+      val List(id1, id2, id3, id4) =
+        List.fill(4)(WorkflowInstanceId(StringUtils.randomAlphanumericString(4), StringUtils.randomAlphanumericString(4)))
 
-      val List(id1, id2, id3, id4) = List.fill(4)(StringUtils.randomAlphanumericString(12))
-
-      agent1.upsertInstance(id1, ExecutionStatus.Running).unsafeRunSync()
-      agent1.upsertInstance(id2, ExecutionStatus.Awaiting).unsafeRunSync()
-      agent2.upsertInstance(id3, ExecutionStatus.Finished).unsafeRunSync()
-      agent2.upsertInstance(id4, ExecutionStatus.Running).unsafeRunSync()
+      registry.upsertInstance(id1, ExecutionStatus.Running).unsafeRunSync()
+      registry.upsertInstance(id2, ExecutionStatus.Awaiting).unsafeRunSync()
+      registry.upsertInstance(id3, ExecutionStatus.Finished).unsafeRunSync()
+      registry.upsertInstance(id4, ExecutionStatus.Running).unsafeRunSync()
 
       val workflows = registry.getExecutingWorkflows(0.seconds).drainUnsafe
 
-      assert(
-        workflows === List(
-          (wfType1, id1),
-          (wfType2, id4),
-        ),
-      )
+      assert(workflows === List(id1, id4))
     }
 
-    "should consider last recorded update time when filtering" in {
+    "should consider the last recorded update time when filtering" in {
       val clock    = TestClock()
       val registry = PostgresWorkflowRegistry(xa = xa, clock = clock).unsafeRunSync()
-      val wfType   = "test-workflow-1"
-      val agent    = registry.getAgent(wfType)
 
-      val List(id1, id2) = List.fill(2)(StringUtils.randomAlphanumericString(12))
+      val List(id1, id2) = List.fill(2)(WorkflowInstanceId(StringUtils.randomAlphanumericString(4), StringUtils.randomAlphanumericString(4)))
 
-      agent.upsertInstance(id1, ExecutionStatus.Running).unsafeRunSync()
-      agent.upsertInstance(id2, ExecutionStatus.Running).unsafeRunSync()
+      registry.upsertInstance(id1, ExecutionStatus.Running).unsafeRunSync()
+      registry.upsertInstance(id2, ExecutionStatus.Running).unsafeRunSync()
 
       clock.advanceBy(2.second)
-      agent.upsertInstance(id1, ExecutionStatus.Running).unsafeRunSync()
+      registry.upsertInstance(id1, ExecutionStatus.Running).unsafeRunSync()
 
       val workflows = registry.getExecutingWorkflows(notUpdatedFor = 1.seconds).drainUnsafe
 
-      assert(
-        workflows === List(
-          (wfType, id2),
-        ),
-      )
+      assert(workflows === List(id2))
     }
 
-    "should consider last recorded update status" in {
+    "should consider the last recorded update status" in {
       val clock    = TestClock()
       val registry = PostgresWorkflowRegistry(xa = xa, clock = clock).unsafeRunSync()
-      val wfType   = "test-workflow-1"
-      val agent    = registry.getAgent(wfType)
 
-      val List(id1, id2, id3) = List.fill(3)(StringUtils.randomAlphanumericString(12))
+      val List(id1, id2, id3) = List.fill(3)(WorkflowInstanceId(StringUtils.randomAlphanumericString(4), StringUtils.randomAlphanumericString(4)))
 
-      agent.upsertInstance(id1, ExecutionStatus.Running).unsafeRunSync()
-      agent.upsertInstance(id2, ExecutionStatus.Running).unsafeRunSync()
-      agent.upsertInstance(id3, ExecutionStatus.Running).unsafeRunSync()
+      registry.upsertInstance(id1, ExecutionStatus.Running).unsafeRunSync()
+      registry.upsertInstance(id2, ExecutionStatus.Running).unsafeRunSync()
+      registry.upsertInstance(id3, ExecutionStatus.Running).unsafeRunSync()
 
-      agent.upsertInstance(id2, ExecutionStatus.Finished).unsafeRunSync()
-      agent.upsertInstance(id3, ExecutionStatus.Awaiting).unsafeRunSync()
+      registry.upsertInstance(id2, ExecutionStatus.Finished).unsafeRunSync()
+      registry.upsertInstance(id3, ExecutionStatus.Awaiting).unsafeRunSync()
 
       val workflows = registry.getExecutingWorkflows(notUpdatedFor = 0.seconds).drainUnsafe
 
-      assert(
-        workflows === List(
-          (wfType, id1),
-        ),
-      )
+      assert(workflows === List(id1))
     }
 
     "should separate ids by type" in {
       val clock    = TestClock()
       val registry = PostgresWorkflowRegistry(xa = xa, clock = clock).unsafeRunSync()
-      val wfType1  = "test-workflow-1"
-      val wfType2  = "test-workflow-2"
-      val agent1   = registry.getAgent(wfType1)
-      val agent2   = registry.getAgent(wfType2)
 
-      val id = "1"
+      val id1 = WorkflowInstanceId("a", "1")
+      val id2 = WorkflowInstanceId("b", "1")
 
-      agent1.upsertInstance(id, ExecutionStatus.Running).unsafeRunSync()
-      agent2.upsertInstance(id, ExecutionStatus.Running).unsafeRunSync()
+      registry.upsertInstance(id1, ExecutionStatus.Running).unsafeRunSync()
+      registry.upsertInstance(id2, ExecutionStatus.Running).unsafeRunSync()
 
       val workflows = registry.getExecutingWorkflows(notUpdatedFor = 0.seconds).drainUnsafe
-      assert(
-        workflows === List(
-          (wfType1, id),
-          (wfType2, id),
-        ),
-      )
+      assert(workflows === List(id1, id2))
     }
   }
 

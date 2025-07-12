@@ -22,9 +22,9 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
   protected def lockAndUpdateState[T](update: ActiveWorkflow[Ctx] => F[LockOutcome[T]]): F[StateUpdate[T]]
   // this could theoretically be implemented in terms of `updateState` but we dont want to lock anything unnecessarly
   protected def getWorkflow: F[ActiveWorkflow[Ctx]]
-  protected def knockerUpper: KnockerUpper.Agent.Curried
+  protected def knockerUpper: KnockerUpper.Agent
   protected def clock: Clock
-  protected def registry: WorkflowRegistry.Agent.Curried
+  protected def registry: WorkflowRegistry.Agent
 
   override def queryState(): F[WCState[Ctx]] = {
     for {
@@ -121,7 +121,7 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
   private def updateWakeup(time: Option[Instant]) = {
     liftIO.liftIO(
       knockerUpper
-        .updateWakeup((), time)
+        .updateWakeup(this.id, time)
         .handleError(err => {
           logger.error("Failed to register wakeup", err)
         }),
@@ -143,13 +143,13 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
   }
 
   private def registerRunningInstance: F[Unit]                                = {
-    registry.upsertInstance((), WorkflowRegistry.ExecutionStatus.Running).pipe(liftIO.liftIO)
+    registry.upsertInstance(this.id, WorkflowRegistry.ExecutionStatus.Running).pipe(liftIO.liftIO)
   }
   private def registerNotRunningInstance(state: ActiveWorkflow[Ctx]): F[Unit] = {
     val status =
       if state.wio.asExecuted.isDefined then ExecutionStatus.Finished
       else ExecutionStatus.Awaiting
-    registry.upsertInstance((), status).pipe(liftIO.liftIO)
+    registry.upsertInstance(this.id, status).pipe(liftIO.liftIO)
   }
 
   enum LockOutcome[+T] {

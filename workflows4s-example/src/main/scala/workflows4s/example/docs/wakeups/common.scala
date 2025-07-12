@@ -11,7 +11,7 @@ object common {
   trait MyWorkflowCtx extends WorkflowContext
 
   // docs_start
-  def createRuntime(knockerUpper: KnockerUpper.Agent[MyWorkflowId]): WorkflowRuntime[IO, MyWorkflowCtx, MyWorkflowId] = ???
+  def createRuntime(knockerUpper: KnockerUpper.Agent): WorkflowRuntime[IO, MyWorkflowCtx] = ???
   // docs_end
 
 }

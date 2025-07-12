@@ -6,6 +6,8 @@ import workflows4s.wio.model.WIOExecutionProgress
 
 class MappedWorkflowInstance[F[_], G[_], State](base: WorkflowInstance[F, State], map: [t] => F[t] => G[t]) extends WorkflowInstance[G, State] {
 
+  override def id: WorkflowInstanceId = base.id
+
   override def queryState(): G[State] = map(base.queryState())
 
   override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): G[Either[UnexpectedSignal, Resp]] =

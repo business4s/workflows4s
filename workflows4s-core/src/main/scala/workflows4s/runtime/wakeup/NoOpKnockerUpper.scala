@@ -1,12 +1,12 @@
 package workflows4s.runtime.wakeup
 
 import java.time.Instant
-
 import cats.effect.IO
+import workflows4s.runtime.WorkflowInstanceId
 
 object NoOpKnockerUpper {
 
-  object Agent extends KnockerUpper.Agent[Any] {
-    override def updateWakeup(id: Any, at: Option[Instant]): IO[Unit] = IO.unit
+  object Agent extends KnockerUpper.Agent {
+    override def updateWakeup(id: WorkflowInstanceId, at: Option[Instant]): IO[Unit] = IO.unit
   }
 }

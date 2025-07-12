@@ -3,7 +3,7 @@ package workflows4s.testing
 import cats.effect.IO
 import workflows4s.runtime.registry.NoOpWorkflowRegistry
 import workflows4s.runtime.wakeup.NoOpKnockerUpper
-import workflows4s.runtime.{InMemorySyncRuntime, InMemorySyncWorkflowInstance}
+import workflows4s.runtime.{InMemorySyncRuntime, InMemorySyncWorkflowInstance, WorkflowInstanceId}
 import workflows4s.wio.*
 
 import java.time.Instant
@@ -13,24 +13,27 @@ import scala.util.Random
 
 class TestRuntime {
   val clock        = TestClock()
-  val knockerUpper = FakeKnockerUpper[Unit]()
+  val knockerUpper = FakeKnockerUpper()
 
   def createInstance(wio: WIO[TestState, Nothing, TestState, TestCtx2.Ctx]): InMemorySyncWorkflowInstance[TestCtx2.Ctx] = {
     import cats.effect.unsafe.implicits.global
     val instance: InMemorySyncWorkflowInstance[TestCtx2.Ctx] =
-      new InMemorySyncRuntime[TestCtx2.Ctx, Unit](
+      new InMemorySyncRuntime[TestCtx2.Ctx](
         wio.provideInput(TestState.empty),
         TestState.empty,
         clock,
         knockerUpper,
         NoOpWorkflowRegistry.Agent,
+        "test",
       )
-        .createInstance(())
+        .createInstance(UUID.randomUUID().toString)
     instance
   }
 }
 
 object TestUtils {
+
+  def randomWfId() = WorkflowInstanceId(UUID.randomUUID().toString.take(4), UUID.randomUUID().toString.take(4))
 
   type Error = String
 
@@ -38,14 +41,15 @@ object TestUtils {
     val clock                                                = new TestClock()
     import cats.effect.unsafe.implicits.global
     val instance: InMemorySyncWorkflowInstance[TestCtx2.Ctx] =
-      new InMemorySyncRuntime[TestCtx2.Ctx, Unit](
+      new InMemorySyncRuntime[TestCtx2.Ctx](
         wio.provideInput(TestState.empty),
         TestState.empty,
         clock,
         NoOpKnockerUpper.Agent,
         NoOpWorkflowRegistry.Agent,
+        "test",
       )
-        .createInstance(())
+        .createInstance(UUID.randomUUID().toString)
     (clock, instance)
   }
 

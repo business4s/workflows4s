@@ -8,7 +8,7 @@ import cats.syntax.all.*
 import com.typesafe.scalalogging.StrictLogging
 import doobie.ConnectionIO
 import doobie.implicits.*
-import workflows4s.runtime.WorkflowInstanceBase
+import workflows4s.runtime.{WorkflowInstanceBase, WorkflowInstanceId}
 import workflows4s.runtime.registry.WorkflowRegistry
 import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.wio.*
@@ -18,19 +18,17 @@ import scala.util.chaining.scalaUtilChainingOps
 
 private type Result[T] = Kleisli[ConnectionIO, LiftIO[ConnectionIO], T]
 
-class DbWorkflowInstance[Ctx <: WorkflowContext, Id](
-    id: Id,
+class DbWorkflowInstance[Ctx <: WorkflowContext](
+    val id: WorkflowInstanceId,
     baseWorkflow: ActiveWorkflow[Ctx],
-    storage: WorkflowStorage[Id, WCEvent[Ctx]],
+    storage: WorkflowStorage[WCEvent[Ctx]],
     protected val clock: Clock,
-    knockerUpperForId: KnockerUpper.Agent[Id],
-    registryAgent: WorkflowRegistry.Agent[Id],
+    protected val knockerUpper: KnockerUpper.Agent,
+    protected val registry: WorkflowRegistry.Agent,
 ) extends WorkflowInstanceBase[Result, Ctx]
     with StrictLogging {
 
-  override protected def fMonad: Monad[Result]                         = summon
-  override protected lazy val knockerUpper: KnockerUpper.Agent.Curried = knockerUpperForId.curried(id)
-  override protected lazy val registry: WorkflowRegistry.Agent.Curried = registryAgent.curried(id)
+  override protected def fMonad: Monad[Result] = summon
 
   private val connIOToResult: ConnectionIO ~> Result = new FunctionK {
     override def apply[A](fa: ConnectionIO[A]): Result[A] = Kleisli(_ => fa)

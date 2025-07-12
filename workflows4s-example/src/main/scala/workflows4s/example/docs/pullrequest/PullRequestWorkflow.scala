@@ -118,7 +118,7 @@ object PullRequestWorkflow {
     // end_render
 
     // start_execution
-    val runtime    = InMemorySyncRuntime.default[Context.Ctx, String](workflow, PRState.Empty)
+    val runtime    = InMemorySyncRuntime.default[Context.Ctx](workflow, PRState.Empty)
     val wfInstance = runtime.createInstance("id")
 
     wfInstance.deliverSignal(Signals.createPR, Signals.CreateRequest("some-sha"))
