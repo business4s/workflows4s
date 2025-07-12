@@ -36,16 +36,20 @@ lazy val `workflows4s-bpmn` = (project in file("workflows4s-bpmn"))
   .dependsOn(`workflows4s-core`)
 
 lazy val `workflows4s-pekko` = (project in file("workflows4s-pekko"))
+  .enablePlugins(MultiJvmPlugin)
+  .configs(MultiJvm)
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.apache.pekko" %% "pekko-persistence-typed"      % pekkoVersion,
-      "org.apache.pekko" %% "pekko-cluster-typed"          % pekkoVersion,
-      "org.apache.pekko" %% "pekko-cluster-sharding-typed" % pekkoVersion,
-      "org.apache.pekko" %% "pekko-persistence-testkit"    % pekkoVersion    % Test,
-      "org.apache.pekko" %% "pekko-persistence-jdbc"       % "1.1.0"         % Test,
-      "com.h2database"    % "h2"                           % "2.3.232"       % Test,
-      "io.r2dbc"          % "r2dbc-h2"                     % "1.0.0.RELEASE" % Test,
+      "org.apache.pekko"     %% "pekko-persistence-typed"      % pekkoVersion,
+      "org.apache.pekko"     %% "pekko-cluster-typed"          % pekkoVersion,
+      "org.apache.pekko"     %% "pekko-cluster-sharding-typed" % pekkoVersion,
+      "org.apache.pekko"     %% "pekko-persistence-testkit"    % pekkoVersion    % Test,
+      "org.apache.pekko"     %% "pekko-multi-node-testkit"     % pekkoVersion    % Test,
+      "org.apache.pekko"     %% "pekko-persistence-jdbc"       % "1.1.0"         % Test,
+      "com.h2database"        % "h2"                           % "2.3.232"       % Test,
+      "io.r2dbc"              % "r2dbc-h2"                     % "1.0.0.RELEASE" % Test,
+      "io.github.alstanchev" %% "pekko-persistence-inmemory"   % "1.3.0"         % Test,
     ),
   )
   .dependsOn(`workflows4s-core` % "compile->compile;test->test")
