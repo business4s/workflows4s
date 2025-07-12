@@ -13,7 +13,7 @@ object FsKnockerUpperExample {
   val knockerUpper                                = FilesystemKnockerUpper.create(workDir)
   val runtime: WorkflowRuntime[IO, MyWorkflowCtx] = createRuntime(knockerUpper)
 
-  val process: ResourceIO[Unit] = knockerUpper.initialize(id => runtime.createInstance(id.instanceId).flatMap(_.wakeup()))
+  val process: ResourceIO[Unit] = knockerUpper.initialize(Seq(runtime))
   // docs_end
 
 }

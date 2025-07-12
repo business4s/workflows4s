@@ -3,7 +3,6 @@ package workflows4s.example.docs.wakeups
 import cats.effect.IO
 import workflows4s.example.docs.wakeups.common.*
 import workflows4s.runtime.WorkflowRuntime
-import workflows4s.runtime.wakeup.quartz.StringCodec
 
 object QuartzKnockerUpperExample {
 
@@ -11,7 +10,6 @@ object QuartzKnockerUpperExample {
   import workflows4s.runtime.wakeup.quartz.QuartzKnockerUpper
 
   val scheduler: org.quartz.Scheduler            = ???
-  given StringCodec[MyWorkflowId]                = ???
   val dispatcher: cats.effect.std.Dispatcher[IO] = ???
 
   scheduler.start()
@@ -21,7 +19,7 @@ object QuartzKnockerUpperExample {
 
   val runtime: WorkflowRuntime[IO, MyWorkflowCtx] = createRuntime(knockerUpper)
 
-  val initialization: IO[Unit] = knockerUpper.initialize(id => runtime.createInstance(id.instanceId).flatMap(_.wakeup()))
+  val initialization: IO[Unit] = knockerUpper.initialize(Seq(runtime))
 // docs_end
 
 }

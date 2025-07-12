@@ -17,7 +17,7 @@ object SleepingKnockerUpperExample {
 
   knockerUpperResource.use(knockerUpper => {
     val runtime: WorkflowRuntime[IO, MyWorkflowCtx] = createRuntime(knockerUpper)
-    val init: IO[Unit]                              = knockerUpper.initialize(id => runtime.createInstance(id.instanceId).flatMap(_.wakeup()))
+    val init: IO[Unit]                              = knockerUpper.initialize(Seq(runtime))
     ???
   })
   // docs_end

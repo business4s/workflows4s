@@ -87,7 +87,7 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(impli
 
     val isStopped = first.entityRef.ask(replyTo => Stop(replyTo))
     Await.result(isStopped, 3.seconds)
-    Thread.sleep(100) // this is terrible but sometimes akka gives us already terminated actor if we ask for it too fast.
+    Thread.sleep(100) // this is terrible, but sometimes akka gives us an already terminated actor if we ask for it too fast.
     val entityRef = sharding.entityRefFor(first.entityRef.typeKey, first.entityRef.entityId)
     logger.debug(s"""Original Actor: ${first.entityRef}
                     |New Actor     : ${entityRef}""".stripMargin)
