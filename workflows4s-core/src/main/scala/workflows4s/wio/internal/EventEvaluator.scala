@@ -1,6 +1,6 @@
 package workflows4s.wio.internal
 
-import cats.implicits.catsSyntaxEitherId
+import cats.implicits.{catsSyntaxEitherId, toFunctorOps}
 import workflows4s.wio.*
 import workflows4s.wio.Interpreter.EventResponse
 
@@ -58,6 +58,17 @@ object EventEvaluator {
 
     def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): Result = {
       doHandle(wio.eventHandler.map(_.asRight)).orElse(handleCheckpointBase(wio))
+    }
+
+    override def onForEach[ElemId, InnerCtx <: WorkflowContext, ElemOut <: WCState[InnerCtx], InterimState <: WCState[Ctx]](
+        wio: WIO.ForEach[Ctx, In, Err, Out, ElemId, InnerCtx, ElemOut, InterimState],
+    ): Result = {
+      val state = wio.state(input)
+      val nexIndex: Int = GetIndexEvaluator.findMaxIndex(wio).map(_ + 1).getOrElse(index)
+      wio.eventEmbedding
+        .unconvertEvent(event)
+        .flatMap((elemId, convertedEvent) => new EventVisitor(state(elemId), convertedEvent, input, wio.initialElemState, nexIndex).run.tupleLeft(elemId))
+        .map( (elemId, newExec) => convertForEachResult(wio, newExec, input, elemId))
     }
 
     def recurse[I1, E1, O1 <: WCState[Ctx]](

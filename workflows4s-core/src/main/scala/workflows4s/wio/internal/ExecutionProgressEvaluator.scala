@@ -159,6 +159,9 @@ object ExecutionProgressEvaluator {
       }
     }
 
+    override def onForEach[ElemId, InnerCtx <: WorkflowContext, ElemOut <: WCState[InnerCtx], InterimState <: WCState[Ctx]](
+        wio: WIO.ForEach[Ctx, In, Err, Out, ElemId, InnerCtx, ElemOut, InterimState],
+    ): WIOExecutionProgress[WCState[Ctx]] = ???
   }
 
   // TODO this whole method should be stricter, it makes assumptions (e.g. interruption cant be wrapped in parallel)
@@ -193,6 +196,7 @@ object ExecutionProgressEvaluator {
       case _: WIOExecutionProgress.Parallel[?]                                => None
       case _: WIOExecutionProgress.Checkpoint[?]                              => None
       case _: WIOExecutionProgress.Recovery[?]                                => None
+      case _: WIOExecutionProgress.ForEach[?, ?, ?]                           => None
     }
   }
 

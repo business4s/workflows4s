@@ -169,12 +169,18 @@ object MermaidRenderer {
             } yield baseStart
           } else go(base)
 
-        case WIOExecutionProgress.Recovery(result) =>
+        case WIOExecutionProgress.Recovery(result)     =>
           // This is a recovery-only checkpoint (created with WIO.recover)
           if showTechnical then addStepGeneral(id =>
             Node(id, "fa:fa-wrench State Recovery", shape = "hexagon".some, clazz = if model.isExecuted then executedClass.some else None),
           ).map(_.some)
           else State.pure(None)
+        case WIOExecutionProgress.ForEach(_, model, _) =>
+          for {
+            (baseEnds, baseStart) <-
+              addSubgraph(go(model.toEmptyProgress), "For Each", None)
+            _                     <- State.modify[RenderState](s => s.copy(activeNodes = baseEnds))
+          } yield baseStart
       }
     }
 

@@ -136,6 +136,15 @@ object WIOExecutionProgress {
     override def map[NewState](f: State => Option[NewState]): Recovery[NewState] =
       Recovery(result.flatMap(_.mapValue(f)))
   }
+  case class ForEach[State, ElemId, ElemState](
+      result: ExecutionResult[State],
+      forEach: WIOModel,
+      subProgresses: Map[ElemId, WIOExecutionProgress[ElemState]],
+  ) extends WIOExecutionProgress[State] {
+    override lazy val toModel: WIOModel.ForEach                                                    = WIOModel.ForEach(forEach)
+    override def map[NewState](f: State => Option[NewState]): ForEach[NewState, ElemId, ElemState] =
+      ForEach(result.flatMap(_.mapValue(f)), forEach, subProgresses)
+  }
 
   def fromModel(model: WIOModel): WIOExecutionProgress[Nothing]                                               = model match {
     case x: WIOModel.Interruption                       => fromModelInterruption(x)
@@ -150,6 +159,7 @@ object WIOExecutionProgress {
     case WIOModel.Parallel(elems)                       => Parallel(elems.map(fromModel), None)
     case WIOModel.Checkpoint(base)                      => Checkpoint(fromModel(base), None)
     case WIOModel.Recovery()                            => Recovery(None)
+    case WIOModel.ForEach(forEach)                      => ForEach(None, forEach, Map.empty)
     case WIOModel.Interruptible(base, trigger, handler) =>
       Interruptible(fromModel(base), fromModelInterruption(trigger), handler.map(fromModel), None)
   }

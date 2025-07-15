@@ -55,7 +55,14 @@ private[workflows4s] object GetIndexEvaluator {
     def onParallel[InterimState <: WCState[Ctx]](wio: WIO.Parallel[Ctx, In, Err, Out, InterimState]): Result =
       wio.elements.flatMap(elem => recurse(elem.wio)).maxOption
 
+    override def onForEach[ElemId, InnerCtx <: WorkflowContext, ElemOut <: WCState[InnerCtx], InterimState <: WCState[Ctx]](
+        wio: WIO.ForEach[Ctx, In, Err, Out, ElemId, InnerCtx, ElemOut, InterimState],
+    ): Option[Int] = {
+      wio.stateOpt.flatMap(_.values.flatMap(x => GetIndexVisitor(x).run).maxOption)
+    }
+
     def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx]): Option[Int] =
       new GetIndexVisitor(wio).run
+
   }
 }

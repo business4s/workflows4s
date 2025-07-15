@@ -16,7 +16,7 @@ trait WorkflowEmbedding[Inner <: WorkflowContext, Outer <: WorkflowContext, -Inp
     .getOrElse(
       throw new Exception(
         "Cannot convert the state of the embedding workflow into the state of the embedded one. " +
-          "This means that outer workflow produced a state not handled in the embedding logic.\n" +
+          "This means that the outer workflow produced a state not handled in the embedding logic.\n" +
           s"Outer state: ${outerState}",
       ),
     )
@@ -32,6 +32,18 @@ trait WorkflowEmbedding[Inner <: WorkflowContext, Outer <: WorkflowContext, -Inp
 }
 
 object WorkflowEmbedding {
+
+  trait Event[From, To] {
+    def convertEvent(e: From): To
+    def unconvertEvent(e: To): Option[From]
+  }
+
+  trait State[Inner <: WorkflowContext, Outer <: WorkflowContext, -Input] {
+    def convertState[In <: WCState[Inner]](innerState: In, input: Input): WCState[Outer]
+    def unconvertState(outerState: WCState[Outer]): Option[WCState[Inner]]
+  }
+
+
   type Aux[Inner <: WorkflowContext, Outer <: WorkflowContext, OS[_ <: WCState[Inner]] <: WCState[Outer], -Input] =
     WorkflowEmbedding[Inner, Outer, Input] { type OutputState[In <: WCState[Inner]] = OS[In] }
 

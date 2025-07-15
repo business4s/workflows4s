@@ -105,6 +105,13 @@ object GetStateEvaluator {
 
     override def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): Result = None
 
+    override def onForEach[ElemId, InnerCtx <: WorkflowContext, ElemOut <: WCState[InnerCtx], InterimState <: WCState[Ctx]](
+        wio: WIO.ForEach[Ctx, In, Err, Out, ElemId, InnerCtx, ElemOut, InterimState],
+    ): Result = {
+      val state = wio.state(input).flatMap((elemId, elemWio) => new GetStateVisitor(elemWio, (), wio.initialElemState).run.tupleLeft(elemId))
+      if (state.isEmpty) None
+      else state.foldLeft(wio.initialInterimState(input))({ case (interim, (elemId, elemState)) => wio.incorporatePartial(elemId, elemState, interim)}).some
+    }
     def recurse[I1, E1, O1 <: WCState[Ctx]](
         wio: WIO[I1, ?, ?, Ctx],
         input: I1,

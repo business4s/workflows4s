@@ -35,5 +35,6 @@ object WIOModel {
   case class Parallel(elements: Seq[WIOModel])                                               extends WIOModel
   case class Checkpoint(base: WIOModel)                                                      extends WIOModel
   case class Recovery()                                                                      extends WIOModel
+  case class ForEach(forEach: WIOModel)                                                      extends WIOModel
 
 }
