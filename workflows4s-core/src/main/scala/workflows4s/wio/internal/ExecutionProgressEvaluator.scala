@@ -1,11 +1,10 @@
 package workflows4s.wio.internal
 
 import cats.syntax.all.*
-import workflows4s.wio.WIO.Timer.DurationSource
-import workflows4s.wio.model.{WIOExecutionProgress, WIOMeta}
 import workflows4s.wio.*
-import workflows4s.wio.model.WIOExecutionProgress.Dynamic
+import workflows4s.wio.WIO.Timer.DurationSource
 import workflows4s.wio.model.WIOExecutionProgress.ExecutedResult
+import workflows4s.wio.model.{WIOExecutionProgress, WIOMeta}
 object ExecutionProgressEvaluator {
 
   def run[Ctx <: WorkflowContext, In](
@@ -143,6 +142,13 @@ object ExecutionProgressEvaluator {
     override def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): WIOExecutionProgress[WCState[Ctx]] =
       WIOExecutionProgress.Recovery(result)
 
+    override def onForEach[ElemId, InnerCtx <: WorkflowContext, ElemOut <: WCState[InnerCtx], InterimState <: WCState[Ctx]](
+        wio: WIO.ForEach[Ctx, In, Err, Out, ElemId, InnerCtx, ElemOut, InterimState],
+    ): WIOExecutionProgress[WCState[Ctx]] = {
+      val elemModel = ExecProgressVisitor(wio.elemWorkflow, None, None, None).run.toModel
+      WIOExecutionProgress.ForEach(result, elemModel, Map()) // TODO empty map!!!
+    }
+
     def recurse[I1, E1, O1 <: WCState[Ctx]](
         wio: WIO[I1, E1, O1, Ctx],
         input: Option[I1],
@@ -159,9 +165,6 @@ object ExecutionProgressEvaluator {
       }
     }
 
-    override def onForEach[ElemId, InnerCtx <: WorkflowContext, ElemOut <: WCState[InnerCtx], InterimState <: WCState[Ctx]](
-        wio: WIO.ForEach[Ctx, In, Err, Out, ElemId, InnerCtx, ElemOut, InterimState],
-    ): WIOExecutionProgress[WCState[Ctx]] = ???
   }
 
   // TODO this whole method should be stricter, it makes assumptions (e.g. interruption cant be wrapped in parallel)

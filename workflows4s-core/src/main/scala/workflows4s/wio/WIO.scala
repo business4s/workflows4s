@@ -256,7 +256,7 @@ object WIO {
   ](
       getElements: In => Set[ElemId],
       elemWorkflow: WIO[ElemId, Err, ElemOut, InnerCtx],
-      initialElemState: WCState[InnerCtx],
+      initialElemState: () => WCState[InnerCtx],
       eventEmbedding: WorkflowEmbedding.Event[(ElemId, WCEvent[InnerCtx]), WCEvent[Ctx]],
       initialInterimState: In => InterimState,
       incorporatePartial: (ElemId, WCState[InnerCtx], InterimState) => InterimState,

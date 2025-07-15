@@ -140,7 +140,7 @@ object RunIOEvaluator {
     ): Result = {
       val state = wio.state(input)
       state.toList
-        .collectFirstSome((elemId, elemWio) => new RunIOVisitor(elemWio, input, wio.initialElemState, now).run.tupleLeft(elemId))
+        .collectFirstSome((elemId, elemWio) => new RunIOVisitor(elemWio, input, wio.initialElemState(), now).run.tupleLeft(elemId))
         .map { case (elemId, io) => io.map(_.map(wio.eventEmbedding.convertEvent(elemId, _))) }
     }
 

@@ -33,7 +33,8 @@ object DraftBuilder {
         ),
       )
 
-      def forEach(forEach: WIO.Draft[Ctx]): WIO.Draft[Ctx] = ???
+      def forEach(forEach: WIO.Draft[Ctx]): WIO.Draft[Ctx] =
+        WIO.ForEach(_ => ???, forEach, () => ???, null, _ => ???, (_, _, _) => ???, _ => ???, None, null)
 
     }
 

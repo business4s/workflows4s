@@ -150,7 +150,7 @@ object SignalEvaluator {
       for {
         unwrapped <- wio.signalWrapper.unwrapRequest(signalDef, req)
         elemWio   <- wio.state(input).get(unwrapped.elemId)
-        result    <- SignalVisitor(elemWio, unwrapped.sigDef, unwrapped.req, (), wio.initialElemState).run
+        result    <- SignalVisitor(elemWio, unwrapped.sigDef, unwrapped.req, (), wio.initialElemState()).run
       } yield result.map(x => wio.eventEmbedding.convertEvent(unwrapped.elemId, x._1) -> x._2)
     }
 

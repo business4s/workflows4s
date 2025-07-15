@@ -67,7 +67,7 @@ object EventEvaluator {
       val nexIndex: Int = GetIndexEvaluator.findMaxIndex(wio).map(_ + 1).getOrElse(index)
       wio.eventEmbedding
         .unconvertEvent(event)
-        .flatMap((elemId, convertedEvent) => new EventVisitor(state(elemId), convertedEvent, input, wio.initialElemState, nexIndex).run.tupleLeft(elemId))
+        .flatMap((elemId, convertedEvent) => new EventVisitor(state(elemId), convertedEvent, input, wio.initialElemState(), nexIndex).run.tupleLeft(elemId))
         .map( (elemId, newExec) => convertForEachResult(wio, newExec, input, elemId))
     }
 

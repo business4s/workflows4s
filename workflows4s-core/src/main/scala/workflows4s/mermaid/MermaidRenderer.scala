@@ -131,10 +131,10 @@ object MermaidRenderer {
         }
         case WIOExecutionProgress.Interruptible(base, trigger, handleFlow, _) =>
           for {
-            (baseEnds, baseStart) <- addSubgraph(go(base))
-            _                     <- go(trigger)
-            _                     <- handleFlow.traverse(h => go(h))
-            _                     <- State.modify[RenderState](s => s.copy(activeNodes = s.activeNodes ++ baseEnds))
+            (baseEnds, baseStart, _) <- addSubgraph(go(base))
+            _                        <- go(trigger)
+            _                        <- handleFlow.traverse(h => go(h))
+            _                        <- State.modify[RenderState](s => s.copy(activeNodes = s.activeNodes ++ baseEnds))
           } yield baseStart
         case WIOExecutionProgress.Timer(meta, _)                              =>
           val durationStr = meta.duration.map(RenderUtils.humanReadableDuration).getOrElse("dynamic")
@@ -162,10 +162,10 @@ object MermaidRenderer {
 
         case WIOExecutionProgress.Checkpoint(base, result) =>
           if showTechnical then {
+            val checkpointClz = if model.isExecuted then checkpointExecutedClass else checkpointClass
             for {
-              (baseEnds, baseStart) <-
-                addSubgraph(go(base), "Checkpoint", Some(if model.isExecuted then checkpointExecutedClass else checkpointClass))
-              _                     <- State.modify[RenderState](s => s.copy(activeNodes = baseEnds))
+              (baseEnds, baseStart, _) <- addSubgraph(go(base), "Checkpoint", Some(checkpointClz))
+              _                        <- setActiveNodes(baseEnds)
             } yield baseStart
           } else go(base)
 
@@ -177,9 +177,10 @@ object MermaidRenderer {
           else State.pure(None)
         case WIOExecutionProgress.ForEach(_, model, _) =>
           for {
-            (baseEnds, baseStart) <-
-              addSubgraph(go(model.toEmptyProgress), "For Each", None)
-            _                     <- State.modify[RenderState](s => s.copy(activeNodes = baseEnds))
+            activeNodes                  <- cleanActiveNodes
+            (baseEnds, baseStart, subId) <- addSubgraph(go(model.toEmptyProgress), "For Each", None)
+            _                            <- addLinks(activeNodes, subId)
+            _                            <- setActiveNodes(baseEnds)
           } yield baseStart
       }
     }
@@ -230,8 +231,8 @@ object MermaidRenderer {
       subgraph: State[RenderState, T],
       title: String = " ",
       clazz: Option[String] = None,
-  ): State[RenderState, (Seq[ActiveNode], T)] = State { state =>
-    val id                  = s"node${state.idIdx}"
+  ): State[RenderState, (Seq[ActiveNode], T, NodeId)] = State { state =>
+    val id                  = s"subgraph${state.idIdx}"
     val (subState, subProc) = subgraph.run(RenderState.initial(state.idIdx + 1).copy(activeNodes = state.activeNodes)).value
     (
       state.copy(
@@ -240,7 +241,7 @@ object MermaidRenderer {
         activeNodes = Seq((id, None)),
         pendingErrors = state.pendingErrors ++ subState.pendingErrors,
       ),
-      (subState.activeNodes, subProc),
+      (subState.activeNodes, subProc, id),
     )
   }
 

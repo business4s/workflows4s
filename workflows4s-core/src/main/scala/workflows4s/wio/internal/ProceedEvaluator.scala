@@ -54,7 +54,7 @@ object ProceedEvaluator {
       val state         = wio.state(input)
       val nexIndex: Int = GetIndexEvaluator.findMaxIndex(wio).map(_ + 1).getOrElse(index)
       val updatedElem   = state.toList.collectFirstSome((elemId, elemWio) => {
-        new ProceedVisitor(elemWio, input, wio.initialElemState, now, nexIndex).run.tupleLeft(elemId)
+        new ProceedVisitor(elemWio, input, wio.initialElemState(), now, nexIndex).run.tupleLeft(elemId)
       })
       updatedElem.map(newWf => convertForEachResult(wio, newWf._2, input, newWf._1))
     }
