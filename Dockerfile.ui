@@ -1,0 +1,38 @@
+# Stage 1: Build the Scala.js code
+FROM sbtscala/scala-sbt:eclipse-temurin-17.0.6_10_1.9.6_3.3.1 as sbt-builder
+
+WORKDIR /app
+COPY . .
+# Compile to optimized JavaScript for production
+RUN sbt "workflows4s-web-ui/fullLinkJS"
+
+# Stage 2: Build the production web assets with Vite
+FROM node:20-alpine as node-builder
+
+WORKDIR /app
+# Copy only necessary files for npm install
+COPY workflows4s-web-ui/package.json workflows4s-web-ui/package-lock.json ./
+RUN npm install
+
+# Copy the rest of the UI source and the compiled JS from the previous stage
+COPY workflows4s-web-ui/vite.config.js workflows4s-web-ui/index.html ./
+COPY --from=sbt-builder /app/workflows4s-web-ui/target/scala-3.7.0/workflows4s-web-ui-opt/ ./target/scala-3.7.0/workflows4s-web-ui-opt
+COPY workflows4s-web-ui/tyrianapp.js ./
+
+# Update tyrianapp.js to use the optimized JS build instead of the fast-opt version
+RUN sed -i 's/workflows4s-web-ui-fastopt/workflows4s-web-ui-opt/g' tyrianapp.js
+
+# Build the final static assets into the /dist directory
+RUN npm run build
+
+# Stage 3: Serve the static assets with Nginx
+FROM nginx:alpine
+
+# Copy the built assets from the node-builder stage
+COPY --from=node-builder /app/dist /usr/share/nginx/html
+
+# Copy a custom Nginx config to handle the Single Page Application, i think this is needed
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]

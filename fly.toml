@@ -1,0 +1,19 @@
+# Fly.io configuration for the API server
+app = "workflows4s-api"
+primary_region = "ams" # Amsterdam, a good default for Europe
+
+[build]
+  dockerfile = "Dockerfile.api"
+
+[http_service]
+  internal_port = 8081
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 512
