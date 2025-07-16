@@ -1,6 +1,6 @@
 # Fly.io configuration for the UI server
 app = "workflows4s-ui"
-primary_region = "ams" # Amsterdam, a good default for Europe
+primary_region = "ams"  
 
 [build]
   dockerfile = "Dockerfile.ui"
