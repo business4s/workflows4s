@@ -9,9 +9,9 @@ import workflows4s.runtime.wakeup.quartz.WakeupJob.{templateIdKey, wakeupContext
 
 class WakeupJob extends Job {
   override def execute(context: JobExecutionContext): Unit = {
-    val id        = context.getJobDetail.getJobDataMap.getString(workflowIdKey)
+    val id         = context.getJobDetail.getJobDataMap.getString(workflowIdKey)
     val templateId = context.getJobDetail.getJobDataMap.getString(templateIdKey)
-    val wakeupCtx = context.getScheduler.getWakeupContext
+    val wakeupCtx  = context.getScheduler.getWakeupContext
     wakeup(WorkflowInstanceId(templateId, id), wakeupCtx.get)
   }
 
@@ -25,7 +25,7 @@ class WakeupJob extends Job {
 object WakeupJob {
   val wakeupContextsKey = "workflows4s-wakeups"
   val workflowIdKey     = "workflows-id"
-  val templateIdKey      = "runtime-id"
+  val templateIdKey     = "runtime-id"
 
   case class Context(wakeup: WorkflowInstanceId => IO[Unit], dispatcher: Dispatcher[IO])
 
