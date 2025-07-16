@@ -7,6 +7,7 @@ import workflows4s.wio.model.{WIOExecutionProgress, WIOMeta}
 
 import java.time.Duration
 import scala.annotation.nowarn
+import scala.util.chaining.scalaUtilChainingOps
 
 @nowarn("msg=unused private member")
 object MermaidRenderer {
@@ -37,7 +38,12 @@ object MermaidRenderer {
   private def render(model: WIOExecutionProgress[?], showTechnical: Boolean = false): State[RenderState, Option[NodeId]] = {
     def go(model: WIOExecutionProgress[?]): State[RenderState, Option[NodeId]] = {
       def addStep(label: String, shape: Option[String] = None): State[RenderState, NodeId] = {
-        addStepGeneral(id => Node(id, label, shape, clazz = if model.isExecuted then executedClass.some else None))
+        for {
+          isRetried     <- areRetriesEnabled()
+          effectiveLabel = if isRetried then s"fa:fa-redo $label" else label
+          result        <- addStepGeneral(id => Node(id, effectiveLabel, shape, clazz = if model.isExecuted then executedClass.some else None))
+        } yield result
+
       }
       model match {
         case WIOExecutionProgress.Sequence(steps)                             =>
@@ -52,6 +58,7 @@ object MermaidRenderer {
         case WIOExecutionProgress.RunIO(meta, _)                              =>
           for {
             stepId <- addStep(meta.name.getOrElse("@computation"))
+            _      <- meta.description.traverse(addNote)
             _      <- meta.error.traverse(addPendingError(stepId, _))
           } yield stepId.some
         case WIOExecutionProgress.HandleSignal(meta, _)                       =>
@@ -169,16 +176,19 @@ object MermaidRenderer {
             } yield baseStart
           } else go(base)
 
-        case WIOExecutionProgress.Recovery(result)     =>
+        case WIOExecutionProgress.Recovery(result)           =>
           // This is a recovery-only checkpoint (created with WIO.recover)
           if showTechnical then addStepGeneral(id =>
             Node(id, "fa:fa-wrench State Recovery", shape = "hexagon".some, clazz = if model.isExecuted then executedClass.some else None),
           ).map(_.some)
           else State.pure(None)
-        case WIOExecutionProgress.ForEach(_, model, _) =>
+        case WIOExecutionProgress.Retried(base)              =>
+          enableRetries() *> go(base) <* disableRetries()
+        case WIOExecutionProgress.ForEach(_, model, _, meta) =>
           for {
             activeNodes                  <- cleanActiveNodes
-            (baseEnds, baseStart, subId) <- addSubgraph(go(model.toEmptyProgress), "For Each", None)
+            name                          = s"≡ ${meta.name.getOrElse("For Each")}"
+            (baseEnds, baseStart, subId) <- addSubgraph(go(model.toEmptyProgress), name, None)
             _                            <- addLinks(activeNodes, subId)
             _                            <- setActiveNodes(baseEnds)
           } yield baseStart
@@ -198,6 +208,9 @@ object MermaidRenderer {
   private def setNextLinkLabel(label: NextLinkLabel): State[RenderState, Unit] = State.modify { s =>
     s.copy(activeNodes = s.activeNodes.map(_._1 -> label))
   }
+  private def enableRetries(): State[RenderState, Unit]                        = State.modify(_.copy(underRetrying = true))
+  private def disableRetries(): State[RenderState, Unit]                       = State.modify(_.copy(underRetrying = false))
+  private def areRetriesEnabled(): State[RenderState, Boolean]                 = State.inspect(_.underRetrying)
 
   private def addNode(nodeF: NodeId => MermaidElement, active: Boolean, label: Option[String] = None): State[RenderState, NodeId] = State { s =>
     val nodeId = s"node${s.idIdx}"
@@ -215,6 +228,15 @@ object MermaidRenderer {
     } yield id
   }
 
+  private def addNote(text: String): State[RenderState, Unit] = {
+    for {
+      activeNodes <- cleanActiveNodes
+      note        <- addStepGeneral(id => Node(id, text, Some("braces")))
+      _           <- addLinks(activeNodes, note, customize = _.copy(midfix = ".", suffix = ""))
+      _           <- setActiveNodes(activeNodes)
+    } yield ()
+  }
+
   private def addPendingError(from: NodeId, err: WIOMeta.Error): State[RenderState, Unit] =
     State.modify(_.addPendingError(from, err))
 
@@ -224,8 +246,8 @@ object MermaidRenderer {
   }
   private def addLink(from: NodeId, to: NodeId, label: Option[String] = None): State[RenderState, Unit] =
     addLinks(Seq((from, label)), to)
-  private def addLinks(from: Seq[(NodeId, NextLinkLabel)], to: NodeId): State[RenderState, Unit]        =
-    State.modify(_.addElements(from.map(f => Link(f._1, to, f._2))))
+  private def addLinks(from: Seq[(NodeId, NextLinkLabel)], to: NodeId, customize: Link => Link = identity): State[RenderState, Unit]        =
+    State.modify(_.addElements(from.map(f => Link(f._1, to, f._2).pipe(customize))))
 
   private def addSubgraph[T](
       subgraph: State[RenderState, T],
@@ -255,12 +277,13 @@ object MermaidRenderer {
       idIdx: Int,
       activeNodes: Seq[ActiveNode] = Seq(),
       pendingErrors: Seq[PendingError],
+      underRetrying: Boolean,
   ) {
     def addPendingError(from: NodeId, error: WIOMeta.Error): RenderState = copy(pendingErrors = pendingErrors.appended((from, error)))
     def addElements(els: Seq[MermaidElement]): RenderState               = copy(chart = chart.addElements(els))
   }
   private object RenderState {
-    def initial(idIdx: Int): RenderState = RenderState(MermaidFlowchart(), idIdx, Seq(), Seq())
+    def initial(idIdx: Int): RenderState = RenderState(MermaidFlowchart(), idIdx, Seq(), Seq(), false)
   }
 
 }

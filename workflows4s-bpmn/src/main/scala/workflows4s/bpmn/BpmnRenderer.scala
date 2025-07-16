@@ -165,7 +165,8 @@ object BpmnRenderer {
         resultBuilder.moveToNode(endGwId)
       case WIOModel.Checkpoint(base)                                  => handle(base, builder)
       case WIOModel.Recovery()                                        => builder
-      case WIOModel.ForEach(_)                                        => ???
+      case WIOModel.Retried(_)                                        => builder
+      case WIOModel.ForEach(_, _)                                     => ???
     }
   }
 

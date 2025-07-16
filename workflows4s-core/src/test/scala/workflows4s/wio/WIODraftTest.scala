@@ -21,8 +21,8 @@ class WIODraftTest extends AnyFreeSpec with Matchers with OptionValues with Eith
       assert(
         model == WIOModel.Sequence(
           List(
-            WIOModel.RunIO(WIOMeta.RunIO(Some("readCSVFile"), None)),
-            WIOModel.RunIO(WIOMeta.RunIO(Some("parseCSVFile"), None)),
+            WIOModel.RunIO(WIOMeta.RunIO(Some("readCSVFile"), None, None)),
+            WIOModel.RunIO(WIOMeta.RunIO(Some("parseCSVFile"), None, None)),
           ),
         ),
       )
@@ -37,8 +37,8 @@ class WIODraftTest extends AnyFreeSpec with Matchers with OptionValues with Eith
       assert(
         model == WIOModel.Sequence(
           List(
-            WIOModel.RunIO(WIOMeta.RunIO(Some("Step1"), None)),
-            WIOModel.RunIO(WIOMeta.RunIO(Some("Step2"), None)),
+            WIOModel.RunIO(WIOMeta.RunIO(Some("Step1"), None, None)),
+            WIOModel.RunIO(WIOMeta.RunIO(Some("Step2"), None, None)),
           ),
         ),
       )
@@ -53,8 +53,8 @@ class WIODraftTest extends AnyFreeSpec with Matchers with OptionValues with Eith
       assert(
         model == WIOModel.Sequence(
           List(
-            WIOModel.RunIO(WIOMeta.RunIO(Some("readCSVFile"), Some(WIOMeta.Error("path not found")))),
-            WIOModel.RunIO(WIOMeta.RunIO(Some("parseCSVFile"), Some(WIOMeta.Error("File format not supported")))),
+            WIOModel.RunIO(WIOMeta.RunIO(Some("readCSVFile"), Some(WIOMeta.Error("path not found")), None)),
+            WIOModel.RunIO(WIOMeta.RunIO(Some("parseCSVFile"), Some(WIOMeta.Error("File format not supported")), None)),
           ),
         ),
       )

@@ -1,6 +1,7 @@
 package workflows4s.wio.builders
 
 import workflows4s.wio.internal.{SignalWrapper, WorkflowEmbedding}
+import workflows4s.wio.model.WIOMeta
 import workflows4s.wio.{WCEvent, WCState, WIO, WorkflowContext}
 
 object ForEachBuilder {
@@ -52,6 +53,7 @@ object ForEachBuilder {
                       outputBuilder,
                       None,
                       signalWrapper,
+                      WIOMeta.ForEach(None) // TODO!
                     )
                   }
                 }

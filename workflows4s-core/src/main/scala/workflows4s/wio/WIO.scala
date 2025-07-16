@@ -6,6 +6,7 @@ import workflows4s.wio.WIO.HandleInterruption.InterruptionType
 import workflows4s.wio.WIO.Timer.DurationSource
 import workflows4s.wio.builders.AllBuilders
 import workflows4s.wio.internal.{EventHandler, GetStateEvaluator, SignalHandler, SignalWrapper, WorkflowEmbedding}
+import workflows4s.wio.model.WIOMeta
 
 import java.time.{Duration, Instant}
 import scala.language.implicitConversions
@@ -44,7 +45,7 @@ object WIO {
   ) extends WIO[In, Err, Out, Ctx]
 
   object RunIO {
-    case class Meta(error: ErrorMeta[?], name: Option[String])
+    case class Meta(error: ErrorMeta[?], name: Option[String], description: Option[String])
   }
 
   case class Pure[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]](
@@ -263,6 +264,7 @@ object WIO {
       buildOutput: Map[ElemId, ElemOut] => Out,
       stateOpt: Option[Map[ElemId, WIO[Any, Err, ElemOut, InnerCtx]]],
       signalWrapper: SignalWrapper[ElemId],
+      meta: WIOMeta.ForEach,
   ) extends WIO[In, Err, Out, Ctx] {
     def state(input: In): Map[ElemId, WIO[Any, Err, ElemOut, InnerCtx]] =
       stateOpt.getOrElse(getElements(input).map(elemId => elemId -> elemWorkflow.provideInput(elemId)).toMap)

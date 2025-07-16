@@ -78,7 +78,7 @@ class WIORunIOTest extends AnyFreeSpec with Matchers with EitherValues {
         val wio = base.done
 
         val meta = wio.extractMeta
-        assert(meta == RunIO.Meta(ErrorMeta.NoError(), None))
+        assert(meta == RunIO.Meta(ErrorMeta.NoError(), None, None))
       }
 
       "explicitly named" in {

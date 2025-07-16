@@ -29,15 +29,15 @@ object RunIOBuilder {
 
         class Step3[Out <: WCState[Ctx], Err](evtHandler: (In, Evt) => Either[Err, Out], errorMeta: ErrorMeta[?]) {
 
-          def named(name: String): WIO[In, Err, Out, Ctx]                 = build(Some(name))
-          def autoNamed(using n: sourcecode.Name): WIO[In, Err, Out, Ctx] = build(Some(ModelUtils.prettifyName(n.value)))
-          def done: WIO[In, Err, Out, Ctx]                                = build(None)
+          def named(name: String, description: String = null): WIO[In, Err, Out, Ctx] = build(Some(name), Option(description))
+          def autoNamed(using n: sourcecode.Name): WIO[In, Err, Out, Ctx]             = build(Some(ModelUtils.prettifyName(n.value)), None)
+          def done: WIO[In, Err, Out, Ctx]                                            = build(None, None)
 
-          private def build(name: Option[String]): WIO[In, Err, Out, Ctx] =
+          private def build(name: Option[String], description: Option[String]): WIO[In, Err, Out, Ctx] =
             WIO.RunIO[Ctx, In, Err, Out, Evt](
               getIO,
               EventHandler(summon[ClassTag[Evt]].unapply, identity, evtHandler),
-              WIO.RunIO.Meta(errorMeta, name),
+              WIO.RunIO.Meta(errorMeta, name, description),
             )
         }
 
