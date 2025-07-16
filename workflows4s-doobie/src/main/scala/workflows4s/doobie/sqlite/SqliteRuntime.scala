@@ -26,7 +26,7 @@ class SqliteRuntime[Ctx <: WorkflowContext](
     eventCodec: ByteCodec[WCEvent[Ctx]],
     workdir: Path,
     registryAgent: WorkflowRegistry.Agent,
-    val runtimeId: String,
+    val templateId: String,
 ) extends WorkflowRuntime[IO, Ctx]
     with StrictLogging {
 
@@ -39,7 +39,7 @@ class SqliteRuntime[Ctx <: WorkflowContext](
       _ <- initSchema(xa, dbPath)
     } yield {
       val base = new DbWorkflowInstance(
-        WorkflowInstanceId(runtimeId, id), // Storage doesn't need ID since each DB has one workflow
+        WorkflowInstanceId(templateId, id), // Storage doesn't need ID since each DB has one workflow
         ActiveWorkflow(workflow, initialState),
         storage,
         clock,
@@ -101,7 +101,7 @@ object SqliteRuntime {
       workdir: Path,
       clock: Clock = Clock.systemUTC(),
       registry: WorkflowRegistry.Agent = NoOpWorkflowRegistry.Agent,
-      runtimeId: String = s"sqlite-runtime-${java.util.UUID.randomUUID().toString.take(8)}",
+      templateId: String = s"sqlite-runtime-${java.util.UUID.randomUUID().toString.take(8)}",
   ): IO[SqliteRuntime[Ctx]] = {
 
     for {
@@ -114,7 +114,7 @@ object SqliteRuntime {
       workdir = workdir,
       clock = clock,
       registryAgent = registry,
-      runtimeId = runtimeId,
+      templateId = templateId,
     )
 
   }

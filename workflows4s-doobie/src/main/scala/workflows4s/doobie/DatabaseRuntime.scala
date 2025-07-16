@@ -20,12 +20,12 @@ class DatabaseRuntime[Ctx <: WorkflowContext](
     xa: Transactor[IO],
     storage: WorkflowStorage[WCEvent[Ctx]],
     registry: WorkflowRegistry.Agent,
-    val runtimeId: String,
+    val templateId: String,
 ) extends WorkflowRuntime[IO, Ctx] {
 
   override def createInstance(id: String): IO[WorkflowInstance[IO, WCState[Ctx]]] = {
     val base   = new DbWorkflowInstance(
-      WorkflowInstanceId(runtimeId, id),
+      WorkflowInstanceId(templateId, id),
       ActiveWorkflow(workflow, initialState),
       storage,
       clock,
@@ -49,11 +49,11 @@ object DatabaseRuntime {
       transactor: Transactor[IO],
       knockerUpper: KnockerUpper.Agent,
       storage: WorkflowStorage[WCEvent[Ctx]],
-      runtimeId: String, // this has to be explicit, as it will be saved in the database and has to be consistent across runtimes
+      templateId: String, // this has to be explicit, as it will be saved in the database and has to be consistent across runtimes
       clock: Clock = Clock.systemUTC(),
       registry: WorkflowRegistry.Agent = NoOpWorkflowRegistry.Agent,
   ) = {
 
-    new DatabaseRuntime[Ctx](workflow, initialState, clock, knockerUpper, transactor, storage, registry, runtimeId)
+    new DatabaseRuntime[Ctx](workflow, initialState, clock, knockerUpper, transactor, storage, registry, templateId)
   }
 }

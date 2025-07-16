@@ -14,7 +14,7 @@ class InMemorySyncRuntime[Ctx <: WorkflowContext](
     clock: Clock,
     knockerUpperAgent: KnockerUpper.Agent,
     registryAgent: WorkflowRegistry.Agent,
-    val runtimeId: String,
+    val templateId: String,
 )(using IORuntime)
     extends WorkflowRuntime[Id, Ctx] {
   val instances = new java.util.concurrent.ConcurrentHashMap[String, InMemorySyncWorkflowInstance[Ctx]]()
@@ -24,7 +24,7 @@ class InMemorySyncRuntime[Ctx <: WorkflowContext](
       id,
       { _ =>
         val activeWf: ActiveWorkflow[Ctx] = ActiveWorkflow(workflow, initialState)
-        val instanceId                    = WorkflowInstanceId(runtimeId, id)
+        val instanceId                    = WorkflowInstanceId(templateId, id)
         new InMemorySyncWorkflowInstance[Ctx](instanceId, activeWf, clock, knockerUpperAgent, registryAgent)
       },
     )
@@ -38,7 +38,7 @@ object InMemorySyncRuntime {
       knockerUpperAgent: KnockerUpper.Agent = NoOpKnockerUpper.Agent,
       clock: Clock = Clock.systemUTC(),
       registryAgent: WorkflowRegistry.Agent = NoOpWorkflowRegistry.Agent,
-      runtimeId: String = s"in-memory-sync-runtime-${java.util.UUID.randomUUID().toString.take(8)}",
+      templateId: String = s"in-memory-sync-runtime-${java.util.UUID.randomUUID().toString.take(8)}",
   ): InMemorySyncRuntime[Ctx] =
-    new InMemorySyncRuntime[Ctx](workflow, initialState, clock, knockerUpperAgent, registryAgent, runtimeId)(using IORuntime.global)
+    new InMemorySyncRuntime[Ctx](workflow, initialState, clock, knockerUpperAgent, registryAgent, templateId)(using IORuntime.global)
 }

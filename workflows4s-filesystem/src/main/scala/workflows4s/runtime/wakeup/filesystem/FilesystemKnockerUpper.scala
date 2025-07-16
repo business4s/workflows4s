@@ -53,7 +53,7 @@ object FilesystemKnockerUpper extends StrictLogging {
     private def decodeBase64(s: String): String = new String(Base64.getUrlDecoder.decode(s), "UTF-8")
     private val separator                       = "::"
 
-    def toString(wid: WorkflowInstanceId): String = s"${encodeBase64(wid.runtimeId)}${separator}${encodeBase64(wid.instanceId)}"
+    def toString(wid: WorkflowInstanceId): String = s"${encodeBase64(wid.templateId)}${separator}${encodeBase64(wid.instanceId)}"
 
     def fromString(s: String): Either[Throwable, WorkflowInstanceId] = {
       s.split(separator, 2) match {

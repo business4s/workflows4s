@@ -24,7 +24,7 @@ class PekkoRuntimeImpl[Ctx <: WorkflowContext](
     clock: Clock,
     knockerUpper: KnockerUpper.Agent,
     registry: WorkflowRegistry.Agent,
-    val runtimeId: String,
+    val templateId: String,
 )(using system: ActorSystem[?])
     extends PekkoRuntime[Ctx] {
   private val sharding: ClusterSharding = ClusterSharding(system)
@@ -35,7 +35,7 @@ class PekkoRuntimeImpl[Ctx <: WorkflowContext](
     Future.successful(createInstance_(id))
   }
   override def createInstance_(id: String): WorkflowInstance[Future, WCState[Ctx]]        = {
-    val instanceId = WorkflowInstanceId(runtimeId, id)
+    val instanceId = WorkflowInstanceId(templateId, id)
     PekkoWorkflowInstance(instanceId, sharding.entityRefFor(typeKey, id), knockerUpper, clock, registry)
   }
 
@@ -66,8 +66,8 @@ object PekkoRuntime {
       system: ActorSystem[?],
   ): PekkoRuntime[Ctx] = {
     // this might need customization if you have two clusters with the same entities but workflows from both in the same knocker-upper/registry.
-    val runtimeId = s"pekko-runtime-$entityName}"
-    new PekkoRuntimeImpl(workflow, initialState, entityName, clock, knockerUpper, registry, runtimeId)
+    val templateId = s"pekko-runtime-$entityName}"
+    new PekkoRuntimeImpl(workflow, initialState, entityName, clock, knockerUpper, registry, templateId)
   }
 
 }

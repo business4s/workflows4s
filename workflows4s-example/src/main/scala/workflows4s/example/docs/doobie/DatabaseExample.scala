@@ -27,9 +27,9 @@ object DatabaseExample {
     val transactor: Transactor[IO]       = ???
     val storage: WorkflowStorage[Event]  = ???
     val knockerUpper: KnockerUpper.Agent = ???
-    val runtimeId                        = "my-workflow"
+    val templateId                        = "my-workflow"
 
-    val runtime: DatabaseRuntime[Ctx]                      = DatabaseRuntime.default(workflow, initialState, transactor, knockerUpper, storage, runtimeId)
+    val runtime: DatabaseRuntime[Ctx]                      = DatabaseRuntime.default(workflow, initialState, transactor, knockerUpper, storage, templateId)
     val wfInstance: IO[WorkflowInstance[IO, WCState[Ctx]]] = runtime.createInstance("1")
     // doc_end
   }

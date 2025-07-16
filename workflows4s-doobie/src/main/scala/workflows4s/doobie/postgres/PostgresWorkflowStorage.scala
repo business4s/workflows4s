@@ -13,7 +13,7 @@ class PostgresWorkflowStorage[Event](tableName: String = "workflow_journal")(usi
   val tableNameFr = Fragment.const(tableName)
 
   override def getEvents(id: WorkflowInstanceId): fs2.Stream[ConnectionIO, Event] = {
-    sql"select event_data from ${tableNameFr} where instance_id = ${id.instanceId} and runtime_id = ${id.runtimeId} order by event_id"
+    sql"select event_data from ${tableNameFr} where instance_id = ${id.instanceId} and template_id = ${id.templateId} order by event_id"
       .query[Array[Byte]]
       .stream
       .evalMap(bytes => Sync[ConnectionIO].fromTry(evenCodec.read(IArray.unsafeFromArray(bytes))))
@@ -21,7 +21,7 @@ class PostgresWorkflowStorage[Event](tableName: String = "workflow_journal")(usi
 
   override def saveEvent(id: WorkflowInstanceId, event: Event): ConnectionIO[Unit] = {
     val bytes = IArray.genericWrapArray(evenCodec.write(event)).toArray
-    sql"insert into ${tableNameFr} (instance_id, runtime_id, event_data) values (${id.instanceId}, ${id.runtimeId}, $bytes)".update.run.void
+    sql"insert into ${tableNameFr} (instance_id, template_id, event_data) values (${id.instanceId}, ${id.templateId}, $bytes)".update.run.void
   }
 
   override def lockWorkflow(id: WorkflowInstanceId): Resource[ConnectionIO, Unit] = {
@@ -36,5 +36,5 @@ class PostgresWorkflowStorage[Event](tableName: String = "workflow_journal")(usi
   /** Postgres locks are identified with a single bigint. We use a SHA-256 hash of the string to generate a unique bigint You may override this method
     * to use a different lock key computation
     */
-  protected def computeLockKey(id: WorkflowInstanceId): Long = StringUtils.stringToLong(s"${id.runtimeId}-${id.instanceId}")
+  protected def computeLockKey(id: WorkflowInstanceId): Long = StringUtils.stringToLong(s"${id.templateId}-${id.instanceId}")
 }

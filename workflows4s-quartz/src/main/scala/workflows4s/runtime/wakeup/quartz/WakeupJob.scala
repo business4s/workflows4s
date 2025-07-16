@@ -5,14 +5,14 @@ import cats.effect.IO
 import cats.effect.std.Dispatcher
 import org.quartz.{Job, JobExecutionContext, Scheduler}
 import workflows4s.runtime.WorkflowInstanceId
-import workflows4s.runtime.wakeup.quartz.WakeupJob.{runtimeIdKey, wakeupContextsKey, workflowIdKey}
+import workflows4s.runtime.wakeup.quartz.WakeupJob.{templateIdKey, wakeupContextsKey, workflowIdKey}
 
 class WakeupJob extends Job {
   override def execute(context: JobExecutionContext): Unit = {
     val id        = context.getJobDetail.getJobDataMap.getString(workflowIdKey)
-    val runtimeId = context.getJobDetail.getJobDataMap.getString(runtimeIdKey)
+    val templateId = context.getJobDetail.getJobDataMap.getString(templateIdKey)
     val wakeupCtx = context.getScheduler.getWakeupContext
-    wakeup(WorkflowInstanceId(runtimeId, id), wakeupCtx.get)
+    wakeup(WorkflowInstanceId(templateId, id), wakeupCtx.get)
   }
 
   private def wakeup(id: WorkflowInstanceId, ctx: WakeupJob.Context): Unit = {
@@ -25,7 +25,7 @@ class WakeupJob extends Job {
 object WakeupJob {
   val wakeupContextsKey = "workflows4s-wakeups"
   val workflowIdKey     = "workflows-id"
-  val runtimeIdKey      = "runtime-id"
+  val templateIdKey      = "runtime-id"
 
   case class Context(wakeup: WorkflowInstanceId => IO[Unit], dispatcher: Dispatcher[IO])
 

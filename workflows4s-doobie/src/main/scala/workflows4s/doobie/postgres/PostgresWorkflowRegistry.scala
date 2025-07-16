@@ -37,15 +37,15 @@ object PostgresWorkflowRegistry {
         now <- Sync[ConnectionIO].delay(Instant.now(clock))
         _   <- executionStatus match {
                  case ExecutionStatus.Running                             =>
-                   sql"""INSERT INTO $tableNameFr (instance_id, runtime_id, updated_at)
-                      |VALUES (${id.instanceId}, ${id.runtimeId}, ${Timestamp.from(now)})
-                      |ON CONFLICT (instance_id, runtime_id)
+                   sql"""INSERT INTO $tableNameFr (instance_id, template_id, updated_at)
+                      |VALUES (${id.instanceId}, ${id.templateId}, ${Timestamp.from(now)})
+                      |ON CONFLICT (instance_id, template_id)
                       |DO UPDATE SET updated_at = ${Timestamp.from(now)}
                       |WHERE $tableNameFr.updated_at <= ${Timestamp.from(now)}""".stripMargin.update.run.void
                  case ExecutionStatus.Finished | ExecutionStatus.Awaiting =>
                    sql"""DELETE FROM $tableNameFr
                       |WHERE instance_id = ${id.instanceId}
-                      |  and runtime_id = ${id.runtimeId}
+                      |  and template_id = ${id.templateId}
                       |  and $tableNameFr.updated_at <= ${Timestamp.from(now)}""".stripMargin.update.run.void
                }
       } yield ()
@@ -57,7 +57,7 @@ object PostgresWorkflowRegistry {
       for {
         now       <- fs2.Stream.eval(Sync[ConnectionIO].delay(Instant.now(clock)))
         cutoffTime = now.minusMillis(notUpdatedFor.toMillis)
-        elem      <- sql"""SELECT runtime_id, instance_id
+        elem      <- sql"""SELECT template_id, instance_id
                      |FROM ${tableNameFr}
                      |WHERE updated_at <= ${Timestamp.from(cutoffTime)}""".stripMargin
                        .query[(String, String)]

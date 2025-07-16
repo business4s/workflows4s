@@ -21,7 +21,7 @@ class InMemoryRuntime[Ctx <: WorkflowContext](
     knockerUpper: KnockerUpper.Agent,
     instances: Ref[IO, Map[String, InMemoryWorkflowInstance[Ctx]]],
     registry: WorkflowRegistry.Agent,
-    val runtimeId: String,
+    val templateId: String,
 ) extends WorkflowRuntime[IO, Ctx] {
   override def createInstance(id: String): IO[InMemoryWorkflowInstance[Ctx]] = {
     instances.access.flatMap({ (map, update) =>
@@ -33,7 +33,7 @@ class InMemoryRuntime[Ctx <: WorkflowContext](
             initialWf     = ActiveWorkflow(workflow, initialState)
             stateRef     <- AtomicCell[IO].of(initialWf)
             eventsRef    <- Ref[IO].of(Vector[WCEvent[Ctx]]())
-            instanceId    = WorkflowInstanceId(runtimeId, id)
+            instanceId    = WorkflowInstanceId(templateId, id)
             runningWf     = InMemoryWorkflowInstance[Ctx](instanceId, stateRef, eventsRef, clock, knockerUpper, registry)
             _            <- runningWfRef.complete(runningWf)
             success      <- update(map.updated(id, runningWf))
@@ -53,12 +53,12 @@ object InMemoryRuntime {
       knockerUpper: KnockerUpper.Agent,
       clock: Clock = Clock.systemUTC(),
       registry: WorkflowRegistry.Agent = NoOpWorkflowRegistry.Agent,
-      runtimeId: String = s"in-memory-runtime-${UUID.randomUUID().toString.take(8)}",
+      templateId: String = s"in-memory-runtime-${UUID.randomUUID().toString.take(8)}",
   ): IO[InMemoryRuntime[Ctx]] = {
     Ref
       .of[IO, Map[String, InMemoryWorkflowInstance[Ctx]]](Map.empty)
       .map({ instances =>
-        new InMemoryRuntime[Ctx](workflow, initialState, clock, knockerUpper, instances, registry, runtimeId)
+        new InMemoryRuntime[Ctx](workflow, initialState, clock, knockerUpper, instances, registry, templateId)
       })
   }
 
