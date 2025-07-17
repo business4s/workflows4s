@@ -5,14 +5,14 @@ import org.apache.pekko.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity
 import org.apache.pekko.persistence.typed.PersistenceId
 import workflows4s.runtime.registry.{NoOpWorkflowRegistry, WorkflowRegistry}
 import workflows4s.runtime.wakeup.KnockerUpper
-import workflows4s.runtime.{WorkflowInstance, WorkflowRuntime}
+import workflows4s.runtime.{WorkflowInstance, WorkflowInstanceId, WorkflowRuntime}
 import workflows4s.wio.WIO.Initial
 import workflows4s.wio.{WCState, WorkflowContext}
 
 import java.time.Clock
 import scala.concurrent.Future
 
-trait PekkoRuntime[Ctx <: WorkflowContext] extends WorkflowRuntime[Future, Ctx, PekkoRuntime.WorkflowId] {
+trait PekkoRuntime[Ctx <: WorkflowContext] extends WorkflowRuntime[Future, Ctx] {
   def createInstance_(id: String): WorkflowInstance[Future, WCState[Ctx]]
   def initializeShard(): Unit
 }
@@ -22,11 +22,11 @@ class PekkoRuntimeImpl[Ctx <: WorkflowContext](
     initialState: WCState[Ctx],
     entityName: String,
     clock: Clock,
-    knockerUpper: KnockerUpper.Agent[PekkoRuntime.WorkflowId],
-    registry: WorkflowRegistry.Agent[PekkoRuntime.WorkflowId],
-)(using
-    system: ActorSystem[?],
-) extends PekkoRuntime[Ctx] {
+    knockerUpper: KnockerUpper.Agent,
+    registry: WorkflowRegistry.Agent,
+    val templateId: String,
+)(using system: ActorSystem[?])
+    extends PekkoRuntime[Ctx] {
   private val sharding: ClusterSharding = ClusterSharding(system)
   private type Command = WorkflowBehavior.Command[Ctx]
   private val typeKey = EntityTypeKey[Command](entityName)
@@ -35,7 +35,8 @@ class PekkoRuntimeImpl[Ctx <: WorkflowContext](
     Future.successful(createInstance_(id))
   }
   override def createInstance_(id: String): WorkflowInstance[Future, WCState[Ctx]]        = {
-    PekkoWorkflowInstance(sharding.entityRefFor(typeKey, id), knockerUpper.curried(id), clock, registry.curried(id))
+    val instanceId = WorkflowInstanceId(templateId, id)
+    PekkoWorkflowInstance(instanceId, sharding.entityRefFor(typeKey, id), knockerUpper, clock, registry)
   }
 
   def initializeShard(): Unit = {
@@ -58,13 +59,15 @@ object PekkoRuntime {
       entityName: String,
       workflow: Initial[Ctx],
       initialState: WCState[Ctx],
-      knockerUpper: KnockerUpper.Agent[WorkflowId],
+      knockerUpper: KnockerUpper.Agent,
       clock: Clock = Clock.systemUTC(),
-      registry: WorkflowRegistry.Agent[WorkflowId] = NoOpWorkflowRegistry.Agent,
+      registry: WorkflowRegistry.Agent = NoOpWorkflowRegistry.Agent,
   )(using
       system: ActorSystem[?],
   ): PekkoRuntime[Ctx] = {
-    new PekkoRuntimeImpl(workflow, initialState, entityName, clock, knockerUpper, registry)
+    // this might need customization if you have two clusters with the same entities but workflows from both in the same knocker-upper/registry.
+    val templateId = s"pekko-runtime-$entityName}"
+    new PekkoRuntimeImpl(workflow, initialState, entityName, clock, knockerUpper, registry, templateId)
   }
 
 }

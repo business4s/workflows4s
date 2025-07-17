@@ -1,28 +1,25 @@
 package workflows4s.testing
 
 import cats.Id
+import cats.effect.IO
 import cats.effect.unsafe.IORuntime
 import com.typesafe.scalalogging.StrictLogging
 import workflows4s.runtime.registry.{NoOpWorkflowRegistry, WorkflowRegistry}
-import workflows4s.runtime.{InMemoryRuntime, InMemorySyncRuntime, InMemorySyncWorkflowInstance, WorkflowInstance}
-import workflows4s.testing.TestRuntimeAdapter.Identifiable
+import workflows4s.runtime.*
 import workflows4s.wio.*
-import workflows4s.wio.model.WIOExecutionProgress
-
-import java.time.Clock
 
 // Adapt various runtimes to a single interface for tests
-trait TestRuntimeAdapter[Ctx <: WorkflowContext, WfId] extends StrictLogging {
+trait TestRuntimeAdapter[Ctx <: WorkflowContext] extends StrictLogging {
 
-  protected val knockerUpper = FakeKnockerUpper[WfId]()
+  protected val knockerUpper = FakeKnockerUpper()
   val clock: TestClock       = TestClock()
 
-  type Actor <: WorkflowInstance[Id, WCState[Ctx]] & Identifiable[WfId]
+  type Actor <: WorkflowInstance[Id, WCState[Ctx]]
 
   def runWorkflow(
       workflow: WIO[Any, Nothing, WCState[Ctx], Ctx],
       state: WCState[Ctx],
-      registryAgent: WorkflowRegistry.Agent[WfId] = NoOpWorkflowRegistry.Agent,
+      registryAgent: WorkflowRegistry.Agent = NoOpWorkflowRegistry.Agent,
   ): Actor
 
   def recover(first: Actor): Actor
@@ -38,89 +35,61 @@ trait TestRuntimeAdapter[Ctx <: WorkflowContext, WfId] extends StrictLogging {
 
 object TestRuntimeAdapter {
 
-  trait Identifiable[WfId] {
-    def id: WfId
-  }
-
   trait EventIntrospection[Event] {
     def getEvents: Seq[Event]
   }
 
-  case class InMemorySync[Ctx <: WorkflowContext]() extends TestRuntimeAdapter[Ctx, Unit] {
+  case class InMemorySync[Ctx <: WorkflowContext]() extends TestRuntimeAdapter[Ctx] {
+
     override def runWorkflow(
         workflow: WIO.Initial[Ctx],
         state: WCState[Ctx],
-        registryAgent: WorkflowRegistry.Agent[Unit],
-    ): Actor = Actor(workflow, state, clock, List(), registryAgent)
-
-    override def recover(first: Actor): Actor = {
-      Actor(first.initialWorkflow, first.state, first.clock, first.getEvents, first.registryAgent)
+        registryAgent: WorkflowRegistry.Agent,
+    ): Actor = {
+      val runtime = new InMemorySyncRuntime[Ctx](workflow, state, clock, knockerUpper, registryAgent, "test")(using IORuntime.global)
+      Actor(List(), runtime)
     }
 
-    case class Actor(
-        initialWorkflow: WIO.Initial[Ctx],
-        state: WCState[Ctx],
-        clock: Clock,
-        events: Seq[WCEvent[Ctx]],
-        registryAgent: WorkflowRegistry.Agent[Unit],
-    ) extends WorkflowInstance[Id, WCState[Ctx]]
-        with EventIntrospection[WCEvent[Ctx]]
-        with Identifiable[Unit] {
-      def id                                      = ()
-      val base: InMemorySyncWorkflowInstance[Ctx] = {
-        val runtime =
-          new InMemorySyncRuntime[Ctx, Unit](initialWorkflow, state, clock, knockerUpper, registryAgent)(using
-            IORuntime.global,
-          )
-        val inst    = runtime.createInstance(())
+    override def recover(first: Actor): Actor = Actor(first.getEvents, first.runtime)
+
+    case class Actor(events: Seq[WCEvent[Ctx]], runtime: InMemorySyncRuntime[Ctx])
+        extends DelegateWorkflowInstance[Id, WCState[Ctx]]
+        with EventIntrospection[WCEvent[Ctx]] {
+      val delegate: InMemorySyncWorkflowInstance[Ctx] = {
+        val inst = runtime.createInstance("")
         inst.recover(events)
         inst
       }
 
-      override def getProgress: Id[WIOExecutionProgress[WCState[Ctx]]]                                                                      = base.getProgress
-      override def queryState(): Id[WCState[Ctx]]                                                                                           = base.queryState()
-      override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): Id[Either[WorkflowInstance.UnexpectedSignal, Resp]] =
-        base.deliverSignal(signalDef, req)
-      override def wakeup(): Id[Unit]                                                                                                       = base.wakeup()
-      override def getEvents: Seq[WCEvent[Ctx]]                                                                                             = base.getEvents
+      override def getEvents: Seq[WCEvent[Ctx]] = delegate.getEvents
     }
   }
 
-  case class InMemory[Ctx <: WorkflowContext]() extends TestRuntimeAdapter[Ctx, Unit] {
+  case class InMemory[Ctx <: WorkflowContext]() extends TestRuntimeAdapter[Ctx] {
+    import cats.effect.unsafe.implicits.global
+
     override def runWorkflow(
         workflow: WIO.Initial[Ctx],
         state: WCState[Ctx],
-        registryAgent: WorkflowRegistry.Agent[Unit],
+        registryAgent: WorkflowRegistry.Agent,
     ): Actor = {
-      Actor(workflow, state, List(), registryAgent)
+      val runtime = InMemoryRuntime.default[Ctx](workflow, state, knockerUpper, clock, registryAgent).unsafeRunSync()
+      Actor(List(), runtime)
     }
 
-    override def recover(first: Actor): Actor =
-      Actor(first.workflow, first.state, first.getEvents, first.registryAgent)
+    override def recover(first: Actor): Actor = Actor(first.getEvents, first.runtime)
 
-    case class Actor(
-        workflow: WIO[Any, Nothing, WCState[Ctx], Ctx],
-        state: WCState[Ctx],
-        events: Seq[WCEvent[Ctx]],
-        registryAgent: WorkflowRegistry.Agent[Unit],
-    ) extends WorkflowInstance[Id, WCState[Ctx]]
-        with EventIntrospection[WCEvent[Ctx]]
-        with Identifiable[Unit] {
-      import cats.effect.unsafe.implicits.global
-      val base = {
-        val runtime = InMemoryRuntime.default[Ctx, Unit](workflow, state, knockerUpper, clock, registryAgent).unsafeRunSync()
-        val inst    = runtime.createInstance(()).unsafeRunSync()
+    case class Actor(events: Seq[WCEvent[Ctx]], runtime: InMemoryRuntime[Ctx])
+        extends DelegateWorkflowInstance[Id, WCState[Ctx]]
+        with EventIntrospection[WCEvent[Ctx]] {
+      val base: InMemoryWorkflowInstance[Ctx]          = {
+        val inst = runtime.createInstance("").unsafeRunSync()
         inst.recover(events).unsafeRunSync()
         inst
       }
+      val delegate: WorkflowInstance[Id, WCState[Ctx]] = MappedWorkflowInstance(base, [t] => (x: IO[t]) => x.unsafeRunSync())
 
-      def id: Unit                                                                                                                          = ()
-      override def getProgress: Id[WIOExecutionProgress[WCState[Ctx]]]                                                                      = base.getProgress.unsafeRunSync()
-      override def queryState(): Id[WCState[Ctx]]                                                                                           = base.queryState().unsafeRunSync()
-      override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): Id[Either[WorkflowInstance.UnexpectedSignal, Resp]] =
-        base.deliverSignal(signalDef, req).unsafeRunSync()
-      override def wakeup(): Id[Unit]                                                                                                       = base.wakeup().unsafeRunSync()
-      override def getEvents: Seq[WCEvent[Ctx]]                                                                                             = base.getEvents.unsafeRunSync()
+      override def getEvents: Seq[WCEvent[Ctx]] = base.getEvents.unsafeRunSync()
     }
 
   }

@@ -1,25 +1,24 @@
 package workflows4s.runtime.wakeup
 
 import java.time.{Duration, Instant}
-
 import scala.jdk.DurationConverters.JavaDurationOps
-
 import cats.effect.kernel.Outcome
 import cats.effect.std.AtomicCell
 import cats.effect.{FiberIO, IO, Resource}
 import cats.implicits.{catsSyntaxApplicativeId, catsSyntaxOptionId, toTraverseOps}
 import com.typesafe.scalalogging.StrictLogging
+import workflows4s.runtime.WorkflowInstanceId
 
 /** Simple implementation for KnockerUpper that relies on IO.sleep.
   */
-class SleepingKnockerUpper[Id](
-    state: AtomicCell[IO, Map[Id, (Instant, FiberIO[Unit])]],
-    wakeupLogicRef: AtomicCell[IO, Option[Id => IO[Unit]]],
-) extends KnockerUpper.Agent[Id]
-    with KnockerUpper.Process[IO, Id, IO[Unit]]
+class SleepingKnockerUpper(
+    state: AtomicCell[IO, Map[WorkflowInstanceId, (Instant, FiberIO[Unit])]],
+    wakeupLogicRef: AtomicCell[IO, Option[WorkflowInstanceId => IO[Unit]]],
+) extends KnockerUpper.Agent
+    with KnockerUpper.Process[IO, IO[Unit]]
     with StrictLogging {
 
-  override def updateWakeup(id: Id, at: Option[Instant]): IO[Unit] = {
+  override def updateWakeup(id: WorkflowInstanceId, at: Option[Instant]): IO[Unit] = {
     at match {
       case Some(wakeupTime) =>
         for {
@@ -37,7 +36,7 @@ class SleepingKnockerUpper[Id](
     }
   }
 
-  private def sleepAndWakeup(id: Id, at: Instant, wakeup: Id => IO[Unit]) = {
+  private def sleepAndWakeup(id: WorkflowInstanceId, at: Instant, wakeup: WorkflowInstanceId => IO[Unit]) = {
     (for {
       now     <- IO(Instant.now())
       duration = Duration.between(now, at).toScala
@@ -53,7 +52,7 @@ class SleepingKnockerUpper[Id](
       })
   }
 
-  private def removeSpecific(id: Id, at: Instant): IO[Unit] = {
+  private def removeSpecific(id: WorkflowInstanceId, at: Instant): IO[Unit] = {
     state.update(st => {
       st.get(id) match {
         case Some((`at`, _)) => st.removed(id)
@@ -62,7 +61,7 @@ class SleepingKnockerUpper[Id](
     })
   }
 
-  override def initialize(wakeUp: Id => IO[Unit]): IO[Unit] = {
+  override def initialize(wakeUp: WorkflowInstanceId => IO[Unit]): IO[Unit] = {
     wakeupLogicRef.evalUpdate({
       case Some(_) => IO.raiseError(new Exception("Start can be called only once"))
       case None    => wakeUp.some.pure[IO]
@@ -73,12 +72,12 @@ class SleepingKnockerUpper[Id](
 
 object SleepingKnockerUpper {
 
-  def create[Id](): Resource[IO, SleepingKnockerUpper[Id]] = {
+  def create(): Resource[IO, SleepingKnockerUpper] = {
     for {
       stateRef  <- Resource.make(
-                     AtomicCell[IO].of(Map.empty[Id, (Instant, FiberIO[Unit])]),
+                     AtomicCell[IO].of(Map.empty[WorkflowInstanceId, (Instant, FiberIO[Unit])]),
                    )(_.get.flatMap(_.values.toList.traverse(_._2.cancel).void))
-      wakeupRef <- AtomicCell[IO].of[Option[Id => IO[Unit]]](None).toResource
+      wakeupRef <- AtomicCell[IO].of[Option[WorkflowInstanceId => IO[Unit]]](None).toResource
     } yield new SleepingKnockerUpper(stateRef, wakeupRef)
   }
 

@@ -13,7 +13,7 @@ import doobie.{ConnectionIO, WeakAsync}
 import workflows4s.doobie.{ByteCodec, DbWorkflowInstance}
 import workflows4s.runtime.registry.{NoOpWorkflowRegistry, WorkflowRegistry}
 import workflows4s.runtime.wakeup.KnockerUpper
-import workflows4s.runtime.{MappedWorkflowInstance, WorkflowInstance, WorkflowRuntime}
+import workflows4s.runtime.{MappedWorkflowInstance, WorkflowInstance, WorkflowInstanceId, WorkflowRuntime}
 import workflows4s.wio.WIO.Initial
 import workflows4s.wio.WorkflowContext.State
 import workflows4s.wio.{ActiveWorkflow, WCEvent, WCState, WorkflowContext}
@@ -22,11 +22,12 @@ class SqliteRuntime[Ctx <: WorkflowContext](
     workflow: Initial[Ctx],
     initialState: WCState[Ctx],
     clock: Clock,
-    knockerUpper: KnockerUpper.Agent[String],
+    knockerUpper: KnockerUpper.Agent,
     eventCodec: ByteCodec[WCEvent[Ctx]],
     workdir: Path,
-    registryAgent: WorkflowRegistry.Agent[String],
-) extends WorkflowRuntime[IO, Ctx, String]
+    registryAgent: WorkflowRegistry.Agent,
+    val templateId: String,
+) extends WorkflowRuntime[IO, Ctx]
     with StrictLogging {
 
   private val storage = SqliteWorkflowStorage[WCEvent[Ctx]](eventCodec)
@@ -38,12 +39,12 @@ class SqliteRuntime[Ctx <: WorkflowContext](
       _ <- initSchema(xa, dbPath)
     } yield {
       val base = new DbWorkflowInstance(
-        (),                       // Storage doesn't need ID since each DB has one workflow
+        WorkflowInstanceId(templateId, id), // Storage doesn't need ID since each DB has one workflow
         ActiveWorkflow(workflow, initialState),
         storage,
         clock,
-        knockerUpper.curried(id), // We still need the ID for the knocker upper
-        registryAgent.curried(id), // And for the registry
+        knockerUpper,
+        registryAgent,
       )
 
       new MappedWorkflowInstance(
@@ -96,10 +97,11 @@ object SqliteRuntime {
       workflow: Initial[Ctx],
       initialState: WCState[Ctx],
       eventCodec: ByteCodec[WCEvent[Ctx]],
-      knockerUpper: KnockerUpper.Agent[String],
+      knockerUpper: KnockerUpper.Agent,
       workdir: Path,
       clock: Clock = Clock.systemUTC(),
-      registry: WorkflowRegistry.Agent[String] = NoOpWorkflowRegistry.Agent,
+      registry: WorkflowRegistry.Agent = NoOpWorkflowRegistry.Agent,
+      templateId: String = s"sqlite-runtime-${java.util.UUID.randomUUID().toString.take(8)}",
   ): IO[SqliteRuntime[Ctx]] = {
 
     for {
@@ -112,6 +114,7 @@ object SqliteRuntime {
       workdir = workdir,
       clock = clock,
       registryAgent = registry,
+      templateId = templateId,
     )
 
   }
