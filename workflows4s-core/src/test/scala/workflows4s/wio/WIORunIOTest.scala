@@ -89,7 +89,7 @@ class WIORunIOTest extends AnyFreeSpec with Matchers with EitherValues {
       }
 
       "autonamed" in {
-        val autonamedRunIO = base.autoNamed
+        val autonamedRunIO = base.autoNamed()
 
         val meta = autonamedRunIO.extractMeta
         assert(meta.name.contains("Autonamed Run IO"))

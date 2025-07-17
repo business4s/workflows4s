@@ -1,61 +1,71 @@
 package workflows4s.wio.builders
 
 import workflows4s.wio.internal.{SignalWrapper, WorkflowEmbedding}
-import workflows4s.wio.model.WIOMeta
+import workflows4s.wio.model.{ModelUtils, WIOMeta}
 import workflows4s.wio.{WCEvent, WCState, WIO, WorkflowContext}
 
 object ForEachBuilder {
 
   trait Step0[Ctx <: WorkflowContext]() {
 
-    def forEach[In]: ParallelStep1[In] = ParallelStep1()
+    def forEach[In]: ForEachStep1[In] = ForEachStep1()
 
-    case class ParallelStep1[In]() {
+    case class ForEachStep1[In]() {
 
       def apply[Elem](getElements: In => Set[Elem]): Step2[Elem] = Step2(getElements)
 
-      case class Step2[Elem](getElements: In => Set[Elem]) {
+      case class Step2[Elem](private val getElements: In => Set[Elem]) {
 
-        def execute[InnerCtx <: WorkflowContext, Err, Out <: WCState[InnerCtx]](wio: WIO[Elem, Err, Out, InnerCtx], initialState: WCState[InnerCtx]) =
+        def execute[InnerCtx <: WorkflowContext, Err, Out <: WCState[InnerCtx]](wio: WIO[Elem, Err, Out, InnerCtx], initialState: WCState[InnerCtx]): Step3[InnerCtx, Err, Out] =
           Step3(wio, initialState)
 
         case class Step3[InnerCtx <: WorkflowContext, Err, ElemOut <: WCState[InnerCtx]](
-            forEachElem: WIO[Elem, Err, ElemOut, InnerCtx],
-            initialState: WCState[InnerCtx],
+            private val forEachElem: WIO[Elem, Err, ElemOut, InnerCtx],
+            private val initialState: WCState[InnerCtx],
         ) {
 
-          def withEventsEmbeddedThrough(embedding: WorkflowEmbedding.Event[(Elem, WCEvent[InnerCtx]), WCEvent[Ctx]]) = Step4(embedding)
+          def withEventsEmbeddedThrough(embedding: WorkflowEmbedding.Event[(Elem, WCEvent[InnerCtx]), WCEvent[Ctx]]): Step4 = Step4(embedding)
 
-          case class Step4(eventEmbedding: WorkflowEmbedding.Event[(Elem, WCEvent[InnerCtx]), WCEvent[Ctx]]) {
+          case class Step4(private val eventEmbedding: WorkflowEmbedding.Event[(Elem, WCEvent[InnerCtx]), WCEvent[Ctx]]) {
 
-            def withInterimState[InterimState <: WCState[Ctx]](in: In => InterimState) = Step5(in)
+            def withInterimState[InterimState <: WCState[Ctx]](in: In => InterimState): Step5[InterimState] = Step5(in)
 
-            case class Step5[InterimState <: WCState[Ctx]](initial: In => InterimState) {
+            case class Step5[InterimState <: WCState[Ctx]](private val initial: In => InterimState) {
 
-              def incorporatingChangesThrough(f: (Elem, WCState[InnerCtx], InterimState) => InterimState) = Step6(f)
+              def incorporatingChangesThrough(f: (Elem, WCState[InnerCtx], InterimState) => InterimState): Step6 = Step6(f)
 
-              case class Step6(incorporatingChangesThrough: (Elem, WCState[InnerCtx], InterimState) => InterimState) {
+              case class Step6(private val incorporatingChangesThrough: (Elem, WCState[InnerCtx], InterimState) => InterimState) {
 
-                def withOutputBuiltWith[Out <: WCState[Ctx]](outputBuilder: Map[Elem, ElemOut] => Out) = Step7(outputBuilder)
+                def withOutputBuiltWith[Out <: WCState[Ctx]](outputBuilder: (In, Map[Elem, ElemOut]) => Out): Step7[Out] = Step7(outputBuilder)
 
-                case class Step7[Out <: WCState[Ctx]](outputBuilder: Map[Elem, ElemOut] => Out) {
+                def withInterimStateAsOutput: Step7[InterimState] = withOutputBuiltWith[InterimState]((in, outs) =>
+                  outs.foldLeft(initial(in))((interim, result) => incorporatingChangesThrough(result._1, result._2, interim)),
+                )
 
-                  def withSignalsWrappedWith(
-                      signalWrapper: SignalWrapper[Elem],
-                  ): WIO.ForEach[Ctx, In, Err, Out, Elem, InnerCtx, ElemOut, InterimState] = {
-                    WIO.ForEach(
-                      getElements,
-                      forEachElem,
-                      () => initialState,
-                      eventEmbedding,
-                      initial,
-                      incorporatingChangesThrough,
-                      outputBuilder,
-                      None,
-                      signalWrapper,
-                      WIOMeta.ForEach(None), // TODO!
-                    )
+                case class Step7[Out <: WCState[Ctx]](private val outputBuilder: (In, Map[Elem, ElemOut]) => Out) {
+
+                  def withSignalsWrappedWith(signalWrapper: SignalWrapper[Elem]): Step8 = Step8(signalWrapper)
+
+                  case class Step8(private val signalWrapper: SignalWrapper[Elem]) {
+                    def named(name: String) = build(Some(name))
+                    def autoNamed()(using n: sourcecode.Name) = named(ModelUtils.prettifyName(n.value))
+
+                    def build(name: Option[String]): WIO.ForEach[Ctx, In, Err, Out, Elem, InnerCtx, ElemOut, InterimState] = {
+                      WIO.ForEach(
+                        getElements = getElements,
+                        elemWorkflow = forEachElem,
+                        initialElemState = () => initialState,
+                        eventEmbedding = eventEmbedding,
+                        initialInterimState = initial,
+                        incorporatePartial = incorporatingChangesThrough,
+                        buildOutput = outputBuilder,
+                        stateOpt = None,
+                        signalWrapper = signalWrapper,
+                        meta = WIOMeta.ForEach(name),
+                      )
+                    }
                   }
+
                 }
               }
             }

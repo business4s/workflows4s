@@ -250,23 +250,23 @@ object WIO {
       -In,
       +Err,
       +Out <: WCState[Ctx],
-      ElemId,
+      Elem,
       InnerCtx <: WorkflowContext,
       ElemOut <: WCState[InnerCtx],
       InterimState <: WCState[Ctx],
   ](
-      getElements: In => Set[ElemId],
-      elemWorkflow: WIO[ElemId, Err, ElemOut, InnerCtx],
+      getElements: In => Set[Elem],
+      elemWorkflow: WIO[Elem, Err, ElemOut, InnerCtx],
       initialElemState: () => WCState[InnerCtx],
-      eventEmbedding: WorkflowEmbedding.Event[(ElemId, WCEvent[InnerCtx]), WCEvent[Ctx]],
+      eventEmbedding: WorkflowEmbedding.Event[(Elem, WCEvent[InnerCtx]), WCEvent[Ctx]],
       initialInterimState: In => InterimState,
-      incorporatePartial: (ElemId, WCState[InnerCtx], InterimState) => InterimState,
-      buildOutput: Map[ElemId, ElemOut] => Out,
-      stateOpt: Option[Map[ElemId, WIO[Any, Err, ElemOut, InnerCtx]]],
-      signalWrapper: SignalWrapper[ElemId],
+      incorporatePartial: (Elem, WCState[InnerCtx], InterimState) => InterimState,
+      buildOutput: (In, Map[Elem, ElemOut]) => Out,
+      stateOpt: Option[Map[Elem, WIO[Any, Err, ElemOut, InnerCtx]]],
+      signalWrapper: SignalWrapper[Elem],
       meta: WIOMeta.ForEach,
   ) extends WIO[In, Err, Out, Ctx] {
-    def state(input: In): Map[ElemId, WIO[Any, Err, ElemOut, InnerCtx]] =
+    def state(input: In): Map[Elem, WIO[Any, Err, ElemOut, InnerCtx]] =
       stateOpt.getOrElse(getElements(input).map(elemId => elemId -> elemWorkflow.provideInput(elemId)).toMap)
   }
 
