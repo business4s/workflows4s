@@ -27,7 +27,7 @@ class QuartzKnockerUpper(scheduler: Scheduler, dispatcher: Dispatcher[IO]) exten
           val jobDetail = JobBuilder
             .newJob(classOf[WakeupJob])
             .withIdentity(jobKey)
-            .usingJobData(WakeupJob.workflowIdKey, id.instanceId)
+            .usingJobData(WakeupJob.instanceIdKey, id.instanceId)
             .usingJobData(WakeupJob.templateIdKey, id.templateId)
             .build()
           scheduler.scheduleJob(jobDetail, java.util.Set.of(trigger), true)
