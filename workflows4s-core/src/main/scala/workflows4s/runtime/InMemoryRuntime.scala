@@ -8,20 +8,22 @@ import workflows4s.wio.*
 import workflows4s.wio.WIO.Initial
 
 import java.time.Clock
+import java.util.UUID
 
 /** This runtime offers no persistence and stores all the events in memory It's designed to be used in test or in very specific scenarios.
   *
   * IT'S NOT A GENERAL-PURPOSE RUNTIME
   */
-class InMemoryRuntime[Ctx <: WorkflowContext, WorkflowId](
+class InMemoryRuntime[Ctx <: WorkflowContext](
     workflow: Initial[Ctx],
     initialState: WCState[Ctx],
     clock: Clock,
-    knockerUpper: KnockerUpper.Agent[WorkflowId],
-    instances: Ref[IO, Map[WorkflowId, InMemoryWorkflowInstance[Ctx]]],
-    registry: WorkflowRegistry.Agent[WorkflowId],
-) extends WorkflowRuntime[IO, Ctx, WorkflowId] {
-  override def createInstance(id: WorkflowId): IO[InMemoryWorkflowInstance[Ctx]] = {
+    knockerUpper: KnockerUpper.Agent,
+    instances: Ref[IO, Map[String, InMemoryWorkflowInstance[Ctx]]],
+    registry: WorkflowRegistry.Agent,
+    val templateId: String,
+) extends WorkflowRuntime[IO, Ctx] {
+  override def createInstance(id: String): IO[InMemoryWorkflowInstance[Ctx]] = {
     instances.access.flatMap({ (map, update) =>
       map.get(id) match {
         case Some(instance) => IO.pure(instance)
@@ -31,7 +33,8 @@ class InMemoryRuntime[Ctx <: WorkflowContext, WorkflowId](
             initialWf     = ActiveWorkflow(workflow, initialState)
             stateRef     <- AtomicCell[IO].of(initialWf)
             eventsRef    <- Ref[IO].of(Vector[WCEvent[Ctx]]())
-            runningWf     = InMemoryWorkflowInstance[Ctx](stateRef, eventsRef, clock, knockerUpper.curried(id), registry.curried(id))
+            instanceId    = WorkflowInstanceId(templateId, id)
+            runningWf     = InMemoryWorkflowInstance[Ctx](instanceId, stateRef, eventsRef, clock, knockerUpper, registry)
             _            <- runningWfRef.complete(runningWf)
             success      <- update(map.updated(id, runningWf))
             _            <- if success then IO.unit
@@ -44,17 +47,18 @@ class InMemoryRuntime[Ctx <: WorkflowContext, WorkflowId](
 
 object InMemoryRuntime {
 
-  def default[Ctx <: WorkflowContext, Id](
+  def default[Ctx <: WorkflowContext](
       workflow: Initial[Ctx],
       initialState: WCState[Ctx],
-      knockerUpper: KnockerUpper.Agent[Id],
+      knockerUpper: KnockerUpper.Agent,
       clock: Clock = Clock.systemUTC(),
-      registry: WorkflowRegistry.Agent[Id] = NoOpWorkflowRegistry.Agent,
-  ): IO[InMemoryRuntime[Ctx, Id]] = {
+      registry: WorkflowRegistry.Agent = NoOpWorkflowRegistry.Agent,
+      templateId: String = s"in-memory-runtime-${UUID.randomUUID().toString.take(8)}",
+  ): IO[InMemoryRuntime[Ctx]] = {
     Ref
-      .of[IO, Map[Id, InMemoryWorkflowInstance[Ctx]]](Map.empty)
+      .of[IO, Map[String, InMemoryWorkflowInstance[Ctx]]](Map.empty)
       .map({ instances =>
-        new InMemoryRuntime[Ctx, Id](workflow, initialState, clock, knockerUpper, instances, registry)
+        new InMemoryRuntime[Ctx](workflow, initialState, clock, knockerUpper, instances, registry, templateId)
       })
   }
 

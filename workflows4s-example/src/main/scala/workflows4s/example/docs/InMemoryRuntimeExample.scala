@@ -18,12 +18,12 @@ object InMemoryRuntimeExample {
   object Async {
     // async_doc_start
     import MyWorkflowCtx.*
-    val workflow: WIO.Initial                               = ???
-    val knockerUpperAgent: KnockerUpper.Agent[MyWorkflowId] = ???
-    val runtime: InMemoryRuntime[Ctx, MyWorkflowId]         = InMemoryRuntime
+    val workflow: WIO.Initial                         = ???
+    val knockerUpperAgent: KnockerUpper.Agent         = ???
+    val runtime: InMemoryRuntime[Ctx]                 = InMemoryRuntime
       .default(workflow, InitialState(), knockerUpperAgent)
       .unsafeRunSync()
-    val wfInstance: IO[InMemoryWorkflowInstance[Ctx]]       = runtime.createInstance(??? : MyWorkflowId)
+    val wfInstance: IO[InMemoryWorkflowInstance[Ctx]] = runtime.createInstance("my-workflow-1")
     // async_doc_end
   }
 
@@ -31,8 +31,8 @@ object InMemoryRuntimeExample {
     // ssync_doc_start
     import MyWorkflowCtx.*
     val workflow: WIO.Initial                         = ???
-    val runtime: InMemorySyncRuntime[Ctx, Unit]       = InMemorySyncRuntime.default(workflow, InitialState())
-    val wfInstance: InMemorySyncWorkflowInstance[Ctx] = runtime.createInstance(())
+    val runtime: InMemorySyncRuntime[Ctx]             = InMemorySyncRuntime.default(workflow, InitialState())
+    val wfInstance: InMemorySyncWorkflowInstance[Ctx] = runtime.createInstance("my-workflow-1")
     // ssync_doc_end
   }
 

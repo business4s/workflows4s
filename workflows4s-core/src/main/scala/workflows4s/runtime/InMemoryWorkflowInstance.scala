@@ -5,17 +5,17 @@ import cats.effect.std.AtomicCell
 import cats.effect.{IO, LiftIO, Ref}
 import workflows4s.runtime.registry.WorkflowRegistry
 import workflows4s.runtime.wakeup.KnockerUpper
-import workflows4s.runtime.wakeup.KnockerUpper.Agent.Curried
 import workflows4s.wio.*
 
 import java.time.Clock
 
 class InMemoryWorkflowInstance[Ctx <: WorkflowContext](
+    val id: WorkflowInstanceId,
     stateCell: AtomicCell[IO, ActiveWorkflow[Ctx]],
     eventsRef: Ref[IO, Vector[WCEvent[Ctx]]],
     protected val clock: Clock,
-    protected val knockerUpper: KnockerUpper.Agent.Curried,
-    protected val registry: WorkflowRegistry.Agent.Curried,
+    protected val knockerUpper: KnockerUpper.Agent,
+    protected val registry: WorkflowRegistry.Agent,
 ) extends WorkflowInstanceBase[IO, Ctx] {
 
   def getEvents: IO[Vector[WCEvent[Ctx]]] = eventsRef.get

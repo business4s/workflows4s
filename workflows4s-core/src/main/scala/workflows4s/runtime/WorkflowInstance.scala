@@ -7,6 +7,8 @@ import workflows4s.wio.model.WIOExecutionProgress
 
 trait WorkflowInstance[F[_], State] {
 
+  def id: WorkflowInstanceId
+
   def queryState(): F[State]
 
   def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): F[Either[UnexpectedSignal, Resp]]

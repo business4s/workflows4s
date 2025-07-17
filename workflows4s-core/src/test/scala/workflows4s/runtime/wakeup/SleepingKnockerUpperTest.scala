@@ -3,6 +3,8 @@ package workflows4s.runtime.wakeup
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import org.scalatest.freespec.AnyFreeSpec
+import workflows4s.runtime.WorkflowInstanceId
+import workflows4s.testing.TestUtils
 
 import java.time.Instant
 import scala.concurrent.duration.*
@@ -12,13 +14,13 @@ class SleepingKnockerUpperTest extends AnyFreeSpec {
   "SleepingKnockerUpper" - {
 
     "should successfully schedule and perform a wakeup" in {
-      val id = "task1"
+      val id = TestUtils.randomWfId()
 
-      var wokenUp                         = Vector[String]()
-      val wakeUpLogic: String => IO[Unit] = id => IO { wokenUp = wokenUp.appended(id) }
+      var wokenUp                                     = Vector[WorkflowInstanceId]()
+      val wakeUpLogic: WorkflowInstanceId => IO[Unit] = id => IO { wokenUp = wokenUp.appended(id) }
 
       SleepingKnockerUpper
-        .create[String]()
+        .create()
         .use { ku =>
           for {
             _  <- ku.initialize(wakeUpLogic)
@@ -32,11 +34,11 @@ class SleepingKnockerUpperTest extends AnyFreeSpec {
     }
 
     "should cancel a scheduled wakeup when updateWakeup is called with None" in {
-      val id                              = "task2"
-      var wokenUp                         = false
-      val wakeUpLogic: String => IO[Unit] = _ => IO { wokenUp = true }
+      val id                                          = TestUtils.randomWfId()
+      var wokenUp                                     = false
+      val wakeUpLogic: WorkflowInstanceId => IO[Unit] = _ => IO { wokenUp = true }
       SleepingKnockerUpper
-        .create[String]()
+        .create()
         .use { ku =>
           for {
             _  <- ku.initialize(wakeUpLogic)
@@ -52,10 +54,10 @@ class SleepingKnockerUpperTest extends AnyFreeSpec {
     }
 
     "should throw an exception if trying to initialize wakeupLogic twice" in {
-      val wakeUpLogic: String => IO[Unit] = _ => IO.unit
+      val wakeUpLogic: WorkflowInstanceId => IO[Unit] = _ => IO.unit
 
       val test = SleepingKnockerUpper
-        .create[String]()
+        .create()
         .use { ku =>
           for {
             _   <- ku.initialize(wakeUpLogic)

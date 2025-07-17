@@ -7,7 +7,6 @@ import workflows4s.doobie.{ByteCodec, DatabaseRuntime, WorkflowStorage}
 import workflows4s.runtime.WorkflowInstance
 import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.wio.{WCState, WorkflowContext}
-import workflows4s.example.docs.doobie.WorkflowId
 
 import scala.annotation.nowarn
 
@@ -23,14 +22,15 @@ object DatabaseExample {
   import MyWorkflowCtx.*
   {
     // doc_start
-    val workflow: WIO.Initial                        = ???
-    val initialState: State                          = ???
-    val transactor: Transactor[IO]                   = ???
-    val storage: WorkflowStorage[WorkflowId, Event]  = ???
-    val knockerUpper: KnockerUpper.Agent[WorkflowId] = ???
+    val workflow: WIO.Initial            = ???
+    val initialState: State              = ???
+    val transactor: Transactor[IO]       = ???
+    val storage: WorkflowStorage[Event]  = ???
+    val knockerUpper: KnockerUpper.Agent = ???
+    val templateId                       = "my-workflow"
 
-    val runtime: DatabaseRuntime[Ctx, WorkflowId]          = DatabaseRuntime.default(workflow, initialState, transactor, knockerUpper, storage)
-    val wfInstance: IO[WorkflowInstance[IO, WCState[Ctx]]] = runtime.createInstance(WorkflowId("1"))
+    val runtime: DatabaseRuntime[Ctx]                      = DatabaseRuntime.default(workflow, initialState, transactor, knockerUpper, storage, templateId)
+    val wfInstance: IO[WorkflowInstance[IO, WCState[Ctx]]] = runtime.createInstance("1")
     // doc_end
   }
 
@@ -38,21 +38,8 @@ object DatabaseExample {
     // doc_postgres_start
     given eventCodec: ByteCodec[Event] = ???
 
-    val storage: WorkflowStorage[WorkflowId, Event] = new PostgresWorkflowStorage[WorkflowId, Event]()
+    val storage: WorkflowStorage[Event] = new PostgresWorkflowStorage[Event]()
     // doc_postgres_end
-  }
-
-  {
-    // sqlite_start
-    val workflow: WIO.Initial                        = ???
-    val initialState: State                          = ???
-    val transactor: Transactor[IO]                   = ???
-    val storage: WorkflowStorage[WorkflowId, Event]  = ???
-    val knockerUpper: KnockerUpper.Agent[WorkflowId] = ???
-
-    val runtime: DatabaseRuntime[Ctx, WorkflowId]          = DatabaseRuntime.default(workflow, initialState, transactor, knockerUpper, storage)
-    val wfInstance: IO[WorkflowInstance[IO, WCState[Ctx]]] = runtime.createInstance(WorkflowId("1"))
-    // sqlite_end
   }
 
 }
