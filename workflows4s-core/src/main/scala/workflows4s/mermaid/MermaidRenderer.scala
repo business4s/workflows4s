@@ -254,7 +254,7 @@ object MermaidRenderer {
       title: String = " ",
       clazz: Option[String] = None,
   ): State[RenderState, (Seq[ActiveNode], T, NodeId)] = State { state =>
-    val id                  = s"subgraph${state.idIdx}"
+    val id                  = s"node${state.idIdx}"
     val (subState, subProc) = subgraph.run(RenderState.initial(state.idIdx + 1).copy(activeNodes = state.activeNodes)).value
     (
       state.copy(
