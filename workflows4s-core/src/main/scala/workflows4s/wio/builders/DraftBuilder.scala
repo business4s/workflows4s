@@ -22,7 +22,7 @@ object DraftBuilder {
         dummyEventHandler,
         WIO.HandleSignal.Meta(
           Option(error).map(ErrorMeta.Present(_)).getOrElse(ErrorMeta.noError),
-          Option(name).getOrElse(ModelUtils.prettifyName(autoName.value)),
+          getEffectiveName(name, autoName),
           None,
         ),
       )
@@ -30,7 +30,7 @@ object DraftBuilder {
         WIO.Timer(
           WIO.Timer.DurationSource.Static(duration.toJava), // TODO will NPE when rendering
           dummyEventHandler,
-          Option(name).getOrElse(ModelUtils.prettifyName(autoName.value)).some,
+          getEffectiveName(name, autoName).some,
           dummyEventHandler,
         )
 
@@ -39,13 +39,13 @@ object DraftBuilder {
         dummyEventHandler,
         WIO.RunIO.Meta(
           Option(error).map(ErrorMeta.Present(_)).getOrElse(ErrorMeta.noError),
-          Option(name).getOrElse(ModelUtils.prettifyName(autoName.value)).some,
+          getEffectiveName(name, autoName).some,
           Option(description),
         ),
       )
 
       def forEach(forEach: WIO.Draft[Ctx], name: String = null)(using autoName: sourcecode.Name): WIO.Draft[Ctx] = {
-        val effName = Option(name).getOrElse(ModelUtils.prettifyName(autoName.value)).some
+        val effName = getEffectiveName(name, autoName).some
         WIO.ForEach(_ => ???, forEach, () => ???, null, _ => ???, (_, _, _) => ???, (_, _) => ???, None, null, WIOMeta.ForEach(effName))
       }
 
@@ -66,4 +66,7 @@ object DraftBuilder {
 
   private def dummyEventHandler[EventBase, Evt]: EventHandler[Any, Nothing, EventBase, Evt] = EventHandler(_ => ???, _ => ???, (_, _) => ???)
 
+  private def getEffectiveName(name: String, autoName: sourcecode.Name): String =
+    Option(name).getOrElse(ModelUtils.prettifyName(autoName.value))
+  
 }

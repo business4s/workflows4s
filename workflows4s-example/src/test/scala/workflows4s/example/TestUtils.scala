@@ -55,7 +55,7 @@ object TestUtils {
 
   def renderDocsExample(wio: WIO[?, ?, ?, ?], name: String, technical: Boolean = false) = {
     renderModelToFile(wio, s"docs/${name}.json")
-//    renderBpmnToFile(wio, s"docs/${name}.bpmn")
+    renderBpmnToFile(wio, s"docs/${name}.bpmn")
     renderMermaidToFile(wio.toProgress, s"docs/${name}.mermaid", technical)
   }
 
