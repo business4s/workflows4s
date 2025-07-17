@@ -240,13 +240,13 @@ object MermaidRenderer {
   private def addPendingError(from: NodeId, err: WIOMeta.Error): State[RenderState, Unit] =
     State.modify(_.addPendingError(from, err))
 
-  private def handleErrors(errors: Seq[(NodeId, WIOMeta.Error)], to: NodeId): State[RenderState, Unit]  = State.modify { state =>
+  private def handleErrors(errors: Seq[(NodeId, WIOMeta.Error)], to: NodeId): State[RenderState, Unit]                               = State.modify { state =>
     val links = errors.map(pendingErr => Link(pendingErr._1, to, s"fa:fa-bolt ${pendingErr._2.name}".some, midfix = "."))
     state.addElements(links)
   }
-  private def addLink(from: NodeId, to: NodeId, label: Option[String] = None): State[RenderState, Unit] =
+  private def addLink(from: NodeId, to: NodeId, label: Option[String] = None): State[RenderState, Unit]                              =
     addLinks(Seq((from, label)), to)
-  private def addLinks(from: Seq[(NodeId, NextLinkLabel)], to: NodeId, customize: Link => Link = identity): State[RenderState, Unit]        =
+  private def addLinks(from: Seq[(NodeId, NextLinkLabel)], to: NodeId, customize: Link => Link = identity): State[RenderState, Unit] =
     State.modify(_.addElements(from.map(f => Link(f._1, to, f._2).pipe(customize))))
 
   private def addSubgraph[T](

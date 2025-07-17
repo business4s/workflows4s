@@ -6,7 +6,7 @@ object ForEachExample {
 
   object draft {
     // draft_start
-    val subWorkflow = WIO.draft.step()
+    val subWorkflow  = WIO.draft.step()
     val forEachDraft = WIO.draft.forEach(subWorkflow)
     // draft_end
   }

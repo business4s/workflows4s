@@ -63,12 +63,14 @@ object EventEvaluator {
     override def onForEach[ElemId, InnerCtx <: WorkflowContext, ElemOut <: WCState[InnerCtx], InterimState <: WCState[Ctx]](
         wio: WIO.ForEach[Ctx, In, Err, Out, ElemId, InnerCtx, ElemOut, InterimState],
     ): Result = {
-      val state = wio.state(input)
+      val state         = wio.state(input)
       val nexIndex: Int = GetIndexEvaluator.findMaxIndex(wio).map(_ + 1).getOrElse(index)
       wio.eventEmbedding
         .unconvertEvent(event)
-        .flatMap((elemId, convertedEvent) => new EventVisitor(state(elemId), convertedEvent, input, wio.initialElemState(), nexIndex).run.tupleLeft(elemId))
-        .map( (elemId, newExec) => convertForEachResult(wio, newExec, input, elemId))
+        .flatMap((elemId, convertedEvent) =>
+          new EventVisitor(state(elemId), convertedEvent, input, wio.initialElemState(), nexIndex).run.tupleLeft(elemId),
+        )
+        .map((elemId, newExec) => convertForEachResult(wio, newExec, input, elemId))
     }
 
     def recurse[I1, E1, O1 <: WCState[Ctx]](

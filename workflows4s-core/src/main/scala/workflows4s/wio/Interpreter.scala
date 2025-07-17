@@ -159,7 +159,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
         val completedStates: Map[ElemId, ElemOut] = newState.flatMap(x => x._2.asExecuted.flatMap(_.output.toOption).tupleLeft(x._1))
         if completedStates.size == newState.size then {
           val output = wio.buildOutput(completedStates)
-          WFExecution.complete(newForEach, output.asRight, input, newWio.index+1)
+          WFExecution.complete(newForEach, output.asRight, input, newWio.index + 1)
         } else {
           newWio.output match {
             case Left(err) => WFExecution.complete(newForEach, Left(err), input, newWio.index)

@@ -43,7 +43,6 @@ object WorkflowEmbedding {
     def unconvertState(outerState: WCState[Outer]): Option[WCState[Inner]]
   }
 
-
   type Aux[Inner <: WorkflowContext, Outer <: WorkflowContext, OS[_ <: WCState[Inner]] <: WCState[Outer], -Input] =
     WorkflowEmbedding[Inner, Outer, Input] { type OutputState[In <: WCState[Inner]] = OS[In] }
 
