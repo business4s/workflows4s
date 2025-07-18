@@ -1,13 +1,14 @@
-name: Deploy to Fly.io
+name: Deploy workflows4s-example to Fly.io
 
 on:
   push:
     branches:
       - main # Trigger deployment on every push to the main branch
+      - gsoc-2025
 
 jobs:
-  deploy-api:
-    name: Deploy API
+  deploy-example:
+    name: Deploy workflows4s-example
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -16,24 +17,7 @@ jobs:
       - name: Setup Fly.io CLI
         uses: superfly/flyctl-actions/setup-flyctl@master
 
-      - name: Deploy API to Fly.io
+      - name: Deploy example API to Fly.io
         run: flyctl deploy --remote-only --config fly.toml
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-
-  deploy-ui:
-    name: Deploy UI
-    runs-on: ubuntu-latest
-    # This ensures the UI is only deployed after the API deployment is successful
-    needs: deploy-api
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Fly.io CLI
-        uses: superfly/flyctl-actions/setup-flyctl@master
-
-      - name: Deploy UI to Fly.io
-        run: flyctl deploy --remote-only --config fly.ui.toml
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

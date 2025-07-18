@@ -1,6 +1,6 @@
-# Fly.io configuration for the API server
-app = "workflows4s-api"
-primary_region = "ams" 
+# Fly.io configuration for the workflows4s-example API server
+app = "workflows4s-example"
+primary_region = "ams" # Amsterdam, a good default for Europe
 
 [build]
   dockerfile = "Dockerfile.api"
@@ -17,3 +17,8 @@ primary_region = "ams"
   cpu_kind = "shared"
   cpus = 1
   memory_mb = 512
+
+# Environment variables (if needed)
+[env]
+  
+  # LOG_LEVEL = "INFO"
