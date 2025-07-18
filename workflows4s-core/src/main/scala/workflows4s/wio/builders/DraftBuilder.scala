@@ -28,7 +28,10 @@ object DraftBuilder {
       )
       def timer(name: String = null, duration: FiniteDuration = null)(using autoName: sourcecode.Name): WIO.Timer[Ctx, Any, Nothing, Nothing] =
         WIO.Timer(
-          WIO.Timer.DurationSource.Static(duration.toJava), // TODO will NPE when rendering
+          Option(duration) match {
+            case Some(value) => WIO.Timer.DurationSource.Static(value.toJava)
+            case None        => WIO.Timer.DurationSource.Dynamic(_ => ???)
+          },
           dummyEventHandler,
           getEffectiveName(name, autoName).some,
           dummyEventHandler,
@@ -68,5 +71,5 @@ object DraftBuilder {
 
   private def getEffectiveName(name: String, autoName: sourcecode.Name): String =
     Option(name).getOrElse(ModelUtils.prettifyName(autoName.value))
-  
+
 }
