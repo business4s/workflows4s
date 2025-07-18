@@ -148,10 +148,10 @@ object SignalEvaluator {
         wio: WIO.ForEach[Ctx, In, Err, Out, ElemId, InnerCtx, ElemOut, InterimState],
     ): Option[IO[(WCEvent[Ctx], Resp)]] = {
       for {
-        unwrapped <- wio.signalWrapper.unwrapRequest(signalDef, req)
-        elemWio   <- wio.state(input).get(unwrapped.elemId)
+        unwrapped <- wio.signalRouter.unwrap(signalDef, req, wio.interimState(input))
+        elemWio   <- wio.state(input).get(unwrapped.elem)
         result    <- SignalVisitor(elemWio, unwrapped.sigDef, unwrapped.req, (), wio.initialElemState()).run
-      } yield result.map(x => wio.eventEmbedding.convertEvent(unwrapped.elemId, x._1) -> x._2)
+      } yield result.map(x => wio.eventEmbedding.convertEvent(unwrapped.elem, x._1) -> x._2)
     }
 
     def recurse[I1, E1, O1 <: WCState[Ctx]](
@@ -161,24 +161,6 @@ object SignalEvaluator {
     ): SignalVisitor[Ctx, Resp, E1, O1, I1, Req]#Result =
       new SignalVisitor(wio, signalDef, req, in, state).run
 
-  }
-
-}
-
-trait SignalWrapper[ElemId] {
-  case class Wrapped[T, Resp](sigDef: SignalDef[T, Resp], req: T)
-  case class Unwrapped[T, Resp](elemId: ElemId, sigDef: SignalDef[T, Resp], req: T)
-
-  def wrapRequest[Resp, InnerReq](elemId: ElemId, req: InnerReq, signalDef: SignalDef[InnerReq, Resp]): Wrapped[?, Resp]
-  def unwrapRequest[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): Option[Unwrapped[?, Resp]]
-}
-
-object SignalWrapper {
-
-  class Simple[ElemId] extends SignalWrapper[ElemId] {
-    override def wrapRequest[Resp, InnerReq](elemId: ElemId, req: InnerReq, signalDef: SignalDef[InnerReq, Resp]): Wrapped[?, Resp] = ???
-
-    override def unwrapRequest[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): Option[Unwrapped[?, Resp]] = ???
   }
 
 }

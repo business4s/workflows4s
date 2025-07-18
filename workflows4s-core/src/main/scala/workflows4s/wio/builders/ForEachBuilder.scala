@@ -1,8 +1,8 @@
 package workflows4s.wio.builders
 
-import workflows4s.wio.internal.{SignalWrapper, WorkflowEmbedding}
+import workflows4s.wio.internal.WorkflowEmbedding
 import workflows4s.wio.model.{ModelUtils, WIOMeta}
-import workflows4s.wio.{WCEvent, WCState, WIO, WorkflowContext}
+import workflows4s.wio.{SignalRouter, WCEvent, WCState, WIO, WorkflowContext}
 
 object ForEachBuilder {
 
@@ -44,9 +44,9 @@ object ForEachBuilder {
 
                 case class Step7[Out <: WCState[Ctx]](private val outputBuilder: (In, Map[Elem, ElemOut]) => Out) {
 
-                  def withSignalsWrappedWith(signalWrapper: SignalWrapper[Elem]): Step8 = Step8(signalWrapper)
+                  def withSignalsWrappedWith(signalWrapper: SignalRouter.Receiver[Elem, InterimState]): Step8 = Step8(signalWrapper)
 
-                  case class Step8(private val signalWrapper: SignalWrapper[Elem]) {
+                  case class Step8(private val signalRouter: SignalRouter.Receiver[Elem, InterimState]) {
                     def named(name: String) = build(Some(name))
                     def autoNamed()(using n: sourcecode.Name) = named(ModelUtils.prettifyName(n.value))
 
@@ -60,7 +60,7 @@ object ForEachBuilder {
                         incorporatePartial = incorporatingChangesThrough,
                         buildOutput = outputBuilder,
                         stateOpt = None,
-                        signalWrapper = signalWrapper,
+                        signalRouter = signalRouter,
                         meta = WIOMeta.ForEach(name),
                       )
                     }

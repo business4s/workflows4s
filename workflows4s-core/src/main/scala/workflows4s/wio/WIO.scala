@@ -5,7 +5,7 @@ import cats.implicits.catsSyntaxOptionId
 import workflows4s.wio.WIO.HandleInterruption.InterruptionType
 import workflows4s.wio.WIO.Timer.DurationSource
 import workflows4s.wio.builders.AllBuilders
-import workflows4s.wio.internal.{EventHandler, GetStateEvaluator, SignalHandler, SignalWrapper, WorkflowEmbedding}
+import workflows4s.wio.internal.{EventHandler, GetStateEvaluator, SignalHandler, WorkflowEmbedding}
 import workflows4s.wio.model.WIOMeta
 
 import java.time.{Duration, Instant}
@@ -263,11 +263,19 @@ object WIO {
       incorporatePartial: (Elem, WCState[InnerCtx], InterimState) => InterimState,
       buildOutput: (In, Map[Elem, ElemOut]) => Out,
       stateOpt: Option[Map[Elem, WIO[Any, Err, ElemOut, InnerCtx]]],
-      signalWrapper: SignalWrapper[Elem],
+      signalRouter: SignalRouter.Receiver[Elem, InterimState],
       meta: WIOMeta.ForEach,
   ) extends WIO[In, Err, Out, Ctx] {
     def state(input: In): Map[Elem, WIO[Any, Err, ElemOut, InnerCtx]] =
       stateOpt.getOrElse(getElements(input).map(elemId => elemId -> elemWorkflow.provideInput(elemId)).toMap)
+
+    def interimState(input: In) = {
+      val initialElemState = this.initialElemState()
+      state(input)
+        .foldLeft(initialInterimState(input))({ case (interim, (elemId, elemState)) =>
+          incorporatePartial(elemId, GetStateEvaluator.extractLastState(elemState, (), initialElemState).getOrElse(initialElemState), interim)
+        })
+    }
   }
 
   // -----

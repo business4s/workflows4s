@@ -1,8 +1,7 @@
 package workflows4s.runtime
 
 import workflows4s.runtime.WorkflowInstance.UnexpectedSignal
-import workflows4s.wio.SignalDef
-import workflows4s.wio.internal.SignalWrapper
+import workflows4s.wio.{SignalDef, SignalRouter}
 import workflows4s.wio.model.WIOExecutionProgress
 
 trait WorkflowInstance[F[_], State] {
@@ -12,13 +11,13 @@ trait WorkflowInstance[F[_], State] {
   def queryState(): F[State]
 
   def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): F[Either[UnexpectedSignal, Resp]]
-  def deliverWrappedSignal[Req, Resp, ElemId](
-      signalWrapper: SignalWrapper[ElemId],
-      elemId: ElemId,
+  def deliverRoutedSignal[Req, Resp, Key](
+      signalRouter: SignalRouter.Sender[Key],
+      routingKey: Key,
       signalDef: SignalDef[Req, Resp],
       req: Req,
   ): F[Either[UnexpectedSignal, Resp]] = {
-    val w = signalWrapper.wrapRequest(elemId, req, signalDef)
+    val w = signalRouter.wrap(routingKey, req, signalDef)
     deliverSignal(w.sigDef, w.req)
   }
 
