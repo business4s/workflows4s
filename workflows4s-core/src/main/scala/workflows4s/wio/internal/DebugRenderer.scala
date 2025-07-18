@@ -50,7 +50,7 @@ object DebugRenderer {
       case _: WIOExecutionProgress.Checkpoint[?]    => None
       case _: WIOExecutionProgress.Recovery[?]      => None
       case x: WIOExecutionProgress.Retried[?]       => None
-      case _: WIOExecutionProgress.ForEach[?, ?, ?] => ???
+      case x: WIOExecutionProgress.ForEach[?, ?, ?] => x.meta.name
     }
     val description          = model match {
       case x: WIOExecutionProgress.Sequence[?]      => None
@@ -68,7 +68,7 @@ object DebugRenderer {
       case _: WIOExecutionProgress.Checkpoint[?]    => None
       case _: WIOExecutionProgress.Recovery[?]      => None
       case _: WIOExecutionProgress.Retried[?]       => None
-      case _: WIOExecutionProgress.ForEach[?, ?, ?] => ???
+      case x: WIOExecutionProgress.ForEach[?, ?, ?] => Some(s"Elements: ${x.subProgresses.size}")
     }
     val children             = model match {
       case x: WIOExecutionProgress.Sequence[?]      =>
@@ -106,7 +106,7 @@ object DebugRenderer {
       case x: WIOExecutionProgress.Checkpoint[?]    => renderChildren("base" -> x.base)
       case _: WIOExecutionProgress.Recovery[?]      => Seq()
       case x: WIOExecutionProgress.Retried[?]       => renderChildren("base" -> x.base)
-      case _: WIOExecutionProgress.ForEach[?, ?, ?] => ???
+      case x: WIOExecutionProgress.ForEach[?, ?, ?] => x.subProgresses.toSeq.map((elemId, progress) => renderChild(s"element $elemId", progress))
     }
     val effectiveDescription = if model.isExecuted then s"Executed: ${model.result.get.value.merge}" else description.getOrElse("")
     val effectiveChildren    = if model.isExecuted then Seq() else children
