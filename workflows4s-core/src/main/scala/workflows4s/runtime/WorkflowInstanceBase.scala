@@ -11,6 +11,8 @@ import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.wio.*
 import workflows4s.wio.model.WIOExecutionProgress
 
+import workflows4s.wio.internal.GetSignalDefsEvaluator
+
 import java.time.{Clock, Instant}
 import scala.util.chaining.scalaUtilChainingOps
 
@@ -38,6 +40,12 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
       wf  <- getWorkflow
       now <- currentTime
     } yield wf.progress(now)
+  }
+
+  override def getExpectedSignals: F[List[SignalDef[?, ?]]] = {
+    for {
+      wf <- getWorkflow
+    } yield GetSignalDefsEvaluator.run(wf.wio)
   }
 
   override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): F[Either[WorkflowInstance.UnexpectedSignal, Resp]] = {
