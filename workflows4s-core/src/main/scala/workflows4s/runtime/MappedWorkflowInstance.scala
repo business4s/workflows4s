@@ -14,4 +14,6 @@ class MappedWorkflowInstance[F[_], G[_], State](base: WorkflowInstance[F, State]
   override def wakeup(): G[Unit] = map(base.wakeup())
 
   override def getProgress: G[WIOExecutionProgress[State]] = map(base.getProgress)
+
+  def getExpectedSignals: G[List[SignalDef[?, ?]]] = ??? //TODO:
 }

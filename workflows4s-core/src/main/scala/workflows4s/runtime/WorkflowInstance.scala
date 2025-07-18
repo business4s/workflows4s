@@ -14,6 +14,8 @@ trait WorkflowInstance[F[_], State] {
 
   def getProgress: F[WIOExecutionProgress[State]]
 
+  def getExpectedSignals: F[List[SignalDef[?, ?]]]
+
 }
 
 object WorkflowInstance {
