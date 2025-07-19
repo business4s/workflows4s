@@ -82,6 +82,9 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
   def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): Result
   def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): Result
   def onRetry(wio: WIO.Retry[Ctx, In, Err, Out]): Result
+  def onForEach[ElemId, InnerCtx <: WorkflowContext, ElemOut <: WCState[InnerCtx], InterimState <: WCState[Ctx]](
+      wio: WIO.ForEach[Ctx, In, Err, Out, ElemId, InnerCtx, ElemOut, InterimState],
+  ): Result
 
   @nowarn("msg=the type test for workflows4s.wio.WIO.Embedded")
   def run: Result = {
@@ -111,6 +114,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
       case x: WIO.Checkpoint[?, ?, ?, ? <: State, ?]                   => onCheckpoint(x)
       case x: WIO.Recovery[?, ?, ?, ?, ?]                              => onRecovery(x)
       case x: WIO.Retry[?, ?, ?, ?]                                    => onRetry(x)
+      case x: WIO.ForEach[?, ?, ?, ?, ?, ?, ?, ?]                      => onForEach(x.asInstanceOf)  // TODO make compiler happy
     }
   }
 
@@ -139,6 +143,30 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
       case WFExecution.Partial(newWio)  =>
         val embedding: WorkflowEmbedding.Aux[InnerCtx, Ctx, O1, Any] = wio.embedding.contramap(_ => input)
         convert(WFExecution.Partial(WIO.Embedded(newWio, embedding)))
+    }
+  }
+
+  def convertForEachResult[ElemId, InnerCtx <: WorkflowContext, ElemOut <: WCState[InnerCtx], InterimState <: WCState[Ctx]](
+      wio: WIO.ForEach[Ctx, In, Err, Out, ElemId, InnerCtx, ElemOut, InterimState],
+      newWf: WFExecution[InnerCtx, Any, Err, ElemOut],
+      input: In,
+      elemId: ElemId,
+  ): WFExecution[Ctx, In, Err, Out] = {
+    val newState   = wio.state(input).updated(elemId, newWf.wio)
+    val newForEach = wio.copy(stateOpt = Some(newState))
+    newWf match {
+      case WFExecution.Complete(newWio) =>
+        val completedStates: Map[ElemId, ElemOut] = newState.flatMap(x => x._2.asExecuted.flatMap(_.output.toOption).tupleLeft(x._1))
+        if completedStates.size == newState.size then {
+          val output = wio.buildOutput(input, completedStates)
+          WFExecution.complete(newForEach, output.asRight, input, newWio.index + 1)
+        } else {
+          newWio.output match {
+            case Left(err) => WFExecution.complete(newForEach, Left(err), input, newWio.index)
+            case Right(_)  => WFExecution.Partial(newForEach)
+          }
+        }
+      case WFExecution.Partial(_)       => WFExecution.Partial(newForEach)
     }
   }
 

@@ -29,6 +29,10 @@ class ExamplesTest extends AnyFreeSpec {
     TestUtils.renderDebugToFile(PullRequestWorkflow.workflow.toProgress, "docs/pull-request.debug.txt")
   }
 
+  "temp" in {
+    TestUtils.renderDocsExample(ForEachExample.draft.forEachDraft, "for-each-draft")
+  }
+
   "render progress" in {
     val instance = PullRequestWorkflow.run
     TestUtils.renderDocsProgressExample(instance, "pull-request-completed")

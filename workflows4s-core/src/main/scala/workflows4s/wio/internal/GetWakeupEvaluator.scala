@@ -64,6 +64,14 @@ object GetWakeupEvaluator {
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
     ): Result = recurse(wio.inner)
 
+    override def onForEach[ElemId, InnerCtx <: WorkflowContext, ElemOut <: WCState[InnerCtx], InterimState <: WCState[Ctx]](
+        wio: WIO.ForEach[Ctx, In, Err, Out, ElemId, InnerCtx, ElemOut, InterimState],
+    ): Option[Instant] = {
+      wio.stateOpt.flatMap(state => {
+        state.values.flatMap(recurse).minOption
+      })
+    }
+
     def recurse(wio: WIO[?, ?, ?, ?]): Result = new GetWakeupVisitor(wio).run
 
   }

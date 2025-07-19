@@ -14,7 +14,8 @@
           "name" : "Run Pipeline",
           "error" : {
             "name" : "Critical Issue"
-          }
+          },
+          "description" : null
         },
         "_type" : "RunIO"
       },
@@ -31,7 +32,8 @@
       {
         "meta" : {
           "name" : "Merge PR",
-          "error" : null
+          "error" : null,
+          "description" : null
         },
         "_type" : "RunIO"
       }
@@ -41,7 +43,8 @@
   "handler" : {
     "meta" : {
       "name" : "Close PR",
-      "error" : null
+      "error" : null,
+      "description" : null
     },
     "_type" : "RunIO"
   },

@@ -31,6 +31,8 @@ object DebugRenderer {
       case _: WIOExecutionProgress.Parallel[?]      => "Parallel"
       case x: WIOExecutionProgress.Checkpoint[?]    => "Checkpoint"
       case x: WIOExecutionProgress.Recovery[?]      => "Recovery"
+      case x: WIOExecutionProgress.Retried[?]       => "Retried"
+      case x: WIOExecutionProgress.ForEach[?, ?, ?] => "ForEach"
     }
     val name                 = model match {
       case x: WIOExecutionProgress.Sequence[?]      => None
@@ -47,6 +49,8 @@ object DebugRenderer {
       case _: WIOExecutionProgress.Parallel[?]      => None
       case _: WIOExecutionProgress.Checkpoint[?]    => None
       case _: WIOExecutionProgress.Recovery[?]      => None
+      case x: WIOExecutionProgress.Retried[?]       => None
+      case x: WIOExecutionProgress.ForEach[?, ?, ?] => x.meta.name
     }
     val description          = model match {
       case x: WIOExecutionProgress.Sequence[?]      => None
@@ -63,6 +67,8 @@ object DebugRenderer {
       case _: WIOExecutionProgress.Parallel[?]      => None
       case _: WIOExecutionProgress.Checkpoint[?]    => None
       case _: WIOExecutionProgress.Recovery[?]      => None
+      case _: WIOExecutionProgress.Retried[?]       => None
+      case x: WIOExecutionProgress.ForEach[?, ?, ?] => Some(s"Elements: ${x.subProgresses.size}")
     }
     val children             = model match {
       case x: WIOExecutionProgress.Sequence[?]      =>
@@ -98,7 +104,9 @@ object DebugRenderer {
       case _: WIOExecutionProgress.Timer[?]         => Seq()
       case x: WIOExecutionProgress.Parallel[?]      => x.elements.zipWithIndex.map((elem, idx) => renderChild(s"branch ${idx}", elem))
       case x: WIOExecutionProgress.Checkpoint[?]    => renderChildren("base" -> x.base)
-      case x: WIOExecutionProgress.Recovery[?]      => Seq()
+      case _: WIOExecutionProgress.Recovery[?]      => Seq()
+      case x: WIOExecutionProgress.Retried[?]       => renderChildren("base" -> x.base)
+      case x: WIOExecutionProgress.ForEach[?, ?, ?] => x.subProgresses.toSeq.map((elemId, progress) => renderChild(s"element $elemId", progress))
     }
     val effectiveDescription = if model.isExecuted then s"Executed: ${model.result.get.value.merge}" else description.getOrElse("")
     val effectiveChildren    = if model.isExecuted then Seq() else children

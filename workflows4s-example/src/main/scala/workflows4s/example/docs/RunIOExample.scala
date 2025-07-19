@@ -14,7 +14,7 @@ object RunIOExample {
     WIO
       .runIO[MyState](state => IO(MyEvent()))
       .handleEvent((state, event) => MyState(state.counter + 1))
-      .autoNamed
+      .autoNamed()
   // end_withoutError
 
   // start_withError
@@ -25,7 +25,7 @@ object RunIOExample {
         if true then MyState(state.counter + 1).asRight
         else MyError().asLeft,
       )
-      .autoNamed
+      .autoNamed()
   // end_withError
 
 }

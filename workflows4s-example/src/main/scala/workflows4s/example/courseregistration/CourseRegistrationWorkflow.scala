@@ -91,7 +91,7 @@ object CourseRegistrationWorkflow {
         if evt.assignments.isEmpty then Left(RegistrationError.AllCoursesFull)
         else Right(RegistrationState.RegistrationComplete(in.studentId, in.semester, evt.assignments)),
       )
-      .autoNamed
+      .autoNamed()
   // end_steps_2
 
   // start_steps_3

@@ -23,7 +23,7 @@ case class Node(id: String, label: String, shape: Option[String] = None, clazz: 
   }
 }
 
-case class Link(from: String, to: String, label: Option[String] = None, prefix: "" | "x" = "", suffix: ">" | "x" = ">", midfix: "." | "" = "")
+case class Link(from: String, to: String, label: Option[String] = None, prefix: "" | "x" = "", suffix: ">" | "x" | "" = ">", midfix: "." | "" = "")
     extends MermaidElement {
   def render: String = label match {
     case Some(l) => s"""$from $prefix-$midfix-$suffix|"$l"| $to"""

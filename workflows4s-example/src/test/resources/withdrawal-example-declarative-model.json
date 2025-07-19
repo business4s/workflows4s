@@ -19,7 +19,8 @@
                 {
                   "meta" : {
                     "name" : "Calculate Fees",
-                    "error" : null
+                    "error" : null,
+                    "description" : null
                   },
                   "_type" : "RunIO"
                 },
@@ -28,7 +29,8 @@
                     "name" : "Put Funds On Hold",
                     "error" : {
                       "name" : "Not Enough Funds"
-                    }
+                    },
+                    "description" : null
                   },
                   "_type" : "RunIO"
                 },
@@ -49,13 +51,17 @@
                   "_type" : "Pure"
                 },
                 {
-                  "meta" : {
-                    "name" : "Initiate Execution",
-                    "error" : {
-                      "name" : "Rejected By Execution Engine"
-                    }
+                  "base" : {
+                    "meta" : {
+                      "name" : "Initiate Execution",
+                      "error" : {
+                        "name" : "Rejected By Execution Engine"
+                      },
+                      "description" : null
+                    },
+                    "_type" : "RunIO"
                   },
-                  "_type" : "RunIO"
+                  "_type" : "Retried"
                 },
                 {
                   "meta" : {
@@ -86,7 +92,8 @@
           {
             "meta" : {
               "name" : "Release Funds",
-              "error" : null
+              "error" : null,
+              "description" : null
             },
             "_type" : "RunIO"
           }
@@ -96,7 +103,8 @@
       "handler" : {
         "meta" : {
           "name" : "Cancel Funds If Needed",
-          "error" : null
+          "error" : null,
+          "description" : null
         },
         "_type" : "RunIO"
       },

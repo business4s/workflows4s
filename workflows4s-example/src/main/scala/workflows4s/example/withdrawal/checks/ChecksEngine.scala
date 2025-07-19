@@ -81,7 +81,7 @@ object ChecksEngine extends ChecksEngine with StrictLogging {
           .map(results => ChecksEvent.ChecksRun(results.toMap))
       })
       .handleEvent((state, evt) => state.addResults(evt.results))
-      .autoNamed
+      .autoNamed()
 
   private val systemDecision: WIO[ChecksState.Executed, Nothing, ChecksState.Decided] =
     WIO.pure
