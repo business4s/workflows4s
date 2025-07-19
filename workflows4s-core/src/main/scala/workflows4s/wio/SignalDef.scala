@@ -10,7 +10,7 @@ case class SignalDef[Req, Resp](id: String, explicitName: Option[String])(using 
 }
 
 object SignalDef {
-  def apply[Req: ClassTag, Resp: ClassTag](name: String = null, id: String = null): SignalDef[Req, Resp] = {
+  def apply[Req: ClassTag, Resp: ClassTag](id: String = null, name: String = null): SignalDef[Req, Resp] = {
     new SignalDef(Option(id).getOrElse(UUID.randomUUID().toString), Option(name))
   }
 }

@@ -105,7 +105,7 @@ object TestUtils {
     class SigEvent(val req: Int) extends TestCtx2.Event with Serializable {
       override def toString: String = s"SigEvent(${req})"
     }
-    val stepId = StepId.random
+    val stepId = StepId.random.prefixedWith("sig-step")
     val wio = WIO
       .handleSignal(signalDef)
       .using[TestState]
