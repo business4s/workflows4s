@@ -75,7 +75,7 @@ object ForEachExample {
 
       object simple {
         // signal_simple_start
-        val signalRouter     = SimpleSignalRouter[Element]
+        val signalRouter = SimpleSignalRouter[Element]
 
         def element: Element = ???
         workflowInstance.deliverRoutedSignal(signalRouter, element, signalDef, request)

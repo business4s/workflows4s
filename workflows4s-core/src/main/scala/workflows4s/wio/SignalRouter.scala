@@ -11,7 +11,6 @@ import java.util.UUID
   *   The type of elements present on the receiving side (routing target).
   * @tparam In
   *   The input type used when unwrapping signals. Typically state of the workflow.
-  *
   */
 trait SignalRouter[-Key, Elem, -In] extends SignalRouter.Sender[Key] with SignalRouter.Receiver[Elem, In]
 

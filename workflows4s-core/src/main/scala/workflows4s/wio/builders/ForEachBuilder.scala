@@ -19,7 +19,10 @@ object ForEachBuilder {
         def execute[InnerCtx <: WorkflowContext]: Step2_1[InnerCtx] = Step2_1()
 
         case class Step2_1[InnerCtx <: WorkflowContext]() {
-          def apply[Err, Out <: WCState[InnerCtx]](wio: WIO[Elem, Err, Out, InnerCtx], initialState: => WCState[InnerCtx]): Step3[InnerCtx, Err, Out] =
+          def apply[Err, Out <: WCState[InnerCtx]](
+              wio: WIO[Elem, Err, Out, InnerCtx],
+              initialState: => WCState[InnerCtx],
+          ): Step3[InnerCtx, Err, Out] =
             Step3(wio, () => initialState)
 
           case class Step3[InnerCtx <: WorkflowContext, Err, ElemOut <: WCState[InnerCtx]](

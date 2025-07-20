@@ -36,15 +36,15 @@ class WIOForEachTest extends AnyFreeSpec with Matchers with OptionValues with Ei
     }
 
     "should handle forEach execution with one element failing" in {
-      val (err, errorStep) = TestUtils.error
-      val (forEachStepId, forEach) = createForEach(errorStep)
+      val (err, errorStep)          = TestUtils.error
+      val (forEachStepId, forEach)  = createForEach(errorStep)
       val elements @ List(el1, el2) = genElements(2)
 
       val errHandler = TestUtils.errorHandler
-      val wf = forEach.handleErrorWith(errHandler)
+      val wf         = forEach.handleErrorWith(errHandler)
 
       val (_, instance) = TestUtils.createInstance2(wf.provideInput(elements.toSet))
-      val resultState = instance.queryState()
+      val resultState   = instance.queryState()
 
       // Should handle the error appropriately
       assert(resultState.errors == List(err))
@@ -53,8 +53,8 @@ class WIOForEachTest extends AnyFreeSpec with Matchers with OptionValues with Ei
 
     "should wait for all signals in forEach elements" in {
       val (signalDef, signalStepId, signalStep) = TestUtils.signal
-      val (forEachStepId, wf) = createForEach(signalStep)
-      val elements @ List(el1, el2) = genElements(2)
+      val (forEachStepId, wf)                   = createForEach(signalStep)
+      val elements @ List(el1, el2)             = genElements(2)
 
       val (_, instance) = TestUtils.createInstance2(wf.provideInput(elements.toSet))
       assert(instance.queryState().executed == List())
@@ -64,25 +64,29 @@ class WIOForEachTest extends AnyFreeSpec with Matchers with OptionValues with Ei
 
       val response1 = instance.deliverRoutedSignal(SigRouter, el2, signalDef, 1).value
       assert(response1 == 1)
-      assert(instance.queryState().executed == List(
-        el2.prefixedWith(el2),
-        signalStepId.prefixedWith(el2)
-      ))
+      assert(
+        instance.queryState().executed == List(
+          el2.prefixedWith(el2),
+          signalStepId.prefixedWith(el2),
+        ),
+      )
 
       val response2 = instance.deliverRoutedSignal(SigRouter, el1, signalDef, 2).value
       assert(response2 == 2)
-      assert(instance.queryState().executed == List(
-        el1.prefixedWith(el1),
-        signalStepId.prefixedWith(el1),
-        el2.prefixedWith(el2),
-        signalStepId.prefixedWith(el2),
-        forEachStepId
-      ))
+      assert(
+        instance.queryState().executed == List(
+          el1.prefixedWith(el1),
+          signalStepId.prefixedWith(el1),
+          el2.prefixedWith(el2),
+          signalStepId.prefixedWith(el2),
+          forEachStepId,
+        ),
+      )
     }
 
     "should wait for all timers in forEach elements" in {
-      val (duration, timerStep) = TestUtils.timer(secs = 1)
-      val (pureId, pureStep) = TestUtils.pure
+      val (duration, timerStep)     = TestUtils.timer(secs = 1)
+      val (pureId, pureStep)        = TestUtils.pure
       val elements @ List(el1, el2) = genElements(2)
 
       val (forEachStepId, wf) = createForEach(timerStep >>> pureStep)
