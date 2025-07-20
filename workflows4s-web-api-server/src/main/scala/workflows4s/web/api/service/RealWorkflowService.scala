@@ -75,7 +75,7 @@ class RealWorkflowService(
     for {
       workflowInstance <- entry.runtime.createInstance(parsedId)
       progress         <- workflowInstance.getProgress
-    } yield progress.map(state => Some(state.toString)) // CORRECTED: Wrap the string in Some()
+    } yield progress.map(state => Some(state.toString)) 
   }
 }
 

@@ -14,8 +14,7 @@ import workflows4s.wio.model.WIOExecutionProgressCodec.given
 
 class WorkflowServerEndpoints(workflowService: WorkflowApiService) {
 
-  // CORRECTED: Provide an explicit, opaque schema for WIOExecutionProgress to satisfy Tapir.
-  // This tells Tapir to expect any JSON object, which is what our Circe encoder provides.
+  
   implicit val progressSchema: Schema[WIOExecutionProgress[String]] = Schema.any
 
   private def createTestInstanceLogic(workflowId: String): Either[String, WorkflowInstance] = {

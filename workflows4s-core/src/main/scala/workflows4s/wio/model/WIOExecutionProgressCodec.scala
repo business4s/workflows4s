@@ -17,7 +17,6 @@ object WIOExecutionProgressCodec {
     }
 
   // The main encoder for the recursive WIOExecutionProgress structure.
-  // We use `_ =>` to mark the recursive encoder parameter as intentionally unused.
   implicit def executionProgressEncoder[State]: Encoder[WIOExecutionProgress[State]] = Encoder.recursive { _ =>
     // We explicitly type `progress` to guide the compiler's type inference.
     Encoder.instance { (progress: WIOExecutionProgress[State]) =>
@@ -26,7 +25,7 @@ object WIOExecutionProgressCodec {
         "isExecuted" -> Json.fromBoolean(progress.isExecuted),
         "result" -> progress.result.map {
           case Left(err)    => Json.fromString(s"Error: ${err.toString}")
-          case Right(state) => Json.fromString(state.toString) // Convert State to String as suggested
+          case Right(state) => Json.fromString(state.toString)
         }.getOrElse(Json.Null),
         "model" -> progress.toModel.asJson,
       )
