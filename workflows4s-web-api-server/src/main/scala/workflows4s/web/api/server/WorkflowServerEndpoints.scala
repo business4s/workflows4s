@@ -1,14 +1,22 @@
- package workflows4s.web.api.server
+package workflows4s.web.api.server
 
 import cats.effect.IO
 import cats.syntax.either.*
 import io.circe.Json
+import sttp.tapir.*
+import sttp.tapir.json.circe.*
 import sttp.tapir.server.ServerEndpoint
 import workflows4s.web.api.endpoints.WorkflowEndpoints
 import workflows4s.web.api.model.{InstanceStatus, WorkflowInstance}
 import workflows4s.web.api.service.WorkflowApiService
+import workflows4s.wio.model.WIOExecutionProgress
+import workflows4s.wio.model.WIOExecutionProgressCodec.given
 
 class WorkflowServerEndpoints(workflowService: WorkflowApiService) {
+
+  // CORRECTED: Provide an explicit, opaque schema for WIOExecutionProgress to satisfy Tapir.
+  // This tells Tapir to expect any JSON object, which is what our Circe encoder provides.
+  implicit val progressSchema: Schema[WIOExecutionProgress[String]] = Schema.any
 
   private def createTestInstanceLogic(workflowId: String): Either[String, WorkflowInstance] = {
     val state = Json.obj(
@@ -28,6 +36,14 @@ class WorkflowServerEndpoints(workflowService: WorkflowApiService) {
     )
   }
 
+  val getInstanceProgress: PublicEndpoint[(String, String), String, WIOExecutionProgress[String], Any] =
+    endpoint
+      .get
+      .in("api" / "v1" / "definitions" / path[String]("defId") / "instances" / path[String]("instanceId") / "progress")
+      .errorOut(stringBody)
+      .out(jsonBody[WIOExecutionProgress[String]])
+      .description("Get workflow instance progress by definition ID and instance ID")
+
   val endpoints: List[ServerEndpoint[Any, IO]] = List(
     WorkflowEndpoints.listDefinitions.serverLogic(_ => workflowService.listDefinitions().attempt.map(_.leftMap(_.getMessage))),
     WorkflowEndpoints.getDefinition.serverLogic(workflowId => workflowService.getDefinition(workflowId).attempt.map(_.leftMap(_.getMessage))),
@@ -40,6 +56,9 @@ class WorkflowServerEndpoints(workflowService: WorkflowApiService) {
     }),
     WorkflowEndpoints.createTestInstanceEndpoint.serverLogic(workflowId => {
       IO.pure(createTestInstanceLogic(workflowId))
+    }),
+    getInstanceProgress.serverLogic((workflowId, instanceId) => {
+      workflowService.getProgress(workflowId, instanceId).attempt.map(_.leftMap(_.getMessage))
     }),
   )
 }
