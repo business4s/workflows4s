@@ -31,6 +31,7 @@ class ExamplesTest extends AnyFreeSpec {
     ExampleConfig("pull-request", PullRequestWorkflow.workflow),
     ExampleConfig("for-each-draft", ForEachExample.draft.forEachDraft),
     ExampleConfig("for-each", ForEachExample.real.forEachStep),
+    ExampleConfig("retry", RetryExample.withRetry),
   )
 
   "examples" - {
