@@ -1,0 +1,8 @@
+{
+  "meta" : {
+    "name" : "Do Things With Description",
+    "error" : null,
+    "description" : "This operation increments the counter by processing an event"
+  },
+  "_type" : "RunIO"
+}

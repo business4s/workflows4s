@@ -28,4 +28,12 @@ object RunIOExample {
       .autoNamed()
   // end_withError
 
+  // start_withDescription
+  val doThingsWithDescription: WIO[MyState, Nothing, MyState] =
+    WIO
+      .runIO[MyState](state => IO(MyEvent()))
+      .handleEvent((state, event) => MyState(state.counter + 1))
+      .autoNamed(description = "This operation increments the counter by processing an event")
+  // end_withDescription
+
 }

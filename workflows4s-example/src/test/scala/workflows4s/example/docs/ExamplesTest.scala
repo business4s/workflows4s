@@ -12,6 +12,7 @@ class ExamplesTest extends AnyFreeSpec {
   private val examples = List(
     ExampleConfig("run-io", RunIOExample.doThings),
     ExampleConfig("run-io-error", RunIOExample.doThingsWithError),
+    ExampleConfig("run-io-description", RunIOExample.doThingsWithDescription),
     ExampleConfig("timer", TimerExample.waitForInput),
     ExampleConfig("handle-signal", HandleSignalExample.doThings),
     ExampleConfig("and-then", SequencingExample.sequence1),
