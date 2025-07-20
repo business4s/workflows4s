@@ -43,9 +43,11 @@ object BpmnRenderer {
           .name("<Dynamic>")
           .pipe(renderError(meta.error))
       case WIOModel.RunIO(meta)                                       =>
+        val rawName  = meta.name.getOrElse("Task")
+        val taskName = meta.description.map(desc => s"${rawName}\n$desc").getOrElse(rawName)
         builder
           .serviceTask()
-          .name(meta.name.getOrElse("Task"))
+          .name(taskName)
           .pipe(renderError(meta.error))
       case WIOModel.HandleSignal(meta)                                =>
         builder
@@ -165,8 +167,18 @@ object BpmnRenderer {
         resultBuilder.moveToNode(endGwId)
       case WIOModel.Checkpoint(base)                                  => handle(base, builder)
       case WIOModel.Recovery()                                        => builder
-      case WIOModel.Retried(_)                                        => builder
-      case WIOModel.ForEach(_, _)                                     => ???
+      case WIOModel.Retried(base)                                     => builder
+      case WIOModel.ForEach(forEach, meta)                            =>
+        // Render ForEach as a subprocess with the ForEach name
+        val subProcessStartEventId = Random.alphanumeric.filter(_.isLetter).take(10).mkString
+        val subBuilder             = builder
+          .subProcess()
+          .embeddedSubProcess()
+          .startEvent(subProcessStartEventId)
+          .name(meta.name.getOrElse("For Each"))
+        handle(forEach, subBuilder)
+          .endEvent()
+          .subProcessDone()
     }
   }
 

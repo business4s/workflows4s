@@ -19,12 +19,12 @@ object ForEachBuilder {
         def execute[InnerCtx <: WorkflowContext]: Step2_1[InnerCtx] = Step2_1()
 
         case class Step2_1[InnerCtx <: WorkflowContext]() {
-          def apply[Err, Out <: WCState[InnerCtx]](wio: WIO[Elem, Err, Out, InnerCtx], initialState: WCState[InnerCtx]): Step3[InnerCtx, Err, Out] =
-            Step3(wio, initialState)
+          def apply[Err, Out <: WCState[InnerCtx]](wio: WIO[Elem, Err, Out, InnerCtx], initialState: => WCState[InnerCtx]): Step3[InnerCtx, Err, Out] =
+            Step3(wio, () => initialState)
 
           case class Step3[InnerCtx <: WorkflowContext, Err, ElemOut <: WCState[InnerCtx]](
               private val forEachElem: WIO[Elem, Err, ElemOut, InnerCtx],
-              private val initialState: WCState[InnerCtx],
+              private val initialState: () => WCState[InnerCtx],
           ) {
 
             def withEventsEmbeddedThrough(embedding: WorkflowEmbedding.Event[(Elem, WCEvent[InnerCtx]), WCEvent[Ctx]]): Step4 = Step4(embedding)
@@ -57,7 +57,7 @@ object ForEachBuilder {
                         WIO.ForEach(
                           getElements = getElements,
                           elemWorkflow = forEachElem,
-                          initialElemState = () => initialState,
+                          initialElemState = initialState,
                           eventEmbedding = eventEmbedding,
                           initialInterimState = initial,
                           incorporatePartial = incorporatingChangesThrough,

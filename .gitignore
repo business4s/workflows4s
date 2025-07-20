@@ -9,3 +9,4 @@ node_modules
 .bloop/
 project/metals.sbt
 .vscode/
+.scala-build
