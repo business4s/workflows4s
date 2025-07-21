@@ -33,7 +33,7 @@ object RunIOExample {
     WIO
       .runIO[MyState](state => IO(MyEvent()))
       .handleEvent((state, event) => MyState(state.counter + 1))
-      .autoNamed(description = "This operation increments the counter by processing an event")
+      .autoNamed(description = "This operation increments the counter by one")
   // end_withDescription
 
 }
