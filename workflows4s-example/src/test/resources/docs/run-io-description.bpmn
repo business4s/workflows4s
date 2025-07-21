@@ -4,7 +4,7 @@
     <startEvent id="startEvent_4">
       <outgoing>sequenceFlow_2</outgoing>
     </startEvent>
-    <serviceTask id="serviceTask_1" name="Do Things With Description&#10;This operation increments the counter by processing an event">
+    <serviceTask id="serviceTask_1" name="Do Things With Description&#10;This operation increments the counter by one">
       <incoming>sequenceFlow_2</incoming>
       <outgoing>sequenceFlow_3</outgoing>
     </serviceTask>
