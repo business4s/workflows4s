@@ -152,6 +152,15 @@ object ExecutionProgressEvaluator {
         .map(wio.state)
         .getOrElse(Map())
         .map { case (elemId, state) => elemId -> ExecutionProgressEvaluator.run(state, input, None) }
+      // We could tuple-in the interim state, but the ordering is hard to keep - if the incorporating logic is order-dependent,
+      // and if we do it naively here, we will have discrepancy between execution and collected progress.
+      // We could also expose only the last interim state, which is slightly simpler but comes with the same problem.
+      // So for now we don't expose interim states at all.
+      // Proper implementation could be:
+      //  1. Convert subProgresses into ExecutionProgress[(Option[InterimState], InnerState)] (all interim empty)
+      //  2. Traverse them, setting interim state for the one with the next index value (kept in ExecutedResult)
+      //  3. Repeat until nothing can be set anymore.
+
       WIOExecutionProgress.ForEach(result, elemModel, subProgresses, wio.meta)
     }
 
