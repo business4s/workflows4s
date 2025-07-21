@@ -52,11 +52,15 @@ object ProceedEvaluator {
         wio: WIO.ForEach[Ctx, In, Err, Out, ElemId, InnerCtx, ElemOut, InterimState],
     ): Option[NewWf] = {
       val state         = wio.state(input)
-      val nexIndex: Int = GetIndexEvaluator.findMaxIndex(wio).map(_ + 1).getOrElse(index)
-      val updatedElem   = state.toList.collectFirstSome((elemId, elemWio) => {
-        new ProceedVisitor(elemWio, input, wio.initialElemState(), now, nexIndex).run.tupleLeft(elemId)
-      })
-      updatedElem.map(newWf => convertForEachResult(wio, newWf._2, input, newWf._1))
+      val maxIndex: Int = GetIndexEvaluator.findMaxIndex(wio).getOrElse(index)
+      if state.isEmpty then {
+        Some(WFExecution.complete(wio, Right(wio.buildOutput(input, Map())), input, maxIndex + 1))
+      } else {
+        val updatedElem = state.toList.collectFirstSome((elemId, elemWio) => {
+          new ProceedVisitor(elemWio, input, wio.initialElemState(), now, maxIndex).run.tupleLeft(elemId)
+        })
+        updatedElem.map(newWf => convertForEachResult(wio, newWf._2, input, newWf._1))
+      }
     }
 
     def recurse[I1, E1, O1 <: WCState[Ctx]](

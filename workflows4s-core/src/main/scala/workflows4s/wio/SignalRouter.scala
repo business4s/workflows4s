@@ -6,7 +6,7 @@ import java.util.UUID
   * subworkflow.
   *
   * @tparam Key
-  *   The type of keys passes from the sender to allow for routing.
+  *   The type of keys passed from the sender to allow for routing.
   * @tparam Elem
   *   The type of elements present on the receiving side (routing target).
   * @tparam In

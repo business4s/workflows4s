@@ -35,6 +35,16 @@ class WIOForEachTest extends AnyFreeSpec with Matchers with OptionValues with Ei
       assert(resultState.errors.isEmpty)
     }
 
+    "should complete immediately with empty element list" in {
+      val (step1Id, step1)    = TestUtils.pure
+      val (forEachStepId, wf) = createForEach(step1)
+
+      val (_, instance) = TestUtils.createInstance2(wf.provideInput(Set()))
+      val resultState   = instance.queryState()
+
+      assert(resultState.executed == List(forEachStepId))
+    }
+
     "should handle forEach execution with one element failing" in {
       val (err, errorStep)          = TestUtils.error
       val (forEachStepId, forEach)  = createForEach(errorStep)
@@ -124,7 +134,9 @@ class WIOForEachTest extends AnyFreeSpec with Matchers with OptionValues with Ei
       .withEventsEmbeddedThrough(evtEmbedding)
       .withInterimState(_ => TestState.empty)
       .incorporatingChangesThrough((elem, elemState, interimState) => elemState.prefixWith(elem) ++ interimState)
-      .withOutputBuiltWith((_, results) => results.map((elem, state) => state.prefixWith(elem)).reduce(_ ++ _).addExecuted(finishedStepId))
+      .withOutputBuiltWith((_, results) =>
+        results.map((elem, state) => state.prefixWith(elem)).reduceOption(_ ++ _).getOrElse(TestState.empty).addExecuted(finishedStepId),
+      )
       .withSignalsWrappedWith(SigRouter)
       .autoNamed()
     (finishedStepId, wf)
