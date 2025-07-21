@@ -40,6 +40,13 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
     } yield wf.progress(now)
   }
 
+  override def getExpectedSignals: F[List[SignalDef[?, ?]]] = {
+    for {
+      wf  <- getWorkflow
+      now <- currentTime
+    } yield wf.liveSignals(now)
+  }
+
   override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): F[Either[WorkflowInstance.UnexpectedSignal, Resp]] = {
     def processSignal(state: ActiveWorkflow[Ctx], now: Instant): F[LockOutcome[Either[WorkflowInstance.UnexpectedSignal, Resp]]] = {
       state.handleSignal(signalDef)(req, now) match {

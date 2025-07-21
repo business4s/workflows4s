@@ -30,6 +30,7 @@ class WIOAndThenTest extends AnyFreeSpec with Matchers with EitherValues {
         assert(resp == 1)
 
         assert(wf.queryState().executed == List(stepId1, step2Id))
+        assert(wf.getExpectedSignals.isEmpty)
       }
       "handle on second" in {
         val (step1Id, step1)            = TestUtils.pure
@@ -42,6 +43,7 @@ class WIOAndThenTest extends AnyFreeSpec with Matchers with EitherValues {
         assert(resp == 1)
 
         assert(wf.queryState().executed == List(step1Id, stepId2))
+        assert(wf.getExpectedSignals.isEmpty)
       }
     }
     "proceed" - {
