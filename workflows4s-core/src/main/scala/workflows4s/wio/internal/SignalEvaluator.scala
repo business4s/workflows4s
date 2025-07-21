@@ -149,7 +149,9 @@ object SignalEvaluator {
     ): Option[IO[(WCEvent[Ctx], Resp)]] = {
       for {
         unwrapped <- wio.signalRouter.unwrap(signalDef, req, wio.interimState(input))
-        elemWio   <- wio.state(input).get(unwrapped.elem)
+        elemWioOpt = wio.state(input).get(unwrapped.elem)
+        _          = logger.warn(s"Tried to deliver a signal to an unrecognized element ${unwrapped.elem}")
+        elemWio   <- elemWioOpt
         result    <- SignalVisitor(elemWio, unwrapped.sigDef, unwrapped.req, (), wio.initialElemState()).run
       } yield result.map(x => wio.eventEmbedding.convertEvent(unwrapped.elem, x._1) -> x._2)
     }
