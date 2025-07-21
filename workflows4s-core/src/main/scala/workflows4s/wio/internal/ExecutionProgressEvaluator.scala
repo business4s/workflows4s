@@ -147,8 +147,12 @@ object ExecutionProgressEvaluator {
     override def onForEach[ElemId, InnerCtx <: WorkflowContext, ElemOut <: WCState[InnerCtx], InterimState <: WCState[Ctx]](
         wio: WIO.ForEach[Ctx, In, Err, Out, ElemId, InnerCtx, ElemOut, InterimState],
     ): WIOExecutionProgress[WCState[Ctx]] = {
-      val elemModel = ExecProgressVisitor(wio.elemWorkflow, None, None, None).run.toModel
-      WIOExecutionProgress.ForEach(result, elemModel, Map(), wio.meta) // TODO empty map!!!
+      val elemModel     = ExecProgressVisitor(wio.elemWorkflow, None, None, None).run.toModel
+      val subProgresses = input
+        .map(wio.state)
+        .getOrElse(Map())
+        .map { case (elemId, state) => elemId -> ExecutionProgressEvaluator.run(state, input, None) }
+      WIOExecutionProgress.ForEach(result, elemModel, subProgresses, wio.meta)
     }
 
     def recurse[I1, E1, O1 <: WCState[Ctx]](

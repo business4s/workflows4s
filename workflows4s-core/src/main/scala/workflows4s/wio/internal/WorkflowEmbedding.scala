@@ -2,9 +2,8 @@ package workflows4s.wio.internal
 
 import workflows4s.wio.{WCEvent, WCState, WorkflowContext}
 
-trait WorkflowEmbedding[Inner <: WorkflowContext, Outer <: WorkflowContext, -Input] { self =>
-  def convertEvent(e: WCEvent[Inner]): WCEvent[Outer]
-  def unconvertEvent(e: WCEvent[Outer]): Option[WCEvent[Inner]]
+trait WorkflowEmbedding[Inner <: WorkflowContext, Outer <: WorkflowContext, -Input] extends WorkflowEmbedding.Event[WCEvent[Inner], WCEvent[Outer]] {
+  self =>
 
   type OutputState[In <: WCState[Inner]] <: WCState[Outer]
   def convertState[In <: WCState[Inner]](innerState: In, input: Input): OutputState[In]
@@ -36,11 +35,6 @@ object WorkflowEmbedding {
   trait Event[From, To] {
     def convertEvent(e: From): To
     def unconvertEvent(e: To): Option[From]
-  }
-
-  trait State[Inner <: WorkflowContext, Outer <: WorkflowContext, -Input] {
-    def convertState[In <: WCState[Inner]](innerState: In, input: Input): WCState[Outer]
-    def unconvertState(outerState: WCState[Outer]): Option[WCState[Inner]]
   }
 
   type Aux[Inner <: WorkflowContext, Outer <: WorkflowContext, OS[_ <: WCState[Inner]] <: WCState[Outer], -Input] =
