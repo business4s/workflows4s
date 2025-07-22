@@ -62,6 +62,7 @@ class WIOHandleInterruptionTest extends AnyFreeSpec with Matchers with OptionVal
         assert(instance.queryState() === TestState(executed = List(step1Id)))
 
         // after base is processed, interruption is no longer possible
+        instance.getExpectedSignals shouldBe empty
         val interruptionSignalResult = instance.deliverSignal(signalA, 43)
         assert(interruptionSignalResult.isLeft)
       }
@@ -70,11 +71,13 @@ class WIOHandleInterruptionTest extends AnyFreeSpec with Matchers with OptionVal
         val wf            = handleSignalB.interruptWith(interruptWithSignalA)
         val (_, instance) = TestUtils.createInstance2(wf)
 
+        instance.getExpectedSignals should contain theSameElementsAs List(signalA, signalB)
         val signalResult = instance.deliverSignal(signalB, 42).value
         assert(signalResult === 42)
         assert(instance.queryState() === TestState(executed = List(signalBStepId)))
 
         // after base is processed, interruption is no longer possible
+        instance.getExpectedSignals shouldBe empty
         val interruptionSignalResult = instance.deliverSignal(signalA, 43)
         assert(interruptionSignalResult.isLeft)
       }
@@ -83,13 +86,15 @@ class WIOHandleInterruptionTest extends AnyFreeSpec with Matchers with OptionVal
         val wf            = handleSignalB.interruptWith(interruptWithSignalA)
         val (_, instance) = TestUtils.createInstance2(wf)
 
+        instance.getExpectedSignals should contain theSameElementsAs List(signalA, signalB)
         val signalResult = instance.deliverSignal(signalA, 42).value
         assert(signalResult === 42)
 
         // after processing, state is coming from interruption flow
         assert(instance.queryState() === TestState(executed = List(signalAStepId)))
 
-        // after base is processed, interruption is no longer possible
+        // after interruption is processed, interruption is no longer possible
+        instance.getExpectedSignals shouldBe empty
         val interruptionSignalResult = instance.deliverSignal(signalA, 43)
         assert(interruptionSignalResult.isLeft)
       }

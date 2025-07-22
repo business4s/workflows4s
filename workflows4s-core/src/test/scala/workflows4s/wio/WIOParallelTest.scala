@@ -45,11 +45,13 @@ class WIOParallelTest extends AnyFreeSpec with Matchers with OptionValues with E
       val (_, instance) = TestUtils.createInstance2(wf)
       assert(instance.queryState().executed == List())
 
+      instance.getExpectedSignals should contain theSameElementsAs (List(signalDef1, signalDef2))
       val response1 = instance.deliverSignal(signalDef1, 1).value
       assert(response1 == 1)
       assert(instance.queryState().executed == List(singlaStepId1))
       assert(instance.deliverSignal(signalDef1, 2).isLeft)
 
+      instance.getExpectedSignals should contain theSameElementsAs (List(signalDef2))
       val response2 = instance.deliverSignal(signalDef2, 2).value
       assert(response2 == 2)
       assert(instance.queryState().executed == List(singlaStepId1, singlaStepId2, parStepId))
