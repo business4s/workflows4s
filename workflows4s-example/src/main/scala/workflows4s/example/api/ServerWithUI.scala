@@ -74,7 +74,7 @@ object ServerWithUI extends IOApp.Simple {
 
           case req @ GET -> "ui" /: tail =>
             val uiBase = "workflows4s-web-ui-bundle"
-            val path = tail.segments match {
+            val path   = tail.segments match {
               case Vector() => s"$uiBase/index.html"
               case segments => segments.map(_.decoded()).mkString("/")
             }

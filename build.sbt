@@ -13,6 +13,7 @@ lazy val `workflows4s` = (project in file("."))
     `workflows4s-filesystem`,
     `workflows4s-quartz`,
     `workflows4s-web-ui`,
+    `workflows4s-web-ui-bundle`,
     `workflows4s-web-api-shared`,
     `workflows4s-web-api-server`,
   )
