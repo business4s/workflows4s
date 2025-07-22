@@ -20,6 +20,9 @@ object SignalRouter {
     def wrap[InnerReq, Resp](key: Key, req: InnerReq, sigDef: SignalDef[InnerReq, Resp]): SignalRouter.Wrapped[?, Resp]
   }
   trait Receiver[Elem, -In] {
+
+    def outerSignalDef[InnerReq, Resp](innerDef: SignalDef[InnerReq, Resp]): SignalDef[?, Resp]
+
     def unwrap[OuterReq, InnerReq, Resp](
         signalDef: SignalDef[OuterReq, Resp],
         outerReq: OuterReq,
@@ -43,7 +46,8 @@ trait BasicSignalRouter[Key, Elem, -Input] extends SignalRouter.Sender[Key] with
 
   case class WrappedRequest[InnerReq, Resp](key: Key, innerRequest: InnerReq, innerSigDef: SignalDef[InnerReq, Resp])
   val signalDefId                                                         = UUID.randomUUID().toString
-  def outerSignalDef[InnerReq, Resp](innerDef: SignalDef[InnerReq, Resp]) = {
+
+  def outerSignalDef[InnerReq, Resp](innerDef: SignalDef[InnerReq, Resp]): SignalDef[WrappedRequest[InnerReq, Resp], Resp] = {
     import innerDef.respCt
     SignalDef[WrappedRequest[InnerReq, Resp], Resp](signalDefId, innerDef.name)
   }

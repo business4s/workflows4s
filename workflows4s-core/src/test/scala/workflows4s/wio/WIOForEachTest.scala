@@ -120,6 +120,26 @@ class WIOForEachTest extends AnyFreeSpec with Matchers with OptionValues with Ei
       )
     }
 
+    "should expose all expected signals" in {
+      val (signalDef1, _, signalStep1) = TestUtils.signal
+      val (signalDef2, _, signalStep2) = TestUtils.signal
+      val (_, wf)                      = createForEach(signalStep1 >>> signalStep2)
+      val elements                     = genElements(3)
+
+      val (_, instance) = TestUtils.createInstance2(wf.provideInput(elements.toSet))
+      assert(instance.getExpectedSignals == List(SigRouter.outerSignalDef(signalDef1)))
+
+      instance.deliverRoutedSignal(SigRouter, elements.head, signalDef1, 1).value
+
+      assert(
+        instance.getExpectedSignals == List(
+          SigRouter.outerSignalDef(signalDef1),
+          SigRouter.outerSignalDef(signalDef2),
+        ),
+      )
+
+    }
+
   }
 
   type Elem = StepId
