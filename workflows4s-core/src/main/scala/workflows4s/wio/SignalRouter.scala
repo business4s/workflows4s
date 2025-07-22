@@ -45,7 +45,7 @@ trait BasicSignalRouter[Key, Elem, -Input] extends SignalRouter.Sender[Key] with
   def extractElem(state: Input, key: Key): Option[Elem]
 
   case class WrappedRequest[InnerReq, Resp](key: Key, innerRequest: InnerReq, innerSigDef: SignalDef[InnerReq, Resp])
-  val signalDefId                                                         = UUID.randomUUID().toString
+  val signalDefId = UUID.randomUUID().toString
 
   def outerSignalDef[InnerReq, Resp](innerDef: SignalDef[InnerReq, Resp]): SignalDef[WrappedRequest[InnerReq, Resp], Resp] = {
     import innerDef.respCt

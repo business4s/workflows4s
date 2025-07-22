@@ -25,7 +25,7 @@ private[workflows4s] object GetSignalDefsEvaluator {
     override def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): Result                         = Nil
 
     // Recursive cases
-    override def onDiscarded[In1](wio: WIO.Discarded[Ctx, In1]): Result = Nil
+    override def onDiscarded[In1](wio: WIO.Discarded[Ctx, In1]): Result                                                         = Nil
     override def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result          = recurse(
       wio.base, // the next step in FlatMap is already handled in onAndThen
     )
