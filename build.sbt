@@ -1,5 +1,7 @@
 import org.typelevel.scalacoptions.ScalacOptions
 
+import scala.sys.process.Process
+
 lazy val `workflows4s` = (project in file("."))
   .settings(commonSettings)
   .aggregate(
@@ -11,7 +13,7 @@ lazy val `workflows4s` = (project in file("."))
     `workflows4s-filesystem`,
     `workflows4s-quartz`,
     `workflows4s-web-ui`,
-    `workflows4s-web-api-shared`,   
+    `workflows4s-web-api-shared`,
     `workflows4s-web-api-server`,
   )
 
@@ -85,6 +87,76 @@ lazy val `workflows4s-quartz` = (project in file("workflows4s-quartz"))
   )
   .dependsOn(`workflows4s-core`)
 
+lazy val `workflows4s-web-api-shared` = (project in file("workflows4s-web-api-shared"))
+  .settings(commonSettings)
+  .settings(
+    libraryDependencies ++= Seq(
+      "com.softwaremill.sttp.tapir" %% "tapir-core"       % tapirVersion,
+      "com.softwaremill.sttp.tapir" %% "tapir-json-circe" % tapirVersion,
+      "io.circe"                    %% "circe-core"       % circeVersion,
+      "io.circe"                    %% "circe-generic"    % circeVersion,
+    ),
+    publish / skip := true,
+  )
+
+lazy val `workflows4s-web-api-server` = (project in file("workflows4s-web-api-server"))
+  .settings(commonSettings)
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.http4s"                  %% "http4s-ember-server" % "0.23.23",
+      "org.http4s"                  %% "http4s-dsl"          % "0.23.23",
+      "com.softwaremill.sttp.tapir" %% "tapir-http4s-server" % tapirVersion,
+      "com.softwaremill.sttp.tapir" %% "tapir-json-circe"    % tapirVersion,
+      "io.circe"                    %% "circe-generic"       % circeVersion,
+      "io.circe"                    %% "circe-parser"        % circeVersion,
+    ),
+  )
+  .dependsOn(
+    `workflows4s-core`,
+    `workflows4s-web-api-shared`,
+  )
+lazy val `workflows4s-web-ui`         = (project in file("workflows4s-web-ui"))
+  .enablePlugins(ScalaJSPlugin)
+  .settings(commonSettings)
+  .settings(
+    libraryDependencies ++= Seq(
+      "io.indigoengine"               %%% "tyrian-io"     % "0.14.0",
+      "io.circe"                      %%% "circe-core"    % "0.14.6",
+      "io.circe"                      %%% "circe-generic" % "0.14.6",
+      "io.circe"                      %%% "circe-parser"  % "0.14.6",
+      "com.softwaremill.sttp.client4" %%% "core"          % "4.0.0-M16",
+      "com.softwaremill.sttp.client4" %%% "cats"          % "4.0.0-M16",
+      "com.softwaremill.sttp.client4" %%% "circe"         % "4.0.0-M16",
+    ),
+    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
+    publish / skip := true,
+  )
+  .dependsOn(`workflows4s-core`)
+
+lazy val `workflows4s-web-ui-bundle` = (project in file("workflows4s-web-ui-bundle"))
+  .settings(commonSettings)
+  .settings(
+    name := "workflows4s-web-ui-bundle",
+    Compile / resourceGenerators += Def.task {
+      val distDir   = (`workflows4s-web-ui` / baseDirectory).value
+      val viteBuild = Process("npm run build", distDir).!
+      if (viteBuild != 0) sys.error("Vite build failed")
+
+      val sourceDir = distDir / "dist"
+      val targetDir = (Compile / resourceManaged).value / "workflows4s-web-ui-bundle"
+      val files     = (sourceDir ** "*").get.filter(_.isFile)
+
+      val copied = files.map { file =>
+        val relativePath = file.relativeTo(sourceDir).get.getPath
+        val targetFile   = targetDir / relativePath
+        IO.copyFile(file, targetFile)
+        targetFile
+      }
+
+      copied
+    }.taskValue,
+  )
+
 lazy val `workflows4s-example` = (project in file("workflows4s-example"))
   .settings(commonSettings)
   .settings(
@@ -113,55 +185,11 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
     `workflows4s-doobie` % "compile->compile;test->test",
     `workflows4s-filesystem`,
     `workflows4s-quartz`,
-    `workflows4s-web-api-server` 
+    `workflows4s-web-api-server`,
+    `workflows4s-web-ui-bundle`,
+  )
+  .enablePlugins(JavaAppPackaging)
 
-  )
-
- lazy val `workflows4s-web-api-shared` = (project in file("workflows4s-web-api-shared"))
-  .settings(commonSettings)
-  .settings(
-    libraryDependencies ++= Seq(
-      "com.softwaremill.sttp.tapir" %% "tapir-core" % tapirVersion,
-      "com.softwaremill.sttp.tapir" %% "tapir-json-circe" % tapirVersion,
-      "io.circe" %% "circe-core" % circeVersion,
-      "io.circe" %% "circe-generic" % circeVersion
-    ),
-    publish / skip := true
-  )
-
-lazy val `workflows4s-web-api-server` = (project in file("workflows4s-web-api-server"))
-  .settings(commonSettings)
-  .settings(
-    libraryDependencies ++= Seq(
-      "org.http4s" %% "http4s-ember-server" % "0.23.23",
-      "org.http4s" %% "http4s-dsl" % "0.23.23",
-      "com.softwaremill.sttp.tapir" %% "tapir-http4s-server" % tapirVersion,
-      "com.softwaremill.sttp.tapir" %% "tapir-json-circe" % tapirVersion,
-      "io.circe" %% "circe-generic" % circeVersion,
-      "io.circe" %% "circe-parser" % circeVersion
-    )
-  )
-  .dependsOn(
-    `workflows4s-core`,
-    `workflows4s-web-api-shared`
-  )
- lazy val `workflows4s-web-ui` = (project in file("workflows4s-web-ui"))
-  .enablePlugins(ScalaJSPlugin)
-  .settings(commonSettings)
-  .settings(
-    libraryDependencies ++= Seq(
-      "io.indigoengine" %%% "tyrian-io" % "0.14.0",
-      "io.circe" %%% "circe-core" % "0.14.6",
-      "io.circe" %%% "circe-generic" % "0.14.6", 
-      "io.circe" %%% "circe-parser" % "0.14.6",
-      "com.softwaremill.sttp.client4" %%% "core" % "4.0.0-M16",
-      "com.softwaremill.sttp.client4" %%% "cats" % "4.0.0-M16",
-      "com.softwaremill.sttp.client4" %%% "circe" % "4.0.0-M16",
-    ),
-    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
-    publish / skip := true,
-  )
-  .dependsOn(`workflows4s-core`)
 lazy val commonSettings = Seq(
   scalaVersion      := "3.7.0",
   scalacOptions ++= Seq("-no-indent", "-Xmax-inlines", "64", "-explain-cyclic", "-Ydebug-cyclic"),
@@ -188,7 +216,7 @@ lazy val commonSettings = Seq(
 lazy val pekkoVersion               = "1.1.3"
 lazy val pekkoHttpVersion           = "1.2.0"
 lazy val testcontainersScalaVersion = "0.43.0"
-lazy val tapirVersion = "1.11.29"
+lazy val tapirVersion               = "1.11.29"
 lazy val circeVersion               = "0.14.13"
 
 addCommandAlias("prePR", List("compile", "Test / compile", "test", "scalafmtCheckAll").mkString(";", ";", ""))
