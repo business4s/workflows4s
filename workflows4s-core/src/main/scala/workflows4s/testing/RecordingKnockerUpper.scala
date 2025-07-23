@@ -6,7 +6,7 @@ import workflows4s.runtime.wakeup.KnockerUpper
 
 import java.time.Instant
 
-class FakeKnockerUpper extends KnockerUpper.Agent {
+class RecordingKnockerUpper extends KnockerUpper.Agent {
 
   private var wakeups: Map[WorkflowInstanceId, Option[Instant]]     = Map()
   def lastRegisteredWakeup(id: WorkflowInstanceId): Option[Instant] = wakeups.get(id).flatten

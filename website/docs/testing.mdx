@@ -1,0 +1,21 @@
+---
+sidebar_position: 2.2
+---
+
+# Testing
+
+Workflows4s currently includes a minimal but growing set of testing utilities designed to make it easier to verify workflow behavior.
+We're building it up gradually.
+If there's something you'd like to see, drop us a note!
+
+## Testing Utilities Overview
+
+All utilities are in the `wio.testing` package and included in the `workflows4s-core` artifact.
+
+* `TestClock` – Allows controlling the runtime-visible time, e.g., to trigger a timeout.
+* `RecordingKnockerUpper` – Captures wakeups triggered by the workflow, useful for testing retries.
+
+## Testing Approach
+
+When testing workflows in Workflows4s, it's recommended to isolate workflow logic from external effects by placing business operations behind interfaces and mocking them.
+This allows you to test the shape and event flow of the workflow deterministically using the `InMemoryRuntime` or `InMemorySyncRuntime`. These tests are fast, focused, and suitable for verifying state transitions and signal handling. For full confidence, users are also encouraged to write end-to-end tests that use real implementations and a real runtime to validate integration and correctness in realistic scenarios.
