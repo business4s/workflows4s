@@ -11,7 +11,10 @@ import workflows4s.wio
 import workflows4s.wio.internal.WorkflowEmbedding
 import workflows4s.wio.{SignalDef, WorkflowContext}
 
+import java.time.Duration
 object WithdrawalWorkflow {
+
+  val executionRetryDelay = Duration.ofMinutes(2)
 
   object Context extends WorkflowContext {
     override type Event = WithdrawalEvent
@@ -157,6 +160,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
         },
       )
       .autoNamed
+      .retryIn(_ => WithdrawalWorkflow.executionRetryDelay)
 
   private def awaitExecutionCompletion: WIO[WithdrawalData.Executed, WithdrawalRejection.RejectedByExecutionEngine, WithdrawalData.Executed] =
     WIO

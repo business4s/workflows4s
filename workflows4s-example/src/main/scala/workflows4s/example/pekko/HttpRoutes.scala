@@ -1,9 +1,7 @@
 package workflows4s.example.pekko
 
 import cats.effect.unsafe.IORuntime
-import cats.implicits.toContravariantOps
 import com.github.pjfanning.pekkohttpcirce.FailFastCirceSupport
-import io.circe.generic.semiauto.deriveEncoder
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 import org.apache.pekko.http.scaladsl.server.Directives.*
@@ -12,17 +10,36 @@ import workflows4s.example.withdrawal.WithdrawalData
 import workflows4s.example.withdrawal.WithdrawalService.{Fee, Iban}
 import workflows4s.example.withdrawal.WithdrawalSignal.CreateWithdrawal
 import workflows4s.example.withdrawal.checks.{CheckResult, ChecksInput, ChecksState}
+import io.circe.generic.auto.*
 
 class HttpRoutes(service: WithdrawalWorkflowService)(using ioRuntime: IORuntime) extends FailFastCirceSupport {
-  given checksInput: Encoder[ChecksInput]                             = Encoder.instance(_.checks.keys.map(_.value).asJson)
-  given checksResult: Encoder[CheckResult]                            = Encoder.instance(_ => Json.Null)
-  given checksResultFinished: Encoder[CheckResult.Finished]           = Encoder.instance(_ => Json.Null)
-  given ChecksStateEncoder: Encoder[ChecksState]                      = deriveEncoder[ChecksState]
-  given ChecksStateInprogressEncoder: Encoder[ChecksState.InProgress] = ChecksStateEncoder.narrow
-  given ChecksStateDecicedEncoder: Encoder[ChecksState.Decided]       = ChecksStateEncoder.narrow
-  given stateEncoder: Encoder.AsObject[WithdrawalData]                = deriveEncoder[WithdrawalData]
+  given checksInput: Encoder[ChecksInput]                   = Encoder.instance(_.checks.keys.map(_.value).asJson)
+  given checksResult: Encoder[CheckResult]                  = Encoder.instance(_ => Json.Null)
+  given checksResultFinished: Encoder[CheckResult.Finished] = Encoder.instance(_ => Json.Null)
+  given Encoder[ChecksState]                                = Encoder.instance {
+    case inProgress: ChecksState.InProgress =>
+      inProgress.asJson
+    case decided: ChecksState.Decided       =>
+      decided.asJson
+  }
 
-  val routes: Route = {
+  given Encoder[WithdrawalData] = Encoder.instance {
+    case empty: WithdrawalData.Empty         =>
+      empty.asJson
+    case initiated: WithdrawalData.Initiated =>
+      initiated.asJson
+    case validated: WithdrawalData.Validated =>
+      validated.asJson
+    case checking: WithdrawalData.Checking   =>
+      checking.asJson
+    case checked: WithdrawalData.Checked     =>
+      checked.asJson
+    case executed: WithdrawalData.Executed   =>
+      executed.asJson
+    case completed: WithdrawalData.Completed =>
+      Json.fromString("Completed")
+  }
+  val routes: Route             = {
     path("withdrawals") {
       get {
         onSuccess(service.listWorkflows.unsafeToFuture()) { list =>

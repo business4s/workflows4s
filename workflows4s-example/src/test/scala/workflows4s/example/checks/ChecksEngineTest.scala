@@ -5,10 +5,10 @@ import cats.effect.IO
 import com.typesafe.scalalogging.StrictLogging
 import org.scalatest.Inside.inside
 import org.scalatest.freespec.{AnyFreeSpec, AnyFreeSpecLike}
-import workflows4s.example.withdrawal.checks.*
 import workflows4s.example.TestUtils
+import workflows4s.example.withdrawal.checks.*
 import workflows4s.runtime.WorkflowInstance
-import workflows4s.testing.{TestClock, TestRuntimeAdapter}
+import workflows4s.testing.TestRuntimeAdapter
 import workflows4s.wio.WCState
 
 import scala.annotation.nowarn
@@ -38,7 +38,7 @@ object ChecksEngineTest {
 
   trait Suite extends AnyFreeSpecLike {
 
-    def checkEngineTests(getRuntime: => TestRuntimeAdapter[ChecksEngine.Context, ?]) = {
+    def checkEngineTests(getRuntime: => TestRuntimeAdapter[ChecksEngine.Context]) = {
 
       "re-run pending checks until complete" in new Fixture {
         val check: Check[Unit] { def runNum: Int } = new Check[Unit] {
@@ -61,13 +61,13 @@ object ChecksEngineTest {
         inside(wf.state) { case x: ChecksState.Pending =>
           assert(x.results == Map(check.key -> CheckResult.Pending()))
         }
-        clock.advanceBy(ChecksEngine.retryBackoff)
+        runtime.clock.advanceBy(ChecksEngine.retryBackoff)
         wf.run()
         assert(check.runNum == 2)
         inside(wf.state) { case x: ChecksState.Pending =>
           assert(x.results == Map(check.key -> CheckResult.Pending()))
         }
-        clock.advanceBy(ChecksEngine.retryBackoff)
+        runtime.clock.advanceBy(ChecksEngine.retryBackoff)
         wf.run()
         assert(wf.state == ChecksState.Decided(Map(check.key -> CheckResult.Approved()), Decision.ApprovedBySystem()))
 
@@ -81,7 +81,7 @@ object ChecksEngineTest {
         inside(wf.state) { case x: ChecksState.Pending =>
           assert(x.results == Map(check.key -> CheckResult.Pending()))
         }
-        clock.advanceBy(ChecksEngine.timeoutThreshold)
+        runtime.clock.advanceBy(ChecksEngine.timeoutThreshold)
         wf.run()
         assert(wf.state == ChecksState.Executed(Map(check.key -> CheckResult.TimedOut())))
         wf.review(ReviewDecision.Approve)
@@ -153,14 +153,12 @@ object ChecksEngineTest {
       }
 
       trait Fixture extends StrictLogging {
-        val clock   = new TestClock
         val runtime = getRuntime
 
         def createWorkflow(checks: List[Check[Unit]]) = {
           val wf = runtime.runWorkflow(
             ChecksEngine.runChecks.provideInput(ChecksInput((), checks)),
             null: ChecksState,
-            clock,
           )
           new ChecksActor(wf, checks)
         }

@@ -5,6 +5,7 @@ import cats.implicits.toFunctorOps
 import doobie.{ConnectionIO, *}
 import doobie.implicits.*
 import doobie.util.transactor.Transactor
+import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.runtime.registry.WorkflowRegistry
 import workflows4s.runtime.registry.WorkflowRegistry.ExecutionStatus
 
@@ -12,14 +13,10 @@ import java.time.{Clock, Instant}
 import java.sql.Timestamp
 import scala.concurrent.duration.FiniteDuration
 
-type WorkflowType = String
-
-trait PostgresWorkflowRegistry[WorkflowId] {
-
-  def getAgent(workflowType: WorkflowType): WorkflowRegistry.Agent[WorkflowId]
+trait PostgresWorkflowRegistry extends WorkflowRegistry.Agent {
 
   // returns all the workflows that were last seen as running and were not updated for at least `notUpdatedFor`
-  def getExecutingWorkflows(notUpdatedFor: FiniteDuration): fs2.Stream[ConnectionIO, (WorkflowType, WorkflowId)]
+  def getExecutingWorkflows(notUpdatedFor: FiniteDuration): fs2.Stream[ConnectionIO, WorkflowInstanceId]
 }
 
 object PostgresWorkflowRegistry {
@@ -27,28 +24,28 @@ object PostgresWorkflowRegistry {
       xa: Transactor[IO],
       tableName: String = "executing_workflows",
       clock: Clock = Clock.systemUTC(),
-  ): IO[PostgresWorkflowRegistry[WorkflowId]] = {
+  ): IO[PostgresWorkflowRegistry] = {
     IO(new Impl(tableName, xa, clock))
   }
 
-  class Impl(tableName: String, xa: Transactor[IO], clock: Clock) extends PostgresWorkflowRegistry[WorkflowId] {
+  class Impl(tableName: String, xa: Transactor[IO], clock: Clock) extends PostgresWorkflowRegistry {
 
     val tableNameFr = Fragment.const(tableName)
 
-    override def getAgent(workflowType: WorkflowType): WorkflowRegistry.Agent[WorkflowId] = (id: WorkflowId, executionStatus: ExecutionStatus) => {
+    override def upsertInstance(id: WorkflowInstanceId, executionStatus: ExecutionStatus): IO[Unit] = {
       val query = for {
         now <- Sync[ConnectionIO].delay(Instant.now(clock))
         _   <- executionStatus match {
                  case ExecutionStatus.Running                             =>
-                   sql"""INSERT INTO $tableNameFr (workflow_id, workflow_type, updated_at)
-                      |VALUES ($id, $workflowType, ${Timestamp.from(now)})
-                      |ON CONFLICT (workflow_id, workflow_type)
+                   sql"""INSERT INTO $tableNameFr (instance_id, template_id, updated_at)
+                      |VALUES (${id.instanceId}, ${id.templateId}, ${Timestamp.from(now)})
+                      |ON CONFLICT (instance_id, template_id)
                       |DO UPDATE SET updated_at = ${Timestamp.from(now)}
                       |WHERE $tableNameFr.updated_at <= ${Timestamp.from(now)}""".stripMargin.update.run.void
                  case ExecutionStatus.Finished | ExecutionStatus.Awaiting =>
                    sql"""DELETE FROM $tableNameFr
-                      |WHERE workflow_id = $id
-                      |  and workflow_type = $workflowType
+                      |WHERE instance_id = ${id.instanceId}
+                      |  and template_id = ${id.templateId}
                       |  and $tableNameFr.updated_at <= ${Timestamp.from(now)}""".stripMargin.update.run.void
                }
       } yield ()
@@ -56,16 +53,16 @@ object PostgresWorkflowRegistry {
       query.transact(xa)
     }
 
-    override def getExecutingWorkflows(notUpdatedFor: FiniteDuration): fs2.Stream[ConnectionIO, (WorkflowType, WorkflowId)] = {
+    override def getExecutingWorkflows(notUpdatedFor: FiniteDuration): fs2.Stream[ConnectionIO, WorkflowInstanceId] = {
       for {
         now       <- fs2.Stream.eval(Sync[ConnectionIO].delay(Instant.now(clock)))
         cutoffTime = now.minusMillis(notUpdatedFor.toMillis)
-        elem      <- sql"""SELECT workflow_type, workflow_id
+        elem      <- sql"""SELECT template_id, instance_id
                      |FROM ${tableNameFr}
                      |WHERE updated_at <= ${Timestamp.from(cutoffTime)}""".stripMargin
-                       .query[(WorkflowType, WorkflowId)]
+                       .query[(String, String)]
                        .stream
-      } yield elem
+      } yield WorkflowInstanceId(elem._1, elem._2)
     }
   }
 }

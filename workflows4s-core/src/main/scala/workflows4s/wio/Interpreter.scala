@@ -81,6 +81,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
   def onParallel[InterimState <: WCState[Ctx]](wio: WIO.Parallel[Ctx, In, Err, Out, InterimState]): Result
   def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): Result
   def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): Result
+  def onRetry(wio: WIO.Retry[Ctx, In, Err, Out]): Result
 
   @nowarn("msg=the type test for workflows4s.wio.WIO.Embedded")
   def run: Result = {
@@ -109,6 +110,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
       case x: WIO.Parallel[?, ?, ?, ? <: State, ? <: State]            => onParallel(x)
       case x: WIO.Checkpoint[?, ?, ?, ? <: State, ?]                   => onCheckpoint(x)
       case x: WIO.Recovery[?, ?, ?, ?, ?]                              => onRecovery(x)
+      case x: WIO.Retry[?, ?, ?, ?]                                    => onRetry(x)
     }
   }
 
@@ -131,6 +133,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
             wio.copy(inner = newWio),
             newWio.output.map(wio.embedding.convertState(_, input)),
             input,
+            newWio.index,
           ),
         )
       case WFExecution.Partial(newWio)  =>
@@ -151,7 +154,7 @@ object WFExecution {
 
   case class Partial[C <: WorkflowContext, I, E, O <: WCState[C]](wio: WIO[I, E, O, C]) extends WFExecution[C, I, E, O]
 
-  def complete[Ctx <: WorkflowContext, Err, Out <: WCState[Ctx], In](original: WIO[In, ?, ?, Ctx], output: Either[Err, Out], input: In) =
-    WFExecution.Complete(WIO.Executed(original, output, input))
+  def complete[Ctx <: WorkflowContext, Err, Out <: WCState[Ctx], In](original: WIO[In, ?, ?, Ctx], output: Either[Err, Out], input: In, index: Int) =
+    WFExecution.Complete(WIO.Executed(original, output, input, index))
 
 }

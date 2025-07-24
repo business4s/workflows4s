@@ -22,15 +22,18 @@ object Main extends IOApp {
       .flatTap(_ => Resource.make(IO.unit)(_ => IO(system.terminate())))
       .use(knockerUpper =>
         for {
-          journal                  <- setupJournal()
-          workflow                  = WithdrawalWorkflow(DummyWithdrawalService, ChecksEngine)
-          runtime                   =
+          journal <- setupJournal()
+          workflow = WithdrawalWorkflow(DummyWithdrawalService, ChecksEngine)
+          runtime  =
             PekkoRuntime.create[WithdrawalWorkflow.Context.Ctx](
               "withdrawal",
               workflow.workflowDeclarative,
               WithdrawalData.Empty,
               knockerUpper,
             )
+
+          _                        <- IO(runtime.initializeShard())
+          _                        <- knockerUpper.initialize(wokeup => IO.println(s"Woke up! $wokeup"))
           withdrawalWorkflowService = WithdrawalWorkflowService.Impl(journal, runtime)
           routes                    = HttpRoutes(withdrawalWorkflowService)
           _                        <- runHttpServer(routes)

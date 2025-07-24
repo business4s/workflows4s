@@ -19,10 +19,10 @@ object PekkoExample {
 
   // doc_start
   import MyWorkflowCtx.*
-  given IORuntime                                               = ???
-  given ActorSystem[?]                                          = ???
-  val knockerUpper: KnockerUpper.Agent[PekkoRuntime.WorkflowId] = ???
-  val workflow: WIO.Initial                                     = ???
+  given IORuntime                      = ???
+  given ActorSystem[?]                 = ???
+  val knockerUpper: KnockerUpper.Agent = ???
+  val workflow: WIO.Initial            = ???
 
   val runtime: PekkoRuntime[Ctx] = PekkoRuntime.create("my-workflow", workflow, InitialState(), knockerUpper)
 
