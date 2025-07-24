@@ -200,6 +200,11 @@ object WIO {
     )
   }
 
+  case class Retry[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]](
+      base: WIO[In, Err, Out, Ctx],
+      onError: (Throwable, WCState[Ctx], Instant) => IO[Option[Instant]],
+  ) extends WIO[In, Err, Out, Ctx]
+
   // -----
 
   def build[Ctx <: WorkflowContext]: AllBuilders[Ctx] = new AllBuilders[Ctx] {}
@@ -219,8 +224,12 @@ object WIO {
       Branch(_ => Some(branchIn), wio, name)
   }
 
-  case class Executed[Ctx <: WorkflowContext, +Err, +Out <: WCState[Ctx], In](original: WIO[In, ?, ?, Ctx], output: Either[Err, Out], input: In)
-      extends WIO[Any, Err, Out, Ctx] {
+  case class Executed[Ctx <: WorkflowContext, +Err, +Out <: WCState[Ctx], In](
+      original: WIO[In, ?, ?, Ctx],
+      output: Either[Err, Out],
+      input: In,
+      index: Int,
+  ) extends WIO[Any, Err, Out, Ctx] {
     def lastState(prevState: WCState[Ctx]): Option[WCState[Ctx]] = output match {
       case Left(_)      => GetStateEvaluator.extractLastState(original, input, prevState)
       case Right(value) => value.some

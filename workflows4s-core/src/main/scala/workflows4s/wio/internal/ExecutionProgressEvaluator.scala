@@ -5,6 +5,7 @@ import workflows4s.wio.WIO.Timer.DurationSource
 import workflows4s.wio.model.{WIOExecutionProgress, WIOMeta}
 import workflows4s.wio.*
 import workflows4s.wio.model.WIOExecutionProgress.Dynamic
+import workflows4s.wio.model.WIOExecutionProgress.ExecutedResult
 object ExecutionProgressEvaluator {
 
   def run[Ctx <: WorkflowContext, In](
@@ -89,7 +90,7 @@ object ExecutionProgressEvaluator {
       // We could express embedding in model but need a use case for it.
       val visitor = new ExecProgressVisitor(
         wio.inner,
-        this.result.flatMap(_.traverse(wio.embedding.unconvertState)),
+        this.result.flatMap(_.mapValue(wio.embedding.unconvertState)),
         lastSeenState.flatMap(wio.embedding.unconvertState),
         input,
       )
@@ -122,10 +123,14 @@ object ExecutionProgressEvaluator {
       result,
     )
 
-    def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result =
+    def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result                        =
       WIOExecutionProgress.Timer(WIOMeta.Timer(None, wio.resumeAt.some, None), result) // TODO persist duration and name
-    def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result   = recurse(wio.original, wio.input.some, wio.output.some)
-    def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result             = recurse(wio.original, wio.input.some, None)
+    def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result                          = {
+      val result = ExecutedResult(wio.output, wio.index).some
+      recurse(wio.original, wio.input.some, result)
+    }
+    def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result                                    = recurse(wio.original, wio.input.some, None)
+    override def onRetry(wio: WIO.Retry[Ctx, In, Err, Out]): WIOExecutionProgress[WCState[Ctx]] = recurse(wio.base, input)
 
     def onParallel[InterimState <: workflows4s.wio.WorkflowContext.State[Ctx]](wio: WIO.Parallel[Ctx, In, Err, Out, InterimState]): Result = {
       WIOExecutionProgress.Parallel(wio.elements.map(elem => recurse(elem.wio, input, result = None)), result)
@@ -143,7 +148,7 @@ object ExecutionProgressEvaluator {
         input: Option[I1],
         result: WIOExecutionProgress.ExecutionResult[WCState[Ctx]] = this.result,
     ): WIOExecutionProgress[WCState[Ctx]] = {
-      val state = result.flatMap(_.toOption).orElse(lastSeenState)
+      val state = result.flatMap(_.value.toOption).orElse(lastSeenState)
       new ExecProgressVisitor(wio, result, state, input).run
     }
 

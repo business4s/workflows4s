@@ -1,0 +1,56 @@
+# Retry Operations
+
+Retries enable workflows
+to automatically recover from transient technical failures by reattempting failed operations after a delay.
+
+## Error Types: Technical vs Business
+
+It's important to distinguish between:
+
+- **Technical errors** – Infrastructure-level problems like network timeouts or service unavailability. These are typically transient and can be retried.
+- **Business errors** – Domain-specific conditions like invalid input or failed validations. These require explicit handling and **should not be retried**.
+
+Use [error handling](/docs/operations/handle-errors) for managing business errors.
+
+## How Retry Works
+
+When the `WorkflowInstance#wakeup` is called and the underlying operation fails:
+
+- **Without retry**: the error is propagated to the caller.
+- **With retry**: the error is swallowed, and a future wakeup is registered within [`KnockerUpper`](/docs/runtimes/knocker-uppers/) based on retry logic.
+
+## Retry Strategies
+
+### 1. Simple Retry with Fixed Delay
+
+```scala file=./main/scala/workflows4s/example/docs/RetryExample.scala start=start_doc_simple end=end_doc_simple
+```
+
+### 2. Advanced Retry with Custom Logic
+
+```scala file=./main/scala/workflows4s/example/docs/RetryExample.scala start=start_doc_full end=end_doc_full
+```
+
+## Caveats
+
+### Retries Are Stateless
+
+Currently, Workflow-level retries are **stateless**—they don’t track attempt counts,
+elapsed time or any other information about executed retries.
+This means you can't directly express rules like:
+
+- "Retry at most 5 times"
+- "Stop after 1 day"
+- "Increase backoff time exponentially"
+
+To support such logic, you can:
+- Use custom persistent state to track retry metadata and query it in the retry handler.
+- Manually clear the scheduled wakeup time via the `KnockerUpper` to stop future retries.
+
+If you see it as a major limitation, please reach out.
+
+### Choose the Right Layer
+
+Use workflow-level retries for retry schedules spanning **minutes to hours or days**
+
+For short-lived retries (e.g., retrying within milliseconds or seconds), prefer handling them directly inside the `IO` operation using libraries like [`cats-retry`](https://github.com/cats-effect/cats-retry).

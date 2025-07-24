@@ -14,7 +14,7 @@ object ProceedEvaluator {
       state: WCState[Ctx],
       now: Instant,
   ): Response[Ctx] = {
-    val visitor: ProceedVisitor[Ctx, Any, Nothing, WCState[Ctx]] = new ProceedVisitor(wio, state, state, now)
+    val visitor: ProceedVisitor[Ctx, Any, Nothing, WCState[Ctx]] = new ProceedVisitor(wio, state, state, now, 0)
     Response(visitor.run.map(_.wio))
   }
 
@@ -25,7 +25,8 @@ object ProceedEvaluator {
       input: In,
       lastSeenState: WCState[Ctx],
       now: Instant,
-  ) extends ProceedingVisitor[Ctx, In, Err, Out](wio, input, lastSeenState) {
+      index: Int,
+  ) extends ProceedingVisitor[Ctx, In, Err, Out](wio, input, lastSeenState, index) {
 
     def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result = None
     def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result                               = None
@@ -34,13 +35,13 @@ object ProceedEvaluator {
     override def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): Result                = None
 
     def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result =
-      WFExecution.complete(wio, wio.value(input), input).some
+      WFExecution.complete(wio, wio.value(input), input, index).some
 
     def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_ <: WCState[InnerCtx]] <: WCState[Ctx]](
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
     ): Result = {
       val newState: WCState[InnerCtx] = wio.embedding.unconvertStateUnsafe(lastSeenState)
-      new ProceedVisitor(wio.inner, input, newState, now).run
+      new ProceedVisitor(wio.inner, input, newState, now, index).run
         .map(convertEmbeddingResult2(wio, _, input))
     }
 
@@ -48,8 +49,15 @@ object ProceedEvaluator {
       handleCheckpointBase(wio)
     }
 
-    def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], in: I1, state: WCState[Ctx]): Option[WFExecution[Ctx, I1, E1, O1]] =
-      new ProceedVisitor(wio, in, state, now).run
+    def recurse[I1, E1, O1 <: WCState[Ctx]](
+        wio: WIO[I1, E1, O1, Ctx],
+        in: I1,
+        state: WCState[Ctx],
+        index: Int,
+    ): Option[WFExecution[Ctx, I1, E1, O1]] = {
+      val nextIndex = Math.max(index, this.index) // handle parallel case
+      new ProceedVisitor(wio, in, state, now, nextIndex).run
+    }
 
   }
 

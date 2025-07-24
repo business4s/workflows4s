@@ -8,19 +8,17 @@ import org.apache.pekko.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity
 import org.apache.pekko.persistence.typed.PersistenceId
 import org.apache.pekko.util.Timeout
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
-import workflows4s.runtime.WorkflowInstance
 import workflows4s.runtime.registry.WorkflowRegistry
-import workflows4s.runtime.wakeup.NoOpKnockerUpper
+import workflows4s.runtime.{DelegateWorkflowInstance, MappedWorkflowInstance, WorkflowInstance, WorkflowInstanceId}
 import workflows4s.testing.TestRuntimeAdapter
 import workflows4s.wio.*
-import workflows4s.wio.model.WIOExecutionProgress
 
 import java.time.Clock
 import java.util.UUID
 import scala.concurrent.{Await, Future}
 
 class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(implicit actorSystem: ActorSystem[?])
-    extends TestRuntimeAdapter[Ctx, String]
+    extends TestRuntimeAdapter[Ctx]
     with StrictLogging {
 
   val sharding = ClusterSharding(actorSystem)
@@ -33,8 +31,7 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(impli
   override def runWorkflow(
       workflow: WIO.Initial[Ctx],
       state: WCState[Ctx],
-      clock: Clock,
-      registryAgent: WorkflowRegistry.Agent[String],
+      registryAgent: WorkflowRegistry.Agent,
   ): Actor = {
     // we create unique type key per workflow, so we can ensure we get right actor/behavior/input
     // with single shard region its tricky to inject input into behavior creation
@@ -67,37 +64,31 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(impli
     )
     val persistenceId = UUID.randomUUID().toString
     val entityRef     = sharding.entityRefFor(typeKey, persistenceId)
-    Actor(entityRef, clock, registryAgent.curried(persistenceId))
+    Actor(entityRef, clock, registryAgent)
   }
 
-  case class Actor(entityRef: EntityRef[Cmd], clock: Clock, registryAgent: WorkflowRegistry.Agent.Curried)
-      extends WorkflowInstance[Id, WCState[Ctx]] {
+  case class Actor(entityRef: EntityRef[Cmd], clock: Clock, registryAgent: WorkflowRegistry.Agent)
+      extends DelegateWorkflowInstance[Id, WCState[Ctx]] {
     val base =
-      PekkoWorkflowInstance(entityRef, NoOpKnockerUpper.Agent, clock, registryAgent, stateQueryTimeout = Timeout(1.second))
+      PekkoWorkflowInstance(
+        WorkflowInstanceId("", entityRef.entityId),
+        entityRef,
+        knockerUpper,
+        clock,
+        registryAgent,
+        stateQueryTimeout = Timeout(3.seconds),
+      )
 
-    override def queryState(): Id[WCState[Ctx]] = base.queryState().await
-
-    override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): Id[Either[WorkflowInstance.UnexpectedSignal, Resp]] = {
-      val resp = base.deliverSignal(signalDef, req).await
-      wakeup()
-      resp
-    }
-
-    override def getProgress: Id[WIOExecutionProgress[WCState[Ctx]]] = base.getProgress.await
-
-    override def wakeup(): Id[Unit] = base.wakeup().await
-
-    extension [T](f: Future[T]) {
-      def await: T = Await.result(f, 2.seconds)
-    }
+    val delegate: WorkflowInstance[Id, WCState[Ctx]]           = MappedWorkflowInstance(base, [t] => (x: Future[t]) => Await.result(x, 3.seconds))
+    override def getExpectedSignals: Id[List[SignalDef[?, ?]]] = delegate.getExpectedSignals
   }
 
   override def recover(first: Actor): Actor = {
-    given Timeout = Timeout(1.second)
+    given Timeout = Timeout(3.seconds)
 
     val isStopped = first.entityRef.ask(replyTo => Stop(replyTo))
-    Await.result(isStopped, 1.second)
-    Thread.sleep(100) // this is terrible but sometimes akka gives us already terminated actor if we ask for it too fast.
+    Await.result(isStopped, 3.seconds)
+    Thread.sleep(100) // this is terrible, but sometimes akka gives us an already terminated actor if we ask for it too fast.
     val entityRef = sharding.entityRefFor(first.entityRef.typeKey, first.entityRef.entityId)
     logger.debug(s"""Original Actor: ${first.entityRef}
                     |New Actor     : ${entityRef}""".stripMargin)

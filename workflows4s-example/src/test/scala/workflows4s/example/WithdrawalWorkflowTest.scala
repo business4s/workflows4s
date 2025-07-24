@@ -2,6 +2,7 @@ package workflows4s.example
 
 import cats.effect.IO
 import com.typesafe.scalalogging.StrictLogging
+import org.scalamock.handlers.CallHandler2
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.EitherValues.*
 import org.scalatest.Inside.inside
@@ -13,7 +14,11 @@ import workflows4s.example.withdrawal.*
 import workflows4s.example.withdrawal.WithdrawalService.{ExecutionResponse, Fee, Iban}
 import workflows4s.example.withdrawal.WithdrawalSignal.CreateWithdrawal
 import workflows4s.example.withdrawal.checks.*
-import workflows4s.testing.{TestClock, TestRuntimeAdapter}
+import workflows4s.testing.TestRuntimeAdapter
+
+import scala.annotation.unused
+import scala.concurrent.duration.*
+import scala.jdk.DurationConverters.JavaDurationOps
 
 //noinspection ForwardReference
 class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory with WithdrawalWorkflowTest.Suite {
@@ -45,7 +50,7 @@ object WithdrawalWorkflowTest {
 
   trait Suite extends AnyFreeSpecLike with MockFactory {
 
-    def withdrawalTests[WfId](getRuntime: => TestRuntimeAdapter[WithdrawalWorkflow.Context.Ctx, WfId]) = {
+    def withdrawalTests(getRuntime: => TestRuntimeAdapter[WithdrawalWorkflow.Context.Ctx]) = {
 
       "happy path" in new Fixture {
         assert(actor.queryData() == WithdrawalData.Empty)
@@ -170,10 +175,44 @@ object WithdrawalWorkflowTest {
 
       }
 
+      "retry execution" in new Fixture {
+        assert(actor.queryData() == WithdrawalData.Empty)
+
+        @unused
+        var retryCount          = 0
+        val executionInitiation = IO {
+          if retryCount == 0 then {
+            retryCount += 1
+            throw new RuntimeException("Failed to initiate execution")
+          } else {
+            ExecutionResponse.Accepted(externalId)
+          }
+        }
+
+        withFeeCalculation(fees)
+        withMoneyOnHold(success = true)
+        withNoChecks()
+        withExecutionInitiated(executionInitiation).anyNumberOfTimes()
+
+        actor.init(CreateWithdrawal(txId, amount, recipient))
+        assert(
+          actor.queryData() ==
+            WithdrawalData.Checked(txId, amount, recipient, fees, ChecksState.Decided(Map(), Decision.ApprovedBySystem())),
+        )
+        runtime.clock.advanceBy(WithdrawalWorkflow.executionRetryDelay.toScala)
+        runtime.clock.advanceBy(1.second)
+        runtime.executeDueWakup(actor.wf)
+        assert(
+          actor.queryData() ==
+            WithdrawalData.Executed(txId, amount, recipient, fees, ChecksState.Decided(Map(), Decision.ApprovedBySystem()), externalId),
+        )
+
+        checkRecovery()
+      }
+
       trait Fixture extends StrictLogging {
         val runtime = getRuntime
         val txId    = "abc"
-        val clock   = new TestClock
         val actor   = createActor()
 
         def checkRecovery() = {
@@ -192,7 +231,6 @@ object WithdrawalWorkflowTest {
             .runWorkflow(
               workflow,
               WithdrawalData.Empty,
-              clock,
             )
           val actor = new WithdrawalActor(wf)
           actor
@@ -215,10 +253,18 @@ object WithdrawalWorkflowTest {
         def withMoneyOnHold(success: Boolean) =
           (service.putMoneyOnHold).expects(*).returning(IO(Either.cond(success, (), WithdrawalService.NotEnoughFunds())))
 
-        def withExecutionInitiated(success: Boolean) =
+        def withExecutionInitiated(success: Boolean): Unit = {
+          withExecutionInitiated(
+            IO(if success then ExecutionResponse.Accepted(externalId) else ExecutionResponse.Rejected("Rejected by execution engine")),
+          )
+          ()
+        }
+
+        def withExecutionInitiated(result: IO[ExecutionResponse]): CallHandler2[BigDecimal, Iban, IO[ExecutionResponse]] = {
           (service.initiateExecution)
             .expects(*, *)
-            .returning(IO(if success then ExecutionResponse.Accepted(externalId) else ExecutionResponse.Rejected("Rejected by execution engine")))
+            .returning(result)
+        }
 
         def withFundsReleased() =
           (service.releaseFunds)
@@ -241,7 +287,6 @@ object WithdrawalWorkflowTest {
         class WithdrawalActor(val wf: runtime.Actor) {
           def init(req: CreateWithdrawal): Unit = {
             wf.deliverSignal(WithdrawalWorkflow.Signals.createWithdrawal, req).value
-            wf.wakeup()
           }
 
           def confirmExecution(req: WithdrawalSignal.ExecutionCompleted): Unit = {
