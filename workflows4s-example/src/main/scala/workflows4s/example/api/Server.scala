@@ -29,13 +29,13 @@ object Server extends IOApp.Simple {
 
   def run: IO[Unit] = {
     for {
-      dummyRt1 <- InMemoryRuntime.default[CourseRegistrationWorkflow.Context.Ctx, String](
+      dummyRt1 <- InMemoryRuntime.default[CourseRegistrationWorkflow.Context.Ctx](
                     workflow = CourseRegistrationWorkflow.workflow,
                     initialState = CourseRegistrationWorkflow.RegistrationState.Empty,
                     knockerUpper = NoOpKnockerUpper.Agent,
                   )
 
-      dummyRt2 <- InMemoryRuntime.default[PullRequestWorkflow.Context.Ctx, String](
+      dummyRt2 <- InMemoryRuntime.default[PullRequestWorkflow.Context.Ctx](
                     workflow = PullRequestWorkflow.workflow,
                     initialState = PullRequestWorkflow.PRState.Empty,
                     knockerUpper = NoOpKnockerUpper.Agent,
@@ -46,14 +46,12 @@ object Server extends IOApp.Simple {
                             id = "course-registration-v1",
                             name = "Course Registration",
                             runtime = dummyRt1,
-                            parseId = identity,
                             stateEncoder = courseRegistrationStateEncoder,
                           ),
                           WorkflowEntry(
                             id = "pull-request-v1",
                             name = "Pull Request",
                             runtime = dummyRt2,
-                            parseId = identity,
                             stateEncoder = prStateEncoder,
                           ),
                         )
