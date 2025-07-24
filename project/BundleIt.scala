@@ -20,8 +20,8 @@ object BundleIt {
     os.walk(sourceDir)
       .filter(os.isFile)
       .map { file =>
-        val targetPath = targetDir / file.last
-        os.copy.over(file, targetPath)
+        val targetPath = targetDir / file.relativeTo(sourceDir)
+        os.copy.over(file, targetPath, createFolders = true)
         targetPath.toIO
       }
       .toSet

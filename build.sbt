@@ -195,6 +195,12 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
     `workflows4s-web-ui-bundle`,
   )
   .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .settings(
+    Compile / discoveredMainClasses := Seq("workflows4s.example.api.ServerWithUI"),
+    dockerExposedPorts              := Seq(8081),
+    dockerBaseImage                 := "eclipse-temurin:21-jdk",
+  )
 
 lazy val commonSettings = Seq(
   scalaVersion      := "3.7.1",
@@ -240,3 +246,6 @@ ThisBuild / publishTo := {
 }
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
+
+// required for docker tags
+ThisBuild / dynverSeparator := "-"
