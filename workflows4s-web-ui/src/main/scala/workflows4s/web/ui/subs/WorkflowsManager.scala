@@ -4,10 +4,10 @@ import cats.effect.IO
 import sttp.client4.*
 import sttp.client4.circe.*
 import sttp.client4.impl.cats.FetchCatsBackend
-import tyrian.Html.*
 import tyrian.*
-import workflows4s.web.ui.models.WorkflowDefinition
+import tyrian.Html.*
 import workflows4s.web.ui.Msg as RootMsg
+import workflows4s.web.ui.models.WorkflowDefinition
 
 final case class WorkflowsManager(
     workflows: List[WorkflowDefinition],
@@ -87,7 +87,7 @@ object WorkflowsManager {
 
   object Http {
     private val backend = FetchCatsBackend[IO]()
-    private val baseUri = uri"http://localhost:8081/api/v1"
+    private val baseUri = uri"/api/v1"
 
     def loadWorkflows: Cmd[IO, Msg] = {
       val request = basicRequest

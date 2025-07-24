@@ -1,4 +1,4 @@
- package workflows4s.web.api.server
+package workflows4s.web.api.server
 
 import cats.effect.IO
 import cats.syntax.either.*
@@ -32,7 +32,7 @@ class WorkflowServerEndpoints(workflowService: WorkflowApiService) {
     WorkflowEndpoints.listDefinitions.serverLogic(_ => workflowService.listDefinitions().attempt.map(_.leftMap(_.getMessage))),
     WorkflowEndpoints.getDefinition.serverLogic(workflowId => workflowService.getDefinition(workflowId).attempt.map(_.leftMap(_.getMessage))),
     WorkflowEndpoints.getInstance.serverLogic((workflowId, instanceId) => {
-      if (instanceId.startsWith("test-instance-")) {
+      if instanceId.startsWith("test-instance-") then {
         IO.pure(createTestInstanceLogic(workflowId))
       } else {
         workflowService.getInstance(workflowId, instanceId).attempt.map(_.leftMap(_.getMessage))

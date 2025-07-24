@@ -1,5 +1,7 @@
 import org.typelevel.scalacoptions.ScalacOptions
 
+import scala.sys.process.Process
+
 lazy val `workflows4s` = (project in file("."))
   .settings(commonSettings)
   .aggregate(
@@ -11,7 +13,8 @@ lazy val `workflows4s` = (project in file("."))
     `workflows4s-filesystem`,
     `workflows4s-quartz`,
     `workflows4s-web-ui`,
-    `workflows4s-web-api-shared`,   
+    `workflows4s-web-ui-bundle`,
+    `workflows4s-web-api-shared`,
     `workflows4s-web-api-server`,
   )
 
@@ -87,6 +90,78 @@ lazy val `workflows4s-quartz` = (project in file("workflows4s-quartz"))
   )
   .dependsOn(`workflows4s-core` % "compile->compile;test->test")
 
+lazy val `workflows4s-web-api-shared` = (project in file("workflows4s-web-api-shared"))
+  .settings(commonSettings)
+  .settings(
+    libraryDependencies ++= Seq(
+      "com.softwaremill.sttp.tapir" %% "tapir-core"       % tapirVersion,
+      "com.softwaremill.sttp.tapir" %% "tapir-json-circe" % tapirVersion,
+      "io.circe"                    %% "circe-core"       % circeVersion,
+      "io.circe"                    %% "circe-generic"    % circeVersion,
+    ),
+    publish / skip := true,
+  )
+
+lazy val `workflows4s-web-api-server` = (project in file("workflows4s-web-api-server"))
+  .settings(commonSettings)
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.http4s"                  %% "http4s-ember-server" % "0.23.23",
+      "org.http4s"                  %% "http4s-dsl"          % "0.23.23",
+      "com.softwaremill.sttp.tapir" %% "tapir-http4s-server" % tapirVersion,
+      "com.softwaremill.sttp.tapir" %% "tapir-json-circe"    % tapirVersion,
+      "io.circe"                    %% "circe-generic"       % circeVersion,
+      "io.circe"                    %% "circe-parser"        % circeVersion,
+    ),
+  )
+  .dependsOn(
+    `workflows4s-core`,
+    `workflows4s-web-api-shared`,
+  )
+lazy val `workflows4s-web-ui`         = (project in file("workflows4s-web-ui"))
+  .enablePlugins(ScalaJSPlugin)
+  .settings(commonSettings)
+  .settings(
+    libraryDependencies ++= Seq(
+      "io.indigoengine"               %%% "tyrian-io"     % "0.14.0",
+      "io.circe"                      %%% "circe-core"    % "0.14.6",
+      "io.circe"                      %%% "circe-generic" % "0.14.6",
+      "io.circe"                      %%% "circe-parser"  % "0.14.6",
+      "com.softwaremill.sttp.client4" %%% "core"          % "4.0.0-M16",
+      "com.softwaremill.sttp.client4" %%% "cats"          % "4.0.0-M16",
+      "com.softwaremill.sttp.client4" %%% "circe"         % "4.0.0-M16",
+    ),
+    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
+    publish / skip := true,
+  )
+  .dependsOn(`workflows4s-core`)
+
+lazy val `workflows4s-web-ui-bundle` = (project in file("workflows4s-web-ui-bundle"))
+  .settings(commonSettings)
+  .settings(
+    name                := "workflows4s-web-ui-bundle",
+    (Compile / compile) := ((Compile / compile) dependsOn (`workflows4s-web-ui` / Compile / fullLinkJS)).value,
+    Compile / resourceGenerators += Def.taskDyn {
+      val log      = streams.value.log
+      val cacheDir = streams.value.cacheDirectory / "webui-bundleit-cache"
+
+      val jsFileTask = (`workflows4s-web-ui` / Compile / fullLinkJSOutput).map(_ / "main.js")
+
+      jsFileTask.map { jsFile =>
+        val cached = FileFunction.cached(cacheDir, FilesInfo.hash) { _ =>
+          log.info("Bundling webui due to source change or missing output.")
+
+          BundleIt.bundle(
+            from = (`workflows4s-web-ui` / baseDirectory).value,
+            to = (Compile / resourceManaged).value,
+          )
+        }
+
+        cached(Set(jsFile)).toSeq
+      }
+    },
+  )
+
 lazy val `workflows4s-example` = (project in file("workflows4s-example"))
   .settings(commonSettings)
   .settings(
@@ -116,55 +191,19 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
     `workflows4s-doobie` % "compile->compile;test->test",
     `workflows4s-filesystem`,
     `workflows4s-quartz`,
-    `workflows4s-web-api-server` 
-
+    `workflows4s-web-api-server`,
+    `workflows4s-web-ui-bundle`,
   )
-
- lazy val `workflows4s-web-api-shared` = (project in file("workflows4s-web-api-shared"))
-  .settings(commonSettings)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
   .settings(
-    libraryDependencies ++= Seq(
-      "com.softwaremill.sttp.tapir" %% "tapir-core" % tapirVersion,
-      "com.softwaremill.sttp.tapir" %% "tapir-json-circe" % tapirVersion,
-      "io.circe" %% "circe-core" % circeVersion,
-      "io.circe" %% "circe-generic" % circeVersion
-    ),
-    publish / skip := true
+    Compile / discoveredMainClasses := Seq("workflows4s.example.api.ServerWithUI"),
+    dockerExposedPorts              := Seq(8081),
+    dockerBaseImage                 := "eclipse-temurin:21-jdk",
+    dockerUpdateLatest              := true,
+    dockerBuildOptions ++= Seq("--platform=linux/amd64"),
   )
 
-lazy val `workflows4s-web-api-server` = (project in file("workflows4s-web-api-server"))
-  .settings(commonSettings)
-  .settings(
-    libraryDependencies ++= Seq(
-      "org.http4s" %% "http4s-ember-server" % "0.23.23",
-      "org.http4s" %% "http4s-dsl" % "0.23.23",
-      "com.softwaremill.sttp.tapir" %% "tapir-http4s-server" % tapirVersion,
-      "com.softwaremill.sttp.tapir" %% "tapir-json-circe" % tapirVersion,
-      "io.circe" %% "circe-generic" % circeVersion,
-      "io.circe" %% "circe-parser" % circeVersion
-    )
-  )
-  .dependsOn(
-    `workflows4s-core`,
-    `workflows4s-web-api-shared`
-  )
- lazy val `workflows4s-web-ui` = (project in file("workflows4s-web-ui"))
-  .enablePlugins(ScalaJSPlugin)
-  .settings(commonSettings)
-  .settings(
-    libraryDependencies ++= Seq(
-      "io.indigoengine" %%% "tyrian-io" % "0.14.0",
-      "io.circe" %%% "circe-core" % "0.14.6",
-      "io.circe" %%% "circe-generic" % "0.14.6", 
-      "io.circe" %%% "circe-parser" % "0.14.6",
-      "com.softwaremill.sttp.client4" %%% "core" % "4.0.0-M16",
-      "com.softwaremill.sttp.client4" %%% "cats" % "4.0.0-M16",
-      "com.softwaremill.sttp.client4" %%% "circe" % "4.0.0-M16",
-    ),
-    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
-    publish / skip := true,
-  )
-  .dependsOn(`workflows4s-core`)
 lazy val commonSettings = Seq(
   scalaVersion      := "3.7.1",
   scalacOptions ++= Seq("-no-indent", "-Xmax-inlines", "64", "-explain-cyclic", "-Ydebug-cyclic"),
@@ -191,13 +230,12 @@ lazy val commonSettings = Seq(
 lazy val pekkoVersion               = "1.1.5"
 lazy val pekkoHttpVersion           = "1.2.0"
 lazy val testcontainersScalaVersion = "0.43.0"
-lazy val tapirVersion = "1.11.29"
+lazy val tapirVersion               = "1.11.29"
 lazy val circeVersion               = "0.14.13"
 
 addCommandAlias("prePR", List("compile", "Test / compile", "test", "scalafmtCheckAll").mkString(";", ";", ""))
 
 lazy val stableVersion = taskKey[String]("stableVersion")
-
 stableVersion := {
   if (isVersionStable.value && !isSnapshot.value) version.value
   else previousStableVersion.value.getOrElse("unreleased")
@@ -208,3 +246,8 @@ ThisBuild / publishTo := {
   if (isSnapshot.value) Some("central-snapshots" at centralSnapshots)
   else localStaging.value
 }
+
+Global / onChangedBuildSource := ReloadOnSourceChanges
+
+// required for docker tags
+ThisBuild / dynverSeparator := "-"
