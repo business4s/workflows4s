@@ -3,7 +3,8 @@
     "name" : "Do Things With Error",
     "error" : {
       "name" : "My Error"
-    }
+    },
+    "description" : null
   },
   "_type" : "RunIO"
 }

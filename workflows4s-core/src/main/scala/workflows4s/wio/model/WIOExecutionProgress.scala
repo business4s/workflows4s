@@ -136,6 +136,20 @@ object WIOExecutionProgress {
     override def map[NewState](f: State => Option[NewState]): Recovery[NewState] =
       Recovery(result.flatMap(_.mapValue(f)))
   }
+  case class Retried[State](base: WIOExecutionProgress[State])                                    extends WIOExecutionProgress[State] {
+    override def result: ExecutionResult[State]                                 = base.result
+    override lazy val toModel: WIOModel.Retried                                 = WIOModel.Retried(base.toModel)
+    override def map[NewState](f: State => Option[NewState]): Retried[NewState] = Retried(base.map(f))
+  }
+  case class ForEach[State, ElemId, ElemState](
+      result: ExecutionResult[State],
+      forEach: WIOModel,
+      subProgresses: Map[ElemId, WIOExecutionProgress[ElemState]],
+      meta: WIOMeta.ForEach,
+  ) extends WIOExecutionProgress[State] {
+    override lazy val toModel: WIOModel.ForEach                                                    = WIOModel.ForEach(forEach, meta)
+    override def map[NewState](f: State => Option[NewState]): ForEach[NewState, ElemId, ElemState] = this.copy(result.flatMap(_.mapValue(f)))
+  }
 
   def fromModel(model: WIOModel): WIOExecutionProgress[Nothing]                                               = model match {
     case x: WIOModel.Interruption                       => fromModelInterruption(x)
@@ -150,6 +164,8 @@ object WIOExecutionProgress {
     case WIOModel.Parallel(elems)                       => Parallel(elems.map(fromModel), None)
     case WIOModel.Checkpoint(base)                      => Checkpoint(fromModel(base), None)
     case WIOModel.Recovery()                            => Recovery(None)
+    case WIOModel.Retried(base)                         => Retried(fromModel(base))
+    case WIOModel.ForEach(forEach, meta)                => ForEach(None, forEach, Map.empty, meta)
     case WIOModel.Interruptible(base, trigger, handler) =>
       Interruptible(fromModel(base), fromModelInterruption(trigger), handler.map(fromModel), None)
   }

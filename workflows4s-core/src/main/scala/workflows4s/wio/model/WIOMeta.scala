@@ -11,7 +11,7 @@ object WIOMeta {
   case class Dynamic(error: Option[Error]) derives Codec
   case class Pure(name: Option[String], error: Option[WIOMeta.Error]) derives Codec
   case class Timer(duration: Option[Duration], releaseAt: Option[Instant], name: Option[String]) derives Codec
-  case class RunIO(name: Option[String], error: Option[WIOMeta.Error]) derives Codec
+  case class RunIO(name: Option[String], error: Option[WIOMeta.Error], description: Option[String]) derives Codec
   case class HandleSignal(signalName: String, operationName: Option[String], error: Option[WIOMeta.Error]) derives Codec
   case class Loop(
       conditionName: Option[String],
@@ -20,6 +20,7 @@ object WIOMeta {
   ) derives Codec
   case class Fork(name: Option[String], branches: Vector[Branch]) derives Codec
   case class HandleError(newErrorMeta: Option[WIOMeta.Error], handledErrorMeta: Option[WIOMeta.Error]) derives Codec
+  case class ForEach(name: Option[String]) derives Codec
 
   case class Error(name: String) derives Codec
   case class Branch(name: Option[String]) derives Codec

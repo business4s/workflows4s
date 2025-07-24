@@ -1,4 +1,6 @@
-# Retry Operations
+import OperationOutputs from '@site/src/components/OperationOutputs';
+
+# Retrying Operations
 
 Retries enable workflows
 to automatically recover from transient technical failures by reattempting failed operations after a delay.
@@ -25,6 +27,8 @@ When the `WorkflowInstance#wakeup` is called and the underlying operation fails:
 
 ```scala file=./main/scala/workflows4s/example/docs/RetryExample.scala start=start_doc_simple end=end_doc_simple
 ```
+
+<OperationOutputs name="retry"/>
 
 ### 2. Advanced Retry with Custom Logic
 

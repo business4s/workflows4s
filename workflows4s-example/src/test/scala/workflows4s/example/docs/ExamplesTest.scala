@@ -3,30 +3,47 @@ package workflows4s.example.docs
 import org.scalatest.freespec.AnyFreeSpec
 import workflows4s.example.TestUtils
 import workflows4s.example.docs.pullrequest.{PullRequestWorkflow, PullRequestWorkflowDraft}
+import workflows4s.wio.WIO
+
+case class ExampleConfig(name: String, workflow: WIO[?, ?, ?, ?], technical: Boolean = false)
 
 class ExamplesTest extends AnyFreeSpec {
 
-  "render" in {
-    TestUtils.renderDocsExample(RunIOExample.doThings, "run-io")
-    TestUtils.renderDocsExample(RunIOExample.doThingsWithError, "run-io-error")
-    TestUtils.renderDocsExample(TimerExample.waitForInput, "timer")
-    TestUtils.renderDocsExample(HandleSignalExample.doThings, "handle-signal")
-    TestUtils.renderDocsExample(SequencingExample.sequence1, "and-then")
-    TestUtils.renderDocsExample(SequencingExample.Dynamic.sequence1, "flat-map")
-    TestUtils.renderDocsExample(HandleErrorExample.errorHandled, "handle-error-with")
-    TestUtils.renderDocsExample(LoopExample.Simple.loop, "simple-loop")
-    TestUtils.renderDocsExample(LoopExample.loop, "loop")
-    TestUtils.renderDocsExample(ForkExample.fork, "fork")
-    TestUtils.renderDocsExample(ParallelExample.parallel, "parallel")
-    TestUtils.renderDocsExample(InterruptionExample.interruptedThroughSignal, "interruption-signal")
-    TestUtils.renderDocsExample(CheckpointExample.checkpoint.checkpointed, "checkpoint", technical = true)
-    TestUtils.renderDocsExample(CheckpointExample.recovery.myWorkflow, "recovery", technical = true)
-    TestUtils.renderDocsExample(PureExample.doThings, "pure")
-    TestUtils.renderDocsExample(PureExample.doThingsWithError, "pure-error")
-    TestUtils.renderDocsExample(PullRequestWorkflowDraft.workflow, "pull-request-draft")
-    TestUtils.renderDocsExample(PullRequestWorkflow.workflow, "pull-request")
+  private val examples = List(
+    ExampleConfig("run-io", RunIOExample.doThings),
+    ExampleConfig("run-io-error", RunIOExample.doThingsWithError),
+    ExampleConfig("run-io-description", RunIOExample.doThingsWithDescription),
+    ExampleConfig("timer", TimerExample.waitForInput),
+    ExampleConfig("handle-signal", HandleSignalExample.doThings),
+    ExampleConfig("and-then", SequencingExample.sequence1),
+    ExampleConfig("flat-map", SequencingExample.Dynamic.sequence1),
+    ExampleConfig("handle-error-with", HandleErrorExample.errorHandled),
+    ExampleConfig("simple-loop", LoopExample.Simple.loop),
+    ExampleConfig("loop", LoopExample.loop),
+    ExampleConfig("fork", ForkExample.fork),
+    ExampleConfig("parallel", ParallelExample.parallel),
+    ExampleConfig("interruption-signal", InterruptionExample.interruptedThroughSignal),
+    ExampleConfig("checkpoint", CheckpointExample.checkpoint.checkpointed, technical = true),
+    ExampleConfig("recovery", CheckpointExample.recovery.myWorkflow, technical = true),
+    ExampleConfig("pure", PureExample.doThings),
+    ExampleConfig("pure-error", PureExample.doThingsWithError),
+    ExampleConfig("pull-request-draft", PullRequestWorkflowDraft.workflow),
+    ExampleConfig("pull-request", PullRequestWorkflow.workflow),
+    ExampleConfig("for-each-draft", ForEachExample.draft.forEachDraft),
+    ExampleConfig("for-each", ForEachExample.real.forEachStep),
+    ExampleConfig("retry", RetryExample.withRetry),
+  )
 
-    TestUtils.renderDebugToFile(PullRequestWorkflow.workflow.toProgress, "docs/pull-request.debug.txt")
+  "examples" - {
+    examples.foreach { config =>
+      config.name in {
+        TestUtils.renderDocsExample(config.workflow, config.name, technical = config.technical)
+      }
+    }
+
+    "debug output" in {
+      TestUtils.renderDebugToFile(PullRequestWorkflow.workflow.toProgress, "docs/pull-request.debug.txt")
+    }
   }
 
   "render progress" in {

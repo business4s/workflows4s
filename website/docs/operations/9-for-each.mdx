@@ -1,0 +1,66 @@
+---
+sidebar_position: 9.1
+---
+import OperationOutputs from '@site/src/components/OperationOutputs';
+
+# Iterating Over Elements
+
+The `forEach` operation enables workflows to process collections of elements by executing a sub-workflow for each element in parallel[^parallel-note].
+This is useful for any scenario where you need to apply the same workflow logic to multiple items.
+
+[^parallel-note]: Here, "parallel" means that timers and signals are processed concurrently in the workflow engine. However, this is not thread-level parallelism—no true multi-threading or asynchronous execution is involved.
+
+The ForEach operation takes a collection of elements and embeds a sub-workflow execution for each element.
+The ForEach step completes when all sub-workflows have finished.
+
+## Usage Example
+
+This element is one of the most complicated ones and requires you to configure quite a lot of various aspects:
+
+```scala file=./main/scala/workflows4s/example/docs/ForEachExample.scala start=real_start end=real_end
+```
+
+<OperationOutputs name="for-each"/>
+
+
+### Draft Mode
+
+For quick prototyping, you can use the draft API:
+
+```scala file=./main/scala/workflows4s/example/docs/ForEachExample.scala start=draft_start end=draft_end
+```
+
+<OperationOutputs name="for-each-draft"/>
+
+## Signals
+
+ForEach operations support signal routing so that they can be sent to a specific element's sub-workflow.
+This is exposed through `SignalRouter` abstraction which is split into two parts:
+
+* `SignalRouter.Receiver` required when building the `WIO.ForEach`
+* `SignalRouter.Sender` required to send the signal
+
+Typically, both are exposed by the same object.
+
+### Signal Router Types
+
+#### SimpleSignalRouter
+
+User `SimpleSignalRouter` when you have direct access to an element on the sender side.
+
+```scala file=./main/scala/workflows4s/example/docs/ForEachExample.scala start=signal_simple_start end=signal_simple_end
+```
+
+#### BasicSignalRouter
+
+For more complex routing scenarios, you can extend `BasicSignalRouter` to extract elements from sub-workflow state using custom keys:
+
+```scala file=./main/scala/workflows4s/example/docs/ForEachExample.scala start=signal_basic_start end=signal_basic_end
+```
+
+## Considerations
+
+* **Concurrency** - All element sub-workflows run concurrently by default. Consider the resource implications when processing large collections.
+* **Error Handling** - If any element sub-workflow fails, the entire ForEach operation fails. Use appropriate error handling within your element workflows for resilience.
+* **State Accumulation** - The interim state mechanism allows you to collect and aggregate results as sub-workflows progress, rather than waiting for all to finish before processing results.
+
