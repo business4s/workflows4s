@@ -3,11 +3,13 @@ package workflows4s.web.api.service
 import workflows4s.web.api.model.*
 import cats.effect.IO
 import io.circe.Json
+import workflows4s.wio.model.WIOExecutionProgress
 
 trait WorkflowApiService {
   def listDefinitions(): IO[List[WorkflowDefinition]]
   def getDefinition(id: String): IO[WorkflowDefinition]
   def getInstance(definitionId: String, instanceId: String): IO[WorkflowInstance]
+  def getProgress(definitionId: String, instanceId: String): IO[WIOExecutionProgress[String]]
 }
 
 class MockWorkflowApiService extends WorkflowApiService {
@@ -40,10 +42,12 @@ class MockWorkflowApiService extends WorkflowApiService {
 
   def getInstance(definitionId: String, instanceId: String): IO[WorkflowInstance] = {
     for {
-      _        <- IO.fromOption(mockDefinitions.find(_.id == definitionId))(new Exception(s"Definition not found: $definitionId"))
-      instance <- IO.fromOption(mockInstances.find(i => i.id == instanceId && i.definitionId == definitionId))(
-                    new Exception(s"Instance not found: $instanceId"),
-                  )
+      _ <- getDefinition(definitionId)
+      instance <- IO.fromOption(mockInstances.find(_.id == instanceId))(new Exception(s"Instance not found: $instanceId"))
     } yield instance
   }
+
+  override def getProgress(definitionId: String, instanceId: String): IO[WIOExecutionProgress[String]] =
+    IO.raiseError(new NotImplementedError("getProgress is not implemented for MockWorkflowApiService"))
+
 }
