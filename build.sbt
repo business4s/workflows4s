@@ -200,6 +200,8 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
     Compile / discoveredMainClasses := Seq("workflows4s.example.api.ServerWithUI"),
     dockerExposedPorts              := Seq(8081),
     dockerBaseImage                 := "eclipse-temurin:21-jdk",
+    dockerUpdateLatest              := true,
+    dockerBuildOptions ++= Seq("--platform=linux/amd64"),
   )
 
 lazy val commonSettings = Seq(
