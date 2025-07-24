@@ -102,7 +102,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
   private def calculateFees: WIO[WithdrawalData.Initiated, Nothing, WithdrawalData.Validated] = WIO
     .runIO[WithdrawalData.Initiated](state => service.calculateFees(state.amount).map(WithdrawalEvent.FeeSet.apply))
     .handleEvent { (state, event) => state.validated(event.fee) }
-    .autoNamed
+    .autoNamed()
 
   private def putFundsOnHold: WIO[WithdrawalData.Validated, WithdrawalRejection.NotEnoughFunds, WithdrawalData.Validated] =
     WIO
@@ -120,7 +120,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
           case MoneyLocked.NotEnoughFunds() => WithdrawalRejection.NotEnoughFunds().asLeft
         }
       }
-      .autoNamed
+      .autoNamed()
 
   private def runChecks: WIO[WithdrawalData.Validated, WithdrawalRejection.RejectedInChecks, WithdrawalData.Checked] = {
     val doRunChecks: WIO[WithdrawalData.Validated, Nothing, WithdrawalData.Checked] =
@@ -159,7 +159,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
           case ExecutionResponse.Rejected(error)      => Left(WithdrawalRejection.RejectedByExecutionEngine(error))
         },
       )
-      .autoNamed
+      .autoNamed()
       .retryIn(_ => WithdrawalWorkflow.executionRetryDelay)
 
   private def awaitExecutionCompletion: WIO[WithdrawalData.Executed, WithdrawalRejection.RejectedByExecutionEngine, WithdrawalData.Executed] =
@@ -180,7 +180,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
     WIO
       .runIO[WithdrawalData.Executed](st => service.releaseFunds(st.amount).as(WithdrawalEvent.MoneyReleased()))
       .handleEvent((st, _) => st.completed())
-      .autoNamed
+      .autoNamed()
 
   private def cancelFundsIfNeeded: WIO[(WithdrawalData, WithdrawalRejection), Nothing, WithdrawalData.Completed.Failed] = {
     WIO
@@ -196,7 +196,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
         }
       })
       .handleEvent((_: (WithdrawalData, WithdrawalRejection), evt) => WithdrawalData.Completed.Failed(evt.error))
-      .autoNamed
+      .autoNamed()
   }
 
   private def handleCancellation = {

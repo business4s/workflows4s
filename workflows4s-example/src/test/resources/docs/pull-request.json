@@ -16,7 +16,8 @@
           "name" : "Run Pipeline",
           "error" : {
             "name" : "Pipeline Failed"
-          }
+          },
+          "description" : null
         },
         "_type" : "RunIO"
       },

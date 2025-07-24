@@ -58,7 +58,14 @@ Workflows4s currently supports onyl cats-effect IO. If you're interested in othe
 <OperationOutputs name="run-io-error"/>
 
 ::::note
-
 Errors render in flowchart only when they are handled
-
 ::::
+
+### With Description
+
+You can add descriptions to RunIO operations to provide additional context in diagrams and documentation:
+
+```scala file=./main/scala/workflows4s/example/docs/RunIOExample.scala start=start_withDescription end=end_withDescription
+```
+
+<OperationOutputs name="run-io-description"/>

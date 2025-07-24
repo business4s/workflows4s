@@ -38,23 +38,18 @@ private[workflows4s] object GetSignalDefsEvaluator {
     ): Result = GetSignalDefsEvaluator.run(wio.inner)
     override def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result   =
       wio.first.asExecuted match {
-        case Some(first) =>
-          recurse(wio.second)
-        case None        =>
-          recurse(wio.first)
+        case Some(_) => recurse(wio.second)
+        case None    => recurse(wio.first)
       }
 
     override def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result                 =
       wio.base.asExecuted match {
         case Some(baseExecuted) =>
           baseExecuted.output match {
-            case Left(err) =>
-              recurse(wio.handleError)
-            case Right(_)  => Nil
+            case Left(_)  => recurse(wio.handleError)
+            case Right(_) => Nil
           }
-
-        case None =>
-          recurse(wio.base)
+        case None               => recurse(wio.base)
       }
 
     override def onLoop[BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx], ReturnIn](
@@ -65,11 +60,21 @@ private[workflows4s] object GetSignalDefsEvaluator {
     override def onParallel[InterimState <: WCState[Ctx]](wio: WIO.Parallel[Ctx, In, Err, Out, InterimState]): Result =
       wio.elements.flatMap(elem => recurse(elem.wio)).toList
 
-    def onRetry(wio: WIO.Retry[Ctx, In, Err, Out]): Result = {
-      recurse(wio.base)
+    def onRetry(wio: WIO.Retry[Ctx, In, Err, Out]): Result = recurse(wio.base)
+
+    override def onForEach[ElemId, InnerCtx <: WorkflowContext, ElemOut <: WCState[InnerCtx], InterimState <: WCState[Ctx]](
+        wio: WIO.ForEach[Ctx, In, Err, Out, ElemId, InnerCtx, ElemOut, InterimState],
+    ): List[SignalDef[?, ?]] = {
+      wio.stateOpt
+        .getOrElse(Map())
+        .flatMap(x => GetSignalDefsVisitor(x._2).run)
+        .toList
+        .distinct
+        .map(wio.signalRouter.outerSignalDef)
     }
 
     def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx]): List[SignalDef[?, ?]] =
       new GetSignalDefsVisitor(wio).run
+
   }
 }

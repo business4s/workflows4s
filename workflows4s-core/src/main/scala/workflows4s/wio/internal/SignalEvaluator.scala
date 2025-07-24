@@ -144,6 +144,18 @@ object SignalEvaluator {
 
     override def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): Result = recurse(wio.base, input)
 
+    override def onForEach[ElemId, InnerCtx <: WorkflowContext, ElemOut <: WCState[InnerCtx], InterimState <: WCState[Ctx]](
+        wio: WIO.ForEach[Ctx, In, Err, Out, ElemId, InnerCtx, ElemOut, InterimState],
+    ): Option[IO[(WCEvent[Ctx], Resp)]] = {
+      for {
+        unwrapped <- wio.signalRouter.unwrap(signalDef, req, wio.interimState(input))
+        elemWioOpt = wio.state(input).get(unwrapped.elem)
+        _          = if elemWioOpt.isEmpty then logger.warn(s"Tried to deliver a signal to an unrecognized element ${unwrapped.elem}")
+        elemWio   <- elemWioOpt
+        result    <- SignalVisitor(elemWio, unwrapped.sigDef, unwrapped.req, (), wio.initialElemState()).run
+      } yield result.map(x => wio.eventEmbedding.convertEvent(unwrapped.elem, x._1) -> x._2)
+    }
+
     def recurse[I1, E1, O1 <: WCState[Ctx]](
         wio: WIO[I1, E1, O1, Ctx],
         in: I1,
@@ -152,4 +164,5 @@ object SignalEvaluator {
       new SignalVisitor(wio, signalDef, req, in, state).run
 
   }
+
 }

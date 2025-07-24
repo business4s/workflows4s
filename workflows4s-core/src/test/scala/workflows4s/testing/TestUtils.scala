@@ -13,7 +13,7 @@ import scala.util.Random
 
 class TestRuntime {
   val clock        = TestClock()
-  val knockerUpper = FakeKnockerUpper()
+  val knockerUpper = RecordingKnockerUpper()
 
   def createInstance(wio: WIO[TestState, Nothing, TestState, TestCtx2.Ctx]): InMemorySyncWorkflowInstance[TestCtx2.Ctx] = {
     import cats.effect.unsafe.implicits.global
@@ -105,7 +105,7 @@ object TestUtils {
     class SigEvent(val req: Int) extends TestCtx2.Event with Serializable {
       override def toString: String = s"SigEvent(${req})"
     }
-    val stepId = StepId.random
+    val stepId = StepId.random.prefixedWith("sig-step")
     val wio = WIO
       .handleSignal(signalDef)
       .using[TestState]

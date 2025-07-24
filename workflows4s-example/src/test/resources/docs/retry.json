@@ -1,0 +1,10 @@
+{
+  "base" : {
+    "meta" : {
+      "name" : "Do Something",
+      "error" : null
+    },
+    "_type" : "Pure"
+  },
+  "_type" : "Retried"
+}

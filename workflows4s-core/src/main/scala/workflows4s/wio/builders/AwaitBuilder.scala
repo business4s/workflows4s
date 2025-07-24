@@ -48,12 +48,12 @@ object AwaitBuilder {
         def persistReleaseThrough[Evt <: WCEvent[Ctx]](
             incorporate: WIO.Timer.Released => Evt,
         )(extractReleaseTime: Evt => Instant)(using ct: ClassTag[Evt]): Step3 = {
-          val evtHanlder: EventHandler[InOut, Either[Nothing, InOut], WCEvent[Ctx], Timer.Released] = EventHandler(
+          val evtHandler: EventHandler[InOut, Either[Nothing, InOut], WCEvent[Ctx], Timer.Released] = EventHandler(
             ct.unapply.andThen(_.map(x => Timer.Released(extractReleaseTime(x)))),
             incorporate,
             (in, _) => Right(in),
           )
-          Step3(evtHanlder)
+          Step3(evtHandler)
         }
 
         case class Step3(
@@ -61,9 +61,9 @@ object AwaitBuilder {
             private val name: Option[String] = None,
         ) {
 
-          def named(timerName: String): WIO[InOut, Nothing, InOut, Ctx] = this.copy(name = Some(timerName)).done
+          def named(timerName: String): WIO.Timer[Ctx, InOut, Nothing, InOut] = this.copy(name = Some(timerName)).done
 
-          def autoNamed(using name: sourcecode.Name): WIO[InOut, Nothing, InOut, Ctx] =
+          def autoNamed(using name: sourcecode.Name): WIO.Timer[Ctx, InOut, Nothing, InOut] =
             this.copy(name = Some(ModelUtils.prettifyName(name.value))).done
 
           def done: WIO.Timer[Ctx, InOut, Nothing, InOut] = WIO.Timer(durationSource, startedEventHandler, name, releasedEventHandler)

@@ -6,6 +6,7 @@ import workflows4s.wio.WIO.HandleInterruption.InterruptionType
 import workflows4s.wio.WIO.Timer.DurationSource
 import workflows4s.wio.builders.AllBuilders
 import workflows4s.wio.internal.{EventHandler, GetStateEvaluator, SignalHandler, WorkflowEmbedding}
+import workflows4s.wio.model.WIOMeta
 
 import java.time.{Duration, Instant}
 import scala.language.implicitConversions
@@ -44,7 +45,7 @@ object WIO {
   ) extends WIO[In, Err, Out, Ctx]
 
   object RunIO {
-    case class Meta(error: ErrorMeta[?], name: Option[String])
+    case class Meta(error: ErrorMeta[?], name: Option[String], description: Option[String])
   }
 
   case class Pure[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]](
@@ -205,25 +206,6 @@ object WIO {
       onError: (Throwable, WCState[Ctx], Instant) => IO[Option[Instant]],
   ) extends WIO[In, Err, Out, Ctx]
 
-  // -----
-
-  def build[Ctx <: WorkflowContext]: AllBuilders[Ctx] = new AllBuilders[Ctx] {}
-
-  case class Branch[-In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext, BranchIn](
-      condition: In => Option[BranchIn],
-      wio: WIO[BranchIn, Err, Out, Ctx],
-      name: Option[String],
-  )
-
-  object Branch {
-    def selected[Err, Out <: WCState[Ctx], Ctx <: WorkflowContext, BranchIn](
-        branchIn: BranchIn,
-        wio: WIO[BranchIn, Err, Out, Ctx],
-        name: Option[String],
-    ): Branch[Any, Err, Out, Ctx, BranchIn] =
-      Branch(_ => Some(branchIn), wio, name)
-  }
-
   case class Executed[Ctx <: WorkflowContext, +Err, +Out <: WCState[Ctx], In](
       original: WIO[In, ?, ?, Ctx],
       output: Either[Err, Out],
@@ -262,5 +244,57 @@ object WIO {
   case class Recovery[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx], Evt](
       eventHandler: EventHandler[In, Out, WCEvent[Ctx], Evt],
   ) extends WIO[In, Err, Out, Ctx]
+
+  case class ForEach[
+      Ctx <: WorkflowContext,
+      -In,
+      +Err,
+      +Out <: WCState[Ctx],
+      Elem,
+      InnerCtx <: WorkflowContext,
+      ElemOut <: WCState[InnerCtx],
+      InterimState <: WCState[Ctx],
+  ](
+      getElements: In => Set[Elem],
+      elemWorkflow: WIO[Elem, Err, ElemOut, InnerCtx],
+      initialElemState: () => WCState[InnerCtx],
+      eventEmbedding: WorkflowEmbedding.Event[(Elem, WCEvent[InnerCtx]), WCEvent[Ctx]],
+      initialInterimState: In => InterimState,
+      incorporatePartial: (Elem, WCState[InnerCtx], InterimState) => InterimState,
+      buildOutput: (In, Map[Elem, ElemOut]) => Out,
+      stateOpt: Option[Map[Elem, WIO[Any, Err, ElemOut, InnerCtx]]],
+      signalRouter: SignalRouter.Receiver[Elem, InterimState],
+      meta: WIOMeta.ForEach,
+  ) extends WIO[In, Err, Out, Ctx] {
+    def state(input: In): Map[Elem, WIO[Any, Err, ElemOut, InnerCtx]] =
+      stateOpt.getOrElse(getElements(input).map(elemId => elemId -> elemWorkflow.provideInput(elemId)).toMap)
+
+    def interimState(input: In) = {
+      val initialElemState = this.initialElemState()
+      state(input)
+        .foldLeft(initialInterimState(input))({ case (interim, (elemId, elemState)) =>
+          incorporatePartial(elemId, GetStateEvaluator.extractLastState(elemState, (), initialElemState).getOrElse(initialElemState), interim)
+        })
+    }
+  }
+
+  // -----
+
+  def build[Ctx <: WorkflowContext]: AllBuilders[Ctx] = new AllBuilders[Ctx] {}
+
+  case class Branch[-In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext, BranchIn](
+      condition: In => Option[BranchIn],
+      wio: WIO[BranchIn, Err, Out, Ctx],
+      name: Option[String],
+  )
+
+  object Branch {
+    def selected[Err, Out <: WCState[Ctx], Ctx <: WorkflowContext, BranchIn](
+        branchIn: BranchIn,
+        wio: WIO[BranchIn, Err, Out, Ctx],
+        name: Option[String],
+    ): Branch[Any, Err, Out, Ctx, BranchIn] =
+      Branch(_ => Some(branchIn), wio, name)
+  }
 
 }

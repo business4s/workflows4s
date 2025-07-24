@@ -48,6 +48,22 @@ object ProceedEvaluator {
     override def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): Option[NewWf] = {
       handleCheckpointBase(wio)
     }
+    override def onForEach[ElemId, InnerCtx <: WorkflowContext, ElemOut <: WCState[InnerCtx], InterimState <: WCState[Ctx]](
+        wio: WIO.ForEach[Ctx, In, Err, Out, ElemId, InnerCtx, ElemOut, InterimState],
+    ): Option[NewWf] = {
+      val state            = wio.state(input)
+      val maxIndex: Int    = GetIndexEvaluator.findMaxIndex(wio).getOrElse(index)
+      def completeEmpty    = WFExecution.complete(wio, Right(wio.buildOutput(input, Map())), input, maxIndex + 1)
+      def updateChild      = {
+        val updatedElem = state.toList.collectFirstSome((elemId, elemWio) => {
+          new ProceedVisitor(elemWio, input, wio.initialElemState(), now, maxIndex).run.tupleLeft(elemId)
+        })
+        updatedElem.map(newWf => convertForEachResult(wio, newWf._2, input, newWf._1))
+      }
+      def updateEmptyState = Option.when(wio.stateOpt.isEmpty)(WFExecution.Partial(wio.copy(stateOpt = Some(state))))
+      if state.isEmpty then Some(completeEmpty)
+      else updateChild.orElse(updateEmptyState)
+    }
 
     def recurse[I1, E1, O1 <: WCState[Ctx]](
         wio: WIO[I1, E1, O1, Ctx],
