@@ -4,6 +4,7 @@
 .vscode
 .metals
 .bloop
+.scala-build
 
 # sbt
 target
@@ -12,6 +13,7 @@ project/metals.sbt
 # JS
 dist
 node_modules
+.vite
 
 # Misc
 /pr.bpmn
