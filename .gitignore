@@ -1,17 +1,18 @@
-# IDE files
+# IDE files / BSP / LSP caches
 .idea
 .bsp
+.vscode
+.metals
+.bloop
+
+# sbt
 target
-/pr.bpmn
-node_modules
-.aider*
-.metals/
-.bloop/
 project/metals.sbt
-.vscode/package-lock.json
-**/package-lock.json
-# Scala.js generated files
-workflows4s-web-ui/src/main.js
-workflows4s-web-ui/src/main.js.map
-**/target/
-**/*.js.map
+
+# JS
+dist
+node_modules
+
+# Misc
+/pr.bpmn
+.aider*

@@ -137,25 +137,27 @@ lazy val `workflows4s-web-ui`         = (project in file("workflows4s-web-ui"))
 lazy val `workflows4s-web-ui-bundle` = (project in file("workflows4s-web-ui-bundle"))
   .settings(commonSettings)
   .settings(
-    name := "workflows4s-web-ui-bundle",
-    Compile / resourceGenerators += Def.task {
-      val distDir   = (`workflows4s-web-ui` / baseDirectory).value
-      val viteBuild = Process("npm run build", distDir).!
-      if (viteBuild != 0) sys.error("Vite build failed")
+    name                := "workflows4s-web-ui-bundle",
+    (Compile / compile) := ((Compile / compile) dependsOn (`workflows4s-web-ui` / Compile / fullLinkJS)).value,
+    Compile / resourceGenerators += Def.taskDyn {
+      val log      = streams.value.log
+      val cacheDir = streams.value.cacheDirectory / "webui-bundleit-cache"
 
-      val sourceDir = distDir / "dist"
-      val targetDir = (Compile / resourceManaged).value / "workflows4s-web-ui-bundle"
-      val files     = (sourceDir ** "*").get.filter(_.isFile)
+      val jsFileTask = (`workflows4s-web-ui` / Compile / fullLinkJSOutput).map(_ / "main.js")
 
-      val copied = files.map { file =>
-        val relativePath = file.relativeTo(sourceDir).get.getPath
-        val targetFile   = targetDir / relativePath
-        IO.copyFile(file, targetFile)
-        targetFile
+      jsFileTask.map { jsFile =>
+        val cached = FileFunction.cached(cacheDir, FilesInfo.hash) { _ =>
+          log.info("Bundling webui due to source change or missing output.")
+
+          BundleIt.bundle(
+            from = (`workflows4s-web-ui` / baseDirectory).value,
+            to = (Compile / resourceManaged).value,
+          )
+        }
+
+        cached(Set(jsFile)).toSeq
       }
-
-      copied
-    }.taskValue,
+    },
   )
 
 lazy val `workflows4s-example` = (project in file("workflows4s-example"))
@@ -223,7 +225,6 @@ lazy val circeVersion               = "0.14.13"
 addCommandAlias("prePR", List("compile", "Test / compile", "test", "scalafmtCheckAll").mkString(";", ";", ""))
 
 lazy val stableVersion = taskKey[String]("stableVersion")
-
 stableVersion := {
   if (isVersionStable.value && !isSnapshot.value) version.value
   else previousStableVersion.value.getOrElse("unreleased")
@@ -234,3 +235,5 @@ ThisBuild / publishTo := {
   if (isSnapshot.value) Some("central-snapshots" at centralSnapshots)
   else localStaging.value
 }
+
+Global / onChangedBuildSource := ReloadOnSourceChanges
