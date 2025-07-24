@@ -14,9 +14,12 @@ object TestCtx extends WorkflowContext {
   given Conversion[String, SimpleEvent] = SimpleEvent.apply
 }
 
-opaque type StepId = String
+opaque type StepId <: String = String
 object StepId {
   def random: StepId = scala.util.Random.alphanumeric.take(8).mkString
+  extension (s: StepId) {
+    def prefixedWith(prefix: String): StepId = s"${prefix}:${s}"
+  }
 }
 
 case class TestState(executed: List[StepId], errors: List[String] = List()) {
@@ -24,6 +27,8 @@ case class TestState(executed: List[StepId], errors: List[String] = List()) {
   def addError(err: String): TestState   = this.copy(errors = this.errors.appended(err))
 
   def ++(other: TestState): TestState = TestState(this.executed ++ other.executed, this.errors ++ other.errors)
+
+  def prefixWith(prefix: String): TestState = TestState(this.executed.map(_.prefixedWith(prefix)), this.errors.map(x => s"$prefix:$x"))
 }
 
 object TestState {

@@ -6,9 +6,10 @@ import workflows4s.runtime.WorkflowRuntime
 import workflows4s.web.api.model.*
 import workflows4s.wio.WorkflowContext
 import workflows4s.wio.model.WIOExecutionProgress
+import workflows4s.wio.model.WIOExecutionProgress.ExecutedResult
 
 class RealWorkflowService(
-    workflowEntries: List[RealWorkflowService.WorkflowEntry[?, ?]],
+    workflowEntries: List[RealWorkflowService.WorkflowEntry[?]],
 ) extends WorkflowApiService {
 
   def listDefinitions(): IO[List[WorkflowDefinition]] = {
@@ -38,18 +39,17 @@ class RealWorkflowService(
 
   private def progressToStatus(progress: WIOExecutionProgress[?]): InstanceStatus =
     progress.result match {
-      case Some(Right(_)) => InstanceStatus.Completed
-      case Some(Left(_))  => InstanceStatus.Failed
-      case None           => InstanceStatus.Running
+      case Some(ExecutedResult(Right(_), _)) => InstanceStatus.Completed
+      case Some(ExecutedResult(Left(_), _))  => InstanceStatus.Failed
+      case None                              => InstanceStatus.Running
     }
 
   private def getRealInstance[WorkflowId, Ctx <: WorkflowContext](
-      entry: RealWorkflowService.WorkflowEntry[WorkflowId, Ctx],
+      entry: RealWorkflowService.WorkflowEntry[Ctx],
       instanceId: String,
   ): IO[WorkflowInstance] = {
-    val parsedId = entry.parseId(instanceId)
     for {
-      workflowInstance <- entry.runtime.createInstance(parsedId)
+      workflowInstance <- entry.runtime.createInstance(instanceId)
       currentState     <- workflowInstance.queryState()
       progress         <- workflowInstance.getProgress
     } yield WorkflowInstance(
@@ -62,11 +62,10 @@ class RealWorkflowService(
 }
 
 object RealWorkflowService {
-  case class WorkflowEntry[WorkflowId, Ctx <: WorkflowContext](
+  case class WorkflowEntry[Ctx <: WorkflowContext](
       id: String,
       name: String,
-      runtime: WorkflowRuntime[IO, Ctx, WorkflowId],
-      parseId: String => WorkflowId,
+      runtime: WorkflowRuntime[IO, Ctx],
       stateEncoder: Encoder[workflows4s.wio.WCState[Ctx]],
   )
 }

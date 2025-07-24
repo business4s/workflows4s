@@ -11,7 +11,7 @@ import workflows4s.wio.*
 // Adapt various runtimes to a single interface for tests
 trait TestRuntimeAdapter[Ctx <: WorkflowContext] extends StrictLogging {
 
-  protected val knockerUpper = FakeKnockerUpper()
+  protected val knockerUpper = RecordingKnockerUpper()
   val clock: TestClock       = TestClock()
 
   type Actor <: WorkflowInstance[Id, WCState[Ctx]]

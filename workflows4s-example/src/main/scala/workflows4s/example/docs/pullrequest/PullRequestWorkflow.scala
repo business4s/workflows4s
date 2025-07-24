@@ -81,7 +81,7 @@ object PullRequestWorkflow {
         if evt.pipelineResults.contains("error") then Left(PRError.PipelineFailed)
         else Right(PRState.Checked(in.commit, evt.pipelineResults)),
       )
-      .autoNamed
+      .autoNamed()
 
   val processReview: WIO[PRState.Checked, PRError.ReviewRejected.type, PRState.Reviewed] =
     WIO
