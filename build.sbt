@@ -136,10 +136,19 @@ lazy val `workflows4s-web-ui`         = (project in file("workflows4s-web-ui"))
   )
   .dependsOn(`workflows4s-core`)
 
-lazy val `workflows4s-web-ui-bundle` = (project in file("workflows4s-web-ui-bundle"))
+ lazy val `workflows4s-web-ui-bundle` = (project in file("workflows4s-web-ui-bundle"))
   .settings(commonSettings)
   .settings(
     name                := "workflows4s-web-ui-bundle",
+    libraryDependencies ++= Seq(
+      "com.softwaremill.sttp.tapir" %% "tapir-files"         % tapirVersion,
+      "com.softwaremill.sttp.tapir" %% "tapir-http4s-server" % tapirVersion,
+      "org.http4s"                  %% "http4s-core"         % "0.23.23",
+      "org.typelevel"               %% "cats-effect"         % "3.6.2",
+        "org.http4s" %% "http4s-dsl" % "0.23.30",
+
+
+    ),
     (Compile / compile) := ((Compile / compile) dependsOn (`workflows4s-web-ui` / Compile / fullLinkJS)).value,
     Compile / resourceGenerators += Def.taskDyn {
       val log      = streams.value.log
@@ -193,6 +202,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
     `workflows4s-quartz`,
     `workflows4s-web-api-server`,
     `workflows4s-web-ui-bundle`,
+    `workflows4s-web-ui`,
   )
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
