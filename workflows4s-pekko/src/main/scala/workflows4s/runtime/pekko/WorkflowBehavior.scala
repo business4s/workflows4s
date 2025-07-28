@@ -54,7 +54,7 @@ object WorkflowBehavior {
     case class Reply[Ctx <: WorkflowContext, T](replyTo: ActorRef[T], msg: T, unlock: Boolean) extends Command[Ctx]
     case class Persist[Ctx <: WorkflowContext](event: WCEvent[Ctx], reply: Reply[Ctx, ?])      extends Command[Ctx]
     case class NoOp[Ctx <: WorkflowContext]()                                                  extends Command[Ctx]
-    case class Multiple[Ctx <: WorkflowContext](cmds: List[Command[Ctx]])                      extends Command[Ctx]
+    case class FollowupWakeup[Ctx <: WorkflowContext](replyTo: ActorRef[StatusReply[Unit]])    extends Command[Ctx]
   }
 
   final case class State[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx])
@@ -96,7 +96,8 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
         cmd match {
           case Command.QueryState(replyTo)         => Effect.reply(replyTo)(state.workflow.liveState)
           case x: Command.DeliverSignal[Ctx, ?, ?] => handleDeliverSignal(x, processingState, actorContext)
-          case x: Command.Wakeup[Ctx]              => handleWakeup(x, processingState, actorContext)
+          case x: Command.Wakeup[Ctx]              => handleWakeup(x.replyTo, processingState, actorContext, honorLock = true)
+          case x: Command.FollowupWakeup[Ctx]      => handleWakeup(x.replyTo, processingState, actorContext, honorLock = false)
           case x: Command.GetProgress[Ctx]         => Effect.reply(x.replyTo)(state.workflow.progress)
           case x: Command.GetExpectedSignals[Ctx]  => Effect.reply(x.replyTo)(state.workflow.expectedSignals)
           case x: Command.Reply[Ctx, ?]            =>
@@ -115,17 +116,17 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
                     logger.error("Error when running onStateChange hook", exception)
                     x.reply
                   case Success(cmds)      =>
-                    val other = cmds.toList.map({ case PostExecCommand.WakeUp =>
-                      Command.Wakeup[Ctx](createErrorLoggingReplyActor(actorContext))
+                    // almost works but lock kicks in and doesnt allow to wake up
+                    val responder = actorContext.spawnAnonymous(replyOnWakeupComplete(x.reply))
+                    val other     = cmds.toList.map({ case PostExecCommand.WakeUp =>
+                      Command.FollowupWakeup[Ctx](responder)
                     })
-                    Command.Multiple(other :+ x.reply)
+                    if other.size == 1 then other.head
+                    else if other.isEmpty then x.reply
+                    else ??? // Should never happen
                 })
               })
           case _: Command.NoOp[Ctx]                => Effect.none
-          case x: Command.Multiple[Ctx]            =>
-            Effect
-              .none[Event, St]
-              .thenRun(_ => x.cmds.foreach(actorContext.self ! _))
         }
       },
       eventHandler = handleEvent,
@@ -156,18 +157,20 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
       x => x._1.some,
     )
   }
-  private def handleWakeup[Req, Resp](
-      cmd: Command.Wakeup[Ctx],
+  private def handleWakeup(
+      replyTo: ActorRef[StatusReply[Unit]],
       processingState: AtomicReference[ProcessingState],
       actorContext: ActorContext[Command[Ctx]],
+      honorLock: Boolean,
   ): Effect[Event, St] = {
     changeStateAsync[Either[Instant, WCEvent[Ctx]], Unit](
       processingState,
       actorContext,
       state => engine.triggerWakeup(state.workflow),
-      cmd.replyTo,
+      replyTo,
       _ => (),
       x => x.toOption,
+      honorLock = honorLock,
     )
   }
 
@@ -178,10 +181,11 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
       replyTo: ActorRef[StatusReply[Resp]],
       formResponse: Option[T] => Resp,
       getEvent: T => Option[Event],
+      honorLock: Boolean = true,
   ): Effect[Event, St] = {
     processingState.get() match {
-      case ProcessingState.Locked(_) => Effect.stash()
-      case ProcessingState.Free      =>
+      case ProcessingState.Locked(_) if honorLock           => Effect.stash()
+      case ProcessingState.Free | ProcessingState.Locked(_) =>
         import cats.effect.unsafe.implicits.global
         Effect
           .none[Event, St]
@@ -210,14 +214,15 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
 
   }
 
-  def createErrorLoggingReplyActor(context: ActorContext[?]): ActorRef[StatusReply[Unit]] = {
-    context.spawnAnonymous(Behaviors.receiveMessage[StatusReply[Unit]] {
-      case StatusReply.Success(_) => Behaviors.stopped
-
+  private def replyOnWakeupComplete(reply: Command.Reply[Ctx, ?]): Behaviors.Receive[StatusReply[Unit]] =
+    Behaviors.receiveMessage[StatusReply[Unit]] {
+      case StatusReply.Success(_)   =>
+        reply.replyTo ! reply.msg
+        Behaviors.stopped
       case StatusReply.Error(error) =>
         logger.error("Received error from post-exec wakeup: {}", error)
+        reply.replyTo ! reply.msg
         Behaviors.stopped
-    })
-  }
+    }
 
 }

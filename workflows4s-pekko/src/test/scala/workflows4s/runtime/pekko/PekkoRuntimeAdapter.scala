@@ -39,7 +39,7 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(impli
     val _             = sharding.init(
       Entity(typeKey)(createBehavior = entityContext => {
         val persistenceId = PersistenceId(entityContext.entityTypeKey.name, entityContext.entityId)
-        val instanceId = WorkflowInstanceId("test", persistenceId.entityId)
+        val instanceId = WorkflowInstanceId(persistenceId.entityTypeHint, persistenceId.entityId)
         val base          = WorkflowBehavior(instanceId, persistenceId, workflow, state, engine)
         Behaviors.intercept[Cmd, RawCmd](() =>
           new BehaviorInterceptor[Cmd, RawCmd]() {
@@ -70,7 +70,7 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(impli
       extends DelegateWorkflowInstance[Id, WCState[Ctx]] {
     val base =
       PekkoWorkflowInstance(
-        WorkflowInstanceId("", entityRef.entityId),
+        WorkflowInstanceId(entityRef.typeKey.name, entityRef.entityId),
         entityRef,
         queryTimeout = Timeout(3.seconds)
       )

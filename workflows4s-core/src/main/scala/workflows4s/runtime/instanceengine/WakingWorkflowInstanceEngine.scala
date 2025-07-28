@@ -37,11 +37,12 @@ class WakingWorkflowInstanceEngine(protected val delegate: WorkflowInstanceEngin
   }
 
   private def updateWakeup(workflow: ActiveWorkflow[?], time: Option[Instant]) = {
-    knockerUpper
-      .updateWakeup(workflow.id, time)
-      .handleError(err => {
-        logger.error("Failed to register wakeup", err)
-      })
+    IO(logger.debug(s"Registering wakeup for ${workflow.id} at $time")).void *>
+      knockerUpper
+        .updateWakeup(workflow.id, time)
+        .handleError(err => {
+          logger.error("Failed to register wakeup", err)
+        })
   }
 
 }
