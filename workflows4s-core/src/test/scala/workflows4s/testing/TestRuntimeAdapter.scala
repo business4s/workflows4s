@@ -3,23 +3,34 @@ package workflows4s.testing
 import cats.Id
 import cats.effect.IO
 import cats.effect.unsafe.IORuntime
+import cats.effect.unsafe.implicits.global
 import com.typesafe.scalalogging.StrictLogging
-import workflows4s.runtime.registry.{NoOpWorkflowRegistry, WorkflowRegistry}
 import workflows4s.runtime.*
+import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
+import workflows4s.runtime.registry.InMemoryWorkflowRegistry
 import workflows4s.wio.*
+
 
 // Adapt various runtimes to a single interface for tests
 trait TestRuntimeAdapter[Ctx <: WorkflowContext] extends StrictLogging {
 
-  protected val knockerUpper = RecordingKnockerUpper()
-  val clock: TestClock       = TestClock()
+  protected val knockerUpper             = RecordingKnockerUpper()
+  val clock: TestClock                   = TestClock()
+  val registry: InMemoryWorkflowRegistry = InMemoryWorkflowRegistry(clock).unsafeRunSync()
+
+  val engine: WorkflowInstanceEngine = WorkflowInstanceEngine.builder
+    .withJavaTime(clock)
+    .withWakeUps(knockerUpper)
+    .withRegistering(registry)
+    .withGreedyEvaluation
+    .withLogging
+    .get
 
   type Actor <: WorkflowInstance[Id, WCState[Ctx]]
 
   def runWorkflow(
       workflow: WIO[Any, Nothing, WCState[Ctx], Ctx],
       state: WCState[Ctx],
-      registryAgent: WorkflowRegistry.Agent = NoOpWorkflowRegistry.Agent,
   ): Actor
 
   def recover(first: Actor): Actor
@@ -44,9 +55,8 @@ object TestRuntimeAdapter {
     override def runWorkflow(
         workflow: WIO.Initial[Ctx],
         state: WCState[Ctx],
-        registryAgent: WorkflowRegistry.Agent,
     ): Actor = {
-      val runtime = new InMemorySyncRuntime[Ctx](workflow, state, clock, knockerUpper, registryAgent, "test")(using IORuntime.global)
+      val runtime = new InMemorySyncRuntime[Ctx](workflow, state, engine, "test")(using IORuntime.global)
       Actor(List(), runtime)
     }
 
@@ -67,14 +77,12 @@ object TestRuntimeAdapter {
   }
 
   case class InMemory[Ctx <: WorkflowContext]() extends TestRuntimeAdapter[Ctx] {
-    import cats.effect.unsafe.implicits.global
 
     override def runWorkflow(
         workflow: WIO.Initial[Ctx],
         state: WCState[Ctx],
-        registryAgent: WorkflowRegistry.Agent,
     ): Actor = {
-      val runtime = InMemoryRuntime.default[Ctx](workflow, state, knockerUpper, clock, registryAgent).unsafeRunSync()
+      val runtime = InMemoryRuntime.default[Ctx](workflow, state, engine).unsafeRunSync()
       Actor(List(), runtime)
     }
 

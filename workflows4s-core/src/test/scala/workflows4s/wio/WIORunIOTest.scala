@@ -49,7 +49,7 @@ class WIORunIOTest extends AnyFreeSpec with Matchers with EitherValues {
         .done
         .toWorkflow("initialState")
 
-      val Some(result) = wf.handleEvent("my-event", Instant.now): @unchecked
+      val Some(result) = wf.handleEvent("my-event"): @unchecked
 
       assert(result.staticState == "SuccessHandled(initialState, SimpleEvent(my-event))")
     }
@@ -60,7 +60,7 @@ class WIORunIOTest extends AnyFreeSpec with Matchers with EitherValues {
         .done
         .toWorkflow("initialState")
 
-      val resultOpt = wf.handleSignal(SignalDef[String, String]())("", Instant.now)
+      val resultOpt = wf.handleSignal(SignalDef[String, String]())("")
 
       assert(resultOpt.isEmpty)
     }

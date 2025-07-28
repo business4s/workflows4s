@@ -8,7 +8,6 @@ import org.apache.pekko.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity
 import org.apache.pekko.persistence.typed.PersistenceId
 import org.apache.pekko.util.Timeout
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
-import workflows4s.runtime.registry.WorkflowRegistry
 import workflows4s.runtime.{DelegateWorkflowInstance, MappedWorkflowInstance, WorkflowInstance, WorkflowInstanceId}
 import workflows4s.testing.TestRuntimeAdapter
 import workflows4s.wio.*
@@ -31,7 +30,6 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(impli
   override def runWorkflow(
       workflow: WIO.Initial[Ctx],
       state: WCState[Ctx],
-      registryAgent: WorkflowRegistry.Agent,
   ): Actor = {
     // we create unique type key per workflow, so we can ensure we get right actor/behavior/input
     // with single shard region its tricky to inject input into behavior creation
@@ -41,7 +39,8 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(impli
     val _             = sharding.init(
       Entity(typeKey)(createBehavior = entityContext => {
         val persistenceId = PersistenceId(entityContext.entityTypeKey.name, entityContext.entityId)
-        val base          = WorkflowBehavior(persistenceId, workflow, state, clock)
+        val instanceId = WorkflowInstanceId("test", persistenceId.entityId)
+        val base          = WorkflowBehavior(instanceId, persistenceId, workflow, state, engine)
         Behaviors.intercept[Cmd, RawCmd](() =>
           new BehaviorInterceptor[Cmd, RawCmd]() {
             override def aroundReceive(
@@ -64,19 +63,16 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(impli
     )
     val persistenceId = UUID.randomUUID().toString
     val entityRef     = sharding.entityRefFor(typeKey, persistenceId)
-    Actor(entityRef, clock, registryAgent)
+    Actor(entityRef, clock)
   }
 
-  case class Actor(entityRef: EntityRef[Cmd], clock: Clock, registryAgent: WorkflowRegistry.Agent)
+  case class Actor(entityRef: EntityRef[Cmd], clock: Clock)
       extends DelegateWorkflowInstance[Id, WCState[Ctx]] {
     val base =
       PekkoWorkflowInstance(
         WorkflowInstanceId("", entityRef.entityId),
         entityRef,
-        knockerUpper,
-        clock,
-        registryAgent,
-        stateQueryTimeout = Timeout(3.seconds),
+        queryTimeout = Timeout(3.seconds)
       )
 
     val delegate: WorkflowInstance[Id, WCState[Ctx]]           = MappedWorkflowInstance(base, [t] => (x: Future[t]) => Await.result(x, 3.seconds))
@@ -92,6 +88,6 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(impli
     val entityRef = sharding.entityRefFor(first.entityRef.typeKey, first.entityRef.entityId)
     logger.debug(s"""Original Actor: ${first.entityRef}
                     |New Actor     : ${entityRef}""".stripMargin)
-    Actor(entityRef, first.clock, first.registryAgent)
+    Actor(entityRef, first.clock)
   }
 }

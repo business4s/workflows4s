@@ -1,7 +1,7 @@
 package workflows4s.runtime
 
 import org.scalatest.freespec.AnyFreeSpec
-import workflows4s.runtime.wakeup.NoOpKnockerUpper
+import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 
 class InMemorySyncRuntimeTest extends AnyFreeSpec {
 
@@ -11,10 +11,10 @@ class InMemorySyncRuntimeTest extends AnyFreeSpec {
 
     "should return the same workflow instance for the same id" in {
       val workflow: WIO.Initial = WIO.pure("myValue").done
-      val runtime               = InMemorySyncRuntime.default[Ctx](
+      val runtime               = InMemorySyncRuntime.create[Ctx](
         workflow = workflow,
         initialState = "initialState",
-        knockerUpperAgent = NoOpKnockerUpper.Agent,
+        engine = WorkflowInstanceEngine.basic,
       )
 
       val instance1 = runtime.createInstance("id1")

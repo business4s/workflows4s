@@ -17,7 +17,7 @@ class WIOPureTest extends AnyFreeSpec with Matchers {
     "state" in {
       val wf: ActiveWorkflow[Ctx] = WIO.pure("myValue").done.toWorkflow("initialState")
 
-      val state = wf.liveState(Instant.now)
+      val state = wf.liveState
 
       assert(state == "myValue")
     }
@@ -33,7 +33,7 @@ class WIOPureTest extends AnyFreeSpec with Matchers {
     "event handling no-op" in {
       val wf: ActiveWorkflow[Ctx] = WIO.pure("myValue").done.toWorkflow("initialState")
 
-      val resultOpt = wf.handleEvent("my-event", Instant.now)
+      val resultOpt = wf.handleEvent("my-event")
 
       assert(resultOpt.isEmpty)
     }
@@ -41,7 +41,7 @@ class WIOPureTest extends AnyFreeSpec with Matchers {
     "handle signal no-op" in {
       val wf: ActiveWorkflow[Ctx] = WIO.pure("initialState").done.toWorkflow("initialState")
 
-      val resultOpt = wf.handleSignal(SignalDef[String, String]())("", Instant.now)
+      val resultOpt = wf.handleSignal(SignalDef[String, String]())("")
       assert(resultOpt.isEmpty)
     }
 

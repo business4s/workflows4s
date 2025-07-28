@@ -4,6 +4,7 @@ import java.io.File
 import cats.effect.IO
 import org.camunda.bpm.model.bpmn.Bpmn
 import workflows4s.bpmn.BpmnRenderer
+import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.{InMemorySyncRuntime, InMemorySyncWorkflowInstance}
 import workflows4s.wio.{SignalDef, WorkflowContext}
 
@@ -118,7 +119,8 @@ object PullRequestWorkflow {
     // end_render
 
     // start_execution
-    val runtime    = InMemorySyncRuntime.default[Context.Ctx](workflow, PRState.Empty)
+    val engine     = WorkflowInstanceEngine.basic
+    val runtime    = InMemorySyncRuntime.create[Context.Ctx](workflow, PRState.Empty, engine)
     val wfInstance = runtime.createInstance("id")
 
     wfInstance.deliverSignal(Signals.createPR, Signals.CreateRequest("some-sha"))

@@ -4,11 +4,9 @@ import cats.effect.unsafe.IORuntime
 import cats.effect.{IO, LiftIO}
 import cats.{Id, Monad}
 import com.typesafe.scalalogging.StrictLogging
-import workflows4s.runtime.registry.WorkflowRegistry
-import workflows4s.runtime.wakeup.KnockerUpper
+import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.wio.*
 
-import java.time.Clock
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.util.chaining.scalaUtilChainingOps
@@ -16,12 +14,9 @@ import scala.util.chaining.scalaUtilChainingOps
 class InMemorySyncWorkflowInstance[Ctx <: WorkflowContext](
     val id: WorkflowInstanceId,
     initialState: ActiveWorkflow[Ctx],
-    protected val clock: Clock,
-    protected val knockerUpper: KnockerUpper.Agent,
-    protected val registry: WorkflowRegistry.Agent,
-)(implicit
-    IORuntime: IORuntime,
-) extends WorkflowInstanceBase[Id, Ctx]
+    protected val engine: WorkflowInstanceEngine,
+)(implicit IORuntime: IORuntime)
+    extends WorkflowInstanceBase[Id, Ctx]
     with StrictLogging {
 
   private var wf: ActiveWorkflow[Ctx]              = initialState
@@ -36,17 +31,13 @@ class InMemorySyncWorkflowInstance[Ctx <: WorkflowContext](
   override protected def fMonad: Monad[Id]                                = cats.Invariant.catsInstancesForId
   override protected def getWorkflow: workflows4s.wio.ActiveWorkflow[Ctx] = wf
 
-  private val lock                                                                                            = new Object
-  override protected def lockAndUpdateState[T](update: ActiveWorkflow[Ctx] => LockOutcome[T]): StateUpdate[T] = lock.synchronized {
-    val oldState = wf
-    update(oldState) match {
-      case LockOutcome.NewEvent(event, result) =>
-        val newState = processLiveEvent(event, oldState, clock.instant())
-        updateState(newState, Seq(event))
-        StateUpdate.Updated(oldState, newState, result)
-      case LockOutcome.NoOp(result)            => StateUpdate.NoOp(oldState, result)
-    }
-  }
+  private val lock                                                                                                                             = new Object
+
+  override protected def persistEvent(event: WCEvent[Ctx]): Id[Unit] = events += event
+
+  override protected def updateState(newState: ActiveWorkflow[Ctx]): Id[Unit] = wf = newState
+
+  override protected def lockState[T](update: ActiveWorkflow[Ctx] => Id[T]): Id[T] = lock.synchronized { update(wf) }
 
   private def updateState(workflow: workflows4s.wio.ActiveWorkflow[Ctx], _events: Seq[WCEvent[Ctx]]): Unit = {
     events ++= _events
