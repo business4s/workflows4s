@@ -13,8 +13,6 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      # required for dmn-to-image tests
-      - uses: nanasess/setup-chromedriver@v2
       - uses: sbt/setup-sbt@v1
       - name: Build and Test
         run: sbt test
