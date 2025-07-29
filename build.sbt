@@ -198,7 +198,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
   .enablePlugins(DockerPlugin)
   .settings(
     Compile / discoveredMainClasses := Seq("workflows4s.example.api.ServerWithUI"),
-    dockerExposedPorts              := Seq(8081),
+    dockerExposedPorts              := Seq(8080),
     dockerBaseImage                 := "eclipse-temurin:21-jdk",
     dockerUpdateLatest              := true,
     dockerBuildOptions ++= Seq("--platform=linux/amd64"),
