@@ -143,7 +143,6 @@ lazy val `workflows4s-web-ui`         = (project in file("workflows4s-web-ui"))
     libraryDependencies ++= Seq(
       "com.softwaremill.sttp.tapir" %% "tapir-http4s-server" % tapirVersion,
       "org.typelevel"               %% "cats-effect"         % "3.6.2",
-      "org.http4s" %% "http4s-dsl" % "0.23.30",
       "com.softwaremill.sttp.tapir" %% "tapir-files" % "1.11.38"
 
     ),
