@@ -31,5 +31,8 @@ class BasicCatsTimeEngine(clock: Clock[IO]) extends WorkflowInstanceEngine {
   override def getExpectedSignals[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[List[SignalDef[?, ?]]] =
     workflow.expectedSignals.pure[IO]
 
-  override def onStateChange[Ctx <: WorkflowContext](oldState: ActiveWorkflow[Ctx], newState: ActiveWorkflow[Ctx]): IO[Set[WorkflowInstanceEngine.PostExecCommand]] = IO.pure(Set.empty)
+  override def onStateChange[Ctx <: WorkflowContext](
+      oldState: ActiveWorkflow[Ctx],
+      newState: ActiveWorkflow[Ctx],
+  ): IO[Set[WorkflowInstanceEngine.PostExecCommand]] = IO.pure(Set.empty)
 }

@@ -20,13 +20,18 @@ class BasicJavaTimeEngine(clock: Clock) extends WorkflowInstanceEngine {
       req: Req,
   ): IO[Option[IO[(WCEvent[Ctx], Resp)]]] = workflow.handleSignal(signalDef)(req).pure[IO]
 
-  override def handleEvent[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx], event: WCEvent[Ctx]): SyncIO[Option[ActiveWorkflow[Ctx]]] = workflow.handleEvent(event).pure[SyncIO]
+  override def handleEvent[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx], event: WCEvent[Ctx]): SyncIO[Option[ActiveWorkflow[Ctx]]] =
+    workflow.handleEvent(event).pure[SyncIO]
 
   override def queryState[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[WCState[Ctx]] = workflow.liveState.pure[IO]
 
   override def getProgress[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[WIOExecutionProgress[WCState[Ctx]]] = workflow.progress.pure[IO]
 
-  override def getExpectedSignals[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[List[SignalDef[?, ?]]] = workflow.expectedSignals.pure[IO]
+  override def getExpectedSignals[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[List[SignalDef[?, ?]]] =
+    workflow.expectedSignals.pure[IO]
 
-  override def onStateChange[Ctx <: WorkflowContext](oldState: ActiveWorkflow[Ctx], newState: ActiveWorkflow[Ctx]): IO[Set[WorkflowInstanceEngine.PostExecCommand]] = IO.pure(Set.empty)
+  override def onStateChange[Ctx <: WorkflowContext](
+      oldState: ActiveWorkflow[Ctx],
+      newState: ActiveWorkflow[Ctx],
+  ): IO[Set[WorkflowInstanceEngine.PostExecCommand]] = IO.pure(Set.empty)
 }

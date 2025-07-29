@@ -31,7 +31,7 @@ class InMemorySyncWorkflowInstance[Ctx <: WorkflowContext](
   override protected def fMonad: Monad[Id]                                = cats.Invariant.catsInstancesForId
   override protected def getWorkflow: workflows4s.wio.ActiveWorkflow[Ctx] = wf
 
-  private val lock                                                                                                                             = new Object
+  private val lock = new Object
 
   override protected def persistEvent(event: WCEvent[Ctx]): Id[Unit] = events += event
 

@@ -30,7 +30,7 @@ class InMemoryRuntime[Ctx <: WorkflowContext](
             initialWf     = ActiveWorkflow(instanceId, workflow, initialState)
             stateRef     <- AtomicCell[IO].of(initialWf)
             eventsRef    <- Ref[IO].of(Vector[WCEvent[Ctx]]())
-            lock    <- Semaphore[IO](1)
+            lock         <- Semaphore[IO](1)
             runningWf     = InMemoryWorkflowInstance[Ctx](instanceId, stateRef, eventsRef, engine, lock)
             _            <- runningWfRef.complete(runningWf)
             success      <- update(map.updated(id, runningWf))

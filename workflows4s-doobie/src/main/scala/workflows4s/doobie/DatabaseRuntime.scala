@@ -20,14 +20,14 @@ class DatabaseRuntime[Ctx <: WorkflowContext](
 
   override def createInstance(id: String): IO[WorkflowInstance[IO, WCState[Ctx]]] = {
     val instanceId = WorkflowInstanceId(templateId, id)
-    val base   = new DbWorkflowInstance(
+    val base       = new DbWorkflowInstance(
       instanceId,
       ActiveWorkflow(instanceId, workflow, initialState),
       storage,
-      engine
+      engine,
     )
     // alternative is to take `LiftIO` as runtime parameter but this complicates call site
-    val mapped = new MappedWorkflowInstance(
+    val mapped     = new MappedWorkflowInstance(
       base,
       [t] =>
         (connIo: Kleisli[ConnectionIO, LiftIO[ConnectionIO], t]) => WeakAsync.liftIO[ConnectionIO].use(liftIO => xa.trans.apply(connIo.apply(liftIO))),

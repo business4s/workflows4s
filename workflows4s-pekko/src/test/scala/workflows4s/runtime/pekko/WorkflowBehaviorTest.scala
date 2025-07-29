@@ -35,7 +35,7 @@ class WorkflowBehaviorTest extends AnyFreeSpec with Matchers with BeforeAndAfter
   private def assertSerializable(serializer: Serializer, msg: AnyRef): Unit = {
     val bytes        = serializer.toBinary(msg)
     val deserialized = serializer.fromBinary(bytes)
-    val _ = deserialized shouldEqual msg
+    val _            = deserialized shouldEqual msg
   }
 
   // --------------------------------

@@ -29,7 +29,7 @@ class InMemoryWorkflowInstance[Ctx <: WorkflowContext](
 
   override protected def getWorkflow: IO[ActiveWorkflow[Ctx]] = stateCell.get
 
-  override protected def persistEvent(event: WCEvent[Ctx]): IO[Unit]                                                                           = eventsRef.update(_ :+ event)
+  override protected def persistEvent(event: WCEvent[Ctx]): IO[Unit] = eventsRef.update(_ :+ event)
 
   override protected def updateState(newState: ActiveWorkflow[Ctx]): IO[Unit] = stateCell.set(newState)
 

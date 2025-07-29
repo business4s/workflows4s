@@ -56,7 +56,7 @@ object PekkoRuntime {
       entityName: String,
       workflow: Initial[Ctx],
       initialState: WCState[Ctx],
-      engine: WorkflowInstanceEngine
+      engine: WorkflowInstanceEngine,
   )(using
       system: ActorSystem[?],
   ): PekkoRuntime[Ctx] = {

@@ -28,7 +28,10 @@ trait DelegatingWorkflowInstanceEngine extends WorkflowInstanceEngine {
   override def processEvent[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx], event: WCEvent[Ctx]): SyncIO[ActiveWorkflow[Ctx]] =
     delegate.processEvent(workflow, event)
 
-  override def onStateChange[Ctx <: WorkflowContext](oldState: ActiveWorkflow[Ctx], newState: ActiveWorkflow[Ctx]): IO[Set[WorkflowInstanceEngine.PostExecCommand]] =
+  override def onStateChange[Ctx <: WorkflowContext](
+      oldState: ActiveWorkflow[Ctx],
+      newState: ActiveWorkflow[Ctx],
+  ): IO[Set[WorkflowInstanceEngine.PostExecCommand]] =
     delegate.onStateChange(oldState, newState)
 
 }

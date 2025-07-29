@@ -3,7 +3,7 @@ package workflows4s.testing
 import cats.effect.std.Semaphore
 import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Ref}
-import cats.syntax.all._
+import cats.syntax.all.*
 import org.scalatest.freespec.AnyFreeSpecLike
 import sourcecode.Text.generate
 import workflows4s.runtime.registry.InMemoryWorkflowRegistry
