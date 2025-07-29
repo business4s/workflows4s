@@ -5,7 +5,7 @@ on:
     branches:
       - main
       - gsoc-2025
-      - * # to be removed
+      - "*" # to be removed
 
 jobs:
   deploy-example:
