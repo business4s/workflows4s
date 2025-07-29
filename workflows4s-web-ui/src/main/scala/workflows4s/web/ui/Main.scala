@@ -37,7 +37,7 @@ object Main extends TyrianIOApp[Msg, Model] {
       // The subsystem now returns the correct command type (Cmd[IO, Msg])
       // No more mapping or manual command batching is needed here.
       val (updatedWorkflowsManager, cmd) = model.workflows.update(wmMsg)
-      val updatedModel = model.copy(workflows = updatedWorkflowsManager)
+      val updatedModel                   = model.copy(workflows = updatedWorkflowsManager)
       (updatedModel, cmd)
 
     case Msg.ForInstances(imMsg) =>
