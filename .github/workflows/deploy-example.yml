@@ -32,5 +32,6 @@ jobs:
 
       - name: Deploy example project
         run: flyctl deploy --local-only
+        working-directory: ./workflows4s-example
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_DEPLOY_TOKEN }}
