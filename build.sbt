@@ -141,12 +141,10 @@ lazy val `workflows4s-web-ui`         = (project in file("workflows4s-web-ui"))
   .settings(
     name                := "workflows4s-web-ui-bundle",
     libraryDependencies ++= Seq(
-      "com.softwaremill.sttp.tapir" %% "tapir-files"         % tapirVersion,
       "com.softwaremill.sttp.tapir" %% "tapir-http4s-server" % tapirVersion,
-      "org.http4s"                  %% "http4s-core"         % "0.23.23",
       "org.typelevel"               %% "cats-effect"         % "3.6.2",
-        "org.http4s" %% "http4s-dsl" % "0.23.30",
-
+      "org.http4s" %% "http4s-dsl" % "0.23.30",
+      "com.softwaremill.sttp.tapir" %% "tapir-files" % "1.11.38"
 
     ),
     (Compile / compile) := ((Compile / compile) dependsOn (`workflows4s-web-ui` / Compile / fullLinkJS)).value,

@@ -1,27 +1,31 @@
 package workflows4s.ui.bundle
 
 import cats.effect.IO
-import org.http4s.{HttpRoutes, StaticFile}
-import org.http4s.dsl.io._
+import sttp.tapir.server.ServerEndpoint
+import sttp.tapir.files.staticResourcesGetServerEndpoint
+import sttp.tapir.stringToPath
 
-
+/**
+ * Defines server-agnostic Tapir endpoints for serving the Web UI bundle.
+ *
+ * These endpoints can be interpreted by any server backend supported by Tapir
+ * 
+ *
+ * The UI files are expected to be located in the "META-INF/resources/workflows4s/ui"
+ * resource directory of the JAR.
+ */
 object UiEndpoints {
 
+  private val uiPathPrefix = "ui"
+  private val resourcePath = "workflows4s/ui"
+
   /**
-   * HTTP routes that serve the bundled UI files using HTTP4s StaticFile
-   * This follows the same pattern used elsewhere in the codebase
+   * ServerEndpoints to serve the static UI content from the classpath.
    */
-  val routes: HttpRoutes[IO] = HttpRoutes.of[IO] {
-    
-    // Serve static files from classpath resources
-    case request @ GET -> path if path.segments.headOption.contains("ui") =>
-      val resourcePath = path.segments.mkString("/")
-      StaticFile.fromResource(resourcePath, Some(request))
-        .getOrElseF(NotFound())
-    
-    // SPA fallback - serve index.html for any route that doesn't start with /api
-    case request @ GET -> path if !path.segments.headOption.contains("api") =>
-      StaticFile.fromResource("ui/index.html", Some(request))
-        .getOrElseF(NotFound())
-  }
+  val endpoints: List[ServerEndpoint[Any, IO]] = List(
+    staticResourcesGetServerEndpoint[IO](uiPathPrefix)(
+      this.getClass.getClassLoader,
+      resourcePath
+    )
+  )
 }

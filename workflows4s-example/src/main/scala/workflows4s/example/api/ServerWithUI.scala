@@ -5,6 +5,7 @@ import cats.syntax.all.*
 import com.comcast.ip4s.*
 import org.http4s.ember.server.EmberServerBuilder
 import org.http4s.implicits.*
+import sttp.tapir.server.http4s.Http4sServerInterpreter
 import workflows4s.ui.bundle.UiEndpoints
 
 object ServerWithUI extends IOApp.Simple with BaseServer {
@@ -13,8 +14,10 @@ object ServerWithUI extends IOApp.Simple with BaseServer {
     for {
       // Get API routes from BaseServer
       api <- apiRoutes
+      // Convert Tapir endpoints to Http4s routes
+      uiRoutes = Http4sServerInterpreter[IO]().toRoutes(UiEndpoints.endpoints)
       // Combine with UI routes from UiEndpoints
-      allRoutes = api <+> UiEndpoints.routes
+      allRoutes = api <+> uiRoutes
       _        <- EmberServerBuilder
                     .default[IO]
                     .withHost(ipv4"0.0.0.0")
