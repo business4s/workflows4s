@@ -2,7 +2,7 @@ package workflows4s.web.ui.components
 
 import tyrian.Html
 import tyrian.Html.*
-import workflows4s.web.ui.models.InstanceStatus
+import workflows4s.web.api.model.InstanceStatus
 
 object ReusableViews {
 
@@ -33,7 +33,6 @@ object ReusableViews {
       case InstanceStatus.Running   => "is-info"
       case InstanceStatus.Completed => "is-success"
       case InstanceStatus.Failed    => "is-danger"
-      case InstanceStatus.Paused    => "is-warning"
     }
     span(cls := s"tag $badgeClass")(status.toString)
   }

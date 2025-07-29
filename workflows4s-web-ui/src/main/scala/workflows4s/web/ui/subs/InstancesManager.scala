@@ -1,13 +1,11 @@
 package workflows4s.web.ui.subs
 
 import cats.effect.IO
-import sttp.client4.*
-import sttp.client4.circe.*
-import sttp.client4.impl.cats.FetchCatsBackend
-import tyrian.Html.*
+import cats.implicits.catsSyntaxEitherId
 import tyrian.*
+import tyrian.Html.*
+import workflows4s.web.api.model.WorkflowInstance
 import workflows4s.web.ui.components.ReusableViews
-import workflows4s.web.ui.models.WorkflowInstance
 
 final case class InstancesManager(
     instanceIdInput: String,
@@ -131,19 +129,12 @@ object InstancesManager {
   }
 
   object Http {
-    private val backend = FetchCatsBackend[IO]()
-    private val baseUri = uri"http://localhost:8081/api/v1"
 
     def loadInstance(workflowId: String, instanceId: String): Cmd[IO, Msg] = {
-      val request = basicRequest
-        .get(baseUri.addPath("definitions", workflowId, "instances", instanceId))
-        .response(asJson[WorkflowInstance])
-
       Cmd.Run(
-        backend
-          .send(request)
-          .map(_.body)
-          .map(res => Msg.InstanceLoaded(res.left.map(_.toString)))
+        workflows4s.web.ui.http.Http
+          .getInstance(workflowId, instanceId)
+          .map(res => Msg.InstanceLoaded(res.asRight))
           .handleError(err => Msg.InstanceLoaded(Left(err.getMessage))),
       )
     }

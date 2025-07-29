@@ -13,9 +13,9 @@ object ServerWithUI extends IOApp.Simple with BaseServer {
   def run: IO[Unit] = {
     for {
       // Get API routes from BaseServer
-      api <- apiRoutes
+      api      <- apiRoutes
       // Convert Tapir endpoints to Http4s routes
-      uiRoutes = Http4sServerInterpreter[IO]().toRoutes(UiEndpoints.endpoints)
+      uiRoutes  = Http4sServerInterpreter[IO]().toRoutes(UiEndpoints.endpoints)
       // Combine with UI routes from UiEndpoints
       allRoutes = api <+> uiRoutes
       _        <- EmberServerBuilder

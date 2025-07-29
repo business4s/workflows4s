@@ -24,11 +24,10 @@ trait BaseServer {
   }
 
   given courseRegistrationStateEncoder: Encoder[CourseRegistrationWorkflow.CourseRegistrationState] = dummyEncoder
-  given prStateEncoder: Encoder[PullRequestWorkflow.PRState] = dummyEncoder
+  given prStateEncoder: Encoder[PullRequestWorkflow.PRState]                                        = dummyEncoder
 
-  /**
-   * Creates the API routes with CORS enabled
-   */
+  /** Creates the API routes with CORS enabled
+    */
   protected def apiRoutes: IO[HttpRoutes[IO]] = for {
     dummyRt1 <- InMemoryRuntime.default[CourseRegistrationWorkflow.Context.Ctx](
                   workflow = CourseRegistrationWorkflow.workflow,
