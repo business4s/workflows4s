@@ -1,8 +1,7 @@
 package workflows4s.testing
 
 import cats.effect.IO
-import workflows4s.runtime.registry.NoOpWorkflowRegistry
-import workflows4s.runtime.wakeup.NoOpKnockerUpper
+import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.{InMemorySyncRuntime, InMemorySyncWorkflowInstance, WorkflowInstanceId}
 import workflows4s.wio.*
 
@@ -15,15 +14,22 @@ class TestRuntime {
   val clock        = TestClock()
   val knockerUpper = RecordingKnockerUpper()
 
+  val engine: WorkflowInstanceEngine =
+    WorkflowInstanceEngine.builder
+      .withJavaTime(clock)
+      .withWakeUps(knockerUpper)
+      .withoutRegistering
+      .withGreedyEvaluation
+      .withLogging
+      .get
+
   def createInstance(wio: WIO[TestState, Nothing, TestState, TestCtx2.Ctx]): InMemorySyncWorkflowInstance[TestCtx2.Ctx] = {
     import cats.effect.unsafe.implicits.global
     val instance: InMemorySyncWorkflowInstance[TestCtx2.Ctx] =
       new InMemorySyncRuntime[TestCtx2.Ctx](
         wio.provideInput(TestState.empty),
         TestState.empty,
-        clock,
-        knockerUpper,
-        NoOpWorkflowRegistry.Agent,
+        engine,
         "test",
       )
         .createInstance(UUID.randomUUID().toString)
@@ -44,9 +50,7 @@ object TestUtils {
       new InMemorySyncRuntime[TestCtx2.Ctx](
         wio.provideInput(TestState.empty),
         TestState.empty,
-        clock,
-        NoOpKnockerUpper.Agent,
-        NoOpWorkflowRegistry.Agent,
+        WorkflowInstanceEngine.builder.withJavaTime(clock).withoutWakeUps.withoutRegistering.withGreedyEvaluation.withLogging.get,
         "test",
       )
         .createInstance(UUID.randomUUID().toString)

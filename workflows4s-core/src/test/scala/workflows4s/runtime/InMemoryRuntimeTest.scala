@@ -1,8 +1,8 @@
 package workflows4s.runtime
 
 import org.scalatest.freespec.AnyFreeSpec
-import workflows4s.runtime.wakeup.NoOpKnockerUpper
 import cats.effect.unsafe.implicits.global
+import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 
 class InMemoryRuntimeTest extends AnyFreeSpec {
 
@@ -16,7 +16,7 @@ class InMemoryRuntimeTest extends AnyFreeSpec {
         .default[Ctx](
           workflow = workflow,
           initialState = "initialState",
-          knockerUpper = NoOpKnockerUpper.Agent,
+          engine = WorkflowInstanceEngine.basic,
         )
         .unsafeRunSync()
 
