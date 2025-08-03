@@ -88,5 +88,25 @@ class WIODraftTest extends AnyFreeSpec with Matchers with OptionValues with Eith
         case _                        => fail("Expected Sequence model")
       }
     }
+
+    "should create a fork with correct branches" in {
+      val approve = WIO.draft.step("Approve")
+      val reject  = WIO.draft.step("Reject")
+      val wio = WIO.draft.choice("Review")(
+        "Approved" -> approve,
+        "Rejected" -> reject,
+      )
+      val model   = wio.toProgress.toModel
+
+      model match {
+        case WIOModel.Fork(branches, meta) =>
+          meta.name shouldBe Some("Review")
+          branches.length shouldBe 2
+
+          branches.head shouldBe WIOModel.RunIO(WIOMeta.RunIO(Some("Approve"), None, None))
+          branches(1) shouldBe WIOModel.RunIO(WIOMeta.RunIO(Some("Reject"), None, None))
+        case _                             => fail("Expected Fork model")
+      }
+    }
   }
 }

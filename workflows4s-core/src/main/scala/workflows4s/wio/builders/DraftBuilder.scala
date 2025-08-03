@@ -26,7 +26,7 @@ object DraftBuilder {
           None,
         ),
       )
-      def timer(name: String = null, duration: FiniteDuration = null)(using autoName: sourcecode.Name): WIO.Timer[Ctx, Any, Nothing, Nothing] =
+      def timer(name: String = null, duration: FiniteDuration = null)(using autoName: sourcecode.Name): WIO.Draft[Ctx] =
         WIO.Timer(
           Option(duration) match {
             case Some(value) => WIO.Timer.DurationSource.Static(value.toJava)
@@ -46,6 +46,13 @@ object DraftBuilder {
           Option(description),
         ),
       )
+
+      def choice(name: String = null)(branches: (String, WIO.Draft[Ctx])*)(using autoName: sourcecode.Name): WIO.Draft[Ctx] = {
+        val branchWios = branches.map { case (branchName, wio) =>
+          WIO.Branch(_ => None, wio, Some(branchName))
+        }
+        WIO.Fork(branchWios.toVector, getEffectiveName(name, autoName).some, None)
+      }
 
       def forEach(forEach: WIO.Draft[Ctx], name: String = null)(using autoName: sourcecode.Name): WIO.Draft[Ctx] = {
         val effName = getEffectiveName(name, autoName).some
