@@ -108,5 +108,22 @@ class WIODraftTest extends AnyFreeSpec with Matchers with OptionValues with Eith
         case _                             => fail("Expected Fork model")
       }
     }
+
+    "should create a parallel step with multiple elements" in {
+      val step1: Draft[Ctx] = WIO.draft.step("task1")
+      val step2: Draft[Ctx] = WIO.draft.step("task2")
+      val step3: Draft[Ctx] = WIO.draft.step("task3")
+      val parallel: Draft[Ctx] = WIO.draft.parallel(step1, step2, step3)
+      val model = parallel.toProgress.toModel
+
+      model match {
+        case WIOModel.Parallel(elements) =>
+          elements.length shouldBe 3
+          elements(0) shouldBe WIOModel.RunIO(WIOMeta.RunIO(Some("task1"), None, None))
+          elements(1) shouldBe WIOModel.RunIO(WIOMeta.RunIO(Some("task2"), None, None))
+          elements(2) shouldBe WIOModel.RunIO(WIOMeta.RunIO(Some("task3"), None, None))
+        case _ => fail("Expected Parallel model")
+      }
+    }
   }
 }

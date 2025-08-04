@@ -70,6 +70,17 @@ object DraftBuilder {
         base.transformInput((_: Any) => ???).map(_ => ???)
       }
 
+      def parallel(elements: WIO.Draft[Ctx]*): WIO.Draft[Ctx] = {
+        val parallelElements = elements.map { element =>
+          WIO.Parallel.Element(element.map(_ => ???), (interimState: WCState[Ctx], _: WCState[Ctx]) => interimState)
+        }
+        WIO.Parallel[Ctx, Any, Nothing, WCState[Ctx], WCState[Ctx]](
+          elements = parallelElements,
+          formResult = _ => ???,
+          initialInterimState = (_: Any) => ???
+        ).transformInput((_: Any) => ???).map(_ => ???)
+      }
+
     }
 
   }
