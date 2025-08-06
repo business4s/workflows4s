@@ -12,7 +12,6 @@ object WIOExecutionProgressCodec {
     throw new NotImplementedError("Decoding WIOExecutionProgress not implemented yet")
   )
 
-  // Alternative: If you want to encode as JSON object
   given Codec[WIOExecutionProgress[String]] = Codec.from(
     Decoder[Json].map(_ => throw new NotImplementedError("Decoding not implemented yet")),
     Encoder[Json].contramap(_ => Json.obj("_type" -> Json.fromString("WIOExecutionProgress")))
