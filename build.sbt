@@ -15,7 +15,7 @@ lazy val `workflows4s` = (project in file("."))
     `workflows4s-web-api-server`,
   )
 
-lazy val `workflows4s-core` = (project in file("workflows4s-core"))
+  lazy val `workflows4s-core` = (project in file("workflows4s-core"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
@@ -116,7 +116,6 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
     `workflows4s-web-api-server` 
 
   )
-
  lazy val `workflows4s-web-api-shared` = (project in file("workflows4s-web-api-shared"))
   .settings(commonSettings)
   .settings(
@@ -124,10 +123,12 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "com.softwaremill.sttp.tapir" %% "tapir-core" % tapirVersion,
       "com.softwaremill.sttp.tapir" %% "tapir-json-circe" % tapirVersion,
       "io.circe" %% "circe-core" % circeVersion,
-      "io.circe" %% "circe-generic" % circeVersion
+      "io.circe" %% "circe-generic" % circeVersion,
+      "io.circe" %% "circe-parser" % circeVersion
     ),
     publish / skip := true
   )
+  .dependsOn(`workflows4s-core`)
 
 lazy val `workflows4s-web-api-server` = (project in file("workflows4s-web-api-server"))
   .settings(commonSettings)

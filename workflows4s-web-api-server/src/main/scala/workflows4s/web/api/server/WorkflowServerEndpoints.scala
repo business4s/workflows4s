@@ -1,4 +1,4 @@
- package workflows4s.web.api.server
+package workflows4s.web.api.server
 
 import cats.effect.IO
 import cats.syntax.either.*
@@ -31,13 +31,17 @@ class WorkflowServerEndpoints(workflowService: WorkflowApiService) {
   val endpoints: List[ServerEndpoint[Any, IO]] = List(
     WorkflowEndpoints.listDefinitions.serverLogic(_ => workflowService.listDefinitions().attempt.map(_.leftMap(_.getMessage))),
     WorkflowEndpoints.getDefinition.serverLogic(workflowId => workflowService.getDefinition(workflowId).attempt.map(_.leftMap(_.getMessage))),
-    WorkflowEndpoints.getInstance.serverLogic((workflowId, instanceId) => {
+    WorkflowEndpoints.getDefinitionModel.serverLogic(defId => workflowService.getDefinitionModel(defId).attempt.map(_.leftMap(_.getMessage))),
+    WorkflowEndpoints.getInstance.serverLogic { case (workflowId, instanceId) =>
       if (instanceId.startsWith("test-instance-")) {
         IO.pure(createTestInstanceLogic(workflowId))
       } else {
         workflowService.getInstance(workflowId, instanceId).attempt.map(_.leftMap(_.getMessage))
       }
-    }),
+    },
+    WorkflowEndpoints.getInstanceProgress.serverLogic { case (defId, instanceId) =>
+      workflowService.getProgress(defId, instanceId).attempt.map(_.leftMap(_.getMessage))
+    },
     WorkflowEndpoints.createTestInstanceEndpoint.serverLogic(workflowId => {
       IO.pure(createTestInstanceLogic(workflowId))
     }),

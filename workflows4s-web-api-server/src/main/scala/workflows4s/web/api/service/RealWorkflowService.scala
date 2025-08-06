@@ -5,13 +5,13 @@ import io.circe.Encoder
 import workflows4s.runtime.WorkflowRuntime
 import workflows4s.web.api.model.*
 import workflows4s.wio.WorkflowContext
-import workflows4s.wio.model.WIOExecutionProgress
+import workflows4s.wio.model.{WIOExecutionProgress, WIOModel, WIOMeta}
 
 class RealWorkflowService(
     workflowEntries: List[RealWorkflowService.WorkflowEntry[?, ?]],
 ) extends WorkflowApiService {
 
-  def listDefinitions(): IO[List[WorkflowDefinition]] = {
+  override def listDefinitions(): IO[List[WorkflowDefinition]] = {
     val definitions = workflowEntries.map(entry =>
       WorkflowDefinition(
         id = entry.id,
@@ -21,19 +21,36 @@ class RealWorkflowService(
     IO.pure(definitions)
   }
 
-  def getDefinition(id: String): IO[WorkflowDefinition] = {
-    IO.fromOption(
-      workflowEntries
-        .find(_.id == id)
-        .map(entry => WorkflowDefinition(id = entry.id, name = entry.name)),
-    )(new Exception(s"Workflow definition not found: $id"))
+  override def getDefinition(id: String): IO[WorkflowDefinition] = {
+    for {
+      entry <- findEntry(id)
+    } yield WorkflowDefinition(id = entry.id, name = entry.name)
   }
 
-  def getInstance(definitionId: String, instanceId: String): IO[WorkflowInstance] = {
+  override def getDefinitionModel(id: String): IO[WIOModel] = {
+    // Simply return a mock model for now to get it compiling
     for {
-      entry    <- IO.fromOption(workflowEntries.find(_.id == definitionId))(new Exception(s"Definition not found: $definitionId"))
+      _ <- findEntry(id)
+    } yield WIOModel.RunIO(WIOMeta.RunIO(Some(s"Model for $id"), None))
+  }
+
+  override def getInstance(definitionId: String, instanceId: String): IO[WorkflowInstance] = {
+    for {
+      entry    <- findEntry(definitionId)
       instance <- getRealInstance(entry, instanceId)
     } yield instance
+  }
+
+  override def getProgress(definitionId: String, instanceId: String): IO[WIOExecutionProgress[String]] = {
+    for {
+      entry    <- findEntry(definitionId)
+      progress <- getRealInstanceProgress(entry, instanceId)
+    } yield progress
+  }
+
+  // Helper method to avoid repetition as suggested by Voytek
+  private def findEntry(definitionId: String): IO[RealWorkflowService.WorkflowEntry[?, ?]] = {
+    IO.fromOption(workflowEntries.find(_.id == definitionId))(new Exception(s"Definition not found: $definitionId"))
   }
 
   private def progressToStatus(progress: WIOExecutionProgress[?]): InstanceStatus =
@@ -47,9 +64,9 @@ class RealWorkflowService(
       entry: RealWorkflowService.WorkflowEntry[WorkflowId, Ctx],
       instanceId: String,
   ): IO[WorkflowInstance] = {
-    val parsedId = entry.parseId(instanceId)
+    val parsedInstanceId = entry.parseId(instanceId)
     for {
-      workflowInstance <- entry.runtime.createInstance(parsedId)
+      workflowInstance <- entry.runtime.createInstance(parsedInstanceId)
       currentState     <- workflowInstance.queryState()
       progress         <- workflowInstance.getProgress
     } yield WorkflowInstance(
@@ -58,6 +75,17 @@ class RealWorkflowService(
       status = progressToStatus(progress),
       state = Some(entry.stateEncoder(currentState)),
     )
+  }
+
+  private def getRealInstanceProgress[WorkflowId, Ctx <: WorkflowContext](
+      entry: RealWorkflowService.WorkflowEntry[WorkflowId, Ctx],
+      instanceId: String,
+  ): IO[WIOExecutionProgress[String]] = {
+    val parsedInstanceId = entry.parseId(instanceId)
+    for {
+      workflowInstance <- entry.runtime.createInstance(parsedInstanceId)
+      progress         <- workflowInstance.getProgress
+    } yield progress.map(state => Some(entry.stateEncoder(state).noSpaces))
   }
 }
 

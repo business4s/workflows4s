@@ -1,13 +1,16 @@
 package workflows4s.web.api.service
 
-import workflows4s.web.api.model.*
 import cats.effect.IO
 import io.circe.Json
+import workflows4s.web.api.model.*
+import workflows4s.wio.model.{WIOExecutionProgress, WIOModel, WIOMeta}
 
 trait WorkflowApiService {
   def listDefinitions(): IO[List[WorkflowDefinition]]
   def getDefinition(id: String): IO[WorkflowDefinition]
+  def getDefinitionModel(id: String): IO[WIOModel]
   def getInstance(definitionId: String, instanceId: String): IO[WorkflowInstance]
+  def getProgress(definitionId: String, instanceId: String): IO[WIOExecutionProgress[String]]
 }
 
 class MockWorkflowApiService extends WorkflowApiService {
@@ -32,18 +35,47 @@ class MockWorkflowApiService extends WorkflowApiService {
     WorkflowInstance("inst-6", "approval-v1", status = InstanceStatus.Completed, state = None),
   )
 
-  def listDefinitions(): IO[List[WorkflowDefinition]] =
+  override def listDefinitions(): IO[List[WorkflowDefinition]] =
     IO.pure(mockDefinitions)
 
-  def getDefinition(id: String): IO[WorkflowDefinition] =
+  override def getDefinition(id: String): IO[WorkflowDefinition] =
     IO.fromOption(mockDefinitions.find(_.id == id))(new Exception(s"Definition not found: $id"))
 
-  def getInstance(definitionId: String, instanceId: String): IO[WorkflowInstance] = {
+  override def getDefinitionModel(id: String): IO[WIOModel] = {
     for {
-      _        <- IO.fromOption(mockDefinitions.find(_.id == definitionId))(new Exception(s"Definition not found: $definitionId"))
-      instance <- IO.fromOption(mockInstances.find(i => i.id == instanceId && i.definitionId == definitionId))(
-                    new Exception(s"Instance not found: $instanceId"),
-                  )
+      _ <- getDefinition(id)
+    } yield WIOModel.RunIO(WIOMeta.RunIO(Some(s"Mock Model for $id"), None))
+  }
+
+  override def getInstance(definitionId: String, instanceId: String): IO[WorkflowInstance] = {
+    for {
+      _ <- getDefinition(definitionId)
+      instance <- IO.fromOption(mockInstances.find(_.id == instanceId))(new Exception(s"Instance not found: $instanceId"))
     } yield instance
+  }
+
+  override def getProgress(definitionId: String, instanceId: String): IO[WIOExecutionProgress[String]] = {
+    for {
+      instance <- getInstance(definitionId, instanceId)
+    } yield {
+      // Create a mock progress based on instance status
+      instance.status match {
+        case InstanceStatus.Running => 
+          WIOExecutionProgress.Sequence(Seq(
+            WIOExecutionProgress.Pure(WIOMeta.Pure(Some("Initialize"), None), Some(Right("initialized"))),
+            WIOExecutionProgress.RunIO(WIOMeta.RunIO(Some("Processing"), None), None)
+          ))
+        case InstanceStatus.Completed =>
+          WIOExecutionProgress.Sequence(Seq(
+            WIOExecutionProgress.Pure(WIOMeta.Pure(Some("Initialize"), None), Some(Right("initialized"))),
+            WIOExecutionProgress.RunIO(WIOMeta.RunIO(Some("Processing"), None), Some(Right("completed")))
+          ))
+        case InstanceStatus.Failed =>
+          WIOExecutionProgress.Sequence(Seq(
+            WIOExecutionProgress.Pure(WIOMeta.Pure(Some("Initialize"), None), Some(Right("initialized"))),
+            WIOExecutionProgress.RunIO(WIOMeta.RunIO(Some("Processing"), None), Some(Left("error")))
+          ))
+      }
+    }
   }
 }
