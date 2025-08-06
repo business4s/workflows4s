@@ -28,7 +28,7 @@ class RealWorkflowService(
   }
 
   override def getDefinitionModel(id: String): IO[WIOModel] = {
-    // Simply return a mock model for now to get it compiling
+    //  return a mock model for now to get it compiling (For now)
     for {
       _ <- findEntry(id)
     } yield WIOModel.RunIO(WIOMeta.RunIO(Some(s"Model for $id"), None))

@@ -14,6 +14,7 @@ object WorkflowEndpoints {
   given Schema[WIOExecutionProgress[String]] = Schema.string
   given Schema[WIOModel] = Schema.string
 
+  // GET /api/v1/definitions
   val listDefinitions: PublicEndpoint[Unit, String, List[WorkflowDefinition], Any] =
     endpoint
       .get
@@ -22,6 +23,7 @@ object WorkflowEndpoints {
       .errorOut(stringBody)
       .description("List all workflow definitions")
 
+  // GET /api/v1/definitions/{defId}
   val getDefinition: PublicEndpoint[String, String, WorkflowDefinition, Any] =
     endpoint
       .get
@@ -30,6 +32,7 @@ object WorkflowEndpoints {
       .errorOut(stringBody)
       .description("Get workflow definition by ID")
 
+  // GET /api/v1/definitions/{defId}/model
   val getDefinitionModel: PublicEndpoint[String, String, WIOModel, Any] =
     endpoint
       .get
@@ -38,6 +41,7 @@ object WorkflowEndpoints {
       .out(jsonBody[WIOModel])
       .description("Get workflow definition model by definition ID")
 
+  // GET /api/v1/definitions/{defId}/instances/{instanceId}
   val getInstance: PublicEndpoint[(String, String), String, WorkflowInstance, Any] =
     endpoint
       .get
@@ -46,6 +50,7 @@ object WorkflowEndpoints {
       .errorOut(stringBody)
       .description("Get workflow instance by definition ID and instance ID")
 
+  // GET /api/v1/definitions/{defId}/instances/{instanceId}/progress
   val getInstanceProgress: PublicEndpoint[(String, String), String, WIOExecutionProgress[String], Any] =
     endpoint
       .get
@@ -54,6 +59,7 @@ object WorkflowEndpoints {
       .out(jsonBody[WIOExecutionProgress[String]])
       .description("Get workflow instance progress by definition ID and instance ID")
 
+  // POST /api/v1/definitions/{workflowId}/instances/test
   val createTestInstanceEndpoint: PublicEndpoint[String, String, WorkflowInstance, Any] = endpoint.post
     .in("api" / "v1" / "definitions" / path[String]("workflowId") / "instances" / "test")
     .errorOut(stringBody)
