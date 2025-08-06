@@ -12,3 +12,14 @@ This operation enables time-based coordination, allowing workflows to pause for 
 ```
 
 <OperationOutputs name="timer"/>
+## Drafting Support
+
+When drafting workflows that need time-based operations, use `WIO.draft.timer()`:
+
+```scala file=./main/scala/workflows4s/example/docs/DraftTimerExample.scala start=start_draft end=end_draft
+```
+
+The draft timer operation simplifies the API by:
+- Not requiring explicit event handling
+- Making duration parameter optional (can be determined at runtime)
+- Automatically generating names from the context if not provided
