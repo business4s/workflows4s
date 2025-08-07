@@ -17,3 +17,20 @@ In the future this will be detected by the [linter](https://github.com/business4
 ```
 
 <OperationOutputs name="loop"/>
+
+## Drafting Support
+
+When drafting workflows that need loops, use `WIO.draft.repeat()` to create conditional loops with a simpler API:
+
+```scala file=./main/scala/workflows4s/example/docs/DraftLoopExample.scala start=start_draft end=end_draft
+```
+
+The draft repeat operation simplifies the API by:
+- Not requiring explicit event handling
+- Making condition functions optional (can be determined at runtime)
+- Providing optional error handling through `onRestart`
+- Automatically generating names from the context if not provided
+
+:::tip
+Always add a timer step to avoid busy loops, as shown in the example above.
+:::
