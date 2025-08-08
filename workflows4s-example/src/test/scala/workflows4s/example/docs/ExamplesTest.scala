@@ -25,6 +25,7 @@ class ExamplesTest extends AnyFreeSpec {
     ExampleConfig("draft-loop", DraftLoopExample.loop),
     ExampleConfig("fork", ForkExample.fork),
     ExampleConfig("parallel", ParallelExample.parallel),
+    ExampleConfig("draft-parallel", DraftParallelExample.parallelWorkflow),
     ExampleConfig("interruption-signal", InterruptionExample.interruptedThroughSignal),
     ExampleConfig("checkpoint", CheckpointExample.checkpoint.checkpointed, technical = true),
     ExampleConfig("recovery", CheckpointExample.recovery.myWorkflow, technical = true),
