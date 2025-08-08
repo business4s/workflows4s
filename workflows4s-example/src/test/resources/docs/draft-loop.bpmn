@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<definitions xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="definitions_0" targetNamespace="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL">
+  <process camunda:historyTimeToLive="P180D" id="process_3" isExecutable="true">
+    <startEvent id="startEvent_19">
+      <outgoing>sequenceFlow_8</outgoing>
+    </startEvent>
+    <exclusiveGateway id="exclusiveGateway_1" name="">
+      <incoming>sequenceFlow_8</incoming>
+      <incoming>sequenceFlow_14</incoming>
+      <outgoing>sequenceFlow_9</outgoing>
+    </exclusiveGateway>
+    <sequenceFlow id="sequenceFlow_8" sourceRef="startEvent_19" targetRef="exclusiveGateway_1"/>
+    <serviceTask id="serviceTask_5" name="Process Item">
+      <incoming>sequenceFlow_9</incoming>
+      <outgoing>sequenceFlow_10</outgoing>
+    </serviceTask>
+    <sequenceFlow id="sequenceFlow_9" sourceRef="exclusiveGateway_1" targetRef="serviceTask_5"/>
+    <intermediateCatchEvent id="intermediateCatchEvent_0" name="Wait before retry">
+      <incoming>sequenceFlow_10</incoming>
+      <outgoing>sequenceFlow_11</outgoing>
+      <timerEventDefinition id="timerEventDefinition_4">
+        <timeDuration id="timeDuration_18">1m</timeDuration>
+      </timerEventDefinition>
+    </intermediateCatchEvent>
+    <sequenceFlow id="sequenceFlow_10" sourceRef="serviceTask_5" targetRef="intermediateCatchEvent_0"/>
+    <exclusiveGateway id="exclusiveGateway_2" name="Is processing complete?">
+      <incoming>sequenceFlow_11</incoming>
+      <outgoing>sequenceFlow_12</outgoing>
+      <outgoing>sequenceFlow_13</outgoing>
+    </exclusiveGateway>
+    <sequenceFlow id="sequenceFlow_11" sourceRef="intermediateCatchEvent_0" targetRef="exclusiveGateway_2"/>
+    <sequenceFlow id="sequenceFlow_12" name="Yes" sourceRef="exclusiveGateway_2" targetRef="serviceTask_6">
+      <conditionExpression id="conditionExpression_16"/>
+    </sequenceFlow>
+    <serviceTask id="serviceTask_6" name="">
+      <incoming>sequenceFlow_12</incoming>
+      <outgoing>sequenceFlow_15</outgoing>
+    </serviceTask>
+    <sequenceFlow id="sequenceFlow_13" name="No" sourceRef="exclusiveGateway_2" targetRef="serviceTask_7">
+      <conditionExpression id="conditionExpression_17"/>
+    </sequenceFlow>
+    <serviceTask id="serviceTask_7" name="Reset for retry">
+      <incoming>sequenceFlow_13</incoming>
+      <outgoing>sequenceFlow_14</outgoing>
+    </serviceTask>
+    <sequenceFlow id="sequenceFlow_14" sourceRef="serviceTask_7" targetRef="exclusiveGateway_1"/>
+    <endEvent id="endEvent_20">
+      <incoming>sequenceFlow_15</incoming>
+    </endEvent>
+    <sequenceFlow id="sequenceFlow_15" sourceRef="serviceTask_6" targetRef="endEvent_20"/>
+  </process>
+  <bpmndi:BPMNDiagram id="BpmnDiagram_0">
+    <bpmndi:BPMNPlane bpmnElement="process_3" id="BpmnPlaneImpl_16">
+      <bpmndi:BPMNShape bpmnElement="startEvent_19" id="BpmnShapeImpl_8">
+        <dc:Bounds height="36.0" width="36.0" x="100.0" y="100.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="exclusiveGateway_1" id="BpmnShapeImpl_9" isMarkerVisible="true">
+        <dc:Bounds height="50.0" width="50.0" x="186.0" y="93.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_8" id="BpmnEdgeImpl_0">
+        <di:waypoint x="136.0" y="118.0"/>
+        <di:waypoint x="186.0" y="118.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape bpmnElement="serviceTask_5" id="BpmnShapeImpl_10">
+        <dc:Bounds height="80.0" width="100.0" x="286.0" y="78.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_9" id="BpmnEdgeImpl_1">
+        <di:waypoint x="236.0" y="118.0"/>
+        <di:waypoint x="286.0" y="118.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape bpmnElement="intermediateCatchEvent_0" id="BpmnShapeImpl_11">
+        <dc:Bounds height="36.0" width="36.0" x="436.0" y="100.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_10" id="BpmnEdgeImpl_2">
+        <di:waypoint x="386.0" y="118.0"/>
+        <di:waypoint x="436.0" y="118.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape bpmnElement="exclusiveGateway_2" id="BpmnShapeImpl_12" isMarkerVisible="true">
+        <dc:Bounds height="50.0" width="50.0" x="522.0" y="93.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_11" id="BpmnEdgeImpl_3">
+        <di:waypoint x="472.0" y="118.0"/>
+        <di:waypoint x="522.0" y="118.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape bpmnElement="serviceTask_6" id="BpmnShapeImpl_13">
+        <dc:Bounds height="80.0" width="100.0" x="622.0" y="78.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_12" id="BpmnEdgeImpl_4">
+        <di:waypoint x="572.0" y="118.0"/>
+        <di:waypoint x="622.0" y="118.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape bpmnElement="serviceTask_7" id="BpmnShapeImpl_14">
+        <dc:Bounds height="80.0" width="100.0" x="622.0" y="208.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_13" id="BpmnEdgeImpl_5">
+        <di:waypoint x="547.0" y="143.0"/>
+        <di:waypoint x="547.0" y="248.0"/>
+        <di:waypoint x="622.0" y="248.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_14" id="BpmnEdgeImpl_6">
+        <di:waypoint x="722.0" y="248.0"/>
+        <di:waypoint x="186.0" y="118.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape bpmnElement="endEvent_20" id="BpmnShapeImpl_15">
+        <dc:Bounds height="36.0" width="36.0" x="772.0" y="100.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_15" id="BpmnEdgeImpl_7">
+        <di:waypoint x="722.0" y="118.0"/>
+        <di:waypoint x="772.0" y="118.0"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>

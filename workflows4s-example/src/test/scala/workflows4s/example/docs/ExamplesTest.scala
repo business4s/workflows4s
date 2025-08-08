@@ -22,6 +22,7 @@ class ExamplesTest extends AnyFreeSpec {
     ExampleConfig("handle-error-with", HandleErrorExample.errorHandled),
     ExampleConfig("simple-loop", LoopExample.Simple.loop),
     ExampleConfig("loop", LoopExample.loop),
+    ExampleConfig("draft-loop", DraftLoopExample.loop),
     ExampleConfig("fork", ForkExample.fork),
     ExampleConfig("parallel", ParallelExample.parallel),
     ExampleConfig("interruption-signal", InterruptionExample.interruptedThroughSignal),

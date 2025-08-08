@@ -10,19 +10,17 @@ object DraftLoopExample {
   import DraftContext._
 
   // start_draft
-  // Create a retry workflow with a timer to avoid busy loops
+  // Create a draft loop with a timer to avoid busy loops
   val processStep = WIO.draft.step("Process Item")
-  val waitStep = WIO.draft.timer("Wait before retry", 5.seconds)
+  val waitStep = WIO.draft.timer("Wait before retry", duration = 1.minute)
   
-  val retryWorkflow = WIO.draft.repeat("Check Success", "Done", "Retry")(
-    processStep >>> waitStep
-  )
-
-  // Add custom retry behavior
-  val handleError = WIO.draft.step("Handle Error")
-  val retryWithHandler = WIO.draft.repeat("Check Success", "Done", "Retry")(
-    processStep >>> waitStep,
-    onRestart = handleError
+  val loop = WIO.draft.repeat(
+    conditionName = "Is processing complete?",
+    releaseBranchName = "Yes",
+    restartBranchName = "No"
+  )(
+    body = processStep >>> waitStep,
+    onRestart = WIO.draft.step("Reset for retry")
   )
   // end_draft
 }
