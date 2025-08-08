@@ -15,6 +15,7 @@ class ExamplesTest extends AnyFreeSpec {
     ExampleConfig("run-io-description", RunIOExample.doThingsWithDescription),
     ExampleConfig("timer", TimerExample.waitForInput),
     ExampleConfig("handle-signal", HandleSignalExample.doThings),
+    ExampleConfig("draft-signal", DraftSignalExample.workflow),
     ExampleConfig("and-then", SequencingExample.sequence1),
     ExampleConfig("flat-map", SequencingExample.Dynamic.sequence1),
     ExampleConfig("handle-error-with", HandleErrorExample.errorHandled),

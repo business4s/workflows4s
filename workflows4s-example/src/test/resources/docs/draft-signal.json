@@ -1,0 +1,31 @@
+{
+  "steps" : [
+    {
+      "meta" : {
+        "name" : "Submit PR",
+        "error" : null,
+        "description" : null
+      },
+      "_type" : "RunIO"
+    },
+    {
+      "meta" : {
+        "signalName" : "Approval Required",
+        "operationName" : null,
+        "error" : {
+          "name" : "Rejected"
+        }
+      },
+      "_type" : "HandleSignal"
+    },
+    {
+      "meta" : {
+        "name" : "Merge PR",
+        "error" : null,
+        "description" : null
+      },
+      "_type" : "RunIO"
+    }
+  ],
+  "_type" : "Sequence"
+}

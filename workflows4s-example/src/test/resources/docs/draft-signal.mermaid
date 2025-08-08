@@ -1,0 +1,10 @@
+flowchart TD
+node0@{ shape: circle, label: "Start"}
+node1["Submit PR"]
+node0 --> node1
+node2@{ shape: stadium, label: "fa:fa-envelope Approval Required"}
+node1 --> node2
+node3["Handle Approval Required"]
+node2 --> node3
+node4["Merge PR"]
+node3 --> node4
