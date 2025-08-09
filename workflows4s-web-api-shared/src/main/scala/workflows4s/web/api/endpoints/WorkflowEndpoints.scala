@@ -3,6 +3,7 @@ package workflows4s.web.api.endpoints
 import sttp.tapir.*
 import sttp.tapir.generic.auto.*
 import sttp.tapir.json.circe.*
+import io.circe.Json
 import workflows4s.web.api.model.*
 
 object WorkflowEndpoints {
@@ -43,5 +44,19 @@ object WorkflowEndpoints {
       .out(jsonBody[WorkflowInstance])
       .description("Get workflow instance by definition ID and instance ID")
 
-  val allEndpoints = List(listDefinitions, getDefinition, getInstance, createTestInstanceEndpoint)
+  //  GET /api/v1/definitions/{defId}/instances/{instanceId}/progress
+  val getInstanceProgress: PublicEndpoint[(String, String), String, Json, Any] =
+    baseEndpoint
+      .get
+      .in("definitions" / path[String]("defId") / "instances" / path[String]("instanceId") / "progress")
+      .out(jsonBody[Json])
+      .description("Get workflow instance progress by definition ID and instance ID")
+
+  val allEndpoints = List(
+    listDefinitions, 
+    getDefinition, 
+    getInstance, 
+    getInstanceProgress,  
+    createTestInstanceEndpoint
+  )
 }

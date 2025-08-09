@@ -1,4 +1,4 @@
- package workflows4s.web.api.server
+package workflows4s.web.api.server
 
 import cats.effect.IO
 import cats.syntax.either.*
@@ -38,6 +38,10 @@ class WorkflowServerEndpoints(workflowService: WorkflowApiService) {
         workflowService.getInstance(workflowId, instanceId).attempt.map(_.leftMap(_.getMessage))
       }
     }),
+    // ADD THIS - Progress endpoint
+    WorkflowEndpoints.getInstanceProgress.serverLogic { case (defId, instanceId) =>
+      workflowService.getProgress(defId, instanceId).attempt.map(_.leftMap(_.getMessage))
+    },
     WorkflowEndpoints.createTestInstanceEndpoint.serverLogic(workflowId => {
       IO.pure(createTestInstanceLogic(workflowId))
     }),
