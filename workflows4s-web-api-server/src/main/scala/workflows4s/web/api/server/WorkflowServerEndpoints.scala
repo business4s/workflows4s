@@ -38,7 +38,7 @@ class WorkflowServerEndpoints(workflowService: WorkflowApiService) {
         workflowService.getInstance(workflowId, instanceId).attempt.map(_.leftMap(_.getMessage))
       }
     }),
-    // ADD THIS - Progress endpoint
+   
     WorkflowEndpoints.getInstanceProgress.serverLogic { case (defId, instanceId) =>
       workflowService.getProgress(defId, instanceId).attempt.map(_.leftMap(_.getMessage))
     },

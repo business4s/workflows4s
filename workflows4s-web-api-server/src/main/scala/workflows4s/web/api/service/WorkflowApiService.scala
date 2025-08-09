@@ -5,7 +5,7 @@ import cats.effect.IO
 import io.circe.Json
 import io.circe.syntax.*
 import workflows4s.wio.model.{WIOExecutionProgress, WIOMeta}
-import workflows4s.wio.model.WIOExecutionProgressCodec.given  // use derived codecs
+import workflows4s.wio.model.WIOExecutionProgressCodec.given  
 
 trait WorkflowApiService {
   def listDefinitions(): IO[List[WorkflowDefinition]]
