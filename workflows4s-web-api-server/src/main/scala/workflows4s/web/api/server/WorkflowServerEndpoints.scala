@@ -29,8 +29,12 @@ class WorkflowServerEndpoints(workflowService: WorkflowApiService) {
   }
 
   val endpoints: List[ServerEndpoint[Any, IO]] = List(
-    WorkflowEndpoints.listDefinitions.serverLogic(_ => workflowService.listDefinitions().attempt.map(_.leftMap(_.getMessage))),
-    WorkflowEndpoints.getDefinition.serverLogic(workflowId => workflowService.getDefinition(workflowId).attempt.map(_.leftMap(_.getMessage))),
+    WorkflowEndpoints.listDefinitions.serverLogic(_ => 
+      workflowService.listDefinitions().attempt.map(_.leftMap(_.getMessage))
+    ),
+    WorkflowEndpoints.getDefinition.serverLogic(workflowId => 
+      workflowService.getDefinition(workflowId).attempt.map(_.leftMap(_.getMessage))
+    ),
     WorkflowEndpoints.getInstance.serverLogic((workflowId, instanceId) => {
       if (instanceId.startsWith("test-instance-")) {
         IO.pure(createTestInstanceLogic(workflowId))
@@ -38,9 +42,12 @@ class WorkflowServerEndpoints(workflowService: WorkflowApiService) {
         workflowService.getInstance(workflowId, instanceId).attempt.map(_.leftMap(_.getMessage))
       }
     }),
-   
     WorkflowEndpoints.getInstanceProgress.serverLogic { case (defId, instanceId) =>
       workflowService.getProgress(defId, instanceId).attempt.map(_.leftMap(_.getMessage))
+    },
+    // THIS WAS MISSING! 
+    WorkflowEndpoints.getInstanceProgressMermaid.serverLogic { case (defId, instanceId) =>
+      workflowService.getProgressAsMermaid(defId, instanceId).attempt.map(_.leftMap(_.getMessage))
     },
     WorkflowEndpoints.createTestInstanceEndpoint.serverLogic(workflowId => {
       IO.pure(createTestInstanceLogic(workflowId))
