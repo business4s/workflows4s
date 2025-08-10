@@ -3,14 +3,15 @@ package workflows4s.web.api.service
 import cats.effect.IO
 import io.circe.{Encoder, Json}
 import io.circe.syntax.*
+import workflows4s.mermaid.MermaidRenderer
 import workflows4s.runtime.WorkflowRuntime
 import workflows4s.web.api.model.*
-import workflows4s.wio.WorkflowContext
+import workflows4s.wio.{WCState, WorkflowContext}
 import workflows4s.wio.model.WIOExecutionProgress
 import workflows4s.wio.model.WIOExecutionProgressCodec.given
 
 class RealWorkflowService(
-    workflowEntries: List[RealWorkflowService.WorkflowEntry[?, ?]],
+    workflowEntries: List[RealWorkflowService.WorkflowEntry[?]],
 ) extends WorkflowApiService {
 
   def listDefinitions(): IO[List[WorkflowDefinition]] =
@@ -31,7 +32,13 @@ class RealWorkflowService(
       json  <- getRealInstanceProgressJson(entry, instanceId)
     } yield json
 
-  private def findEntry(definitionId: String): IO[RealWorkflowService.WorkflowEntry[?, ?]] =
+  def getProgressAsMermaid(definitionId: String, instanceId: String): IO[String] =
+    for {
+      entry    <- findEntry(definitionId)
+      progress <- getRealProgress(entry, instanceId)
+    } yield MermaidRenderer.renderWorkflow(progress).toString
+
+  private def findEntry(definitionId: String): IO[RealWorkflowService.WorkflowEntry[?]] =
     IO.fromOption(workflowEntries.find(_.id == definitionId))(new Exception(s"Definition not found: $definitionId"))
 
   private def progressToStatus(progress: WIOExecutionProgress[?]): InstanceStatus =
@@ -41,8 +48,8 @@ class RealWorkflowService(
       case None           => InstanceStatus.Running
     }
 
-  private def getRealInstance[WorkflowId, Ctx <: WorkflowContext](
-      entry: RealWorkflowService.WorkflowEntry[WorkflowId, Ctx],
+  private def getRealInstance[Ctx <: WorkflowContext](
+      entry: RealWorkflowService.WorkflowEntry[Ctx],
       instanceId: String,
   ): IO[WorkflowInstance] = {
     val parsedId = entry.parseId(instanceId)
@@ -58,25 +65,37 @@ class RealWorkflowService(
     )
   }
 
-  private def getRealInstanceProgressJson[WorkflowId, Ctx <: WorkflowContext](
-      entry: RealWorkflowService.WorkflowEntry[WorkflowId, Ctx],
+  private def getRealProgress[Ctx <: WorkflowContext](
+      entry: RealWorkflowService.WorkflowEntry[Ctx],
       instanceId: String,
-  ): IO[Json] = {
+  ): IO[WIOExecutionProgress[WCState[Ctx]]] = {
     val parsedId = entry.parseId(instanceId)
     for {
       workflowInstance <- entry.runtime.createInstance(parsedId)
-      progress         <- workflowInstance.getProgress // WIOExecutionProgress[WCState[Ctx]]
-      progressAsString  = progress.map(st => Some(st.toString)) // map: State => Option[String]
+      progress         <- workflowInstance.getProgress
+    } yield progress
+  }
+
+  private def getRealInstanceProgressJson[Ctx <: WorkflowContext](
+      entry: RealWorkflowService.WorkflowEntry[Ctx],
+      instanceId: String,
+  ): IO[Json] = {
+    for {
+      progress <- getRealProgress(entry, instanceId) // WIOExecutionProgress[WCState[Ctx]]
+      // map expects State => Option[NewState]
+      progressAsString: WIOExecutionProgress[String] = progress.map(st => Some(st.toString))
     } yield progressAsString.asJson
   }
 }
 
 object RealWorkflowService {
-  case class WorkflowEntry[WorkflowId, Ctx <: WorkflowContext](
+  case class WorkflowEntry[Ctx <: WorkflowContext](
       id: String,
       name: String,
-      runtime: WorkflowRuntime[IO, Ctx, WorkflowId],
-      parseId: String => WorkflowId,
+      // WorkflowRuntime expects [F, Ctx, WorkflowId]. Here WorkflowId is String.
+      runtime: WorkflowRuntime[IO, Ctx, String],
       stateEncoder: Encoder[workflows4s.wio.WCState[Ctx]],
+      // Keep for example Server.scala which provides `parseId = identity`
+      parseId: String => String,
   )
 }

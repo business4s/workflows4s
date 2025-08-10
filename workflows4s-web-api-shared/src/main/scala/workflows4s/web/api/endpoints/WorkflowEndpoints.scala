@@ -44,7 +44,7 @@ object WorkflowEndpoints {
       .out(jsonBody[WorkflowInstance])
       .description("Get workflow instance by definition ID and instance ID")
 
-  //  GET /api/v1/definitions/{defId}/instances/{instanceId}/progress
+  // GET /api/v1/definitions/{defId}/instances/{instanceId}/progress
   val getInstanceProgress: PublicEndpoint[(String, String), String, Json, Any] =
     baseEndpoint
       .get
@@ -52,11 +52,20 @@ object WorkflowEndpoints {
       .out(jsonBody[Json])
       .description("Get workflow instance progress by definition ID and instance ID")
 
+  // GET /api/v1/definitions/{defId}/instances/{instanceId}/progress/mermaid
+  val getInstanceProgressMermaid: PublicEndpoint[(String, String), String, String, Any] =
+    baseEndpoint
+      .get
+      .in("definitions" / path[String]("defId") / "instances" / path[String]("instanceId") / "progress" / "mermaid")
+      .out(stringBody)
+      .description("Get workflow instance progress as Mermaid diagram")
+
   val allEndpoints = List(
-    listDefinitions, 
-    getDefinition, 
-    getInstance, 
-    getInstanceProgress,  
+    listDefinitions,
+    getDefinition,
+    getInstance,
+    getInstanceProgress,
+    getInstanceProgressMermaid,
     createTestInstanceEndpoint
   )
 }
