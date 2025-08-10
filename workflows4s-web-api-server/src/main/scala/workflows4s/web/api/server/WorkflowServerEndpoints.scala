@@ -45,7 +45,7 @@ class WorkflowServerEndpoints(workflowService: WorkflowApiService) {
     WorkflowEndpoints.getInstanceProgress.serverLogic { case (defId, instanceId) =>
       workflowService.getProgress(defId, instanceId).attempt.map(_.leftMap(_.getMessage))
     },
-    // THIS WAS MISSING! 
+
     WorkflowEndpoints.getInstanceProgressMermaid.serverLogic { case (defId, instanceId) =>
       workflowService.getProgressAsMermaid(defId, instanceId).attempt.map(_.leftMap(_.getMessage))
     },

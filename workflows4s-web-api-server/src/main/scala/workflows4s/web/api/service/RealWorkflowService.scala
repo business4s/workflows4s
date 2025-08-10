@@ -95,7 +95,7 @@ object RealWorkflowService {
       // WorkflowRuntime expects [F, Ctx, WorkflowId]. Here WorkflowId is String.
       runtime: WorkflowRuntime[IO, Ctx, String],
       stateEncoder: Encoder[workflows4s.wio.WCState[Ctx]],
-      // Keep for example Server.scala which provides `parseId = identity`
+    
       parseId: String => String,
   )
 }
