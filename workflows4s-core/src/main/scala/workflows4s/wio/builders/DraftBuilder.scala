@@ -81,6 +81,40 @@ object DraftBuilder {
         ).transformInput((_: Any) => ???).map(_ => ???)
       }
 
+      def interruptionSignal(
+          signalName: String = null,
+          operationName: String = null,
+          error: String = null
+      )(using autoName: sourcecode.Name): WIO.Interruption[Ctx, Nothing, Nothing] = {
+        val draftSignalHandling = WIO.HandleSignal(
+          draftSignal,
+          SignalHandler[Unit, Unit, WCState[Ctx]]((_, _) => ???),
+          dummyEventHandler[WCEvent[Ctx], Unit],
+          WIO.HandleSignal.Meta(
+            Option(error).map(ErrorMeta.Present(_)).getOrElse(ErrorMeta.noError),
+            Option(signalName).getOrElse(getEffectiveName(null, autoName)),
+            Option(operationName)
+          ),
+        ).transformInput((_: WCState[Ctx]) => ???).map(_ => ???)
+        WIO.Interruption(draftSignalHandling, WIO.HandleInterruption.InterruptionType.Signal)
+      }
+
+      def interruptionTimeout(
+          timerName: String = null,
+          duration: FiniteDuration = null
+      )(using autoName: sourcecode.Name): WIO.Interruption[Ctx, Nothing, Nothing] = {
+        val draftTimer = WIO.Timer(
+          Option(duration) match {
+            case Some(value) => WIO.Timer.DurationSource.Static(value.toJava)
+            case None        => WIO.Timer.DurationSource.Dynamic(_ => ???)
+          },
+          dummyEventHandler[WCEvent[Ctx], WIO.Timer.Started],
+          Option(timerName).orElse(getEffectiveName(null, autoName).some),
+          dummyEventHandler[WCEvent[Ctx], WIO.Timer.Released],
+        ).transformInput((_: WCState[Ctx]) => ???).map(_ => ???)
+        WIO.Interruption(draftTimer, WIO.HandleInterruption.InterruptionType.Timer)
+      }
+
     }
 
   }

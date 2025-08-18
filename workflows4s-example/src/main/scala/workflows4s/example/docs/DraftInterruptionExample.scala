@@ -1,0 +1,28 @@
+package workflows4s.example.docs
+
+import scala.concurrent.duration.*
+
+object DraftInterruptionExample {
+
+  // start_draft
+  object DraftContext extends workflows4s.wio.WorkflowContext {
+    // No need to define State or Event
+  }
+
+  import DraftContext._
+
+  // Create signal and timeout interruptions
+  val urgentProcessing = WIO.draft.interruptionSignal("Urgent Processing Request")
+  val processingTimeout = WIO.draft.interruptionTimeout("Processing Deadline", 2.hours)
+
+  // Document processing workflow that can be interrupted
+  val documentProcessingWorkflow = 
+    WIO.draft.step("Validate Document") >>>
+    WIO.draft.step("Extract Content")
+      .interruptWith(urgentProcessing)  // Can be interrupted for urgent processing
+      .interruptWith(processingTimeout) >>> // Must complete within 2 hours
+    WIO.draft.step("Generate Report")
+  // end_draft
+
+}
+
