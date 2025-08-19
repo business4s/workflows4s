@@ -30,34 +30,42 @@ object Main extends TyrianIOApp[Msg, Model] {
   }
 
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
-    case Msg.NoOp =>
+    case Msg.NoOp => 
       (model, Cmd.None)
 
-    case Msg.ForWorkflows(wmMsg) =>
-      // The subsystem now returns the correct command type (Cmd[IO, Msg])
-      // No more mapping or manual command batching is needed here.
-      val (updatedWorkflowsManager, cmd) = model.workflows.update(wmMsg)
-      val updatedModel                   = model.copy(workflows = updatedWorkflowsManager)
-      (updatedModel, cmd)
+    case Msg.ForWorkflows(workflowsMsg) =>
+      val (updatedWorkflows, cmd) = model.workflows.update(workflowsMsg)
+      (model.copy(workflows = updatedWorkflows), cmd.map(Msg.ForWorkflows.apply))
 
-    case Msg.ForInstances(imMsg) =>
-      val (updatedInstancesManager, cmd) = model.instances.update(imMsg)
-      // We still need to map the InstancesManager's internal messages.
-      (model.copy(instances = updatedInstancesManager), cmd.map(Msg.ForInstances.apply))
+    case Msg.ForInstances(instancesMsg) =>
+      val (updatedInstances, cmd) = model.instances.update(instancesMsg)
+      (model.copy(instances = updatedInstances), cmd.map(Msg.ForInstances.apply))
   }
 
   def view(model: Model): Html[Msg] =
     div(
       ReusableViews.headerView,
-      main(
-        div(cls := "container")(
+      section(cls := "section")(
+        div(cls := "container is-fluid")(
           div(cls := "columns")(
             model.workflows.view.map(Msg.ForWorkflows.apply),
             model.instances.view(model.workflows.selectedWorkflowId).map(Msg.ForInstances.apply),
           ),
         ),
       ),
+      footerView,
     )
 
   def subscriptions(model: Model): Sub[IO, Msg] = Sub.None
+
+  private def footerView: Html[Msg] =
+    footer(cls := "footer mt-6")(
+      div(cls := "content has-text-centered")(
+        p(
+          text("Built with "),
+          strong("Workflows4s"),
+          text(" - A lightweight workflow engine for Scala")
+        ),
+      ),
+    )
 }
