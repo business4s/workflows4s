@@ -1,5 +1,6 @@
 package workflows4s.runtime.pekko
 
+import com.typesafe.config.{Config, ConfigFactory}
 import io.altoo.serialization.kryo.pekko.PekkoKryoSerializer
 import org.apache.pekko.actor.ExtendedActorSystem
 import org.apache.pekko.actor.testkit.typed.scaladsl.ActorTestKit
@@ -15,11 +16,18 @@ import workflows4s.runtime.pekko.WorkflowBehaviorTest.*
 import workflows4s.wio.model.WIOExecutionProgress
 import workflows4s.wio.{SignalDef, WorkflowContext}
 
+import scala.jdk.CollectionConverters.MapHasAsJava
+
 class WorkflowBehaviorTest extends AnyFreeSpec with Matchers with BeforeAndAfterAll {
 
   val DummySignalDef = SignalDef[String, Int]()
 
-  private val testKit     = ActorTestKit()
+  private val config: Config = ConfigFactory.parseMap(Map(
+    "akka.remote.artery.canonical.port" -> "0",
+    "pekko.actor.allow-java-serialization" -> "on"
+  ).asJava).withFallback(ConfigFactory.load())
+
+  private val testKit     = ActorTestKit(config)
   private val typedSystem = testKit.system
   private val classic     = typedSystem.classicSystem
   private val extSystem   = classic.asInstanceOf[ExtendedActorSystem]
