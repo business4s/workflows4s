@@ -48,7 +48,7 @@ object WorkflowInstanceEngine {
       .withGreedyEvaluation
       .withLogging
       .get
-  def basic(clock: Clock = Clock.systemUTC()): WorkflowInstanceEngine                                                                                 = builder
+  def basic(clock: Clock = Clock.systemUTC()): WorkflowInstanceEngine                                               = builder
     .withJavaTime(clock)
     .withoutWakeUps
     .withoutRegistering

@@ -22,10 +22,14 @@ class WorkflowBehaviorTest extends AnyFreeSpec with Matchers with BeforeAndAfter
 
   val DummySignalDef = SignalDef[String, Int]()
 
-  private val config: Config = ConfigFactory.parseMap(Map(
-    "akka.remote.artery.canonical.port" -> "0",
-    "pekko.actor.allow-java-serialization" -> "on"
-  ).asJava).withFallback(ConfigFactory.load())
+  private val config: Config = ConfigFactory
+    .parseMap(
+      Map(
+        "akka.remote.artery.canonical.port"    -> "0",
+        "pekko.actor.allow-java-serialization" -> "on",
+      ).asJava,
+    )
+    .withFallback(ConfigFactory.load())
 
   private val testKit     = ActorTestKit(config)
   private val typedSystem = testKit.system
