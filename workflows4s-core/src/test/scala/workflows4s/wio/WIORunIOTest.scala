@@ -24,8 +24,8 @@ class WIORunIOTest extends AnyFreeSpec with Matchers with EitherValues {
 
       val resultOpt = wf.proceed(Instant.now)
 
-      assert(resultOpt.isDefined)
-      val newEvent = resultOpt.get.unsafeRunSync().value
+      assert(resultOpt.toRaw.isDefined)
+      val newEvent = resultOpt.toRaw.get.unsafeRunSync().value
       assert(newEvent == SimpleEvent("ProcessedEvent(initialState)"))
     }
 
@@ -36,7 +36,7 @@ class WIORunIOTest extends AnyFreeSpec with Matchers with EitherValues {
         .done
         .toWorkflow("initialState")
 
-      val Some(result) = wf.proceed(Instant.now): @unchecked
+      val Some(result) = wf.proceed(Instant.now).toRaw: @unchecked
 
       val Left(ex) = result.attempt.unsafeRunSync(): @unchecked
       assert(ex.getMessage == "IO failed")
@@ -60,7 +60,7 @@ class WIORunIOTest extends AnyFreeSpec with Matchers with EitherValues {
         .done
         .toWorkflow("initialState")
 
-      val resultOpt = wf.handleSignal(SignalDef[String, String]())("")
+      val resultOpt = wf.handleSignal(SignalDef[String, String]())("").toRaw
 
       assert(resultOpt.isEmpty)
     }

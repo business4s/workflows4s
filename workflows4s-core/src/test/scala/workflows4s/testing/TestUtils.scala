@@ -50,7 +50,7 @@ object TestUtils {
       new InMemorySyncRuntime[TestCtx2.Ctx](
         wio.provideInput(TestState.empty),
         TestState.empty,
-        WorkflowInstanceEngine.builder.withJavaTime(clock).withoutWakeUps.withoutRegistering.withGreedyEvaluation.withLogging.get,
+        WorkflowInstanceEngine.basic(clock),
         "test",
       )
         .createInstance(UUID.randomUUID().toString)

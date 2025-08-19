@@ -119,7 +119,7 @@ object PullRequestWorkflow {
     // end_render
 
     // start_execution
-    val engine     = WorkflowInstanceEngine.basic
+    val engine     = WorkflowInstanceEngine.basic()
     val runtime    = InMemorySyncRuntime.create[Context.Ctx](workflow, PRState.Empty, engine)
     val wfInstance = runtime.createInstance("id")
 

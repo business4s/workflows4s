@@ -3,17 +3,18 @@ package workflows4s.runtime.instanceengine
 import cats.effect.IO
 import workflows4s.runtime.registry.WorkflowRegistry
 import workflows4s.runtime.registry.WorkflowRegistry.ExecutionStatus
-import workflows4s.wio.{ActiveWorkflow, SignalDef, WCEvent, WorkflowContext}
+import workflows4s.wio.*
+import workflows4s.wio.internal.{SignalResult, WakeupResult}
 
-import java.time.Instant
-
+// TODO check how this engine interacts with non-greedy mode.
+//  What happens when there is more to execute? What is unexpected signall appers between wakeups?
 class RegisteringWorkflowInstanceEngine(protected val delegate: WorkflowInstanceEngine, registry: WorkflowRegistry.Agent)
     extends DelegatingWorkflowInstanceEngine {
 
-  override def triggerWakeup[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[Option[IO[Either[Instant, WCEvent[Ctx]]]]] = {
+  override def triggerWakeup[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[WakeupResult[WCEvent[Ctx]]] = {
     for {
       prevResult <- super.triggerWakeup(workflow)
-      _          <- registeringRunningInstance(workflow, prevResult)
+      _          <- registeringRunningInstance(workflow, prevResult.hasEffect)
     } yield prevResult
   }
 
@@ -21,10 +22,10 @@ class RegisteringWorkflowInstanceEngine(protected val delegate: WorkflowInstance
       workflow: ActiveWorkflow[Ctx],
       signalDef: SignalDef[Req, Resp],
       req: Req,
-  ): IO[Option[IO[(WCEvent[Ctx], Resp)]]] = {
+  ): IO[SignalResult[WCEvent[Ctx], Resp]] = {
     for {
       prevResult <- super.handleSignal(workflow, signalDef, req)
-      _          <- registeringRunningInstance(workflow, prevResult)
+      _          <- registeringRunningInstance(workflow, prevResult.hasEffect)
     } yield prevResult
   }
 
@@ -35,11 +36,9 @@ class RegisteringWorkflowInstanceEngine(protected val delegate: WorkflowInstance
     super.onStateChange(oldState, newState) <* registerNotRunningInstance(newState)
   }
 
-  private def registeringRunningInstance(workflow: ActiveWorkflow[?], nextStep: Option[IO[Any]]) =
-    nextStep match {
-      case Some(_) => registry.upsertInstance(workflow.id, WorkflowRegistry.ExecutionStatus.Running)
-      case None    => registerNotRunningInstance(workflow)
-    }
+  private def registeringRunningInstance(workflow: ActiveWorkflow[?], hasFollowup: Boolean) =
+    if hasFollowup then registry.upsertInstance(workflow.id, WorkflowRegistry.ExecutionStatus.Running)
+    else registerNotRunningInstance(workflow)
 
   private def registerNotRunningInstance(workflow: ActiveWorkflow[?]): IO[Unit] = {
     val status =

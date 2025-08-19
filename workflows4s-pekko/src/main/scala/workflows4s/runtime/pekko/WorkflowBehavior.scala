@@ -116,7 +116,6 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
                     logger.error("Error when running onStateChange hook", exception)
                     x.reply
                   case Success(cmds)      =>
-                    // almost works but lock kicks in and doesnt allow to wake up
                     val responder = actorContext.spawnAnonymous(replyOnWakeupComplete(x.reply))
                     val other     = cmds.toList.map({ case PostExecCommand.WakeUp =>
                       Command.FollowupWakeup[Ctx](responder)
@@ -148,7 +147,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
     changeStateAsync[(WCEvent[Ctx], Resp), Either[UnexpectedSignal, Resp]](
       processingState,
       actorContext,
-      state => engine.handleSignal(state.workflow, cmd.signalDef, cmd.req),
+      state => engine.handleSignal(state.workflow, cmd.signalDef, cmd.req).map(_.toRaw),
       cmd.replyTo,
       {
         case Some(value) => Right(value._2)
@@ -166,7 +165,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
     changeStateAsync[Either[Instant, WCEvent[Ctx]], Unit](
       processingState,
       actorContext,
-      state => engine.triggerWakeup(state.workflow),
+      state => engine.triggerWakeup(state.workflow).map(_.toRaw),
       replyTo,
       _ => (),
       x => x.toOption,

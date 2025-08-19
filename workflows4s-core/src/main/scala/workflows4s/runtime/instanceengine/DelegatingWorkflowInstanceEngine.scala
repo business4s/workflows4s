@@ -2,9 +2,8 @@ package workflows4s.runtime.instanceengine
 
 import cats.effect.{IO, SyncIO}
 import workflows4s.wio.model.WIOExecutionProgress
-import workflows4s.wio.{ActiveWorkflow, SignalDef, WCEvent, WCState, WorkflowContext}
-
-import java.time.Instant
+import workflows4s.wio.*
+import workflows4s.wio.internal.{SignalResult, WakeupResult}
 
 trait DelegatingWorkflowInstanceEngine extends WorkflowInstanceEngine {
   protected def delegate: WorkflowInstanceEngine
@@ -13,14 +12,14 @@ trait DelegatingWorkflowInstanceEngine extends WorkflowInstanceEngine {
   def getProgress[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[WIOExecutionProgress[WCState[Ctx]]] = delegate.getProgress(workflow)
   def getExpectedSignals[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[List[SignalDef[?, ?]]]       = delegate.getExpectedSignals(workflow)
 
-  override def triggerWakeup[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[Option[IO[Either[Instant, WCEvent[Ctx]]]]] =
+  override def triggerWakeup[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[WakeupResult[WCEvent[Ctx]]] =
     delegate.triggerWakeup(workflow)
 
   override def handleSignal[Ctx <: WorkflowContext, Req, Resp](
       workflow: ActiveWorkflow[Ctx],
       signalDef: SignalDef[Req, Resp],
       req: Req,
-  ): IO[Option[IO[(WCEvent[Ctx], Resp)]]] = delegate.handleSignal(workflow, signalDef, req)
+  ): IO[SignalResult[WCEvent[Ctx], Resp]] = delegate.handleSignal(workflow, signalDef, req)
 
   override def handleEvent[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx], event: WCEvent[Ctx]): SyncIO[Option[ActiveWorkflow[Ctx]]] =
     delegate.handleEvent(workflow, event)

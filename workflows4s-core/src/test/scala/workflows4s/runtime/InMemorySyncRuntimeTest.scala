@@ -14,7 +14,7 @@ class InMemorySyncRuntimeTest extends AnyFreeSpec {
       val runtime               = InMemorySyncRuntime.create[Ctx](
         workflow = workflow,
         initialState = "initialState",
-        engine = WorkflowInstanceEngine.basic,
+        engine = WorkflowInstanceEngine.basic(),
       )
 
       val instance1 = runtime.createInstance("id1")

@@ -12,12 +12,10 @@ object RunIOEvaluator {
       wio: WIO[StIn, Nothing, WCState[Ctx], Ctx],
       state: StIn,
       now: Instant,
-  ): Response[Ctx] = {
+  ): WakeupResult[WCEvent[Ctx]] = {
     val visitor = new RunIOVisitor(wio, state, state, now)
-    Response(visitor.run)
+    WakeupResult.fromRaw(visitor.run)
   }
-
-  case class Response[Ctx <: WorkflowContext](event: Option[IO[Either[Instant, WCEvent[Ctx]]]])
 
   private class RunIOVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](
       wio: WIO[In, Err, Out, Ctx],

@@ -16,7 +16,7 @@ class InMemoryRuntimeTest extends AnyFreeSpec {
         .default[Ctx](
           workflow = workflow,
           initialState = "initialState",
-          engine = WorkflowInstanceEngine.basic,
+          engine = WorkflowInstanceEngine.basic(),
         )
         .unsafeRunSync()
 

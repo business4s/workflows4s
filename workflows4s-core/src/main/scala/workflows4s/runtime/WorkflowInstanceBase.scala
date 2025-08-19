@@ -7,6 +7,7 @@ import com.typesafe.scalalogging.StrictLogging
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine.PostExecCommand
 import workflows4s.wio.*
+import workflows4s.wio.internal.{SignalResult, WakeupResult}
 import workflows4s.wio.model.WIOExecutionProgress
 
 import scala.util.chaining.scalaUtilChainingOps
@@ -35,15 +36,15 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
       for {
         resultOpt <- engine.handleSignal(state, signalDef, req).pipe(liftIO.liftIO)
         result    <- resultOpt match {
-                       case Some(resultIO) =>
+                       case SignalResult.Processed(resultIO) =>
                          for {
                            eventAndResp <- resultIO.pipe(liftIO.liftIO)
-                           _            <- persistEvent(eventAndResp._1)
-                           newStateOpt  <- engine.handleEvent(state, eventAndResp._1).to[IO].pipe(liftIO.liftIO)
+                           _            <- persistEvent(eventAndResp.event)
+                           newStateOpt  <- engine.handleEvent(state, eventAndResp.event).to[IO].pipe(liftIO.liftIO)
                            _            <- newStateOpt.traverse_(updateState)
                            _            <- handleStateChange(state, newStateOpt)
                          } yield Right(eventAndResp._2)
-                       case None           => Left(WorkflowInstance.UnexpectedSignal(signalDef)).pure[F]
+                       case SignalResult.UnexpectedSignal    => Left(WorkflowInstance.UnexpectedSignal(signalDef)).pure[F]
                      }
       } yield result
     }
@@ -69,12 +70,12 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
     for {
       resultOpt <- engine.triggerWakeup(state).pipe(liftIO.liftIO)
       _         <- resultOpt match {
-                     case Some(retryOrEventIO) =>
+                     case WakeupResult.Processed(resultIO) =>
                        for {
-                         retryOrEvent <- retryOrEventIO.pipe(liftIO.liftIO)
+                         retryOrEvent <- resultIO.pipe(liftIO.liftIO)
                          newStateOpt  <- retryOrEvent match {
-                                           case Left(_)      => None.pure[F]
-                                           case Right(event) =>
+                                           case WakeupResult.ProcessingResult.Failed(_)        => None.pure[F]
+                                           case WakeupResult.ProcessingResult.Proceeded(event) =>
                                              for {
                                                _           <- persistEvent(event)
                                                newStateOpt <- engine.handleEvent(state, event).to[IO].pipe(liftIO.liftIO)
@@ -83,7 +84,7 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
                                              } yield newStateOpt
                                          }
                        } yield newStateOpt
-                     case None                 => None.pure[F]
+                     case WakeupResult.Noop                => None.pure[F]
                    }
     } yield ()
   }

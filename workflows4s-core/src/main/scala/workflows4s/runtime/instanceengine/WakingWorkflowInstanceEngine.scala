@@ -3,6 +3,8 @@ package workflows4s.runtime.instanceengine
 import cats.effect.IO
 import com.typesafe.scalalogging.StrictLogging
 import workflows4s.runtime.wakeup.KnockerUpper
+import workflows4s.wio.internal.WakeupResult
+import workflows4s.wio.internal.WakeupResult.ProcessingResult
 import workflows4s.wio.{ActiveWorkflow, WCEvent, WorkflowContext}
 
 import java.time.Instant
@@ -11,23 +13,22 @@ class WakingWorkflowInstanceEngine(protected val delegate: WorkflowInstanceEngin
     extends DelegatingWorkflowInstanceEngine
     with StrictLogging {
 
-  override def triggerWakeup[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[Option[IO[Either[Instant, WCEvent[Ctx]]]]] =
+  override def triggerWakeup[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[WakeupResult[WCEvent[Ctx]]] =
     super
       .triggerWakeup(workflow)
-      .map(
-        _.map(eventIO =>
-          for {
+      .map({
+        case WakeupResult.Noop               => WakeupResult.Noop
+        case WakeupResult.Processed(eventIO) =>
+          WakeupResult.Processed(for {
             result <- eventIO
             _      <- result match {
-                        case Left(retryTime) =>
+                        case ProcessingResult.Proceeded(event)  => IO.unit
+                        case ProcessingResult.Failed(retryTime) =>
                           if workflow.wakeupAt.forall(_.isAfter(retryTime)) then updateWakeup(workflow, Some(retryTime))
                           else IO.unit
-                        case Right(_)        => IO.unit
                       }
-          } yield result,
-        ),
-      )
-
+          } yield result)
+      })
   override def onStateChange[Ctx <: WorkflowContext](
       oldState: ActiveWorkflow[Ctx],
       newState: ActiveWorkflow[Ctx],

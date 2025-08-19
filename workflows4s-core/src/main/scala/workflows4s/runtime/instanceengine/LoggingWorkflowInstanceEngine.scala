@@ -4,10 +4,10 @@ import cats.effect.{IO, SyncIO}
 import cats.syntax.all.*
 import com.typesafe.scalalogging.StrictLogging
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine.PostExecCommand
+import workflows4s.wio.internal.WakeupResult.ProcessingResult
 import workflows4s.wio.model.WIOExecutionProgress
-import workflows4s.wio.{ActiveWorkflow, SignalDef, WCEvent, WCState, WorkflowContext}
-
-import java.time.Instant
+import workflows4s.wio.*
+import workflows4s.wio.internal.{SignalResult, WakeupResult}
 
 class LoggingWorkflowInstanceEngine(
     override protected val delegate: WorkflowInstanceEngine,
@@ -40,23 +40,28 @@ class LoggingWorkflowInstanceEngine(
 
   override def triggerWakeup[Ctx <: WorkflowContext](
       workflow: ActiveWorkflow[Ctx],
-  ): IO[Option[IO[Either[Instant, WCEvent[Ctx]]]]] = {
+  ): IO[WakeupResult[WCEvent[Ctx]]] = {
     IO(logger.debug(s"[${workflow.id}] triggerWakeup()")) *>
       delegate
         .triggerWakeup(workflow)
-        .map(_.map { inner =>
-          IO(logger.trace(s"[${workflow.id}] ⤷ wakeupEffect starting")) *>
-            inner
-              .flatTap {
-                case Left(timeout) => IO(logger.info(s"[${workflow.id}] ⤷ wakeupEffect failed with retry at $timeout"))
-                case Right(evt)    => IO(logger.debug(s"[${workflow.id}] ⤷ wakeupEffect returned event: $evt"))
-              }
-              .onError(e => IO(logger.error("wakeupEffect failed", e)))
+        .flatMap({
+          case WakeupResult.Noop              =>
+            IO(logger.trace("⤷ Nothing to execute")).as(WakeupResult.Noop: WakeupResult[WCEvent[Ctx]])
+          case WakeupResult.Processed(result) =>
+            WakeupResult
+              .Processed(
+                IO(logger.trace(s"[${workflow.id}] ⤷ wakeupEffect starting")) *>
+                  result
+                    .flatTap({
+                      case ProcessingResult.Proceeded(event) =>
+                        IO(logger.debug(s"[${workflow.id}] ⤷ wakeupEffect returned event: $event"))
+                      case ProcessingResult.Failed(retry)    =>
+                        IO(logger.debug(s"[${workflow.id}] ⤷ wakeupEffect failed with retry at $retry"))
+                    })
+                    .onError(e => IO(logger.error("wakeupEffect failed", e))),
+              )
+              .pure[IO]
         })
-        .flatTap {
-          case Some(_) => IO(logger.debug(s"[${workflow.id}] triggerWakeup → scheduled effect"))
-          case None    => IO(logger.debug(s"[${workflow.id}] triggerWakeup → no wakeup needed"))
-        }
         .onError(e => IO(logger.error(s"[${workflow.id}] triggerWakeup failed", e)))
   }
 
@@ -64,20 +69,27 @@ class LoggingWorkflowInstanceEngine(
       workflow: ActiveWorkflow[Ctx],
       signalDef: SignalDef[Req, Resp],
       req: Req,
-  ): IO[Option[IO[(WCEvent[Ctx], Resp)]]] = {
+  ): IO[SignalResult[WCEvent[Ctx], Resp]] = {
     IO(logger.debug(s"[${workflow.id}] handleSignal(${signalDef.name}, $req)")) *>
       delegate
         .handleSignal(workflow, signalDef, req)
-        .map(_.map { inner =>
-          IO(logger.trace(s"[${workflow.id}] ⤷ handleSignalEffect start")) *>
-            inner
-              .flatTap { case (evt, resp) => IO(logger.debug(s"[${workflow.id}] ⤷ handleSignalEffect result: event=$evt, resp=$resp")) }
-              .onError(e => IO(logger.error("handleSignalEffect failed", e)))
+        .flatMap({
+          case SignalResult.Processed(resultIO) =>
+            IO(logger.debug(s"[${workflow.id}] handleSignal → effect returned")).as(
+              SignalResult.Processed(
+                IO(logger.trace(s"[${workflow.id}] ⤷ handleSignalEffect start")) *>
+                  resultIO
+                    .flatMap(result =>
+                      IO(logger.debug(s"[${workflow.id}] ⤷ handleSignalEffect result: event=${result.event}, resp=${result.response}"))
+                        .as(result),
+                    )
+                    .onError(e => IO(logger.error("handleSignalEffect failed", e))),
+              ),
+            )
+          case SignalResult.UnexpectedSignal    =>
+            IO(logger.warn(s"[${workflow.id}] handleSignal → unexpected signal(${signalDef.name})")) *>
+              SignalResult.UnexpectedSignal.pure[IO]
         })
-        .flatTap {
-          case Some(_) => IO(logger.debug(s"[${workflow.id}] handleSignal → effect returned"))
-          case None    => IO(logger.warn(s"[${workflow.id}] handleSignal → unexpected signal(${signalDef.name})"))
-        }
         .onError(e => IO(logger.error(s"[${workflow.id}] handleSignal failed for ${signalDef.name}", e)))
   }
 
