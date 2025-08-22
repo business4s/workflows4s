@@ -33,8 +33,7 @@ object ReusableViews {
       case InstanceStatus.Running   => "is-info"
       case InstanceStatus.Completed => "is-success"
       case InstanceStatus.Failed    => "is-danger"
-      case InstanceStatus.Paused    => "badge bg-warning"  
-
+      case InstanceStatus.Paused    => "badge bg-warning"
 
     }
     span(cls := s"tag $badgeClass")(status.toString)

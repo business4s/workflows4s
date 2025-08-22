@@ -12,43 +12,37 @@ object WorkflowEndpoints {
     .errorOut(stringBody)
 
   val listDefinitions: PublicEndpoint[Unit, String, List[WorkflowDefinition], Any] =
-    baseEndpoint
-      .get
+    baseEndpoint.get
       .in("definitions")
       .out(jsonBody[List[WorkflowDefinition]])
       .description("List all workflow definitions")
 
   val getDefinition: PublicEndpoint[String, String, WorkflowDefinition, Any] =
-    baseEndpoint
-      .get
+    baseEndpoint.get
       .in("definitions" / path[String]("defId"))
       .out(jsonBody[WorkflowDefinition])
       .description("Get workflow definition by ID")
 
   val getInstance: PublicEndpoint[(String, String), String, WorkflowInstance, Any] =
-    baseEndpoint
-      .get
+    baseEndpoint.get
       .in("definitions" / path[String]("defId") / "instances" / path[String]("instanceId"))
       .out(jsonBody[WorkflowInstance])
       .description("Get workflow instance by definition ID and instance ID")
 
   val getInstanceProgress: PublicEndpoint[(String, String), String, ProgressResponse, Any] =
-    baseEndpoint
-      .get
+    baseEndpoint.get
       .in("definitions" / path[String]("defId") / "instances" / path[String]("instanceId") / "progress")
       .out(jsonBody[ProgressResponse])
       .description("Get workflow instance progress by definition ID and instance ID")
 
   val getInstanceProgressMermaid: PublicEndpoint[(String, String), String, String, Any] =
-    baseEndpoint
-      .get
+    baseEndpoint.get
       .in("definitions" / path[String]("defId") / "instances" / path[String]("instanceId") / "progress" / "mermaid")
       .out(stringBody)
       .description("Get workflow instance progress as Mermaid diagram")
 
   val createTestInstanceEndpoint: PublicEndpoint[String, String, WorkflowInstance, Any] =
-    baseEndpoint
-      .post
+    baseEndpoint.post
       .in("definitions" / path[String]("defId") / "test-instance")
       .out(jsonBody[WorkflowInstance])
       .description("Create a test instance for a workflow")
@@ -59,6 +53,6 @@ object WorkflowEndpoints {
     getInstance,
     getInstanceProgress,
     getInstanceProgressMermaid,
-    createTestInstanceEndpoint
+    createTestInstanceEndpoint,
   )
 }

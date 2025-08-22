@@ -7,13 +7,13 @@ import scala.scalajs.js.annotation.*
 @js.native
 @JSGlobal("mermaid")
 object MermaidJS extends js.Object {
-  def initialize(config: js.Object): Unit = js.native
+  def initialize(config: js.Object): Unit                        = js.native
   def render(id: String, code: String): js.Promise[RenderResult] = js.native
 }
 
 @js.native
 trait RenderResult extends js.Object {
-  val svg: String = js.native
+  val svg: String                                   = js.native
   val bindFunctions: js.UndefOr[js.Function0[Unit]] = js.native
 }
 

@@ -46,7 +46,6 @@ final case class WorkflowsManager(
             )("Refresh"),
           ),
         ),
-        
         state match {
           case WorkflowsManager.State.Initializing =>
             p(cls := "menu-list")("Initializing...")
@@ -58,11 +57,10 @@ final case class WorkflowsManager(
             div(cls := "notification is-danger is-light")(text(reason))
 
           case WorkflowsManager.State.Ready =>
-            if workflows.isEmpty then
-              div(cls := "notification is-info is-light")(
-                p("No workflows found."),
-                p(cls := "is-size-7 mt-2")("Make sure the API server is running.")
-              )
+            if workflows.isEmpty then div(cls := "notification is-info is-light")(
+              p("No workflows found."),
+              p(cls := "is-size-7 mt-2")("Make sure the API server is running."),
+            )
             else
               ul(cls := "menu-list")(
                 workflows.map { wf =>
@@ -75,13 +73,15 @@ final case class WorkflowsManager(
                         strong(wf.name),
                         br(),
                         span(cls := "is-size-7 has-text-grey")(wf.id),
-                        wf.description.map(desc => 
-                          div(
-                            br(),
-                            span(cls := "is-size-7")(desc)
+                        wf.description
+                          .map(desc =>
+                            div(
+                              br(),
+                              span(cls := "is-size-7")(desc),
+                            ),
                           )
-                        ).getOrElse(div())
-                      )
+                          .getOrElse(div()),
+                      ),
                     ),
                   )
                 },
@@ -120,7 +120,7 @@ object WorkflowsManager {
       Cmd.Run(
         workflows4s.web.ui.http.Http.listDefinitions
           .map(definitions => Msg.Loaded(Right(definitions)))
-          .handleError(err => Msg.Loaded(Left(err.getMessage)))
+          .handleError(err => Msg.Loaded(Left(err.getMessage))),
       )
     }
   }

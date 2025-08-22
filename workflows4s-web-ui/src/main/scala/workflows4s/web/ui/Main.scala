@@ -30,7 +30,7 @@ object Main extends TyrianIOApp[Msg, Model] {
   }
 
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
-    case Msg.NoOp => 
+    case Msg.NoOp =>
       (model, Cmd.None)
 
     case Msg.ForWorkflows(workflowsMsg) =>
@@ -64,7 +64,7 @@ object Main extends TyrianIOApp[Msg, Model] {
         p(
           text("Built with "),
           strong("Workflows4s"),
-          text(" - A lightweight workflow engine for Scala")
+          text(" - A lightweight workflow engine for Scala"),
         ),
       ),
     )

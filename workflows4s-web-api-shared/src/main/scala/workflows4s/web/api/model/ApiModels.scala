@@ -6,7 +6,7 @@ case class WorkflowDefinition(
     id: String,
     name: String,
     version: Option[String] = None,
-    description: Option[String] = None
+    description: Option[String] = None,
 ) derives Codec.AsObject
 
 case class WorkflowInstance(
@@ -15,7 +15,7 @@ case class WorkflowInstance(
     status: InstanceStatus,
     state: Option[Json] = None,
     createdAt: Option[String] = None,
-    updatedAt: Option[String] = None
+    updatedAt: Option[String] = None,
 ) derives Codec.AsObject
 
 enum InstanceStatus derives Codec.AsObject {

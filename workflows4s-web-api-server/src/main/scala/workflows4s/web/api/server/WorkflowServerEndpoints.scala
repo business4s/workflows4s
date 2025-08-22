@@ -11,23 +11,21 @@ class WorkflowServerEndpoints(workflowService: WorkflowApiService) {
 
   private def createTestInstanceLogic(workflowId: String): Either[String, WorkflowInstance] = {
     val testInstanceId = s"test-instance-${System.currentTimeMillis()}"
-    Right(WorkflowInstance(
-      id = testInstanceId,
-      definitionId = workflowId,
-      status = InstanceStatus.Running,
-      state = None
-    ))
+    Right(
+      WorkflowInstance(
+        id = testInstanceId,
+        definitionId = workflowId,
+        status = InstanceStatus.Running,
+        state = None,
+      ),
+    )
   }
 
   val endpoints: List[ServerEndpoint[Any, IO]] = List(
-    WorkflowEndpoints.listDefinitions.serverLogic(_ => 
-      workflowService.listDefinitions().attempt.map(_.leftMap(_.getMessage))
-    ),
-    WorkflowEndpoints.getDefinition.serverLogic(workflowId => 
-      workflowService.getDefinition(workflowId).attempt.map(_.leftMap(_.getMessage))
-    ),
+    WorkflowEndpoints.listDefinitions.serverLogic(_ => workflowService.listDefinitions().attempt.map(_.leftMap(_.getMessage))),
+    WorkflowEndpoints.getDefinition.serverLogic(workflowId => workflowService.getDefinition(workflowId).attempt.map(_.leftMap(_.getMessage))),
     WorkflowEndpoints.getInstance.serverLogic((workflowId, instanceId) => {
-      if (instanceId.startsWith("test-instance-")) {
+      if instanceId.startsWith("test-instance-") then {
         IO.pure(createTestInstanceLogic(workflowId))
       } else {
         workflowService.getInstance(workflowId, instanceId).attempt.map(_.leftMap(_.getMessage))

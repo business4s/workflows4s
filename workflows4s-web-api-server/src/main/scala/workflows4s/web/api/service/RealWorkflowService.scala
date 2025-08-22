@@ -32,8 +32,8 @@ class RealWorkflowService(
 
   def getProgressAsMermaid(definitionId: String, instanceId: String): IO[String] =
     for {
-      entry    <- findEntry(definitionId)
-      progress <- getRealProgress(entry, instanceId)
+      entry        <- findEntry(definitionId)
+      progress     <- getRealProgress(entry, instanceId)
       mermaidString = MermaidRenderer.renderWorkflow(progress).render
     } yield mermaidString
 
@@ -42,11 +42,12 @@ class RealWorkflowService(
 
   private def progressToStatus(progress: WIOExecutionProgress[?]): InstanceStatus =
     progress.result match {
-      case Some(result) => result.value match {
-        case Right(_) => InstanceStatus.Completed
-        case Left(_)  => InstanceStatus.Failed
-      }
-      case None => InstanceStatus.Running
+      case Some(result) =>
+        result.value match {
+          case Right(_) => InstanceStatus.Completed
+          case Left(_)  => InstanceStatus.Failed
+        }
+      case None         => InstanceStatus.Running
     }
 
   private def getRealInstance[Ctx <: WorkflowContext](
@@ -81,13 +82,13 @@ class RealWorkflowService(
       instanceId: String,
   ): IO[ProgressResponse] = {
     for {
-      progress <- getRealProgress(entry, instanceId)
+      progress    <- getRealProgress(entry, instanceId)
       progressJson = io.circe.Json.obj(
-        "_type" -> io.circe.Json.fromString("WIOExecutionProgress"),
-        "state" -> io.circe.Json.fromString(progress.toString),
-        "isCompleted" -> io.circe.Json.fromBoolean(progress.result.isDefined),
-        "steps" -> io.circe.Json.arr()
-      )
+                       "_type"       -> io.circe.Json.fromString("WIOExecutionProgress"),
+                       "state"       -> io.circe.Json.fromString(progress.toString),
+                       "isCompleted" -> io.circe.Json.fromBoolean(progress.result.isDefined),
+                       "steps"       -> io.circe.Json.arr(),
+                     )
     } yield ProgressResponse(progressJson)
   }
 }
@@ -98,6 +99,5 @@ object RealWorkflowService {
       name: String,
       runtime: WorkflowRuntime[IO, Ctx],
       stateEncoder: Encoder[workflows4s.wio.WCState[Ctx]],
-   
   )
 }

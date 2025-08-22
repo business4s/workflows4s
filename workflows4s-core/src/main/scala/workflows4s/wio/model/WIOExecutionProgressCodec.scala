@@ -1,6 +1,6 @@
 package workflows4s.wio.model
 
-import io.circe.{ Decoder, Encoder, HCursor, DecodingFailure, Json}
+import io.circe.{Decoder, DecodingFailure, Encoder, HCursor, Json}
 import io.circe.syntax.*
 
 object WIOExecutionProgressCodec {
@@ -13,11 +13,11 @@ object WIOExecutionProgressCodec {
           case Right(_) => Json.fromString("Completed")
           case Left(_)  => Json.fromString("Failed")
         }),
-        "index" -> Json.fromInt(result.index),
-        "state" -> (result.value match {
+        "index"   -> Json.fromInt(result.index),
+        "state"   -> (result.value match {
           case Right(state) => state.asJson
           case Left(_)      => Json.Null
-        })
+        }),
       )
     }
 
@@ -27,10 +27,10 @@ object WIOExecutionProgressCodec {
         status <- c.get[String]("_status")
         index  <- c.get[Int]("index")
         result <- status match {
-          case "Completed" => c.get[State]("state").map(st => WIOExecutionProgress.ExecutedResult(Right(st), index))
-          case "Failed"    => Right(WIOExecutionProgress.ExecutedResult(Left("Failed"), index))
-          case other       => Left(DecodingFailure(s"Unknown result status: $other", c.history))
-        }
+                    case "Completed" => c.get[State]("state").map(st => WIOExecutionProgress.ExecutedResult(Right(st), index))
+                    case "Failed"    => Right(WIOExecutionProgress.ExecutedResult(Left("Failed"), index))
+                    case other       => Left(DecodingFailure(s"Unknown result status: $other", c.history))
+                  }
       } yield result
     }
 
@@ -49,5 +49,4 @@ object WIOExecutionProgressCodec {
       }
     }
 
- 
 }

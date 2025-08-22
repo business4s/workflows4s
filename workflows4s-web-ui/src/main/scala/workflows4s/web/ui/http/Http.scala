@@ -4,12 +4,12 @@ import cats.effect.IO
 import sttp.client4.impl.cats.FetchCatsBackend
 import sttp.client4.*
 import io.circe.parser.decode
-import workflows4s.web.api.model.{WorkflowDefinition, WorkflowInstance, ProgressResponse}
+import workflows4s.web.api.model.{ProgressResponse, WorkflowDefinition, WorkflowInstance}
 
 object Http {
 
   private val backend = FetchCatsBackend[IO]()
-  private val baseUrl = "http://localhost:8081" 
+  private val baseUrl = "http://localhost:8081"
 
   def getInstance(workflowId: String, instanceId: String): IO[WorkflowInstance] = {
     val uri = uri"$baseUrl/api/v1/definitions/$workflowId/instances/$instanceId"
@@ -18,10 +18,10 @@ object Http {
       .send(backend)
       .flatMap { response =>
         response.body match {
-          case Right(json) => 
+          case Right(json) =>
             IO.fromEither(decode[WorkflowInstance](json))
               .adaptError(err => new Exception(s"Failed to parse WorkflowInstance: ${err.getMessage}"))
-          case Left(error) => 
+          case Left(error) =>
             IO.raiseError(new Exception(s"HTTP Error: $error"))
         }
       }
@@ -34,10 +34,10 @@ object Http {
       .send(backend)
       .flatMap { response =>
         response.body match {
-          case Right(json) => 
+          case Right(json) =>
             IO.fromEither(decode[List[WorkflowDefinition]](json))
               .adaptError(err => new Exception(s"Failed to parse definitions: ${err.getMessage}"))
-          case Left(error) => 
+          case Left(error) =>
             IO.raiseError(new Exception(s"HTTP Error: $error"))
         }
       }
@@ -50,10 +50,10 @@ object Http {
       .send(backend)
       .flatMap { response =>
         response.body match {
-          case Right(json) => 
+          case Right(json) =>
             IO.fromEither(decode[ProgressResponse](json))
               .adaptError(err => new Exception(s"Failed to parse progress: ${err.getMessage}"))
-          case Left(error) => 
+          case Left(error) =>
             IO.raiseError(new Exception(s"HTTP Error: $error"))
         }
       }
@@ -67,7 +67,7 @@ object Http {
       .flatMap { response =>
         response.body match {
           case Right(mermaid) => IO.pure(mermaid)
-          case Left(error) => IO.raiseError(new Exception(s"HTTP Error: $error"))
+          case Left(error)    => IO.raiseError(new Exception(s"HTTP Error: $error"))
         }
       }
   }
@@ -79,10 +79,10 @@ object Http {
       .send(backend)
       .flatMap { response =>
         response.body match {
-          case Right(json) => 
+          case Right(json) =>
             IO.fromEither(decode[WorkflowInstance](json))
               .adaptError(err => new Exception(s"Failed to parse test instance: ${err.getMessage}"))
-          case Left(error) => 
+          case Left(error) =>
             IO.raiseError(new Exception(s"HTTP Error: $error"))
         }
       }

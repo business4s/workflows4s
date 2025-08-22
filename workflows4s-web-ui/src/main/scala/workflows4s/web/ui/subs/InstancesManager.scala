@@ -3,12 +3,11 @@ package workflows4s.web.ui.subs
 import cats.effect.IO
 import tyrian.*
 import tyrian.Html.*
-import workflows4s.web.api.model.{WorkflowInstance, ProgressResponse}
+import workflows4s.web.api.model.{ProgressResponse, WorkflowInstance}
 import workflows4s.web.ui.components.ReusableViews
-import workflows4s.web.ui.{MermaidJS, MermaidHelper}
+import workflows4s.web.ui.{MermaidHelper, MermaidJS}
 import scala.scalajs.js
 
- 
 import scala.concurrent.duration.DurationInt
 
 final case class InstancesManager(
@@ -44,13 +43,13 @@ final case class InstancesManager(
       (this.copy(progressState = InstancesManager.ProgressState.Failed(err)), Cmd.None)
 
     case InstancesManager.Msg.MermaidLoaded(Right(mermaid)) =>
-      val updated = progressState match {
+      val updated   = progressState match {
         case InstancesManager.ProgressState.Success(progress) =>
           this.copy(progressState = InstancesManager.ProgressState.SuccessWithMermaid(progress, mermaid))
-        case _ => this
+        case _                                                => this
       }
       // Start Mermaid rendering process
-      val renderCmd = if (MermaidHelper.mermaidAvailable) {
+      val renderCmd = if MermaidHelper.mermaidAvailable then {
         Cmd.Run(renderMermaidDiagram(mermaid))
       } else {
         // Use IO.sleep for retry delay
@@ -62,7 +61,7 @@ final case class InstancesManager(
       (this, Cmd.None)
 
     case InstancesManager.Msg.RetryMermaidRender(mermaid) =>
-      val renderCmd = if (MermaidHelper.mermaidAvailable) {
+      val renderCmd = if MermaidHelper.mermaidAvailable then {
         Cmd.Run(renderMermaidDiagram(mermaid))
       } else {
         Cmd.Run(IO.sleep(500.millis).map(_ => InstancesManager.Msg.RetryMermaidRender(mermaid)))
@@ -77,15 +76,15 @@ final case class InstancesManager(
 
     case InstancesManager.Msg.ToggleMermaidViewer =>
       val updated = this.copy(showMermaidViewer = !showMermaidViewer)
-      val cmd = if (!showMermaidViewer && progressState.isInstanceSuccess) {
+      val cmd     = if !showMermaidViewer && progressState.isInstanceSuccess then {
         progressState match {
           case InstancesManager.ProgressState.Success(progress) =>
             state match {
               case InstancesManager.State.Success(instance) =>
                 InstancesManager.Http.loadMermaid(instance.definitionId, instance.id)
-              case _ => Cmd.None
+              case _                                        => Cmd.None
             }
-          case _ => Cmd.None
+          case _                                                => Cmd.None
         }
       } else Cmd.None
       (updated, cmd)
@@ -98,30 +97,30 @@ final case class InstancesManager(
     case InstancesManager.Msg.Reset =>
       (InstancesManager.initial, Cmd.None)
   }
- 
-private def renderMermaidDiagram(mermaidCode: String): IO[InstancesManager.Msg] = {
-  if (MermaidHelper.mermaidAvailable) {
-    println("Mermaid available, attempting to render.")
-    println(s"Mermaid code to render: $mermaidCode")
 
-    val renderTask = for {
-      
-      _ <- IO(MermaidJS.initialize(js.Dynamic.literal("startOnLoad" -> false, "htmlLabels" -> false)))
-      renderResult <- MermaidHelper.fromPromise(MermaidJS.render("mermaid-diagram", mermaidCode))
-    } yield {
-      println(s"Mermaid render successful, SVG length: ${renderResult.svg.length}")
-      InstancesManager.Msg.MermaidRendered(renderResult.svg)
-    }
+  private def renderMermaidDiagram(mermaidCode: String): IO[InstancesManager.Msg] = {
+    if MermaidHelper.mermaidAvailable then {
+      println("Mermaid available, attempting to render.")
+      println(s"Mermaid code to render: $mermaidCode")
 
-    renderTask.handleError { ex =>
-      println(s"Mermaid rendering failed: ${ex.getMessage}")
-      InstancesManager.Msg.MermaidRendered(s"<div style='color: red; padding: 20px;'>Failed to render diagram: ${ex.getMessage}</div>")
+      val renderTask = for {
+
+        _            <- IO(MermaidJS.initialize(js.Dynamic.literal("startOnLoad" -> false, "htmlLabels" -> false)))
+        renderResult <- MermaidHelper.fromPromise(MermaidJS.render("mermaid-diagram", mermaidCode))
+      } yield {
+        println(s"Mermaid render successful, SVG length: ${renderResult.svg.length}")
+        InstancesManager.Msg.MermaidRendered(renderResult.svg)
+      }
+
+      renderTask.handleError { ex =>
+        println(s"Mermaid rendering failed: ${ex.getMessage}")
+        InstancesManager.Msg.MermaidRendered(s"<div style='color: red; padding: 20px;'>Failed to render diagram: ${ex.getMessage}</div>")
+      }
+    } else {
+      println("Mermaid isn't ready, retrying...")
+      IO.pure(InstancesManager.Msg.RetryMermaidRender(mermaidCode))
     }
-  } else {
-    println("Mermaid isn't ready, retrying...")
-    IO.pure(InstancesManager.Msg.RetryMermaidRender(mermaidCode))
   }
-}
 
   def view(selectedWorkflowId: Option[String]): Html[InstancesManager.Msg] =
     div(cls := "column")(
@@ -154,7 +153,7 @@ private def renderMermaidDiagram(mermaidCode: String): IO[InstancesManager.Msg] 
                 div()
             },
           )
-      }
+      },
     )
 
   private def instanceInputView(workflowId: String): Html[InstancesManager.Msg] =
@@ -194,12 +193,10 @@ private def renderMermaidDiagram(mermaidCode: String): IO[InstancesManager.Msg] 
   private def instanceDetailsView(instance: WorkflowInstance): Html[InstancesManager.Msg] =
     div(cls := "content mt-4")(
       h3(s"Instance: ${instance.id}"),
-     
       ReusableViews.instanceField("Definition", Html.span(instance.definitionId)),
       ReusableViews.instanceField("Status", ReusableViews.statusBadge(instance.status)),
       ReusableViews.instanceField("Created", Html.span(instance.createdAt.getOrElse("Unknown"))),
       ReusableViews.instanceField("Updated", Html.span(instance.updatedAt.getOrElse("Unknown"))),
-
       div(cls := "field is-grouped mt-4")(
         div(cls := "control")(
           button(
@@ -214,7 +211,6 @@ private def renderMermaidDiagram(mermaidCode: String): IO[InstancesManager.Msg] 
           )(if showMermaidViewer then "Hide Diagram" else "Show Diagram"),
         ),
       ),
-
       if showJsonState then jsonStateViewer(instance) else div(),
     )
 
@@ -227,15 +223,16 @@ private def renderMermaidDiagram(mermaidCode: String): IO[InstancesManager.Msg] 
 
         case InstancesManager.ProgressState.Failed(reason) =>
           div(cls := "notification is-warning is-light")(
-            text(s"Could not load progress: $reason")
+            text(s"Could not load progress: $reason"),
           )
 
         case InstancesManager.ProgressState.Success(progress) =>
           div(
             progressSummaryView(progress),
             if showMermaidViewer then div(cls := "mt-4")(
-              text("Loading diagram...")
-            ) else div(),
+              text("Loading diagram..."),
+            )
+            else div(),
           )
 
         case InstancesManager.ProgressState.SuccessWithMermaid(progress, mermaid) =>
@@ -246,51 +243,49 @@ private def renderMermaidDiagram(mermaidCode: String): IO[InstancesManager.Msg] 
 
         case InstancesManager.ProgressState.Ready =>
           div()
-      }
+      },
     )
 
   private def progressSummaryView(progress: ProgressResponse): Html[InstancesManager.Msg] =
     div(cls := "box")(
       h5("Progress Summary"),
       pre(cls := "content is-small")(
-        code(progress.progress.spaces2)
+        code(progress.progress.spaces2),
       ),
     )
- 
-private def mermaidDiagramView(mermaid: String): Html[InstancesManager.Msg] =
-  div(cls := "box mt-4")(
-    h5("🎨 Workflow Diagram"),
-    
-    // Action buttons
-    div(cls := "field is-grouped mb-4")(
-      div(cls := "control")(
-        a(
-          cls := "button is-success is-small",
-          href := createMermaidLiveUrl(mermaid),
-          target := "_blank"
-        )("🔗 View in Mermaid Live"),
+
+  private def mermaidDiagramView(mermaid: String): Html[InstancesManager.Msg] =
+    div(cls := "box mt-4")(
+      h5("🎨 Workflow Diagram"),
+
+      // Action buttons
+      div(cls := "field is-grouped mb-4")(
+        div(cls := "control")(
+          a(
+            cls    := "button is-success is-small",
+            href   := createMermaidLiveUrl(mermaid),
+            target := "_blank",
+          )("🔗 View in Mermaid Live"),
+        ),
       ),
-    ),
-    
- 
-    renderedMermaidSvg match {
-      case Some(svg) =>
-        div(cls := "has-text-centered p-4")().innerHtml(svg)
-      case None =>
-        div(cls := "notification is-info is-light has-text-centered")(
-          text("🔄 Rendering diagram...")
-        )
-    },
-    
-    // Code view
-    details(cls := "mt-4")(
-      summary(cls := "button is-small is-light")("📋 View Mermaid Code"),
-      pre(cls := "mt-2")(
-        code(mermaid)
+      renderedMermaidSvg match {
+        case Some(svg) =>
+          div(cls := "has-text-centered p-4")().innerHtml(svg)
+        case None      =>
+          div(cls := "notification is-info is-light has-text-centered")(
+            text("🔄 Rendering diagram..."),
+          )
+      },
+
+      // Code view
+      details(cls := "mt-4")(
+        summary(cls := "button is-small is-light")("📋 View Mermaid Code"),
+        pre(cls := "mt-2")(
+          code(mermaid),
+        ),
       ),
-    ),
-  )
-  private def createMermaidLiveUrl(mermaidCode: String): String = {
+    )
+  private def createMermaidLiveUrl(mermaidCode: String): String               = {
     val encoded = java.net.URLEncoder.encode(mermaidCode, "UTF-8")
     s"https://mermaid.live/edit#code:$encoded"
   }
@@ -299,7 +294,7 @@ private def mermaidDiagramView(mermaid: String): Html[InstancesManager.Msg] =
     div(cls := "box mt-4")(
       h5("Instance State"),
       pre(cls := "content is-small")(
-        code(instance.state.map(_.spaces2).getOrElse("No state available."))
+        code(instance.state.map(_.spaces2).getOrElse("No state available.")),
       ),
     )
 }
@@ -331,7 +326,7 @@ object InstancesManager {
 
     def isInstanceSuccess: Boolean = this match {
       case Success(_) | SuccessWithMermaid(_, _) => true
-      case _ => false
+      case _                                     => false
     }
   }
 
@@ -353,33 +348,37 @@ object InstancesManager {
 
     def loadInstance(workflowId: String, instanceId: String): Cmd[IO, Msg] = {
       Cmd.Run(
-        workflows4s.web.ui.http.Http.getInstance(workflowId, instanceId)
+        workflows4s.web.ui.http.Http
+          .getInstance(workflowId, instanceId)
           .map(instance => Msg.InstanceLoaded(Right(instance)))
-          .handleError(err => Msg.InstanceLoaded(Left(err.getMessage)))
+          .handleError(err => Msg.InstanceLoaded(Left(err.getMessage))),
       )
     }
 
     def loadProgress(workflowId: String, instanceId: String): Cmd[IO, Msg] = {
       Cmd.Run(
-        workflows4s.web.ui.http.Http.getProgress(workflowId, instanceId)
+        workflows4s.web.ui.http.Http
+          .getProgress(workflowId, instanceId)
           .map(progress => Msg.ProgressLoaded(Right(progress)))
-          .handleError(err => Msg.ProgressLoaded(Left(err.getMessage)))
+          .handleError(err => Msg.ProgressLoaded(Left(err.getMessage))),
       )
     }
 
     def loadMermaid(workflowId: String, instanceId: String): Cmd[IO, Msg] = {
       Cmd.Run(
-        workflows4s.web.ui.http.Http.getProgressAsMermaid(workflowId, instanceId)
+        workflows4s.web.ui.http.Http
+          .getProgressAsMermaid(workflowId, instanceId)
           .map(mermaid => Msg.MermaidLoaded(Right(mermaid)))
-          .handleError(err => Msg.MermaidLoaded(Left(err.getMessage)))
+          .handleError(err => Msg.MermaidLoaded(Left(err.getMessage))),
       )
     }
 
     def createTestInstance(workflowId: String): Cmd[IO, Msg] = {
       Cmd.Run(
-        workflows4s.web.ui.http.Http.createTestInstance(workflowId)
+        workflows4s.web.ui.http.Http
+          .createTestInstance(workflowId)
           .map(instance => Msg.InstanceLoaded(Right(instance)))
-          .handleError(err => Msg.InstanceLoaded(Left(err.getMessage)))
+          .handleError(err => Msg.InstanceLoaded(Left(err.getMessage))),
       )
     }
   }
