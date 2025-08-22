@@ -6,7 +6,7 @@ import tyrian.*
 import workflows4s.web.ui.components.ReusableViews
 import workflows4s.web.ui.subs.{InstancesManager, WorkflowsManager}
 
-import scala.scalajs.js.annotation.JSExportTopLevel
+import scala.scalajs.js.annotation.*
 
 final case class Model(
     workflows: WorkflowsManager,

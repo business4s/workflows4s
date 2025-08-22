@@ -1,7 +1,7 @@
 package workflows4s.web.api.service
 
 import cats.effect.IO
-import io.circe.{Encoder, Json}
+import io.circe.Encoder
 import workflows4s.mermaid.MermaidRenderer
 import workflows4s.runtime.WorkflowRuntime
 import workflows4s.web.api.model.*
@@ -34,7 +34,8 @@ class RealWorkflowService(
     for {
       entry    <- findEntry(definitionId)
       progress <- getRealProgress(entry, instanceId)
-    } yield MermaidRenderer.renderWorkflow(progress).toString
+      mermaidString = MermaidRenderer.renderWorkflow(progress).render
+    } yield mermaidString
 
   private def findEntry(definitionId: String): IO[RealWorkflowService.WorkflowEntry[?]] =
     IO.fromOption(workflowEntries.find(_.id == definitionId))(new Exception(s"Definition not found: $definitionId"))
@@ -52,9 +53,8 @@ class RealWorkflowService(
       entry: RealWorkflowService.WorkflowEntry[Ctx],
       instanceId: String,
   ): IO[WorkflowInstance] = {
-    val parsedId = entry.parseId(instanceId)
     for {
-      workflowInstance <- entry.runtime.createInstance(parsedId)
+      workflowInstance <- entry.runtime.createInstance(instanceId)
       currentState     <- workflowInstance.queryState()
       progress         <- workflowInstance.getProgress
     } yield WorkflowInstance(
@@ -69,9 +69,9 @@ class RealWorkflowService(
       entry: RealWorkflowService.WorkflowEntry[Ctx],
       instanceId: String,
   ): IO[WIOExecutionProgress[WCState[Ctx]]] = {
-    val parsedId = entry.parseId(instanceId)
+
     for {
-      workflowInstance <- entry.runtime.createInstance(parsedId)
+      workflowInstance <- entry.runtime.createInstance(instanceId)
       progress         <- workflowInstance.getProgress
     } yield progress
   }
@@ -81,13 +81,12 @@ class RealWorkflowService(
       instanceId: String,
   ): IO[ProgressResponse] = {
     for {
-      progress <- getRealProgress(entry, instanceId) // WIOExecutionProgress[WCState[Ctx]]
-      // Convert to Json manually since complex codec doesn't work yet
-      progressJson = Json.obj(
-        "_type" -> Json.fromString("WIOExecutionProgress"),
-        "state" -> Json.fromString(progress.toString), // Simple string representation for now
-        "isCompleted" -> Json.fromBoolean(progress.result.isDefined),
-        "steps" -> Json.arr() // Empty for now, will be enhanced later
+      progress <- getRealProgress(entry, instanceId)
+      progressJson = io.circe.Json.obj(
+        "_type" -> io.circe.Json.fromString("WIOExecutionProgress"),
+        "state" -> io.circe.Json.fromString(progress.toString),
+        "isCompleted" -> io.circe.Json.fromBoolean(progress.result.isDefined),
+        "steps" -> io.circe.Json.arr()
       )
     } yield ProgressResponse(progressJson)
   }
@@ -99,6 +98,6 @@ object RealWorkflowService {
       name: String,
       runtime: WorkflowRuntime[IO, Ctx],
       stateEncoder: Encoder[workflows4s.wio.WCState[Ctx]],
-      parseId: String => String = identity,
+   
   )
 }
