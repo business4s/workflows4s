@@ -1,0 +1,32 @@
+{
+  "branches" : [
+    {
+      "meta" : {
+        "name" : "Approve",
+        "error" : null,
+        "description" : null
+      },
+      "_type" : "RunIO"
+    },
+    {
+      "meta" : {
+        "name" : "Reject",
+        "error" : null,
+        "description" : null
+      },
+      "_type" : "RunIO"
+    }
+  ],
+  "meta" : {
+    "name" : "Review Decision",
+    "branches" : [
+      {
+        "name" : "Approved"
+      },
+      {
+        "name" : "Rejected"
+      }
+    ]
+  },
+  "_type" : "Fork"
+}

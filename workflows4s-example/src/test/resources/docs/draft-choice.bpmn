@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<definitions xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="definitions_0" targetNamespace="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL">
+  <process camunda:historyTimeToLive="P180D" id="process_2" isExecutable="true">
+    <startEvent id="startEvent_13">
+      <outgoing>sequenceFlow_5</outgoing>
+    </startEvent>
+    <exclusiveGateway id="exclusiveGateway_0" name="Review Decision">
+      <incoming>sequenceFlow_5</incoming>
+      <outgoing>sequenceFlow_6</outgoing>
+      <outgoing>sequenceFlow_8</outgoing>
+    </exclusiveGateway>
+    <sequenceFlow id="sequenceFlow_5" sourceRef="startEvent_13" targetRef="exclusiveGateway_0"/>
+    <sequenceFlow id="sequenceFlow_6" name="Approved" sourceRef="exclusiveGateway_0" targetRef="serviceTask_3">
+      <conditionExpression id="conditionExpression_11"/>
+    </sequenceFlow>
+    <serviceTask id="serviceTask_3" name="Approve">
+      <incoming>sequenceFlow_6</incoming>
+      <outgoing>sequenceFlow_7</outgoing>
+    </serviceTask>
+    <exclusiveGateway id="exclusiveGateway_1">
+      <incoming>sequenceFlow_7</incoming>
+      <incoming>sequenceFlow_9</incoming>
+      <outgoing>sequenceFlow_10</outgoing>
+    </exclusiveGateway>
+    <sequenceFlow id="sequenceFlow_7" sourceRef="serviceTask_3" targetRef="exclusiveGateway_1"/>
+    <sequenceFlow id="sequenceFlow_8" name="Rejected" sourceRef="exclusiveGateway_0" targetRef="serviceTask_4">
+      <conditionExpression id="conditionExpression_12"/>
+    </sequenceFlow>
+    <serviceTask id="serviceTask_4" name="Reject">
+      <incoming>sequenceFlow_8</incoming>
+      <outgoing>sequenceFlow_9</outgoing>
+    </serviceTask>
+    <sequenceFlow id="sequenceFlow_9" sourceRef="serviceTask_4" targetRef="exclusiveGateway_1"/>
+    <endEvent id="endEvent_14">
+      <incoming>sequenceFlow_10</incoming>
+    </endEvent>
+    <sequenceFlow id="sequenceFlow_10" sourceRef="exclusiveGateway_1" targetRef="endEvent_14"/>
+  </process>
+  <bpmndi:BPMNDiagram id="BpmnDiagram_0">
+    <bpmndi:BPMNPlane bpmnElement="process_2" id="BpmnPlaneImpl_12">
+      <bpmndi:BPMNShape bpmnElement="startEvent_13" id="BpmnShapeImpl_6">
+        <dc:Bounds height="36.0" width="36.0" x="100.0" y="100.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="exclusiveGateway_0" id="BpmnShapeImpl_7" isMarkerVisible="true">
+        <dc:Bounds height="50.0" width="50.0" x="186.0" y="93.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_5" id="BpmnEdgeImpl_0">
+        <di:waypoint x="136.0" y="118.0"/>
+        <di:waypoint x="186.0" y="118.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape bpmnElement="serviceTask_3" id="BpmnShapeImpl_8">
+        <dc:Bounds height="80.0" width="100.0" x="286.0" y="78.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_6" id="BpmnEdgeImpl_1">
+        <di:waypoint x="236.0" y="118.0"/>
+        <di:waypoint x="286.0" y="118.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape bpmnElement="exclusiveGateway_1" id="BpmnShapeImpl_9" isMarkerVisible="true">
+        <dc:Bounds height="50.0" width="50.0" x="436.0" y="93.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_7" id="BpmnEdgeImpl_2">
+        <di:waypoint x="386.0" y="118.0"/>
+        <di:waypoint x="436.0" y="118.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape bpmnElement="serviceTask_4" id="BpmnShapeImpl_10">
+        <dc:Bounds height="80.0" width="100.0" x="286.0" y="208.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_8" id="BpmnEdgeImpl_3">
+        <di:waypoint x="211.0" y="143.0"/>
+        <di:waypoint x="211.0" y="248.0"/>
+        <di:waypoint x="286.0" y="248.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_9" id="BpmnEdgeImpl_4">
+        <di:waypoint x="386.0" y="248.0"/>
+        <di:waypoint x="436.0" y="118.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape bpmnElement="endEvent_14" id="BpmnShapeImpl_11">
+        <dc:Bounds height="36.0" width="36.0" x="536.0" y="100.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_10" id="BpmnEdgeImpl_5">
+        <di:waypoint x="486.0" y="118.0"/>
+        <di:waypoint x="536.0" y="118.0"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>
