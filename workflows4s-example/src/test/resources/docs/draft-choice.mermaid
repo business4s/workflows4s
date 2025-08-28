@@ -1,0 +1,8 @@
+flowchart TD
+node0@{ shape: circle, label: "Start"}
+node1@{ shape: hex, label: "Review Decision"}
+node0 --> node1
+node2["Approve"]
+node1 -->|"Approved"| node2
+node3["Reject"]
+node1 -->|"Rejected"| node3
