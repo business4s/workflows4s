@@ -6,14 +6,14 @@ import io.circe.Json
 
 trait WorkflowApiService {
   def listDefinitions(): IO[List[WorkflowDefinition]]
-  def getDefinition(id: String): IO[WorkflowDefinition] 
+  def getDefinition(id: String): IO[WorkflowDefinition]
   def getInstance(definitionId: String, instanceId: String): IO[WorkflowInstance]
   def getProgress(definitionId: String, instanceId: String): IO[ProgressResponse]
   def createTestInstance(definitionId: String): IO[WorkflowInstance]
 }
 
 class MockWorkflowApiService extends WorkflowApiService {
-  
+
   private val mockDefinitions = List(
     WorkflowDefinition("course-registration-v1", "Course Registration", Some("Student course registration workflow")),
     WorkflowDefinition("pull-request-v1", "Pull Request", Some("Code review workflow")),
@@ -49,7 +49,7 @@ class MockWorkflowApiService extends WorkflowApiService {
                     new Exception(s"Instance not found: $instanceId"),
                   )
     } yield {
-    
+
       val steps = List(
         ProgressStep(
           stepType = "Pure",
@@ -58,13 +58,15 @@ class MockWorkflowApiService extends WorkflowApiService {
             signalName = None,
             operationName = None,
             error = None,
-            description = None
+            description = None,
           ),
-          result = Some(ProgressStepResult(
-            status = "Completed",
-            index = 0,
-            state = Some("initialized")
-          ))
+          result = Some(
+            ProgressStepResult(
+              status = "Completed",
+              index = 0,
+              state = Some("initialized"),
+            ),
+          ),
         ),
         ProgressStep(
           stepType = "HandleSignal",
@@ -73,14 +75,14 @@ class MockWorkflowApiService extends WorkflowApiService {
             signalName = Some("startBrowsing"),
             operationName = None,
             error = None,
-            description = None
+            description = None,
           ),
           result = instance.status match {
-            case InstanceStatus.Running => Some(ProgressStepResult("Completed", 1, Some("browsing")))
+            case InstanceStatus.Running   => Some(ProgressStepResult("Completed", 1, Some("browsing")))
             case InstanceStatus.Completed => Some(ProgressStepResult("Completed", 1, Some("browsing")))
-            case InstanceStatus.Failed => Some(ProgressStepResult("Failed", 1, None))
-            case InstanceStatus.Paused => None
-          }
+            case InstanceStatus.Failed    => Some(ProgressStepResult("Failed", 1, None))
+            case InstanceStatus.Paused    => None
+          },
         ),
         ProgressStep(
           stepType = "RunIO",
@@ -89,21 +91,21 @@ class MockWorkflowApiService extends WorkflowApiService {
             signalName = None,
             operationName = None,
             error = None,
-            description = None
+            description = None,
           ),
           result = instance.status match {
-            case InstanceStatus.Running => None
+            case InstanceStatus.Running   => None
             case InstanceStatus.Completed => Some(ProgressStepResult("Completed", 2, Some("registered")))
-            case InstanceStatus.Failed => Some(ProgressStepResult("Failed", 2, None))
-            case InstanceStatus.Paused => None
-          }
-        )
+            case InstanceStatus.Failed    => Some(ProgressStepResult("Failed", 2, None))
+            case InstanceStatus.Paused    => None
+          },
+        ),
       )
-      
+
       ProgressResponse(
         progressType = "Sequence",
         isCompleted = instance.status == InstanceStatus.Completed || instance.status == InstanceStatus.Failed,
-        steps = steps
+        steps = steps,
       )
     }
 

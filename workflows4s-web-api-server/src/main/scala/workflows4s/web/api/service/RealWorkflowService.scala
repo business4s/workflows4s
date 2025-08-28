@@ -29,7 +29,6 @@ class RealWorkflowService(
       json  <- getRealInstanceProgressJson(entry, instanceId)
     } yield json
 
-  
   def createTestInstance(definitionId: String): IO[WorkflowInstance] =
     for {
       _ <- findEntry(definitionId)
@@ -92,7 +91,7 @@ class RealWorkflowService(
     } yield ProgressResponse(
       progressType = "Sequence",
       isCompleted = progress.result.isDefined,
-      steps = convertProgressToSteps(progress)
+      steps = convertProgressToSteps(progress),
     )
   }
 
@@ -107,15 +106,15 @@ class RealWorkflowService(
               signalName = extractSignalNameFromModel(step.toModel),
               operationName = extractOperationNameFromModel(step.toModel),
               error = extractErrorFromModel(step.toModel),
-              description = extractDescriptionFromModel(step.toModel)
+              description = extractDescriptionFromModel(step.toModel),
             ),
             result = step.result.map(res =>
               ProgressStepResult(
-                status = if (res.value.isRight) "Completed" else "Failed",
+                status = if res.value.isRight then "Completed" else "Failed",
                 index = res.index,
-                state = res.value.toOption.map(_.toString)
-              )
-            )
+                state = res.value.toOption.map(_.toString),
+              ),
+            ),
           )
         }.toList
 
@@ -123,56 +122,58 @@ class RealWorkflowService(
         convertProgressToSteps(base)
 
       case single =>
-        List(ProgressStep(
-          stepType = single.getClass.getSimpleName.replace("$", ""),
-          meta = ProgressStepMeta(
-            name = extractNameFromModel(single.toModel),
-            signalName = extractSignalNameFromModel(single.toModel),
-            operationName = extractOperationNameFromModel(single.toModel),
-            error = extractErrorFromModel(single.toModel),
-            description = extractDescriptionFromModel(single.toModel)
+        List(
+          ProgressStep(
+            stepType = single.getClass.getSimpleName.replace("$", ""),
+            meta = ProgressStepMeta(
+              name = extractNameFromModel(single.toModel),
+              signalName = extractSignalNameFromModel(single.toModel),
+              operationName = extractOperationNameFromModel(single.toModel),
+              error = extractErrorFromModel(single.toModel),
+              description = extractDescriptionFromModel(single.toModel),
+            ),
+            result = single.result.map(res =>
+              ProgressStepResult(
+                status = if res.value.isRight then "Completed" else "Failed",
+                index = res.index,
+                state = res.value.toOption.map(_.toString),
+              ),
+            ),
           ),
-          result = single.result.map(res =>
-            ProgressStepResult(
-              status = if (res.value.isRight) "Completed" else "Failed",
-              index = res.index,
-              state = res.value.toOption.map(_.toString)
-            )
-          )
-        ))
+        )
     }
   }
 
   private def extractNameFromModel(model: WIOModel): Option[String] = model match {
-    case WIOModel.RunIO(meta) => meta.name
+    case WIOModel.RunIO(meta)        => meta.name
     case WIOModel.HandleSignal(meta) => meta.operationName
-    case WIOModel.Pure(meta) => meta.name
-    case WIOModel.Timer(meta) => meta.name
-    case WIOModel.Fork(_, meta) => meta.name
-    case _ => None
+    case WIOModel.Pure(meta)         => meta.name
+    case WIOModel.Timer(meta)        => meta.name
+    case WIOModel.Fork(_, meta)      => meta.name
+    case _                           => None
   }
 
   private def extractSignalNameFromModel(model: WIOModel): Option[String] = model match {
     case WIOModel.HandleSignal(meta) => Some(meta.signalName)
-    case _ => None
+    case _                           => None
   }
 
   private def extractOperationNameFromModel(model: WIOModel): Option[String] = model match {
     case WIOModel.HandleSignal(meta) => meta.operationName
-    case _ => None
+    case _                           => None
   }
 
   private def extractErrorFromModel(model: WIOModel): Option[String] = model match {
-    case WIOModel.RunIO(meta) => meta.error.map(_.name)
+    case WIOModel.RunIO(meta)        => meta.error.map(_.name)
     case WIOModel.HandleSignal(meta) => meta.error.map(_.name)
-    case WIOModel.Pure(meta) => meta.error.map(_.name)
-    case WIOModel.Dynamic(meta) => meta.error.map(_.name)
-    case _ => None
+    case WIOModel.Pure(meta)         => meta.error.map(_.name)
+    case WIOModel.Dynamic(meta)      => meta.error.map(_.name)
+    case _                           => None
   }
 
   private def extractDescriptionFromModel(model: WIOModel): Option[String] = model match {
     case WIOModel.RunIO(meta) => meta.description
-    case _ => None
+    case _                    => None
   }
 
 }

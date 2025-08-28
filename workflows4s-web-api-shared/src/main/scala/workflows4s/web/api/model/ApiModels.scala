@@ -25,13 +25,13 @@ enum InstanceStatus derives Codec.AsObject {
 case class ProgressResponse(
     progressType: String,
     isCompleted: Boolean,
-    steps: List[ProgressStep]
+    steps: List[ProgressStep],
 ) derives Codec.AsObject
 
 case class ProgressStep(
     stepType: String,
     meta: ProgressStepMeta,
-    result: Option[ProgressStepResult]
+    result: Option[ProgressStepResult],
 ) derives Codec.AsObject
 
 case class ProgressStepMeta(
@@ -49,5 +49,5 @@ case class ProgressStepResult(
 ) derives Codec.AsObject
 
 case class ErrorInfo(
-    name: String
+    name: String,
 ) derives Codec.AsObject

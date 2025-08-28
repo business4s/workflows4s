@@ -36,19 +36,20 @@ final case class InstancesManager(
     case InstancesManager.Msg.ProgressLoaded(Right(progress)) =>
       state match {
         case InstancesManager.State.InstanceLoaded(instance, _) =>
-          val progressView = InstancesManager.ProgressView.Loaded(progress, InstancesManager.StateDisplay.Hidden, InstancesManager.DiagramDisplay.Hidden)
-          val updated = this.copy(state = InstancesManager.State.InstanceLoaded(instance, progressView))
+          val progressView =
+            InstancesManager.ProgressView.Loaded(progress, InstancesManager.StateDisplay.Hidden, InstancesManager.DiagramDisplay.Hidden)
+          val updated      = this.copy(state = InstancesManager.State.InstanceLoaded(instance, progressView))
           (updated, Cmd.None)
-        case _ => (this, Cmd.None)
+        case _                                                  => (this, Cmd.None)
       }
 
     case InstancesManager.Msg.ProgressLoaded(Left(err)) =>
       state match {
         case InstancesManager.State.InstanceLoaded(instance, _) =>
           val progressView = InstancesManager.ProgressView.Failed(err)
-          val updated = this.copy(state = InstancesManager.State.InstanceLoaded(instance, progressView))
+          val updated      = this.copy(state = InstancesManager.State.InstanceLoaded(instance, progressView))
           (updated, Cmd.None)
-        case _ => (this, Cmd.None)
+        case _                                                  => (this, Cmd.None)
       }
 
     case InstancesManager.Msg.RetryMermaidRender(mermaid) =>
@@ -61,10 +62,13 @@ final case class InstancesManager(
 
     case InstancesManager.Msg.MermaidRendered(svg) =>
       state match {
-        case InstancesManager.State.InstanceLoaded(instance, InstancesManager.ProgressView.Loaded(progress, stateDisplay, InstancesManager.DiagramDisplay.LoadingRender(mermaid))) =>
+        case InstancesManager.State.InstanceLoaded(
+              instance,
+              InstancesManager.ProgressView.Loaded(progress, stateDisplay, InstancesManager.DiagramDisplay.LoadingRender(mermaid)),
+            ) =>
           val diagramDisplay = InstancesManager.DiagramDisplay.Rendered(mermaid, svg)
-          val progressView = InstancesManager.ProgressView.Loaded(progress, stateDisplay, diagramDisplay)
-          val updated = this.copy(state = InstancesManager.State.InstanceLoaded(instance, progressView))
+          val progressView   = InstancesManager.ProgressView.Loaded(progress, stateDisplay, diagramDisplay)
+          val updated        = this.copy(state = InstancesManager.State.InstanceLoaded(instance, progressView))
           (updated, Cmd.None)
         case _ => (this, Cmd.None)
       }
@@ -73,13 +77,13 @@ final case class InstancesManager(
       state match {
         case InstancesManager.State.InstanceLoaded(instance, InstancesManager.ProgressView.Loaded(progress, currentStateDisplay, diagramDisplay)) =>
           val newStateDisplay = currentStateDisplay match {
-            case InstancesManager.StateDisplay.Hidden => InstancesManager.StateDisplay.Visible
+            case InstancesManager.StateDisplay.Hidden  => InstancesManager.StateDisplay.Visible
             case InstancesManager.StateDisplay.Visible => InstancesManager.StateDisplay.Hidden
           }
-          val progressView = InstancesManager.ProgressView.Loaded(progress, newStateDisplay, diagramDisplay)
-          val updated = this.copy(state = InstancesManager.State.InstanceLoaded(instance, progressView))
+          val progressView    = InstancesManager.ProgressView.Loaded(progress, newStateDisplay, diagramDisplay)
+          val updated         = this.copy(state = InstancesManager.State.InstanceLoaded(instance, progressView))
           (updated, Cmd.None)
-        case _ => (this, Cmd.None)
+        case _                                                                                                                                    => (this, Cmd.None)
       }
 
     case InstancesManager.Msg.ToggleMermaidViewer =>
@@ -87,21 +91,21 @@ final case class InstancesManager(
         case InstancesManager.State.InstanceLoaded(instance, InstancesManager.ProgressView.Loaded(progress, stateDisplay, currentDiagramDisplay)) =>
           val (newDiagramDisplay, cmd) = currentDiagramDisplay match {
             case InstancesManager.DiagramDisplay.Hidden =>
-              val mermaidCode = generateMermaidFromProgress(progress)
+              val mermaidCode    = generateMermaidFromProgress(progress)
               val loadingDisplay = InstancesManager.DiagramDisplay.LoadingRender(mermaidCode)
-              val renderCmd = if MermaidHelper.mermaidAvailable then {
+              val renderCmd      = if MermaidHelper.mermaidAvailable then {
                 Cmd.Run(renderMermaidDiagram(mermaidCode))
               } else {
                 Cmd.Run(IO.sleep(500.millis).map(_ => InstancesManager.Msg.RetryMermaidRender(mermaidCode)))
               }
               (loadingDisplay, renderCmd)
-            case _ =>
+            case _                                      =>
               (InstancesManager.DiagramDisplay.Hidden, Cmd.None)
           }
-          val progressView = InstancesManager.ProgressView.Loaded(progress, stateDisplay, newDiagramDisplay)
-          val updated = this.copy(state = InstancesManager.State.InstanceLoaded(instance, progressView))
+          val progressView             = InstancesManager.ProgressView.Loaded(progress, stateDisplay, newDiagramDisplay)
+          val updated                  = this.copy(state = InstancesManager.State.InstanceLoaded(instance, progressView))
           (updated, cmd)
-        case _ => (this, Cmd.None)
+        case _                                                                                                                                    => (this, Cmd.None)
       }
 
     case InstancesManager.Msg.CreateTestInstance(workflowId) =>
@@ -224,8 +228,8 @@ final case class InstancesManager(
         )(
           progressView match {
             case InstancesManager.ProgressView.Loaded(_, InstancesManager.StateDisplay.Visible, _) => "Hide State"
-            case _ => "Show State"
-          }
+            case _                                                                                 => "Show State"
+          },
         ),
       ),
       div(cls := "control")(
@@ -235,8 +239,8 @@ final case class InstancesManager(
         )(
           progressView match {
             case InstancesManager.ProgressView.Loaded(_, _, InstancesManager.DiagramDisplay.Hidden) => "Show Diagram"
-            case _ => "Hide Diagram"
-          }
+            case _                                                                                  => "Hide Diagram"
+          },
         ),
       ),
     )
@@ -245,7 +249,7 @@ final case class InstancesManager(
     progressView match {
       case InstancesManager.ProgressView.Loaded(_, InstancesManager.StateDisplay.Visible, _) =>
         jsonStateViewer(instance)
-      case _ =>
+      case _                                                                                 =>
         div()
     }
 
@@ -305,22 +309,28 @@ final case class InstancesManager(
   private def createProgressJson(progress: ProgressResponse): Json =
     Json.obj(
       "progressType" -> Json.fromString(progress.progressType),
-      "isCompleted" -> Json.fromBoolean(progress.isCompleted),
-      "steps" -> Json.arr(progress.steps.map(step => Json.obj(
-        "stepType" -> Json.fromString(step.stepType),
-        "meta" -> Json.obj(
-          "name" -> step.meta.name.fold(Json.Null)(Json.fromString),
-          "signalName" -> step.meta.signalName.fold(Json.Null)(Json.fromString),
-          "operationName" -> step.meta.operationName.fold(Json.Null)(Json.fromString),
-          "error" -> step.meta.error.fold(Json.Null)(Json.fromString),
-          "description" -> step.meta.description.fold(Json.Null)(Json.fromString)
-        ),
-        "result" -> step.result.fold(Json.Null)(result => Json.obj(
-          "status" -> Json.fromString(result.status),
-          "index" -> Json.fromInt(result.index),
-          "state" -> result.state.fold(Json.Null)(Json.fromString)
-        ))
-      ))*)
+      "isCompleted"  -> Json.fromBoolean(progress.isCompleted),
+      "steps"        -> Json.arr(
+        progress.steps.map(step =>
+          Json.obj(
+            "stepType" -> Json.fromString(step.stepType),
+            "meta"     -> Json.obj(
+              "name"          -> step.meta.name.fold(Json.Null)(Json.fromString),
+              "signalName"    -> step.meta.signalName.fold(Json.Null)(Json.fromString),
+              "operationName" -> step.meta.operationName.fold(Json.Null)(Json.fromString),
+              "error"         -> step.meta.error.fold(Json.Null)(Json.fromString),
+              "description"   -> step.meta.description.fold(Json.Null)(Json.fromString),
+            ),
+            "result"   -> step.result.fold(Json.Null)(result =>
+              Json.obj(
+                "status" -> Json.fromString(result.status),
+                "index"  -> Json.fromInt(result.index),
+                "state"  -> result.state.fold(Json.Null)(Json.fromString),
+              ),
+            ),
+          ),
+        )*,
+      ),
     )
 
   private def mermaidDiagramView(mermaid: String, renderedSvg: Option[String]): Html[InstancesManager.Msg] =
@@ -359,13 +369,13 @@ final case class InstancesManager(
     import java.nio.charset.StandardCharsets
     import java.util.Base64
     import io.circe.Json
-    
-    val json = Json.obj("code" -> Json.fromString(mermaidCode)).noSpaces
-    val encoded = Base64.getEncoder.encodeToString(json.getBytes(StandardCharsets.UTF_8))
+
+    val json      = Json.obj("code" -> Json.fromString(mermaidCode)).noSpaces
+    val encoded   = Base64.getEncoder.encodeToString(json.getBytes(StandardCharsets.UTF_8))
     val base64url = encoded
       .replace('+', '-')
       .replace('/', '_')
-    
+
     s"https://mermaid.live/edit#base64:$base64url"
   }
 
@@ -380,52 +390,52 @@ final case class InstancesManager(
   private def generateMermaidFromProgress(progress: ProgressResponse): String = {
     val builder = new StringBuilder()
     builder.append("flowchart TD\n")
-    
+
     // Start node
     builder.append("  node_start@{ shape: circle, label: \"Start\"}\n")
-    
+
     // Generate nodes for each step
     val stepNodes = progress.steps.zipWithIndex.map { case (step, index) =>
-      val stepName = step.meta.name.getOrElse(s"Step ${index + 1}")
-      val nodeId = s"node_$index"
+      val stepName   = step.meta.name.getOrElse(s"Step ${index + 1}")
+      val nodeId     = s"node_$index"
       val isExecuted = step.result.exists(_.status == "Completed")
-      
+
       val nodeShape = step.stepType match {
         case "HandleSignal" => s"""$nodeId@{ shape: stadium, label: "fa:fa-envelope $stepName"}"""
-        case "Timer" => s"""$nodeId@{ shape: stadium, label: "fa:fa-clock $stepName"}"""
-        case "Pure" => s"""$nodeId["$stepName"]"""
-        case "RunIO" => s"""$nodeId["$stepName"]"""
-        case "Fork" => s"""$nodeId@{ shape: hex, label: "$stepName"}"""
-        case "Parallel" => s"""$nodeId@{ shape: fork, label: "$stepName"}"""
-        case "Retried" => s"""$nodeId["fa:fa-redo $stepName"]"""
-        case _ => s"""$nodeId["$stepName"]"""
+        case "Timer"        => s"""$nodeId@{ shape: stadium, label: "fa:fa-clock $stepName"}"""
+        case "Pure"         => s"""$nodeId["$stepName"]"""
+        case "RunIO"        => s"""$nodeId["$stepName"]"""
+        case "Fork"         => s"""$nodeId@{ shape: hex, label: "$stepName"}"""
+        case "Parallel"     => s"""$nodeId@{ shape: fork, label: "$stepName"}"""
+        case "Retried"      => s"""$nodeId["fa:fa-redo $stepName"]"""
+        case _              => s"""$nodeId["$stepName"]"""
       }
-      
-      val nodeWithClass = if (isExecuted) nodeShape + ":::executed" else nodeShape
+
+      val nodeWithClass = if isExecuted then nodeShape + ":::executed" else nodeShape
       builder.append(s"  $nodeWithClass\n")
       nodeId
     }
-    
+
     // End node
     builder.append("  node_end@{ shape: circle, label: \"End\"}\n")
-    
+
     // Generate connections
-    if (stepNodes.nonEmpty) {
+    if stepNodes.nonEmpty then {
       builder.append(s"  node_start --> ${stepNodes.head}\n")
-      
-      for (i <- stepNodes.indices.init) {
+
+      for i <- stepNodes.indices.init do {
         builder.append(s"  ${stepNodes(i)} --> ${stepNodes(i + 1)}\n")
       }
-      
+
       builder.append(s"  ${stepNodes.last} --> node_end\n")
     } else {
       builder.append("  node_start --> node_end\n")
     }
-    
+
     // Add error handling connections if any steps have errors
     val hasErrors = progress.steps.exists(_.meta.error.isDefined)
-    
-    if (hasErrors) {
+
+    if hasErrors then {
       builder.append("  node_error[\"Error Handler\"]\n")
       progress.steps.zipWithIndex.foreach { case (step, index) =>
         step.meta.error.foreach { errorName =>
@@ -434,10 +444,10 @@ final case class InstancesManager(
       }
       builder.append("  node_error --> node_end\n")
     }
-    
+
     // Add styling
     builder.append("  classDef executed fill:#0e0\n")
-    
+
     builder.toString()
   }
 }
