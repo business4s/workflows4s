@@ -14,11 +14,6 @@ object DraftParallelExample {
   val stepC = WIO.draft.step("Task C")
 
   val parallelWorkflow = WIO.draft.parallel(stepA, stepB, stepC)
-
-  // Create a parallel workflow with timers and signals
-  val timerStep = WIO.draft.timer("Wait 1")
-  val signalStep = WIO.draft.signal("External Approval")
-  val parallelWithWaits = WIO.draft.parallel(stepA, timerStep, signalStep)
   // end_draft
 }
 
