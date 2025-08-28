@@ -22,5 +22,32 @@ enum InstanceStatus derives Codec.AsObject {
   case Running, Completed, Failed, Paused
 }
 
-// For now, use Json until complex codecs are working
-case class ProgressResponse(progress: Json) derives Codec.AsObject
+case class ProgressResponse(
+    progressType: String,
+    isCompleted: Boolean,
+    steps: List[ProgressStep]
+) derives Codec.AsObject
+
+case class ProgressStep(
+    stepType: String,
+    meta: ProgressStepMeta,
+    result: Option[ProgressStepResult]
+) derives Codec.AsObject
+
+case class ProgressStepMeta(
+    name: Option[String],
+    signalName: Option[String],
+    operationName: Option[String],
+    error: Option[String],
+    description: Option[String],
+) derives Codec.AsObject
+
+case class ProgressStepResult(
+    status: String, // "Completed", "Failed", "Running"
+    index: Int,
+    state: Option[String],
+) derives Codec.AsObject
+
+case class ErrorInfo(
+    name: String
+) derives Codec.AsObject

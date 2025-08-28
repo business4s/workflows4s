@@ -2,11 +2,10 @@ package workflows4s.web.api.service
 
 import cats.effect.IO
 import io.circe.Encoder
-import workflows4s.mermaid.MermaidRenderer
 import workflows4s.runtime.WorkflowRuntime
 import workflows4s.web.api.model.*
 import workflows4s.wio.{WCState, WorkflowContext}
-import workflows4s.wio.model.WIOExecutionProgress
+import workflows4s.wio.model.{WIOExecutionProgress, WIOModel}
 
 class RealWorkflowService(
     workflowEntries: List[RealWorkflowService.WorkflowEntry[?]],
@@ -30,12 +29,19 @@ class RealWorkflowService(
       json  <- getRealInstanceProgressJson(entry, instanceId)
     } yield json
 
-  def getProgressAsMermaid(definitionId: String, instanceId: String): IO[String] =
+  
+  def createTestInstance(definitionId: String): IO[WorkflowInstance] =
     for {
-      entry        <- findEntry(definitionId)
-      progress     <- getRealProgress(entry, instanceId)
-      mermaidString = MermaidRenderer.renderWorkflow(progress).render
-    } yield mermaidString
+      _ <- findEntry(definitionId)
+    } yield {
+      val testInstanceId = s"test-instance-${System.currentTimeMillis()}"
+      WorkflowInstance(
+        id = testInstanceId,
+        definitionId = definitionId,
+        status = InstanceStatus.Running,
+        state = None,
+      )
+    }
 
   private def findEntry(definitionId: String): IO[RealWorkflowService.WorkflowEntry[?]] =
     IO.fromOption(workflowEntries.find(_.id == definitionId))(new Exception(s"Definition not found: $definitionId"))
@@ -82,15 +88,93 @@ class RealWorkflowService(
       instanceId: String,
   ): IO[ProgressResponse] = {
     for {
-      progress    <- getRealProgress(entry, instanceId)
-      progressJson = io.circe.Json.obj(
-                       "_type"       -> io.circe.Json.fromString("WIOExecutionProgress"),
-                       "state"       -> io.circe.Json.fromString(progress.toString),
-                       "isCompleted" -> io.circe.Json.fromBoolean(progress.result.isDefined),
-                       "steps"       -> io.circe.Json.arr(),
-                     )
-    } yield ProgressResponse(progressJson)
+      progress <- getRealProgress(entry, instanceId)
+    } yield ProgressResponse(
+      progressType = "Sequence",
+      isCompleted = progress.result.isDefined,
+      steps = convertProgressToSteps(progress)
+    )
   }
+
+  private def convertProgressToSteps[Ctx <: WorkflowContext](progress: WIOExecutionProgress[WCState[Ctx]]): List[ProgressStep] = {
+    progress match {
+      case WIOExecutionProgress.Sequence(steps) =>
+        steps.zipWithIndex.map { case (step, index) =>
+          ProgressStep(
+            stepType = step.getClass.getSimpleName.replace("$", ""),
+            meta = ProgressStepMeta(
+              name = extractNameFromModel(step.toModel),
+              signalName = extractSignalNameFromModel(step.toModel),
+              operationName = extractOperationNameFromModel(step.toModel),
+              error = extractErrorFromModel(step.toModel),
+              description = extractDescriptionFromModel(step.toModel)
+            ),
+            result = step.result.map(res =>
+              ProgressStepResult(
+                status = if (res.value.isRight) "Completed" else "Failed",
+                index = res.index,
+                state = res.value.toOption.map(_.toString)
+              )
+            )
+          )
+        }.toList
+
+      case WIOExecutionProgress.HandleError(base, handler, meta, result) =>
+        convertProgressToSteps(base)
+
+      case single =>
+        List(ProgressStep(
+          stepType = single.getClass.getSimpleName.replace("$", ""),
+          meta = ProgressStepMeta(
+            name = extractNameFromModel(single.toModel),
+            signalName = extractSignalNameFromModel(single.toModel),
+            operationName = extractOperationNameFromModel(single.toModel),
+            error = extractErrorFromModel(single.toModel),
+            description = extractDescriptionFromModel(single.toModel)
+          ),
+          result = single.result.map(res =>
+            ProgressStepResult(
+              status = if (res.value.isRight) "Completed" else "Failed",
+              index = res.index,
+              state = res.value.toOption.map(_.toString)
+            )
+          )
+        ))
+    }
+  }
+
+  private def extractNameFromModel(model: WIOModel): Option[String] = model match {
+    case WIOModel.RunIO(meta) => meta.name
+    case WIOModel.HandleSignal(meta) => meta.operationName
+    case WIOModel.Pure(meta) => meta.name
+    case WIOModel.Timer(meta) => meta.name
+    case WIOModel.Fork(_, meta) => meta.name
+    case _ => None
+  }
+
+  private def extractSignalNameFromModel(model: WIOModel): Option[String] = model match {
+    case WIOModel.HandleSignal(meta) => Some(meta.signalName)
+    case _ => None
+  }
+
+  private def extractOperationNameFromModel(model: WIOModel): Option[String] = model match {
+    case WIOModel.HandleSignal(meta) => meta.operationName
+    case _ => None
+  }
+
+  private def extractErrorFromModel(model: WIOModel): Option[String] = model match {
+    case WIOModel.RunIO(meta) => meta.error.map(_.name)
+    case WIOModel.HandleSignal(meta) => meta.error.map(_.name)
+    case WIOModel.Pure(meta) => meta.error.map(_.name)
+    case WIOModel.Dynamic(meta) => meta.error.map(_.name)
+    case _ => None
+  }
+
+  private def extractDescriptionFromModel(model: WIOModel): Option[String] = model match {
+    case WIOModel.RunIO(meta) => meta.description
+    case _ => None
+  }
+
 }
 
 object RealWorkflowService {

@@ -31,13 +31,10 @@ class WorkflowServerEndpoints(workflowService: WorkflowApiService) {
         workflowService.getInstance(workflowId, instanceId).attempt.map(_.leftMap(_.getMessage))
       }
     }),
-    WorkflowEndpoints.getInstanceProgress.serverLogic { case (defId, instanceId) =>
+    WorkflowEndpoints.getProgress.serverLogic { case (defId, instanceId) =>
       workflowService.getProgress(defId, instanceId).attempt.map(_.leftMap(_.getMessage))
     },
-    WorkflowEndpoints.getInstanceProgressMermaid.serverLogic { case (defId, instanceId) =>
-      workflowService.getProgressAsMermaid(defId, instanceId).attempt.map(_.leftMap(_.getMessage))
-    },
-    WorkflowEndpoints.createTestInstanceEndpoint.serverLogic(workflowId => {
+    WorkflowEndpoints.createTestInstance.serverLogic(workflowId => {
       IO.pure(createTestInstanceLogic(workflowId))
     }),
   )

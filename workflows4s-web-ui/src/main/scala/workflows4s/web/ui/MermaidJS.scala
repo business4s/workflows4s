@@ -1,4 +1,3 @@
-//helper file, still need to decide where to put it exactly. For now, just put it in workflows4s-web-ui/src/main/scala/workflows4s/web/ui
 package workflows4s.web.ui
 
 import scala.scalajs.js
