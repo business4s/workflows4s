@@ -2,28 +2,21 @@ package workflows4s.web.api.server
 
 import cats.effect.IO
 import cats.syntax.either.*
-import io.circe.Json
-import sttp.tapir.server.ServerEndpoint
 import workflows4s.web.api.endpoints.WorkflowEndpoints
-import workflows4s.web.api.model.{InstanceStatus, WorkflowInstance}
+import workflows4s.web.api.model.*
 import workflows4s.web.api.service.WorkflowApiService
+import sttp.tapir.server.ServerEndpoint
 
 class WorkflowServerEndpoints(workflowService: WorkflowApiService) {
 
   private def createTestInstanceLogic(workflowId: String): Either[String, WorkflowInstance] = {
-    val state = Json.obj(
-      "workflow_id" -> Json.fromString(workflowId),
-      "timestamp"   -> Json.fromString(java.time.Instant.now().toString),
-      "test_data"   -> Json.fromBoolean(true),
-      "status"      -> Json.fromString("initialized"),
-    )
-
+    val testInstanceId = s"test-instance-${System.currentTimeMillis()}"
     Right(
       WorkflowInstance(
-        id = s"test-instance-${System.currentTimeMillis()}",
+        id = testInstanceId,
         definitionId = workflowId,
         status = InstanceStatus.Running,
-        state = Some(state),
+        state = None,
       ),
     )
   }
@@ -38,7 +31,10 @@ class WorkflowServerEndpoints(workflowService: WorkflowApiService) {
         workflowService.getInstance(workflowId, instanceId).attempt.map(_.leftMap(_.getMessage))
       }
     }),
-    WorkflowEndpoints.createTestInstanceEndpoint.serverLogic(workflowId => {
+    WorkflowEndpoints.getProgress.serverLogic { case (defId, instanceId) =>
+      workflowService.getProgress(defId, instanceId).attempt.map(_.leftMap(_.getMessage))
+    },
+    WorkflowEndpoints.createTestInstance.serverLogic(workflowId => {
       IO.pure(createTestInstanceLogic(workflowId))
     }),
   )
