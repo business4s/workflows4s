@@ -39,14 +39,6 @@
       },
       "handler" : null,
       "_type" : "Interruptible"
-    },
-    {
-      "meta" : {
-        "name" : "Generate Report",
-        "error" : null,
-        "description" : null
-      },
-      "_type" : "RunIO"
     }
   ],
   "_type" : "Sequence"
