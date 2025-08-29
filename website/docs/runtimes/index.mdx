@@ -16,6 +16,7 @@ trait WorkflowRuntime[F[_], Ctx <: WorkflowContext, WorkflowId, Input] {
   def createInstance(id: WorkflowId, input: Input): F[WorkflowInstance[F, WCState[Ctx]]]
 
 }
+
 ```
 
 ## Available Runtimes
@@ -100,12 +101,22 @@ Below is an overview of the available runtimes, with their strengths and limitat
     </tbody>
 </table>
 
-## KnockerUpper
+## WorkflowEngine
 
-Each `WorkflowRuntime` is usually parameterized by a `KnockerUpper` implementation which is responsible for waking up the workflow when needed.
+Each `WorkflowRuntime` is parameterized by a `WorkflowInstanceEngine`,
+a component that proxies all interactions between the instance and its state, allowing for plugging-in custom behaviours.
+
+Below is an example of building an engine.
+
+```scala file=./main/scala/workflows4s/example/docs/EngineExample.scala start=doc_start end=doc_end
+```
+
+### KnockerUpper
+
+`KnockerUpper` is a component responsible for waking up the workflow when needed, e.g., after timer has expired or retry is due.
 See [Wake-Ups](./04-knocker-uppers.mdx) for additional details.
 
-## WorkflowRegistry
+### WorkflowRegistry
 
-Each `WorkflowRuntime` can also be configured with a `WorkflowRegistry` implementation which is responsible for tracking the execution status of workflow instances.
+`WorkflowRegistry` is a component responsible for tracking the execution status of workflow instances.
 See [Collecting Instances](./05-workflow-registry.mdx) for additional details.

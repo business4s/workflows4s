@@ -5,7 +5,6 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import workflows4s.doobie.ByteCodec
 import workflows4s.doobie.sqlite.SqliteRuntime
-import workflows4s.runtime.registry.WorkflowRegistry
 import workflows4s.runtime.{MappedWorkflowInstance, WorkflowInstance}
 import workflows4s.testing.TestRuntimeAdapter
 import workflows4s.wio.*
@@ -20,10 +19,9 @@ class SqliteRuntimeAdapter[Ctx <: WorkflowContext](workdir: Path, eventCodec: By
   override def runWorkflow(
       workflow: WIO.Initial[Ctx],
       state: WCState[Ctx],
-      registryAgent: WorkflowRegistry.Agent,
   ): Actor = {
     val id      = s"sqlruntime-workflow-${Random.nextLong()}"
-    val runtime = SqliteRuntime.default[Ctx](workflow, state, eventCodec, knockerUpper, workdir, clock, registryAgent).unsafeRunSync()
+    val runtime = SqliteRuntime.create[Ctx](workflow, state, eventCodec, engine, workdir).unsafeRunSync()
     MappedWorkflowInstance(runtime.createInstance(id).unsafeRunSync(), [t] => (x: IO[t]) => x.unsafeRunSync())
   }
 

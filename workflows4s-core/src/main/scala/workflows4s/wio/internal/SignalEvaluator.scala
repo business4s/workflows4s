@@ -4,7 +4,6 @@ import cats.effect.IO
 import cats.implicits.toFoldableOps
 import com.typesafe.scalalogging.StrictLogging
 import workflows4s.wio.*
-import workflows4s.wio.Interpreter.SignalResponse
 import workflows4s.wio.WIO.HandleInterruption.InterruptionStatus
 
 object SignalEvaluator {
@@ -14,11 +13,9 @@ object SignalEvaluator {
       req: Req,
       wio: WIO[In, Nothing, Out, Ctx],
       state: In,
-  ): SignalResponse[Ctx, Resp] = {
+  ): SignalResult[WCEvent[Ctx], Resp] = {
     val visitor = new SignalVisitor(wio, signalDef, req, state, state)
-    visitor.run
-      .map(SignalResponse.Ok(_))
-      .getOrElse(SignalResponse.UnexpectedSignal())
+    SignalResult.fromRaw(visitor.run)
   }
 
   private class SignalVisitor[Ctx <: WorkflowContext, Resp, Err, Out <: WCState[Ctx], In, Req](
