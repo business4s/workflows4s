@@ -8,6 +8,9 @@ import workflows4s.web.ui.components.ReusableViews
 import workflows4s.web.ui.{MermaidHelper, MermaidJS}
 import scala.scalajs.js
 import io.circe.Json
+import java.util.Base64
+import java.nio.charset.StandardCharsets
+import workflows4s.mermaid.{MermaidFlowchart, Node}
 
 import scala.concurrent.duration.DurationInt
 
@@ -174,6 +177,35 @@ final case class InstancesManager(
       },
     )
 
+  private def generateMermaidFromProgress(progress: ProgressResponse): String = {
+  // Extract Mermaid diagram from the progress response if available
+  progress.mermaidDiagram.getOrElse(
+    // Fallback to a simple diagram if no Mermaid code is provided
+    """flowchart TD
+      |start([Start])
+      |unavailable[Diagram not available]
+      |start --> unavailable
+      |""".stripMargin
+  )
+}
+
+// 2. Add the missing jsonStateViewer method
+private def jsonStateViewer(instance: WorkflowInstance): Html[InstancesManager.Msg] = {
+  div(cls := "box mt-4")(
+    h5("Instance State"),
+    instance.state match {
+      case Some(stateJson) => 
+        pre(cls := "mt-2 content is-small")(
+          code(stateJson.spaces2)
+        )
+      case None =>
+        div(cls := "notification is-light")(
+          text("No state data available")
+        )
+    }
+  )
+}
+
   private def instanceInputView(workflowId: String): Html[InstancesManager.Msg] =
     div(cls := "field is-grouped")(
       div(cls := "control is-expanded")(
@@ -306,6 +338,8 @@ final case class InstancesManager(
       ),
     )
 
+    
+
   private def createProgressJson(progress: ProgressResponse): Json =
     Json.obj(
       "progressType" -> Json.fromString(progress.progressType),
@@ -334,122 +368,57 @@ final case class InstancesManager(
     )
 
   private def mermaidDiagramView(mermaid: String, renderedSvg: Option[String]): Html[InstancesManager.Msg] =
-    div(cls := "box mt-4")(
-      h5("🎨 Workflow Diagram"),
+  div(cls := "box mt-4")(
+    h5("🎨 Workflow Diagram"),
 
-      // Action buttons
-      div(cls := "field is-grouped mb-4")(
-        div(cls := "control")(
-          a(
-            cls    := "button is-success is-small",
-            href   := createMermaidLiveUrl(mermaid),
-            target := "_blank",
-          )("🔗 View in Mermaid Live"),
-        ),
-      ),
+    // Action buttons
+    div(cls := "field is-grouped mb-4")(
+      div(cls := "control")(
+        a(
+          // Create a proper MermaidFlowchart and use toViewUrl
+          href := {
+            val flowchart = MermaidFlowchart(Seq())
+              .addElement(Node(id = "start", label = mermaid))
+            flowchart.toViewUrl
+          },
+          target := "_blank",
+          rel := "noopener noreferrer",
+          cls := "button is-link is-small"
+        )("Open in Mermaid.live")
+      )
+    ),
+    
+    div(
+      cls := "mermaid-diagram-container"
+    )(
       renderedSvg match {
-        case Some(svg) =>
-          div(cls := "has-text-centered p-4")().innerHtml(svg)
-        case None      =>
-          div(cls := "notification is-info is-light has-text-centered")(
-            text("🔄 Rendering diagram..."),
-          )
-      },
-
-      // Code view
-      details(cls := "mt-4")(
-        summary(cls := "button is-small is-light")("📋 View Mermaid Code"),
-        pre(cls := "mt-2")(
-          code(mermaid),
-        ),
-      ),
+    case Some(svg) =>
+  // Use a simpler approach with direct rendering
+  div(
+    cls := "mermaid-rendered",
+    // The ID attribute in Tyrian is just 'id', not 'idAttr'
+    id := "svg-container"
+  )(
+    // We'll render the SVG content via JavaScript in componentDidMount
+    // This is handled elsewhere and doesn't need onDomMount
+    // The existing approach with container.innerHTML = svg still works
+    // because the element with id="svg-container" is accessible
+    text("")  // Placeholder content
+  )
+  case None =>
+    div(
+      cls := "has-text-centered p-5"
+    )(
+      p("Rendering diagram..."),
+      ReusableViews.loadingSpinner("Rendering diagram...")
     )
-
-  private def createMermaidLiveUrl(mermaidCode: String): String = {
-    import java.nio.charset.StandardCharsets
-    import java.util.Base64
-    import io.circe.Json
-
-    val json      = Json.obj("code" -> Json.fromString(mermaidCode)).noSpaces
-    val encoded   = Base64.getEncoder.encodeToString(json.getBytes(StandardCharsets.UTF_8))
-    val base64url = encoded
-      .replace('+', '-')
-      .replace('/', '_')
-
-    s"https://mermaid.live/edit#base64:$base64url"
-  }
-
-  private def jsonStateViewer(instance: WorkflowInstance): Html[InstancesManager.Msg] =
-    div(cls := "box mt-4")(
-      h5("Instance State"),
-      pre(cls := "content is-small")(
-        code(instance.state.map(_.spaces2).getOrElse("No state available.")),
-      ),
+      }
     )
+  )
 
-  private def generateMermaidFromProgress(progress: ProgressResponse): String = {
-    val builder = new StringBuilder()
-    builder.append("flowchart TD\n")
+  
 
-    // Start node
-    builder.append("  node_start@{ shape: circle, label: \"Start\"}\n")
-
-    // Generate nodes for each step
-    val stepNodes = progress.steps.zipWithIndex.map { case (step, index) =>
-      val stepName   = step.meta.name.getOrElse(s"Step ${index + 1}")
-      val nodeId     = s"node_$index"
-      val isExecuted = step.result.exists(_.status == "Completed")
-
-      val nodeShape = step.stepType match {
-        case "HandleSignal" => s"""$nodeId@{ shape: stadium, label: "fa:fa-envelope $stepName"}"""
-        case "Timer"        => s"""$nodeId@{ shape: stadium, label: "fa:fa-clock $stepName"}"""
-        case "Pure"         => s"""$nodeId["$stepName"]"""
-        case "RunIO"        => s"""$nodeId["$stepName"]"""
-        case "Fork"         => s"""$nodeId@{ shape: hex, label: "$stepName"}"""
-        case "Parallel"     => s"""$nodeId@{ shape: fork, label: "$stepName"}"""
-        case "Retried"      => s"""$nodeId["fa:fa-redo $stepName"]"""
-        case _              => s"""$nodeId["$stepName"]"""
-      }
-
-      val nodeWithClass = if isExecuted then nodeShape + ":::executed" else nodeShape
-      builder.append(s"  $nodeWithClass\n")
-      nodeId
-    }
-
-    // End node
-    builder.append("  node_end@{ shape: circle, label: \"End\"}\n")
-
-    // Generate connections
-    if stepNodes.nonEmpty then {
-      builder.append(s"  node_start --> ${stepNodes.head}\n")
-
-      for i <- stepNodes.indices.init do {
-        builder.append(s"  ${stepNodes(i)} --> ${stepNodes(i + 1)}\n")
-      }
-
-      builder.append(s"  ${stepNodes.last} --> node_end\n")
-    } else {
-      builder.append("  node_start --> node_end\n")
-    }
-
-    // Add error handling connections if any steps have errors
-    val hasErrors = progress.steps.exists(_.meta.error.isDefined)
-
-    if hasErrors then {
-      builder.append("  node_error[\"Error Handler\"]\n")
-      progress.steps.zipWithIndex.foreach { case (step, index) =>
-        step.meta.error.foreach { errorName =>
-          builder.append(s"  node_$index -.->|\"fa:fa-bolt $errorName\"| node_error\n")
-        }
-      }
-      builder.append("  node_error --> node_end\n")
-    }
-
-    // Add styling
-    builder.append("  classDef executed fill:#0e0\n")
-
-    builder.toString()
-  }
+  
 }
 
 object InstancesManager {

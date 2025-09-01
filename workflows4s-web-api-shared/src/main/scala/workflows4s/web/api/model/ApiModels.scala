@@ -1,6 +1,6 @@
 package workflows4s.web.api.model
 
-import io.circe.{Codec, Json}
+import io.circe.Codec
 
 case class WorkflowDefinition(
     id: String,
@@ -13,7 +13,7 @@ case class WorkflowInstance(
     id: String,
     definitionId: String,
     status: InstanceStatus,
-    state: Option[Json] = None,
+    state: Option[io.circe.Json] = None,
     createdAt: Option[String] = None,
     updatedAt: Option[String] = None,
 ) derives Codec.AsObject
@@ -22,30 +22,32 @@ enum InstanceStatus derives Codec.AsObject {
   case Running, Completed, Failed, Paused
 }
 
+// Fixed: Proper structured response instead of raw Json
 case class ProgressResponse(
     progressType: String,
     isCompleted: Boolean,
     steps: List[ProgressStep],
+    mermaidDiagram: Option[String] = None,
 ) derives Codec.AsObject
 
 case class ProgressStep(
     stepType: String,
     meta: ProgressStepMeta,
-    result: Option[ProgressStepResult],
+    result: Option[ProgressStepResult] = None,
 ) derives Codec.AsObject
 
 case class ProgressStepMeta(
-    name: Option[String],
-    signalName: Option[String],
-    operationName: Option[String],
-    error: Option[String],
-    description: Option[String],
+    name: Option[String] = None,
+    signalName: Option[String] = None,
+    operationName: Option[String] = None,
+    error: Option[String] = None,
+    description: Option[String] = None,
 ) derives Codec.AsObject
 
 case class ProgressStepResult(
     status: String, // "Completed", "Failed", "Running"
     index: Int,
-    state: Option[String],
+    state: Option[String] = None,
 ) derives Codec.AsObject
 
 case class ErrorInfo(
