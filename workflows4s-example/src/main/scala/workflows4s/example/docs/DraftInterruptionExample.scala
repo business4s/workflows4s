@@ -4,11 +4,7 @@ import scala.concurrent.duration.*
 
 object DraftInterruptionExample {
 
-  object DraftContext extends workflows4s.wio.WorkflowContext {
-    // No need to define State or Event
-  }
-
-  import DraftContext._
+  import workflows4s.wio.DraftWorkflowContext._
 
   // start_draft
   // Create signal and timeout interruptions

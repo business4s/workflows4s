@@ -1,11 +1,8 @@
 package workflows4s.example.docs
 
 object DraftForkExample {
-  object DraftContext extends workflows4s.wio.WorkflowContext {
-    // No need to define State or Event
-  }
 
-  import DraftContext._
+  import workflows4s.wio.DraftWorkflowContext._
 
   // start_draft
   val approveStep = WIO.draft.step("Approve")
@@ -16,5 +13,5 @@ object DraftForkExample {
     "Rejected" -> rejectStep
   )
   // end_draft
-}
 
+}

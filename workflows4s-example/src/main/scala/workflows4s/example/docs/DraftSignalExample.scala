@@ -2,11 +2,7 @@ package workflows4s.example.docs
 
 object DraftSignalExample {
 
-  object DraftContext extends workflows4s.wio.WorkflowContext {
-    // No need to define State or Event
-  }
-
-  import DraftContext._
+  import workflows4s.wio.DraftWorkflowContext._
 
   // start_draft
   // Create a signal operation

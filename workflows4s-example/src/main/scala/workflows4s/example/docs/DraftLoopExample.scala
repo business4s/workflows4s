@@ -3,11 +3,8 @@ package workflows4s.example.docs
 import scala.concurrent.duration._
 
 object DraftLoopExample {
-  object DraftContext extends workflows4s.wio.WorkflowContext {
-    // No need to define State or Event
-  }
 
-  import DraftContext._
+  import workflows4s.wio.DraftWorkflowContext._
 
   // start_draft
   // Create a draft loop with a timer to avoid busy loops
