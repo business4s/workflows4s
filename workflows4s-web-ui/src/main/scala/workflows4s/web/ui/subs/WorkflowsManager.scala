@@ -33,61 +33,63 @@ final case class WorkflowsManager(
 
   def view: Html[WorkflowsManager.Msg] =
     aside(cls := "column is-one-quarter")(
-      nav(cls := "menu p-4")(
-        div(cls := "level")(
-          div(cls := "level-left")(
-            p(cls := "menu-label")("Available Workflows"),
+      div(cls := "box") {
+        nav(cls := "menu p-4")(
+          div(cls := "level")(
+            div(cls := "level-left")(
+              p(cls := "menu-label")("Available Workflows"),
+            ),
+            div(cls := "level-right")(
+              button(
+                cls := s"button is-small is-primary ${if state == WorkflowsManager.State.Loading then "is-loading" else ""}",
+                onClick(WorkflowsManager.Msg.Load),
+                disabled(state == WorkflowsManager.State.Loading),
+              )("Refresh"),
+            ),
           ),
-          div(cls := "level-right")(
-            button(
-              cls := s"button is-small is-primary ${if state == WorkflowsManager.State.Loading then "is-loading" else ""}",
-              onClick(WorkflowsManager.Msg.Load),
-              disabled(state == WorkflowsManager.State.Loading),
-            )("Refresh"),
-          ),
-        ),
-        state match {
-          case WorkflowsManager.State.Initializing =>
-            p(cls := "menu-list")("Initializing...")
+          state match {
+            case WorkflowsManager.State.Initializing =>
+              p(cls := "menu-list")("Initializing...")
 
-          case WorkflowsManager.State.Loading =>
-            ReusableViews.loadingSpinner("Loading workflows...")
+            case WorkflowsManager.State.Loading =>
+              ReusableViews.loadingSpinner("Loading workflows...")
 
-          case WorkflowsManager.State.Failed(reason) =>
-            div(cls := "notification is-danger is-light")(text(reason))
+            case WorkflowsManager.State.Failed(reason) =>
+              div(cls := "notification is-danger is-light")(text(reason))
 
-          case WorkflowsManager.State.Ready =>
-            if workflows.isEmpty then div(cls := "notification is-info is-light")(
-              p("No workflows found."),
-              p(cls := "is-size-7 mt-2")("Make sure the API server is running."),
-            )
-            else
-              ul(cls := "menu-list")(
-                workflows.map { wf =>
-                  li(
-                    a(
-                      cls := (if selectedWorkflowId.contains(wf.id) then "is-active" else ""),
-                      onClick(WorkflowsManager.Msg.Select(wf.id)),
-                    )(
-                      div(
-                        strong(wf.name),
-                        br(),
-                        span(cls := "is-size-7 has-text-grey")(wf.id),
-                        wf.description
-                          .map(desc =>
-                            div(
-                              br(),
-                              span(cls := "is-size-7")(desc),
-                            ),
-                          )
-                          .getOrElse(div()),
-                      ),
-                    ),
-                  )
-                },
+            case WorkflowsManager.State.Ready =>
+              if workflows.isEmpty then div(cls := "notification is-info is-light")(
+                p("No workflows found."),
+                p(cls := "is-size-7 mt-2")("Make sure the API server is running."),
               )
-        },
-      ),
+              else
+                ul(cls := "menu-list")(
+                  workflows.map { wf =>
+                    li(
+                      a(
+                        cls := (if selectedWorkflowId.contains(wf.id) then "is-active" else ""),
+                        onClick(WorkflowsManager.Msg.Select(wf.id)),
+                      )(
+                        div(
+                          strong(wf.name),
+                          br(),
+                          span(cls := "is-size-7")(wf.id),
+                          wf.description
+                            .map(desc =>
+                              div(
+                                br(),
+                                span(cls := "is-size-7")(desc),
+                              ),
+                            )
+                            .getOrElse(div()),
+                        ),
+                      ),
+                    )
+                  },
+                )
+          },
+        )
+      },
     )
 }
 

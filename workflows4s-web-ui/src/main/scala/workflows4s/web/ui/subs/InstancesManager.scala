@@ -1,15 +1,12 @@
 package workflows4s.web.ui.subs
 
 import cats.effect.IO
+import io.circe.Json
 import tyrian.*
 import tyrian.Html.*
 import workflows4s.web.api.model.{ProgressResponse, WorkflowInstance}
-import workflows4s.web.ui.components.ReusableViews
-import workflows4s.web.ui.{MermaidHelper, MermaidJS}
-import scala.scalajs.js
-import io.circe.Json
-
-import scala.concurrent.duration.DurationInt
+import workflows4s.web.ui.components.{MermaidDiagramView, ReusableViews}
+import workflows4s.web.ui.subs.InstancesManager.Msg
 
 final case class InstancesManager(
     instanceIdInput: String,
@@ -25,13 +22,14 @@ final case class InstancesManager(
       val cmd     = InstancesManager.Http.loadInstance(workflowId, instanceIdInput)
       (updated, cmd)
 
-    case InstancesManager.Msg.InstanceLoaded(Right(instance)) =>
-      val updated = this.copy(state = InstancesManager.State.InstanceLoaded(instance, InstancesManager.ProgressView.Loading))
-      val cmd     = InstancesManager.Http.loadProgress(instance.definitionId, instance.id)
-      (updated, cmd)
-
-    case InstancesManager.Msg.InstanceLoaded(Left(err)) =>
-      (this.copy(state = InstancesManager.State.Failed(err)), Cmd.None)
+    case InstancesManager.Msg.InstanceLoaded(result) =>
+      result match {
+        case Left(err)       => (this.copy(state = InstancesManager.State.Failed(err)), Cmd.None)
+        case Right(instance) =>
+          val updated = this.copy(state = InstancesManager.State.InstanceLoaded(instance, InstancesManager.ProgressView.Loading))
+          val cmd     = InstancesManager.Http.loadProgress(instance.definitionId, instance.id)
+          (updated, cmd)
+      }
 
     case InstancesManager.Msg.ProgressLoaded(Right(progress)) =>
       state match {
@@ -52,27 +50,6 @@ final case class InstancesManager(
         case _                                                  => (this, Cmd.None)
       }
 
-    case InstancesManager.Msg.RetryMermaidRender(mermaid) =>
-      val renderCmd = if MermaidHelper.mermaidAvailable then {
-        Cmd.Run(renderMermaidDiagram(mermaid))
-      } else {
-        Cmd.Run(IO.sleep(500.millis).map(_ => InstancesManager.Msg.RetryMermaidRender(mermaid)))
-      }
-      (this, renderCmd)
-
-    case InstancesManager.Msg.MermaidRendered(svg) =>
-      state match {
-        case InstancesManager.State.InstanceLoaded(
-              instance,
-              InstancesManager.ProgressView.Loaded(progress, stateDisplay, InstancesManager.DiagramDisplay.LoadingRender(mermaid)),
-            ) =>
-          val diagramDisplay = InstancesManager.DiagramDisplay.Rendered(mermaid, svg)
-          val progressView   = InstancesManager.ProgressView.Loaded(progress, stateDisplay, diagramDisplay)
-          val updated        = this.copy(state = InstancesManager.State.InstanceLoaded(instance, progressView))
-          (updated, Cmd.None)
-        case _ => (this, Cmd.None)
-      }
-
     case InstancesManager.Msg.ToggleJsonState =>
       state match {
         case InstancesManager.State.InstanceLoaded(instance, InstancesManager.ProgressView.Loaded(progress, currentStateDisplay, diagramDisplay)) =>
@@ -91,14 +68,8 @@ final case class InstancesManager(
         case InstancesManager.State.InstanceLoaded(instance, InstancesManager.ProgressView.Loaded(progress, stateDisplay, currentDiagramDisplay)) =>
           val (newDiagramDisplay, cmd) = currentDiagramDisplay match {
             case InstancesManager.DiagramDisplay.Hidden =>
-              val mermaidCode    = progress.mermaidCode
-              val loadingDisplay = InstancesManager.DiagramDisplay.LoadingRender(progress.mermaidUrl)
-              val renderCmd      = if MermaidHelper.mermaidAvailable then {
-                Cmd.Run(renderMermaidDiagram(mermaidCode))
-              } else {
-                Cmd.Run(IO.sleep(500.millis).map(_ => InstancesManager.Msg.RetryMermaidRender(mermaidCode)))
-              }
-              (loadingDisplay, renderCmd)
+              val diagram = MermaidDiagramView(progress.mermaidCode, None)
+              (InstancesManager.DiagramDisplay.Rendered(progress.mermaidUrl, diagram), Cmd.Emit(Msg.ForDiagram(MermaidDiagramView.Msg.Retry)))
             case _                                      =>
               (InstancesManager.DiagramDisplay.Hidden, Cmd.None)
           }
@@ -113,31 +84,16 @@ final case class InstancesManager(
       val cmd     = InstancesManager.Http.createTestInstance(workflowId)
       (updated, cmd)
 
-    case InstancesManager.Msg.Reset =>
+    case InstancesManager.Msg.ForDiagram(subMsg) =>
+      state match {
+        case s @ InstancesManager.State
+              .InstanceLoaded(_, p @ InstancesManager.ProgressView.Loaded(_, _, d @ InstancesManager.DiagramDisplay.Rendered(_, diagram))) =>
+          val (newDiagram, cmd) = diagram.update(subMsg)
+          this.copy(state = s.copy(progressView = p.copy(diagramDisplay = d.copy(mermaidDiagram = newDiagram)))) -> cmd.map(Msg.ForDiagram(_))
+        case _ => (this, Cmd.None)
+      }
+    case InstancesManager.Msg.Reset              =>
       (InstancesManager.initial, Cmd.None)
-  }
-
-  private def renderMermaidDiagram(mermaidCode: String): IO[InstancesManager.Msg] = {
-    if MermaidHelper.mermaidAvailable then {
-      println("Mermaid available, attempting to render.")
-      println(s"Mermaid code to render: $mermaidCode")
-
-      val renderTask = for {
-        _            <- IO(MermaidJS.initialize(js.Dynamic.literal("startOnLoad" -> false, "htmlLabels" -> false)))
-        renderResult <- MermaidHelper.fromPromise(MermaidJS.render("mermaid-diagram", mermaidCode))
-      } yield {
-        println(s"Mermaid render successful, SVG length: ${renderResult.svg.length}")
-        InstancesManager.Msg.MermaidRendered(renderResult.svg)
-      }
-
-      renderTask.handleError { ex =>
-        println(s"Mermaid rendering failed: ${ex.getMessage}")
-        InstancesManager.Msg.MermaidRendered(s"<div style='color: red; padding: 20px;'>Failed to render diagram: ${ex.getMessage}</div>")
-      }
-    } else {
-      println("Mermaid isn't ready, retrying...")
-      IO.pure(InstancesManager.Msg.RetryMermaidRender(mermaidCode))
-    }
   }
 
   def view(selectedWorkflowId: Option[String]): Html[InstancesManager.Msg] =
@@ -150,8 +106,13 @@ final case class InstancesManager(
 
         case Some(wfId) =>
           div(cls := "box")(
+            div(cls := "tabs")(
+              ul(
+                li(cls := "is-active")(a("Instances")),
+                li()(a("Definition")),
+              ),
+            ),
             instanceInputView(wfId),
-            testInstanceView(wfId),
             state match {
               case InstancesManager.State.Ready =>
                 div()
@@ -192,37 +153,34 @@ final case class InstancesManager(
   }
 
   private def instanceInputView(workflowId: String): Html[InstancesManager.Msg] =
-    div(cls := "field is-grouped")(
-      div(cls := "control is-expanded")(
-        label(cls := "label")("Instance ID"),
-        input(
-          cls         := "input",
-          placeholder := "Enter instance ID (e.g., inst-1)",
-          value       := instanceIdInput,
-          onInput(InstancesManager.Msg.InstanceIdChanged(_)),
+    div(
+      div(cls := "field is-grouped")(
+        div(cls := "control is-expanded")(
+          label(cls := "label")("Instance ID"),
+          input(
+            cls         := "input",
+            placeholder := "Enter instance ID (e.g., inst-1)",
+            value       := instanceIdInput,
+            onInput(InstancesManager.Msg.InstanceIdChanged(_)),
+          ),
         ),
       ),
-      div(cls := "control")(
-        label(cls := "label")(" "),
-        button(
-          cls := s"button is-primary ${if state == InstancesManager.State.Loading then "is-loading" else ""}",
-          onClick(InstancesManager.Msg.LoadInstance(workflowId)),
-          disabled(state == InstancesManager.State.Loading || instanceIdInput.trim.isEmpty),
-        )("Load"),
+      div(cls := "field is-grouped mt-2")(
+        div(cls := "control")(
+          button(
+            cls := s"button is-primary ${if state == InstancesManager.State.Loading then "is-loading" else ""}",
+            onClick(InstancesManager.Msg.LoadInstance(workflowId)),
+            disabled(state == InstancesManager.State.Loading || instanceIdInput.trim.isEmpty),
+          )("Load"),
+        ),
+        div(cls := "control")(
+          button(
+            cls := s"button is-info is-outlined ${if state == InstancesManager.State.Loading then "is-loading" else ""}",
+            onClick(InstancesManager.Msg.CreateTestInstance(workflowId)),
+            disabled(state == InstancesManager.State.Loading),
+          )("Create Test Instance"),
+        ),
       ),
-    )
-
-  private def testInstanceView(workflowId: String): Html[InstancesManager.Msg] =
-    div(cls := "field mt-4")(
-      label(cls := "label")("Quick Test"),
-      div(cls := "control")(
-        button(
-          cls := s"button is-info is-outlined ${if state == InstancesManager.State.Loading then "is-loading" else ""}",
-          onClick(InstancesManager.Msg.CreateTestInstance(workflowId)),
-          disabled(state == InstancesManager.State.Loading),
-        )("Create Test Instance"),
-      ),
-      p(cls := "help")("Creates a new test instance for this workflow"),
     )
 
   private def instanceDetailsView(instance: WorkflowInstance, progressView: InstancesManager.ProgressView): Html[InstancesManager.Msg] =
@@ -300,11 +258,8 @@ final case class InstancesManager(
           text("Loading diagram..."),
         )
 
-      case InstancesManager.DiagramDisplay.LoadingRender(mermaidUrl) =>
-        mermaidDiagramView(mermaidUrl, None)
-
-      case InstancesManager.DiagramDisplay.Rendered(mermaidUrl, svg) =>
-        mermaidDiagramView(mermaidUrl, Some(svg))
+      case InstancesManager.DiagramDisplay.Rendered(mermaidUrl, diagram) =>
+        mermaidDiagramView(mermaidUrl, diagram)
     }
 
   private def progressSummaryView(progress: ProgressResponse): Html[InstancesManager.Msg] =
@@ -350,7 +305,7 @@ final case class InstancesManager(
       ),
     )
 
-  private def mermaidDiagramView(mermaidUrl: String, renderedSvg: Option[String]): Html[InstancesManager.Msg] =
+  private def mermaidDiagramView(mermaidUrl: String, diagramView: MermaidDiagramView): Html[InstancesManager.Msg] =
     div(cls := "box mt-4")(
       h5("🎨 Workflow Diagram"),
 
@@ -364,22 +319,7 @@ final case class InstancesManager(
           )("🔗 View in Mermaid Live"),
         ),
       ),
-      renderedSvg match {
-        case Some(svg) =>
-          div(cls := "has-text-centered p-4")().innerHtml(svg)
-        case None      =>
-          div(cls := "notification is-info is-light has-text-centered")(
-            text("🔄 Rendering diagram..."),
-          )
-      },
-
-//      // Code view
-//      details(cls := "mt-4")(
-//        summary(cls := "button is-small is-light")("📋 View Mermaid Code"),
-//        pre(cls := "mt-2")(
-//          code(mermaid),
-//        ),
-//      ),
+      diagramView.view.map(Msg.ForDiagram(_)),
     )
 }
 
@@ -411,8 +351,7 @@ object InstancesManager {
   enum DiagramDisplay {
     case Hidden
     case Loading
-    case LoadingRender(mermaidUrl: String)
-    case Rendered(mermaidUrl: String, svg: String)
+    case Rendered(mermaidUrl: String, mermaidDiagram: MermaidDiagramView)
   }
 
   enum Msg {
@@ -420,12 +359,11 @@ object InstancesManager {
     case LoadInstance(workflowId: String)
     case InstanceLoaded(result: Either[String, WorkflowInstance])
     case ProgressLoaded(result: Either[String, ProgressResponse])
-    case RetryMermaidRender(mermaidCode: String)
-    case MermaidRendered(svg: String)
     case ToggleJsonState
     case ToggleMermaidViewer
     case CreateTestInstance(workflowId: String)
     case Reset
+    case ForDiagram(msg: MermaidDiagramView.Msg)
   }
 
   object Http {
