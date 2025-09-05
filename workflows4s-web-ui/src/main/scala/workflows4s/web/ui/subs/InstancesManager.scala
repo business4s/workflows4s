@@ -181,13 +181,13 @@ final case class InstancesManager(
       instance.state match {
         case Some(stateJson) =>
           pre(cls := "mt-2 content is-small")(
-            code(stateJson.spaces2)
+            code(stateJson.spaces2),
           )
-        case None =>
+        case None            =>
           div(cls := "notification is-light")(
-            text("No state data available")
+            text("No state data available"),
           )
-      }
+      },
     )
   }
 
@@ -380,7 +380,8 @@ final case class InstancesManager(
 //          code(mermaid),
 //        ),
 //      ),
-    )}
+    )
+}
 
 object InstancesManager {
   def initial: InstancesManager =

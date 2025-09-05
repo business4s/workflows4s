@@ -8,8 +8,8 @@ import workflows4s.web.api.endpoints.WorkflowEndpoints
 import workflows4s.web.api.model.{ProgressResponse, WorkflowDefinition, WorkflowInstance}
 
 object Http {
-  private val backend = FetchCatsBackend[IO]()
-  private val baseUrl = "http://localhost:8081"
+  private val backend     = FetchCatsBackend[IO]()
+  private val baseUrl     = "http://localhost:8081"
   private val interpreter = SttpClientInterpreter()
 
   def getInstance(workflowId: String, instanceId: String): IO[WorkflowInstance] = {

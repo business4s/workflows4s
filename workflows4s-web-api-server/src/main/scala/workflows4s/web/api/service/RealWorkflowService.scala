@@ -89,7 +89,7 @@ class RealWorkflowService(
   ): IO[ProgressResponse] = {
     for {
       progress <- getRealProgress(entry, instanceId)
-      mermaid = MermaidRenderer.renderWorkflow(progress)
+      mermaid   = MermaidRenderer.renderWorkflow(progress)
     } yield ProgressResponse(
       progressType = "Sequence",
       isCompleted = progress.result.isDefined,
