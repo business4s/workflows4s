@@ -68,7 +68,7 @@ lazy val `workflows4s-filesystem` = (project in file("workflows4s-filesystem"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "co.fs2"        %% "fs2-io"          % "3.12.0",
+      "co.fs2"        %% "fs2-io"          % "3.12.2",
       "ch.qos.logback" % "logback-classic" % "1.5.18" % Test,
     ),
   )
