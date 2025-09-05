@@ -17,12 +17,13 @@ enum Msg {
   case NoOp
   case ForWorkflows(msg: WorkflowsManager.Msg)
   case ForInstances(msg: InstancesManager.Msg)
+  case FollowExternalLink(str: String)
 }
 
 @JSExportTopLevel("TyrianApp")
 object Main extends TyrianIOApp[Msg, Model] {
 
-  def router: Location => Msg = Routing.none(Msg.NoOp)
+  def router: Location => Msg = Routing.basic(_ => Msg.NoOp, Msg.FollowExternalLink(_))
 
   def init(flags: Map[String, String]): (Model, Cmd[IO, Msg]) = {
     val (workflowsManager, workflowsCmd) = WorkflowsManager.initial(Msg.ForWorkflows.apply)
@@ -40,6 +41,8 @@ object Main extends TyrianIOApp[Msg, Model] {
     case Msg.ForInstances(instancesMsg) =>
       val (updatedInstances, cmd) = model.instances.update(instancesMsg)
       (model.copy(instances = updatedInstances), cmd.map(Msg.ForInstances.apply))
+
+    case Msg.FollowExternalLink(url) => model -> Nav.loadUrl(url)
   }
 
   def view(model: Model): Html[Msg] =

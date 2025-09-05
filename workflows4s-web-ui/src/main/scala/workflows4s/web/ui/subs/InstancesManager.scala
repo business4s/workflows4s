@@ -91,8 +91,8 @@ final case class InstancesManager(
         case InstancesManager.State.InstanceLoaded(instance, InstancesManager.ProgressView.Loaded(progress, stateDisplay, currentDiagramDisplay)) =>
           val (newDiagramDisplay, cmd) = currentDiagramDisplay match {
             case InstancesManager.DiagramDisplay.Hidden =>
-              val mermaidCode    = generateMermaidFromProgress(progress)
-              val loadingDisplay = InstancesManager.DiagramDisplay.LoadingRender(mermaidCode)
+              val mermaidCode    = progress.mermaidCode
+              val loadingDisplay = InstancesManager.DiagramDisplay.LoadingRender(progress.mermaidUrl)
               val renderCmd      = if MermaidHelper.mermaidAvailable then {
                 Cmd.Run(renderMermaidDiagram(mermaidCode))
               } else {
@@ -173,11 +173,6 @@ final case class InstancesManager(
           )
       },
     )
-
-  private def generateMermaidFromProgress(progress: ProgressResponse): String = {
-    // Use the mermaidUrl that comes from the server
-    progress.mermaidCode
-  }
 
   // 2. Add the missing jsonStateViewer method
   private def jsonStateViewer(instance: WorkflowInstance): Html[InstancesManager.Msg] = {
