@@ -1,0 +1,16 @@
+flowchart TD
+node0@{ shape: circle, label: "Start"}
+node1["Validate Document"]
+node0 --> node1
+subgraph node2 [" "]
+subgraph node3 [" "]
+node4["Extract Content"]
+node1 --> node4
+end
+node9@{ shape: stadium, label: "fa:fa-envelope Urgent Processing Request"}
+node3 --> node9
+node10["Handle Urgent Processing Request"]
+node9 --> node10
+end
+node14@{ shape: stadium, label: "fa:fa-clock Processing Deadline (2h)"}
+node2 --> node14

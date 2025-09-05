@@ -58,3 +58,7 @@ If you see it as a major limitation, please reach out.
 Use workflow-level retries for retry schedules spanning **minutes to hours or days**
 
 For short-lived retries (e.g., retrying within milliseconds or seconds), prefer handling them directly inside the `IO` operation using libraries like [`cats-retry`](https://github.com/cats-effect/cats-retry).
+
+## Drafting Support
+
+For Retrying Operations, no dedicated draft API is required. Drafting can be done using the standard API.

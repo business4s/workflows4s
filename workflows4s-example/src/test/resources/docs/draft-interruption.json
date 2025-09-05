@@ -1,0 +1,45 @@
+{
+  "steps" : [
+    {
+      "meta" : {
+        "name" : "Validate Document",
+        "error" : null,
+        "description" : null
+      },
+      "_type" : "RunIO"
+    },
+    {
+      "base" : {
+        "base" : {
+          "meta" : {
+            "name" : "Extract Content",
+            "error" : null,
+            "description" : null
+          },
+          "_type" : "RunIO"
+        },
+        "trigger" : {
+          "meta" : {
+            "signalName" : "Urgent Processing Request",
+            "operationName" : null,
+            "error" : null
+          },
+          "_type" : "HandleSignal"
+        },
+        "handler" : null,
+        "_type" : "Interruptible"
+      },
+      "trigger" : {
+        "meta" : {
+          "duration" : "PT2H",
+          "releaseAt" : null,
+          "name" : "Processing Deadline"
+        },
+        "_type" : "Timer"
+      },
+      "handler" : null,
+      "_type" : "Interruptible"
+    }
+  ],
+  "_type" : "Sequence"
+}
