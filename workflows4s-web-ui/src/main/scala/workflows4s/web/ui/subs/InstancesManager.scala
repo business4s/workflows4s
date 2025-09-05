@@ -176,7 +176,7 @@ final case class InstancesManager(
 
   private def generateMermaidFromProgress(progress: ProgressResponse): String = {
     // Use the mermaidUrl that comes from the server
-    progress.mermaidUrl
+    progress.mermaidCode
   }
 
   // 2. Add the missing jsonStateViewer method
@@ -184,7 +184,7 @@ final case class InstancesManager(
     div(cls := "box mt-4")(
       h5("Instance State"),
       instance.state match {
-        case Some(stateJson) => 
+        case Some(stateJson) =>
           pre(cls := "mt-2 content is-small")(
             code(stateJson.spaces2)
           )
@@ -363,43 +363,29 @@ final case class InstancesManager(
       div(cls := "field is-grouped mb-4")(
         div(cls := "control")(
           a(
-            // Use the mermaid URL that comes from the server (already encoded properly)
-            href := mermaidUrl, // This is already a proper Mermaid.live URL from the server
+            cls    := "button is-success is-small",
+            href   := mermaidUrl,
             target := "_blank",
-            rel := "noopener noreferrer",
-            cls := "button is-link is-small"
-          )("Open in Mermaid.live")
-        )
+          )("🔗 View in Mermaid Live"),
+        ),
       ),
-      
-      div(
-        cls := "mermaid-diagram-container"
-      )(
-        renderedSvg match {
-          case Some(svg) =>
-            // Use a simpler approach with direct rendering
-            div(
-              cls := "mermaid-rendered",
-              // The ID attribute in Tyrian is just 'id', not 'idAttr'
-              id := "svg-container"
-            )(
-              // We'll render the SVG content via JavaScript in componentDidMount
-              // This is handled elsewhere and doesn't need onDomMount
-              // The existing approach with container.innerHTML = svg still works
-              // because the element with id="svg-container" is accessible
-              text("")  // Placeholder content
-            )
-          case None =>
-            div(
-              cls := "has-text-centered p-5"
-            )(
-              p("Rendering diagram..."),
-              ReusableViews.loadingSpinner("Rendering diagram...")
-            )
-        }
-      )
-    )
-}
+      renderedSvg match {
+        case Some(svg) =>
+          div(cls := "has-text-centered p-4")().innerHtml(svg)
+        case None      =>
+          div(cls := "notification is-info is-light has-text-centered")(
+            text("🔄 Rendering diagram..."),
+          )
+      },
+
+//      // Code view
+//      details(cls := "mt-4")(
+//        summary(cls := "button is-small is-light")("📋 View Mermaid Code"),
+//        pre(cls := "mt-2")(
+//          code(mermaid),
+//        ),
+//      ),
+    )}
 
 object InstancesManager {
   def initial: InstancesManager =

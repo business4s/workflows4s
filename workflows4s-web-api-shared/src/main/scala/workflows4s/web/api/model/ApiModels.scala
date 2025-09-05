@@ -22,12 +22,12 @@ enum InstanceStatus derives Codec.AsObject {
   case Running, Completed, Failed, Paused
 }
 
-// Fixed: Make mermaidUrl non-optional and rename from mermaidDiagram
 case class ProgressResponse(
     progressType: String,
     isCompleted: Boolean,
     steps: List[ProgressStep],
-    mermaidUrl: String, // Non-optional now
+    mermaidUrl: String,
+    mermaidCode: String, // Non-optional now
 ) derives Codec.AsObject
 
 case class ProgressStep(

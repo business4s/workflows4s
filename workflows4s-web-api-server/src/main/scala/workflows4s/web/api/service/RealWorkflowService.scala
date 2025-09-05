@@ -2,6 +2,7 @@ package workflows4s.web.api.service
 
 import cats.effect.IO
 import io.circe.Encoder
+import workflows4s.mermaid.MermaidRenderer
 import workflows4s.runtime.WorkflowRuntime
 import workflows4s.web.api.model.*
 import workflows4s.wio.{WCState, WorkflowContext}
@@ -88,18 +89,14 @@ class RealWorkflowService(
   ): IO[ProgressResponse] = {
     for {
       progress <- getRealProgress(entry, instanceId)
+      mermaid = MermaidRenderer.renderWorkflow(progress)
     } yield ProgressResponse(
       progressType = "Sequence",
       isCompleted = progress.result.isDefined,
       steps = convertProgressToSteps(progress),
-      mermaidUrl = generateMermaidUrl(progress),
+      mermaidUrl = mermaid.toViewUrl,
+      mermaidCode = mermaid.render,
     )
-  }
-
-  private def generateMermaidUrl[Ctx <: WorkflowContext](progress: WIOExecutionProgress[WCState[Ctx]]): String = {
-    import workflows4s.mermaid.MermaidRenderer
-    val flowchart = MermaidRenderer.renderWorkflow(progress)
-    flowchart.toViewUrl
   }
 
   private def convertProgressToSteps[Ctx <: WorkflowContext](progress: WIOExecutionProgress[WCState[Ctx]]): List[ProgressStep] = {

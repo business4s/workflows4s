@@ -107,6 +107,7 @@ class MockWorkflowApiService extends WorkflowApiService {
         isCompleted = instance.status == InstanceStatus.Completed || instance.status == InstanceStatus.Failed,
         steps = steps,
         mermaidUrl = "https://mermaid.live/edit#base64:eyJjb2RlIjoiZmxvd2NoYXJ0IFREXG5zdGFydChbU3RhcnRdKVxuZW5kKFtFbmRdKVxuc3RhcnQgLS0+IGVuZCIsIm1lcm1haWQiOnsidGhlbWUiOiJkZWZhdWx0In0sInVwZGF0ZUVkaXRvciI6ZmFsc2UsImF1dG9TeW5jIjp0cnVlLCJ1cGRhdGVEaWFncmFtIjpmYWxzZX0",
+        mermaidCode = "",
       )
     }
 
