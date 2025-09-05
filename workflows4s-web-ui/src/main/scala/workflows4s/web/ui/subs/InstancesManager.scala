@@ -8,9 +8,6 @@ import workflows4s.web.ui.components.ReusableViews
 import workflows4s.web.ui.{MermaidHelper, MermaidJS}
 import scala.scalajs.js
 import io.circe.Json
-import java.util.Base64
-import java.nio.charset.StandardCharsets
-import workflows4s.mermaid.{MermaidFlowchart, Node}
 
 import scala.concurrent.duration.DurationInt
 
@@ -178,33 +175,26 @@ final case class InstancesManager(
     )
 
   private def generateMermaidFromProgress(progress: ProgressResponse): String = {
-  // Extract Mermaid diagram from the progress response if available
-  progress.mermaidDiagram.getOrElse(
-    // Fallback to a simple diagram if no Mermaid code is provided
-    """flowchart TD
-      |start([Start])
-      |unavailable[Diagram not available]
-      |start --> unavailable
-      |""".stripMargin
-  )
-}
+    // Use the mermaidUrl that comes from the server
+    progress.mermaidUrl
+  }
 
-// 2. Add the missing jsonStateViewer method
-private def jsonStateViewer(instance: WorkflowInstance): Html[InstancesManager.Msg] = {
-  div(cls := "box mt-4")(
-    h5("Instance State"),
-    instance.state match {
-      case Some(stateJson) => 
-        pre(cls := "mt-2 content is-small")(
-          code(stateJson.spaces2)
-        )
-      case None =>
-        div(cls := "notification is-light")(
-          text("No state data available")
-        )
-    }
-  )
-}
+  // 2. Add the missing jsonStateViewer method
+  private def jsonStateViewer(instance: WorkflowInstance): Html[InstancesManager.Msg] = {
+    div(cls := "box mt-4")(
+      h5("Instance State"),
+      instance.state match {
+        case Some(stateJson) => 
+          pre(cls := "mt-2 content is-small")(
+            code(stateJson.spaces2)
+          )
+        case None =>
+          div(cls := "notification is-light")(
+            text("No state data available")
+          )
+      }
+    )
+  }
 
   private def instanceInputView(workflowId: String): Html[InstancesManager.Msg] =
     div(cls := "field is-grouped")(
@@ -315,11 +305,11 @@ private def jsonStateViewer(instance: WorkflowInstance): Html[InstancesManager.M
           text("Loading diagram..."),
         )
 
-      case InstancesManager.DiagramDisplay.LoadingRender(mermaid) =>
-        mermaidDiagramView(mermaid, None)
+      case InstancesManager.DiagramDisplay.LoadingRender(mermaidUrl) =>
+        mermaidDiagramView(mermaidUrl, None)
 
-      case InstancesManager.DiagramDisplay.Rendered(mermaid, svg) =>
-        mermaidDiagramView(mermaid, Some(svg))
+      case InstancesManager.DiagramDisplay.Rendered(mermaidUrl, svg) =>
+        mermaidDiagramView(mermaidUrl, Some(svg))
     }
 
   private def progressSummaryView(progress: ProgressResponse): Html[InstancesManager.Msg] =
@@ -337,8 +327,6 @@ private def jsonStateViewer(instance: WorkflowInstance): Html[InstancesManager.M
         ),
       ),
     )
-
-    
 
   private def createProgressJson(progress: ProgressResponse): Json =
     Json.obj(
@@ -367,58 +355,50 @@ private def jsonStateViewer(instance: WorkflowInstance): Html[InstancesManager.M
       ),
     )
 
-  private def mermaidDiagramView(mermaid: String, renderedSvg: Option[String]): Html[InstancesManager.Msg] =
-  div(cls := "box mt-4")(
-    h5("🎨 Workflow Diagram"),
+  private def mermaidDiagramView(mermaidUrl: String, renderedSvg: Option[String]): Html[InstancesManager.Msg] =
+    div(cls := "box mt-4")(
+      h5("🎨 Workflow Diagram"),
 
-    // Action buttons
-    div(cls := "field is-grouped mb-4")(
-      div(cls := "control")(
-        a(
-          // Create a proper MermaidFlowchart and use toViewUrl
-          href := {
-            val flowchart = MermaidFlowchart(Seq())
-              .addElement(Node(id = "start", label = mermaid))
-            flowchart.toViewUrl
-          },
-          target := "_blank",
-          rel := "noopener noreferrer",
-          cls := "button is-link is-small"
-        )("Open in Mermaid.live")
+      // Action buttons
+      div(cls := "field is-grouped mb-4")(
+        div(cls := "control")(
+          a(
+            // Use the mermaid URL that comes from the server (already encoded properly)
+            href := mermaidUrl, // This is already a proper Mermaid.live URL from the server
+            target := "_blank",
+            rel := "noopener noreferrer",
+            cls := "button is-link is-small"
+          )("Open in Mermaid.live")
+        )
+      ),
+      
+      div(
+        cls := "mermaid-diagram-container"
+      )(
+        renderedSvg match {
+          case Some(svg) =>
+            // Use a simpler approach with direct rendering
+            div(
+              cls := "mermaid-rendered",
+              // The ID attribute in Tyrian is just 'id', not 'idAttr'
+              id := "svg-container"
+            )(
+              // We'll render the SVG content via JavaScript in componentDidMount
+              // This is handled elsewhere and doesn't need onDomMount
+              // The existing approach with container.innerHTML = svg still works
+              // because the element with id="svg-container" is accessible
+              text("")  // Placeholder content
+            )
+          case None =>
+            div(
+              cls := "has-text-centered p-5"
+            )(
+              p("Rendering diagram..."),
+              ReusableViews.loadingSpinner("Rendering diagram...")
+            )
+        }
       )
-    ),
-    
-    div(
-      cls := "mermaid-diagram-container"
-    )(
-      renderedSvg match {
-    case Some(svg) =>
-  // Use a simpler approach with direct rendering
-  div(
-    cls := "mermaid-rendered",
-    // The ID attribute in Tyrian is just 'id', not 'idAttr'
-    id := "svg-container"
-  )(
-    // We'll render the SVG content via JavaScript in componentDidMount
-    // This is handled elsewhere and doesn't need onDomMount
-    // The existing approach with container.innerHTML = svg still works
-    // because the element with id="svg-container" is accessible
-    text("")  // Placeholder content
-  )
-  case None =>
-    div(
-      cls := "has-text-centered p-5"
-    )(
-      p("Rendering diagram..."),
-      ReusableViews.loadingSpinner("Rendering diagram...")
     )
-      }
-    )
-  )
-
-  
-
-  
 }
 
 object InstancesManager {
@@ -449,8 +429,8 @@ object InstancesManager {
   enum DiagramDisplay {
     case Hidden
     case Loading
-    case LoadingRender(mermaid: String)
-    case Rendered(mermaid: String, svg: String)
+    case LoadingRender(mermaidUrl: String)
+    case Rendered(mermaidUrl: String, svg: String)
   }
 
   enum Msg {

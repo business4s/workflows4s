@@ -22,12 +22,12 @@ enum InstanceStatus derives Codec.AsObject {
   case Running, Completed, Failed, Paused
 }
 
-// Fixed: Proper structured response instead of raw Json
+// Fixed: Make mermaidUrl non-optional and rename from mermaidDiagram
 case class ProgressResponse(
     progressType: String,
     isCompleted: Boolean,
     steps: List[ProgressStep],
-    mermaidDiagram: Option[String] = None,
+    mermaidUrl: String, // Non-optional now
 ) derives Codec.AsObject
 
 case class ProgressStep(

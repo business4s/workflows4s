@@ -92,7 +92,14 @@ class RealWorkflowService(
       progressType = "Sequence",
       isCompleted = progress.result.isDefined,
       steps = convertProgressToSteps(progress),
+      mermaidUrl = generateMermaidUrl(progress),
     )
+  }
+
+  private def generateMermaidUrl[Ctx <: WorkflowContext](progress: WIOExecutionProgress[WCState[Ctx]]): String = {
+    import workflows4s.mermaid.MermaidRenderer
+    val flowchart = MermaidRenderer.renderWorkflow(progress)
+    flowchart.toViewUrl
   }
 
   private def convertProgressToSteps[Ctx <: WorkflowContext](progress: WIOExecutionProgress[WCState[Ctx]]): List[ProgressStep] = {
