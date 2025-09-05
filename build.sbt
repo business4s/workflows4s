@@ -21,7 +21,7 @@ lazy val `workflows4s-core` = (project in file("workflows4s-core"))
       "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.5",
       "io.circe"                   %% "circe-core"      % "0.14.14", // for model serialization
       "io.circe"                   %% "circe-generic"   % "0.14.14", // for model serialization
-      "com.lihaoyi"                %% "sourcecode"      % "0.4.2", // for auto naming
+      "com.lihaoyi"                %% "sourcecode"      % "0.4.4", // for auto naming
       "ch.qos.logback"              % "logback-classic" % "1.5.18" % Test,
     ),
     Test / parallelExecution := false,
