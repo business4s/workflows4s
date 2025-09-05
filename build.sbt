@@ -138,7 +138,7 @@ lazy val commonSettings = Seq(
   Test / tpolecatExcludeOptions += ScalacOptions.warnNonUnitStatement,
 )
 
-lazy val pekkoVersion               = "1.1.5"
+lazy val pekkoVersion               = "1.2.0"
 lazy val pekkoHttpVersion           = "1.2.0"
 lazy val testcontainersScalaVersion = "0.43.0"
 
