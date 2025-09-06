@@ -4,31 +4,60 @@ import cats.effect.IO
 import tyrian.*
 import tyrian.Html.*
 import workflows4s.web.api.model.WorkflowDefinition
-import workflows4s.web.ui.components.ReusableViews
+import workflows4s.web.ui.components.{AsyncView, Component}
+
+case class WorkflowSelector(defs: List[WorkflowDefinition], selectedWorkflowId: Option[String]) extends Component {
+  override type Self = WorkflowSelector
+  override type Msg  = WorkflowSelector.Msg
+
+  override def update(msg: WorkflowSelector.Msg): (WorkflowSelector, Cmd[IO, WorkflowSelector.Msg]) = msg match {
+    case WorkflowSelector.Msg.Select(workflowId) => this.copy(selectedWorkflowId = Some(workflowId)) -> Cmd.None
+  }
+
+  override def view: Html[WorkflowSelector.Msg] =
+    ul(cls := "menu-list")(
+      defs.map { wf =>
+        li(
+          a(
+            cls := (if selectedWorkflowId.contains(wf.id) then "is-active" else ""),
+            onClick(WorkflowSelector.Msg.Select(wf.id)),
+          )(
+            div(
+              strong(wf.name),
+              br(),
+              span(cls := "is-size-7")(wf.id),
+              wf.description
+                .map(desc =>
+                  div(
+                    br(),
+                    span(cls := "is-size-7")(desc),
+                  ),
+                )
+                .getOrElse(div()),
+            ),
+          ),
+        )
+      },
+    )
+
+}
+
+object WorkflowSelector {
+  enum Msg {
+    case Select(workflowId: String)
+  }
+}
 
 final case class WorkflowsManager(
-    workflows: List[WorkflowDefinition],
-    state: WorkflowsManager.State,
-    selectedWorkflowId: Option[String],
+    state: AsyncView[List[WorkflowDefinition], WorkflowSelector, WorkflowSelector.Msg],
 ) {
 
+  def selectedWorkflowId: Option[String] = state.contentOpt.flatMap(_.selectedWorkflowId)
+
   def update(msg: WorkflowsManager.Msg): (WorkflowsManager, Cmd[IO, WorkflowsManager.Msg]) = msg match {
-    case WorkflowsManager.Msg.Load =>
-      val updated = this.copy(state = WorkflowsManager.State.Loading)
-      val cmd     = WorkflowsManager.Http.loadWorkflows
-      (updated, cmd)
-
-    case WorkflowsManager.Msg.Loaded(Right(workflows)) =>
-      val updated = this.copy(workflows = workflows, state = WorkflowsManager.State.Ready)
-      (updated, Cmd.None)
-
-    case WorkflowsManager.Msg.Loaded(Left(err)) =>
-      val updated = this.copy(state = WorkflowsManager.State.Failed(err))
-      (updated, Cmd.None)
-
-    case WorkflowsManager.Msg.Select(workflowId) =>
-      val updated = this.copy(selectedWorkflowId = Some(workflowId))
-      (updated, Cmd.None)
+    case WorkflowsManager.Msg.ForSelector(msg) =>
+      val (newState, cmd) = state.update(msg)
+      this.copy(state = newState) -> cmd.map(WorkflowsManager.Msg.ForSelector(_))
   }
 
   def view: Html[WorkflowsManager.Msg] =
@@ -42,66 +71,21 @@ final case class WorkflowsManager(
             div(cls := "level-right")(
               button(
                 cls := s"button is-small is-primary ${if state == WorkflowsManager.State.Loading then "is-loading" else ""}",
-                onClick(WorkflowsManager.Msg.Load),
+                onClick(WorkflowsManager.Msg.ForSelector(AsyncView.Msg.Start)),
                 disabled(state == WorkflowsManager.State.Loading),
               )("Refresh"),
             ),
           ),
-          state match {
-            case WorkflowsManager.State.Initializing =>
-              p(cls := "menu-list")("Initializing...")
-
-            case WorkflowsManager.State.Loading =>
-              ReusableViews.loadingSpinner("Loading workflows...")
-
-            case WorkflowsManager.State.Failed(reason) =>
-              div(cls := "notification is-danger is-light")(text(reason))
-
-            case WorkflowsManager.State.Ready =>
-              if workflows.isEmpty then div(cls := "notification is-info is-light")(
-                p("No workflows found."),
-                p(cls := "is-size-7 mt-2")("Make sure the API server is running."),
-              )
-              else
-                ul(cls := "menu-list")(
-                  workflows.map { wf =>
-                    li(
-                      a(
-                        cls := (if selectedWorkflowId.contains(wf.id) then "is-active" else ""),
-                        onClick(WorkflowsManager.Msg.Select(wf.id)),
-                      )(
-                        div(
-                          strong(wf.name),
-                          br(),
-                          span(cls := "is-size-7")(wf.id),
-                          wf.description
-                            .map(desc =>
-                              div(
-                                br(),
-                                span(cls := "is-size-7")(desc),
-                              ),
-                            )
-                            .getOrElse(div()),
-                        ),
-                      ),
-                    )
-                  },
-                )
-          },
+          state.view.map(WorkflowsManager.Msg.ForSelector(_)),
         )
       },
     )
 }
 
 object WorkflowsManager {
-  def initial[M](toMsg: Msg => M): (WorkflowsManager, Cmd[IO, M]) = {
-    val manager = WorkflowsManager(
-      workflows = Nil,
-      state = State.Initializing,
-      selectedWorkflowId = None,
-    )
-    val loadCmd = Http.loadWorkflows.map(toMsg)
-    (manager, loadCmd)
+  def initial: (WorkflowsManager, Cmd[IO, Msg]) = {
+    val (selectorAsync, start) = AsyncView.empty(workflows4s.web.ui.http.Http.listDefinitions, WorkflowSelector(_, None))
+    (WorkflowsManager(state = selectorAsync), start.map(Msg.ForSelector(_)))
   }
 
   enum State {
@@ -112,18 +96,7 @@ object WorkflowsManager {
   }
 
   enum Msg {
-    case Load
-    case Loaded(result: Either[String, List[WorkflowDefinition]])
-    case Select(workflowId: String)
+    case ForSelector(msg: AsyncView.Msg[List[WorkflowDefinition], WorkflowSelector.Msg])
   }
 
-  object Http {
-    def loadWorkflows: Cmd[IO, Msg] = {
-      Cmd.Run(
-        workflows4s.web.ui.http.Http.listDefinitions
-          .map(definitions => Msg.Loaded(Right(definitions)))
-          .handleError(err => Msg.Loaded(Left(err.getMessage))),
-      )
-    }
-  }
 }

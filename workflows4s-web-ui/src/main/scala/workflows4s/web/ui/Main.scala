@@ -26,8 +26,8 @@ object Main extends TyrianIOApp[Msg, Model] {
   def router: Location => Msg = Routing.basic(_ => Msg.NoOp, Msg.FollowExternalLink(_))
 
   def init(flags: Map[String, String]): (Model, Cmd[IO, Msg]) = {
-    val (workflowsManager, workflowsCmd) = WorkflowsManager.initial(Msg.ForWorkflows.apply)
-    (Model(workflowsManager, InstancesManager.initial), workflowsCmd)
+    val (workflowsManager, workflowsCmd) = WorkflowsManager.initial
+    (Model(workflowsManager, InstancesManager.initial), workflowsCmd.map(Msg.ForWorkflows(_)))
   }
 
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
