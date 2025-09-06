@@ -18,9 +18,16 @@ object Component {
 
 case class AsyncView[Data, S <: Component.Aux[S, M], M](
     action: IO[Data],
-    onFinish: Data => S,
+    onFinish: Data => (S, Cmd[IO, M]),
     state: AsyncView.State[S, M],
 ) {
+
+  def isLoading = state match {
+    case State.Initial() => false
+    case State.Loading() => true
+    case State.Ready(_)  => false
+    case State.Failed(_) => false
+  }
 
   def contentOpt: Option[S] = state match {
     case State.Initial()        => None
@@ -52,7 +59,8 @@ case class AsyncView[Data, S <: Component.Aux[S, M], M](
               case Left(error) =>
                 this.copy(state = State.Failed(error)) -> Cmd.None
               case Right(data) =>
-                this.copy(state = State.Ready(onFinish(data))) -> Cmd.None
+                val (newState, cmd) = onFinish(data)
+                this.copy(state = State.Ready(newState)) -> cmd.map(Msg.Propagate(_))
             }
           case _                    => ???
         }
@@ -74,7 +82,10 @@ case class AsyncView[Data, S <: Component.Aux[S, M], M](
 
 object AsyncView {
 
-  def empty[Data, S <: Component.Aux[S, M], M](action: IO[Data], onFinish: Data => S) = {
+  def empty_[Data, S <: Component.Aux[S, M], M](action: IO[Data], onFinish: Data => S)               = {
+    AsyncView[Data, S, M](action, onFinish.andThen(x => (x, Cmd.None)), State.Initial()) -> Cmd.Emit(Msg.Start)
+  }
+  def empty[Data, S <: Component.Aux[S, M], M](action: IO[Data], onFinish: Data => (S, Cmd[IO, M])) = {
     AsyncView[Data, S, M](action, onFinish, State.Initial()) -> Cmd.Emit(Msg.Start)
   }
 

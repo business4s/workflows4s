@@ -1,16 +1,17 @@
 package workflows4s.web.ui
 
 import cats.effect.IO
-import tyrian.Html.*
+import cats.implicits.catsSyntaxOptionId
 import tyrian.*
-import workflows4s.web.ui.components.ReusableViews
-import workflows4s.web.ui.subs.{InstancesManager, WorkflowsManager}
+import tyrian.Html.*
+import workflows4s.web.ui.components.{AsyncView, ReusableViews}
+import workflows4s.web.ui.subs.{InstancesManager, WorkflowSelector, WorkflowsManager}
 
 import scala.scalajs.js.annotation.*
 
 final case class Model(
     workflows: WorkflowsManager,
-    instances: InstancesManager,
+    instances: Option[InstancesManager],
 )
 
 enum Msg {
@@ -27,7 +28,7 @@ object Main extends TyrianIOApp[Msg, Model] {
 
   def init(flags: Map[String, String]): (Model, Cmd[IO, Msg]) = {
     val (workflowsManager, workflowsCmd) = WorkflowsManager.initial
-    (Model(workflowsManager, InstancesManager.initial), workflowsCmd.map(Msg.ForWorkflows(_)))
+    (Model(workflowsManager, None), workflowsCmd.map(Msg.ForWorkflows(_)))
   }
 
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
@@ -35,12 +36,25 @@ object Main extends TyrianIOApp[Msg, Model] {
       (model, Cmd.None)
 
     case Msg.ForWorkflows(workflowsMsg) =>
+      val newTemplateId           = workflowsMsg match {
+        case WorkflowsManager.Msg.ForSelector(msg) =>
+          msg match {
+            case AsyncView.Msg.Propagate(msg) =>
+              msg match {
+                case WorkflowSelector.Msg.Select(workflowId) => Some(workflowId)
+              }
+            case _                            => None
+          }
+      }
+      val newInstanceManager      = newTemplateId.map(id => InstancesManager.initial(id))
       val (updatedWorkflows, cmd) = model.workflows.update(workflowsMsg)
-      (model.copy(workflows = updatedWorkflows), cmd.map(Msg.ForWorkflows.apply))
+      (model.copy(workflows = updatedWorkflows, instances = newInstanceManager.orElse(model.instances)), cmd.map(Msg.ForWorkflows.apply))
 
     case Msg.ForInstances(instancesMsg) =>
-      val (updatedInstances, cmd) = model.instances.update(instancesMsg)
-      (model.copy(instances = updatedInstances), cmd.map(Msg.ForInstances.apply))
+      model.instances.map(_.update(instancesMsg)) match {
+        case Some((updatedInstances, cmd)) => (model.copy(instances = updatedInstances.some), cmd.map(Msg.ForInstances.apply))
+        case None                          => model -> Cmd.None
+      }
 
     case Msg.FollowExternalLink(url) => model -> Nav.loadUrl(url)
   }
@@ -52,7 +66,17 @@ object Main extends TyrianIOApp[Msg, Model] {
         div(cls := "container is-fluid")(
           div(cls := "columns")(
             model.workflows.view.map(Msg.ForWorkflows.apply),
-            model.instances.view(model.workflows.selectedWorkflowId).map(Msg.ForInstances.apply),
+            div(cls := "column")(
+              div(cls := "box")(
+                model.instances match {
+                  case Some(instMngr) => instMngr.view.map(Msg.ForInstances.apply)
+                  case None           =>
+                    div(cls := "has-text-centered p-6")(
+                      p("Select a workflow from the menu to get started."),
+                    )
+                },
+              ),
+            ),
           ),
         ),
       ),

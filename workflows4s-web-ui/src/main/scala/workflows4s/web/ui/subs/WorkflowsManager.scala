@@ -52,8 +52,6 @@ final case class WorkflowsManager(
     state: AsyncView[List[WorkflowDefinition], WorkflowSelector, WorkflowSelector.Msg],
 ) {
 
-  def selectedWorkflowId: Option[String] = state.contentOpt.flatMap(_.selectedWorkflowId)
-
   def update(msg: WorkflowsManager.Msg): (WorkflowsManager, Cmd[IO, WorkflowsManager.Msg]) = msg match {
     case WorkflowsManager.Msg.ForSelector(msg) =>
       val (newState, cmd) = state.update(msg)
@@ -84,7 +82,7 @@ final case class WorkflowsManager(
 
 object WorkflowsManager {
   def initial: (WorkflowsManager, Cmd[IO, Msg]) = {
-    val (selectorAsync, start) = AsyncView.empty(workflows4s.web.ui.http.Http.listDefinitions, WorkflowSelector(_, None))
+    val (selectorAsync, start) = AsyncView.empty_(workflows4s.web.ui.http.Http.listDefinitions, WorkflowSelector(_, None))
     (WorkflowsManager(state = selectorAsync), start.map(Msg.ForSelector(_)))
   }
 

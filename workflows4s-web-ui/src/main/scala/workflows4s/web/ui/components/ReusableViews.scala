@@ -2,7 +2,6 @@ package workflows4s.web.ui.components
 
 import tyrian.Html
 import tyrian.Html.*
-import workflows4s.web.api.model.InstanceStatus
 
 object ReusableViews {
 
@@ -27,16 +26,6 @@ object ReusableViews {
       button(cls := "delete"),
       text(error),
     )
-
-  def statusBadge(status: InstanceStatus): Html[Nothing] = {
-    val badgeClass = status match {
-      case InstanceStatus.Running   => "is-info"
-      case InstanceStatus.Completed => "is-success"
-      case InstanceStatus.Failed    => "is-danger"
-      case InstanceStatus.Paused    => "is-warning" // Fixed typo here
-    }
-    span(cls := s"tag $badgeClass")(status.toString)
-  }
 
   def instanceField(label: String, value: Html[Nothing]): Html[Nothing] =
     div(cls := "field")(

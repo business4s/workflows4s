@@ -20,7 +20,6 @@ object MermaidHelper {
   def fromPromise[A](p: js.Promise[A]): cats.effect.IO[A] =
     cats.effect.IO.fromFuture(cats.effect.IO(p.toFuture))
 
-  @SuppressWarnings(Array("scalafix:DisableSyntax.null"))
   def mermaidAvailable: Boolean =
     js.Dynamic.global.mermaid != null && js.Dynamic.global.mermaid != js.undefined
 }

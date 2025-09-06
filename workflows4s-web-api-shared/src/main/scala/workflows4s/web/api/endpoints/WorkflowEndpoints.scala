@@ -1,9 +1,9 @@
 package workflows4s.web.api.endpoints
 
 import sttp.tapir.*
-import sttp.tapir.generic.auto.*
+import sttp.tapir.generic.auto.* // TODO get rid of auto derivation
 import sttp.tapir.json.circe.*
-import workflows4s.web.api.model.{ProgressResponse, WorkflowDefinition, WorkflowInstance}
+import workflows4s.web.api.model.{WorkflowDefinition, WorkflowInstance}
 
 object WorkflowEndpoints {
 
@@ -28,12 +28,6 @@ object WorkflowEndpoints {
       .in("definitions" / path[String]("defId") / "instances" / path[String]("instanceId"))
       .out(jsonBody[WorkflowInstance])
       .description("Get workflow instance details")
-
-  val getProgress: PublicEndpoint[(String, String), String, ProgressResponse, Any] =
-    baseEndpoint.get
-      .in("definitions" / path[String]("defId") / "instances" / path[String]("instanceId") / "progress")
-      .out(jsonBody[ProgressResponse])
-      .description("Get workflow instance progress")
 
   val createTestInstance: PublicEndpoint[String, String, WorkflowInstance, Any] =
     baseEndpoint.post
