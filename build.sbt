@@ -21,12 +21,12 @@ lazy val `workflows4s-core` = (project in file("workflows4s-core"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel"              %% "cats-effect"   % "3.6.2",
-      "co.fs2"                     %% "fs2-core"      % "3.12.0",
+      "org.typelevel"              %% "cats-effect"   % "3.6.3",
+      "co.fs2"                     %% "fs2-core"      % "3.12.2",
       "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",
       "io.circe"                   %% "circe-core"    % circeVersion, // for model serialization
       "io.circe"                   %% "circe-generic" % circeVersion, // for model serialization
-      "com.lihaoyi"                %% "sourcecode"    % "0.4.2",      // for auto naming
+      "com.lihaoyi"                %% "sourcecode"    % "0.4.4",      // for auto naming
     ),
     Test / parallelExecution := false,
   )
@@ -72,7 +72,7 @@ lazy val `workflows4s-filesystem` = (project in file("workflows4s-filesystem"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "co.fs2" %% "fs2-io" % "3.12.0",
+      "co.fs2" %% "fs2-io" % "3.12.2",
     ),
   )
   .dependsOn(`workflows4s-core` % "compile->compile;test->test")
@@ -168,12 +168,12 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "org.apache.pekko"     %% "pekko-http"                      % pekkoHttpVersion, // for interacting with the app
       "org.apache.pekko"     %% "pekko-cluster-sharding-typed"    % pekkoVersion, // for realistic example and spawning actors
       "org.apache.pekko"     %% "pekko-persistence-jdbc"          % "1.1.1", // published locally until the release is there
-      "org.apache.pekko"     %% "pekko-serialization-jackson"     % "1.1.5",
+      "org.apache.pekko"     %% "pekko-serialization-jackson"     % "1.2.0",
       "com.h2database"        % "h2"                              % "2.3.232",
       "io.r2dbc"              % "r2dbc-h2"                        % "1.0.0.RELEASE",
-      "com.github.pjfanning" %% "pekko-http-circe"                % "3.2.1",
+      "com.github.pjfanning" %% "pekko-http-circe"                % "3.3.0",
       "ch.qos.logback"        % "logback-classic"                 % "1.5.18",
-      "org.scalamock"        %% "scalamock"                       % "7.4.0"                    % Test,
+      "org.scalamock"        %% "scalamock"                       % "7.4.1"                    % Test,
       "org.apache.pekko"     %% "pekko-actor-testkit-typed"       % pekkoVersion               % Test,
       "com.dimafeng"         %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
       "com.dimafeng"         %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
@@ -206,7 +206,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
   .settings(Revolver.enableDebugging(port = 5050))
 
 lazy val commonSettings = Seq(
-  scalaVersion      := "3.7.1",
+  scalaVersion      := "3.7.2",
   scalacOptions ++= Seq("-no-indent", "-Xmax-inlines", "64", "-explain-cyclic", "-Ydebug-cyclic"),
   libraryDependencies ++= Seq(
     "org.scalatest" %% "scalatest"       % "3.2.19" % Test,
@@ -229,7 +229,7 @@ lazy val commonSettings = Seq(
   Test / tpolecatExcludeOptions += ScalacOptions.warnNonUnitStatement,
 )
 
-lazy val pekkoVersion               = "1.1.5"
+lazy val pekkoVersion               = "1.2.0"
 lazy val pekkoHttpVersion           = "1.2.0"
 lazy val testcontainersScalaVersion = "0.43.0"
 lazy val tapirVersion               = "1.11.40"
