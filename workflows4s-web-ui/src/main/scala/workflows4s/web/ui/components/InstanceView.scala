@@ -5,6 +5,7 @@ import tyrian.Html.*
 import tyrian.{Cmd, Html}
 import workflows4s.web.api.model.WorkflowInstance
 import workflows4s.web.ui.components.InstanceView.Msg
+import workflows4s.web.ui.components.util.Component
 
 case class InstanceView(instance: WorkflowInstance, diagramView: MermaidDiagramView) extends Component {
 

@@ -3,53 +3,12 @@ package workflows4s.web.ui.subs
 import cats.effect.IO
 import tyrian.*
 import tyrian.Html.*
-import workflows4s.web.api.model.WorkflowDefinition
-import workflows4s.web.ui.components.{AsyncView, Component}
+import workflows4s.web.ui.components.WorkflowSelector
+import workflows4s.web.ui.components.util.AsyncView
 
-case class WorkflowSelector(defs: List[WorkflowDefinition], selectedWorkflowId: Option[String]) extends Component {
-  override type Self = WorkflowSelector
-  override type Msg  = WorkflowSelector.Msg
-
-  override def update(msg: WorkflowSelector.Msg): (WorkflowSelector, Cmd[IO, WorkflowSelector.Msg]) = msg match {
-    case WorkflowSelector.Msg.Select(workflowId) => this.copy(selectedWorkflowId = Some(workflowId)) -> Cmd.None
-  }
-
-  override def view: Html[WorkflowSelector.Msg] =
-    ul(cls := "menu-list")(
-      defs.map { wf =>
-        li(
-          a(
-            cls := (if selectedWorkflowId.contains(wf.id) then "is-active" else ""),
-            onClick(WorkflowSelector.Msg.Select(wf.id)),
-          )(
-            div(
-              strong(wf.name),
-              br(),
-              span(cls := "is-size-7")(wf.id),
-              wf.description
-                .map(desc =>
-                  div(
-                    br(),
-                    span(cls := "is-size-7")(desc),
-                  ),
-                )
-                .getOrElse(div()),
-            ),
-          ),
-        )
-      },
-    )
-
-}
-
-object WorkflowSelector {
-  enum Msg {
-    case Select(workflowId: String)
-  }
-}
 
 final case class WorkflowsManager(
-    state: AsyncView[List[WorkflowDefinition], WorkflowSelector, WorkflowSelector.Msg],
+    state: AsyncView.For[WorkflowSelector],
 ) {
 
   def update(msg: WorkflowsManager.Msg): (WorkflowsManager, Cmd[IO, WorkflowsManager.Msg]) = msg match {
@@ -68,9 +27,9 @@ final case class WorkflowsManager(
             ),
             div(cls := "level-right")(
               button(
-                cls := s"button is-small is-primary ${if state == WorkflowsManager.State.Loading then "is-loading" else ""}",
-                onClick(WorkflowsManager.Msg.ForSelector(AsyncView.Msg.Start)),
-                disabled(state == WorkflowsManager.State.Loading),
+                cls := s"button is-small is-primary ${if state.isLoading then "is-loading" else ""}",
+                onClick(WorkflowsManager.Msg.ForSelector(AsyncView.Msg.Start())),
+                disabled(state.isLoading),
               )("Refresh"),
             ),
           ),
@@ -86,15 +45,8 @@ object WorkflowsManager {
     (WorkflowsManager(state = selectorAsync), start.map(Msg.ForSelector(_)))
   }
 
-  enum State {
-    case Initializing
-    case Loading
-    case Ready
-    case Failed(reason: String)
-  }
-
   enum Msg {
-    case ForSelector(msg: AsyncView.Msg[List[WorkflowDefinition], WorkflowSelector.Msg])
+    case ForSelector(msg: AsyncView.Msg[WorkflowSelector])
   }
 
 }

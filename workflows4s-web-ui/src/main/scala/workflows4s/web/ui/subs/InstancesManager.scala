@@ -4,8 +4,8 @@ import cats.effect.IO
 import cats.implicits.catsSyntaxOptionId
 import tyrian.*
 import tyrian.Html.*
-import workflows4s.web.api.model.WorkflowInstance
-import workflows4s.web.ui.components.{AsyncView, InstanceView}
+import workflows4s.web.ui.components.InstanceView
+import workflows4s.web.ui.components.util.AsyncView
 import workflows4s.web.ui.http.Http
 
 import java.util.UUID
@@ -13,7 +13,7 @@ import java.util.UUID
 final case class InstancesManager(
     templateId: String,
     instanceIdInput: String,
-    state: Option[AsyncView[WorkflowInstance, InstanceView, InstanceView.Msg]],
+    state: Option[AsyncView.For[InstanceView]],
 ) {
 
   def update(msg: InstancesManager.Msg): (InstancesManager, Cmd[IO, InstancesManager.Msg]) = msg match {
@@ -92,7 +92,7 @@ object InstancesManager {
   enum Msg {
     case InstanceIdChanged(id: String)
     case LoadInstance(instanceId: String)
-    case ForInstance(msg: AsyncView.Msg[WorkflowInstance, InstanceView.Msg])
+    case ForInstance(msg: AsyncView.Msg[InstanceView])
   }
 
 }
