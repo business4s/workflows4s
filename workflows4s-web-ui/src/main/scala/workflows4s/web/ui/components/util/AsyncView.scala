@@ -5,9 +5,12 @@ import tyrian.{Cmd, Html}
 import workflows4s.web.ui.components.ReusableViews
 import workflows4s.web.ui.components.util.AsyncView.{Msg, State}
 
+import scala.annotation.unused
+
 case class AsyncView[S <: Component.Aux[S, M], M](
     action: IO[(S, Cmd[IO, M])],
     state: AsyncView.State[S, M],
+    @unused x: Int = 1, // Some issue with scalajs, yet to be reported. Removing this field triggers an error in
 ) {
 
   def isLoading: Boolean = state match {
