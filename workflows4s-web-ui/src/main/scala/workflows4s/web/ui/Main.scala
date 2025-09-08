@@ -4,8 +4,8 @@ import cats.effect.IO
 import cats.implicits.catsSyntaxOptionId
 import tyrian.*
 import tyrian.Html.*
+import workflows4s.web.ui.components.WorkflowSelector
 import workflows4s.web.ui.components.util.AsyncView
-import workflows4s.web.ui.components.{ReusableViews, WorkflowSelector}
 import workflows4s.web.ui.subs.{InstancesManager, WorkflowsManager}
 
 import scala.scalajs.js.annotation.*
@@ -62,7 +62,7 @@ object Main extends TyrianIOApp[Msg, Model] {
 
   def view(model: Model): Html[Msg] =
     div(
-      ReusableViews.headerView,
+      headerView,
       section(cls := "section")(
         div(cls := "container is-fluid")(
           div(cls := "columns")(
@@ -86,12 +86,22 @@ object Main extends TyrianIOApp[Msg, Model] {
 
   def subscriptions(model: Model): Sub[IO, Msg] = Sub.None
 
+  private def headerView: Html[Nothing] =
+    nav(cls := "navbar has-shadow")(
+      div(cls := "navbar-brand")(
+        a(cls := "navbar-item", href := "/")(
+          h1(cls := "title is-4")("Workflows4s Web UI")
+        )
+      ),
+
+    )
+
   private def footerView: Html[Msg] =
     footer(cls := "footer mt-6")(
       div(cls := "content has-text-centered")(
         p(
           text("Built with "),
-          strong("Workflows4s"),
+          a(href := "https://business4s.org/workflows4s/")(strong("Workflows4s")),
           text(" - A lightweight workflow engine for Scala"),
         ),
       ),

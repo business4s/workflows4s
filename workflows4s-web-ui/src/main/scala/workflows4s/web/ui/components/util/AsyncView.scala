@@ -10,7 +10,7 @@ import scala.annotation.unused
 case class AsyncView[S <: Component.Aux[S, M], M](
     action: IO[(S, Cmd[IO, M])],
     state: AsyncView.State[S, M],
-    @unused x: Int = 1, // Some issue with scalajs, yet to be reported. Removing this field triggers an error in
+    @unused x: Int = 1, // https://github.com/scala-js/scala-js/issues/5235
 ) {
 
   def isLoading: Boolean = state match {

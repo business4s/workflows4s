@@ -5,16 +5,6 @@ import tyrian.Html.*
 
 object ReusableViews {
 
-  def headerView: Html[Nothing] =
-    section(cls := "hero is-primary")(
-      div(cls := "hero-body")(
-        div(cls := "container")(
-          h1(cls := "title")("Workflows4s"),
-          h2(cls := "subtitle")("A lightweight workflow engine for Scala"),
-        ),
-      ),
-    )
-
   def loadingSpinner(text: String): Html[Nothing] =
     div(cls := "has-text-centered p-4")(
       button(cls := "button is-loading is-large is-ghost"),
