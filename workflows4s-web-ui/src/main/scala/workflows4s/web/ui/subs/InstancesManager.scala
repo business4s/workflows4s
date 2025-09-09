@@ -65,7 +65,7 @@ final case class InstancesManager(
         div(cls := "control")(
           button(
             cls := s"button is-primary ${if state.exists(_.isLoading) then "is-loading" else ""}",
-            onClick(InstancesManager.Msg.LoadInstance(templateId)),
+            onClick(InstancesManager.Msg.LoadInstance(instanceIdInput)),
             disabled(state.exists(_.isLoading)),
           )("Load"),
         ),

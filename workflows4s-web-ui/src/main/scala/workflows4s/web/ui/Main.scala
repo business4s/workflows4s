@@ -90,10 +90,9 @@ object Main extends TyrianIOApp[Msg, Model] {
     nav(cls := "navbar has-shadow")(
       div(cls := "navbar-brand")(
         a(cls := "navbar-item", href := "/")(
-          h1(cls := "title is-4")("Workflows4s Web UI")
-        )
+          h1(cls := "title is-4")("Workflows4s Web UI"),
+        ),
       ),
-
     )
 
   private def footerView: Html[Msg] =

@@ -14,5 +14,6 @@ class WorkflowServerEndpoints(workflowService: WorkflowApiService) {
     WorkflowEndpoints.getInstance.serverLogic((workflowId, instanceId) =>
       workflowService.getInstance(workflowId, instanceId).attempt.map(_.leftMap(_.getMessage)),
     ),
+    WorkflowEndpoints.deliverSignal.serverLogic(request => workflowService.deliverSignal(request).attempt.map(_.leftMap(_.getMessage))),
   )
 }

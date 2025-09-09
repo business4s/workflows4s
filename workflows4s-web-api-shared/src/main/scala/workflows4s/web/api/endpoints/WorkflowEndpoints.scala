@@ -1,9 +1,9 @@
 package workflows4s.web.api.endpoints
 
+import io.circe.Json
 import sttp.tapir.*
-import sttp.tapir.generic.auto.* // TODO get rid of auto derivation
 import sttp.tapir.json.circe.*
-import workflows4s.web.api.model.{WorkflowDefinition, WorkflowInstance}
+import workflows4s.web.api.model.{SignalRequest, WorkflowDefinition, WorkflowInstance}
 
 object WorkflowEndpoints {
 
@@ -29,9 +29,11 @@ object WorkflowEndpoints {
       .out(jsonBody[WorkflowInstance])
       .description("Get workflow instance details")
 
-  val createTestInstance: PublicEndpoint[String, String, WorkflowInstance, Any] =
+  val deliverSignal: PublicEndpoint[SignalRequest, String, Json, Any] =
     baseEndpoint.post
-      .in("definitions" / path[String]("defId") / "test-instance")
-      .out(jsonBody[WorkflowInstance])
-      .description("Create a test instance for the workflow")
+      .in("definitions" / path[String]("defId") / "instances" / path[String]("instanceId") / path[String]("signalId"))
+      .in(jsonBody[Json])
+      .out(jsonBody[Json])
+      .description("Get workflow instance details")
+      .mapInTo[SignalRequest]
 }

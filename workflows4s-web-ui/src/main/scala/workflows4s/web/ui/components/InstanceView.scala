@@ -7,15 +7,18 @@ import workflows4s.web.api.model.WorkflowInstance
 import workflows4s.web.ui.components.InstanceView.Msg
 import workflows4s.web.ui.components.util.Component
 
-case class InstanceView(instance: WorkflowInstance, diagramView: MermaidDiagramView) extends Component {
+case class InstanceView(instance: WorkflowInstance, diagramView: MermaidDiagramView, signalsView: SignalsView) extends Component {
 
   override type Self = InstanceView
   override type Msg  = InstanceView.Msg
 
   override def update(msg: InstanceView.Msg): (InstanceView, Cmd[IO, InstanceView.Msg]) = msg match {
-    case Msg.ForDiagram(msg) =>
+    case Msg.ForDiagram(msg)     =>
       val (newDiagramView, cmd) = diagramView.update(msg)
       this.copy(diagramView = newDiagramView) -> cmd.map(Msg.ForDiagram(_))
+    case Msg.ForSignalsView(msg) =>
+      val (newCmp, cmd) = signalsView.update(msg)
+      this.copy(signalsView = newCmp) -> cmd.map(Msg.ForSignalsView(_))
   }
 
   override def view: Html[InstanceView.Msg] =
@@ -27,7 +30,8 @@ case class InstanceView(instance: WorkflowInstance, diagramView: MermaidDiagramV
   private def instanceDetailsView: Html[InstanceView.Msg] =
     div(cls := "content mt-4")(
       h3(s"Instance: ${instance.id}"),
-      ReusableViews.instanceField("Definition", Html.span(instance.definitionId)),
+      ReusableViews.instanceField("Definition", Html.span(instance.templateId)),
+      signalsView.view.map(Msg.ForSignalsView(_)),
       instanceStateView,
     )
 
@@ -77,11 +81,14 @@ case class InstanceView(instance: WorkflowInstance, diagramView: MermaidDiagramV
 object InstanceView {
 
   def initial(instance: WorkflowInstance) = {
-    InstanceView(instance, MermaidDiagramView(instance.mermaidCode, None)) -> Cmd.emit(Msg.ForDiagram(MermaidDiagramView.Msg.Retry))
+    InstanceView(instance, MermaidDiagramView(instance.mermaidCode, None), SignalsView(instance, None)) -> Cmd.emit(
+      Msg.ForDiagram(MermaidDiagramView.Msg.Retry),
+    )
   }
 
   enum Msg {
     case ForDiagram(msg: MermaidDiagramView.Msg)
+    case ForSignalsView(msg: SignalsView.Msg)
   }
 
 }

@@ -2,7 +2,9 @@ package workflows4s.example.docs.pullrequest
 
 import java.io.File
 import cats.effect.IO
+import io.circe.Decoder
 import org.camunda.bpm.model.bpmn.Bpmn
+import sttp.tapir.Schema
 import workflows4s.bpmn.BpmnRenderer
 import workflows4s.runtime.{InMemorySyncRuntime, InMemorySyncWorkflowInstance}
 import workflows4s.wio.{SignalDef, WorkflowContext}
@@ -28,8 +30,8 @@ object PullRequestWorkflow {
   object Signals {
     val createPR: SignalDef[CreateRequest, Unit] = SignalDef()
     val reviewPR: SignalDef[ReviewRequest, Unit] = SignalDef()
-    case class CreateRequest(commit: String)
-    case class ReviewRequest(approve: Boolean)
+    case class CreateRequest(commit: String) derives Schema, Decoder
+    case class ReviewRequest(approve: Boolean) derives Schema, Decoder
   }
   // end_signals
 

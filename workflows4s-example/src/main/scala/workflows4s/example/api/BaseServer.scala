@@ -11,7 +11,7 @@ import workflows4s.runtime.InMemoryRuntime
 import workflows4s.runtime.wakeup.NoOpKnockerUpper
 import workflows4s.web.api.server.WorkflowServerEndpoints
 import workflows4s.web.api.service.RealWorkflowService
-import workflows4s.web.api.service.RealWorkflowService.WorkflowEntry
+import workflows4s.web.api.service.RealWorkflowService.{SignalSchemaProvider, WorkflowEntry}
 
 trait BaseServer {
 
@@ -47,12 +47,20 @@ trait BaseServer {
                           name = "Course Registration",
                           runtime = dummyRt1,
                           stateEncoder = courseRegistrationStateEncoder,
+                          signalSchemaProvider = SignalSchemaProvider.builder
+                            .add(CourseRegistrationWorkflow.Signals.startBrowsing)
+                            .add(CourseRegistrationWorkflow.Signals.setPriorities)
+                            .build,
                         ),
                         WorkflowEntry(
                           id = "pull-request-v1",
                           name = "Pull Request",
                           runtime = dummyRt2,
                           stateEncoder = prStateEncoder,
+                          signalSchemaProvider = SignalSchemaProvider.builder
+                            .add(PullRequestWorkflow.Signals.createPR)
+                            .add(PullRequestWorkflow.Signals.reviewPR)
+                            .build,
                         ),
                       )
 

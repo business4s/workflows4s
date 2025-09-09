@@ -17,4 +17,11 @@ object Component {
   type Msg[S <: Component] = S match {
     case AuxM[m] => m
   }
+
+  trait ReadOnly[T <: Component.ReadOnly[T]] extends Component { self: T =>
+    type Msg  = Nothing
+    type Self = T
+
+    override def update(msg: Nothing): (Self, Cmd[IO, Nothing]) = (this -> Cmd.None)
+  }
 }

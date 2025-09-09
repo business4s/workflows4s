@@ -92,10 +92,15 @@ lazy val `workflows4s-web-api-shared` = crossProject(JSPlatform, JVMPlatform)
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "com.softwaremill.sttp.tapir" %%% "tapir-core"       % tapirVersion,
-      "com.softwaremill.sttp.tapir" %%% "tapir-json-circe" % tapirVersion,
-      "io.circe"                    %%% "circe-core"       % circeVersion,
-      "io.circe"                    %%% "circe-generic"    % circeVersion,
+      "com.softwaremill.sttp.tapir" %%% "tapir-core"         % tapirVersion,
+      "com.softwaremill.sttp.tapir" %%% "tapir-json-circe"   % tapirVersion,
+      "io.circe"                    %%% "circe-core"         % circeVersion,
+      "io.circe"                    %%% "circe-generic"      % circeVersion,
+      "com.softwaremill.sttp.tapir" %%% "tapir-apispec-docs" % tapirVersion exclude (
+        "org.scala-lang",
+        "scala3-library_3",
+      ), // https://github.com/softwaremill/tapir/pull/4803,
+      "com.softwaremill.sttp.apispec" %%% "jsonschema-circe" % "0.11.10",
     ),
     publish / skip := true,
   )
@@ -126,6 +131,9 @@ lazy val `workflows4s-web-ui` = (project in file("workflows4s-web-ui"))
       "io.circe"                      %%% "circe-parser"       % circeVersion,
       "com.softwaremill.sttp.tapir"   %%% "tapir-sttp-client4" % "1.11.40",
       "com.softwaremill.sttp.client4" %%% "cats"               % "4.0.0-M16",
+      "org.business4s"                %%% "forms4s-jsonschema" % "0.1.0",
+      "org.business4s"                %%% "forms4s-tyrian"     % "0.1.0",
+      "org.business4s"                %%% "forms4s-circe"      % "0.1.0",
     ),
     scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
     publish / skip := true,
@@ -202,6 +210,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
     dockerBaseImage                 := "eclipse-temurin:21-jdk",
     dockerUpdateLatest              := true,
     dockerBuildOptions ++= Seq("--platform=linux/amd64"),
+    reStart / mainClass             := Some("workflows4s.example.api.Server"),
   )
   .settings(Revolver.enableDebugging(port = 5050))
 

@@ -6,7 +6,6 @@ import tyrian.Html.*
 import workflows4s.web.ui.components.WorkflowSelector
 import workflows4s.web.ui.components.util.AsyncView
 
-
 final case class WorkflowsManager(
     state: AsyncView.For[WorkflowSelector],
 ) {
