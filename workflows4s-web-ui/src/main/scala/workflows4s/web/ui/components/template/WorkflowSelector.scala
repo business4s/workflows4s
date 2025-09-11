@@ -1,4 +1,4 @@
-package workflows4s.web.ui.components
+package workflows4s.web.ui.components.template
 
 import cats.effect.IO
 import tyrian.Html.*

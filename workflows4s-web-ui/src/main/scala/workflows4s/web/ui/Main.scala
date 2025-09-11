@@ -4,9 +4,9 @@ import cats.effect.IO
 import cats.implicits.catsSyntaxOptionId
 import tyrian.*
 import tyrian.Html.*
-import workflows4s.web.ui.components.WorkflowSelector
+import workflows4s.web.ui.components.instance.InstancesManager
+import workflows4s.web.ui.components.template.{WorkflowSelector, WorkflowsManager}
 import workflows4s.web.ui.components.util.AsyncView
-import workflows4s.web.ui.subs.{InstancesManager, WorkflowsManager}
 
 import scala.scalajs.js.annotation.*
 

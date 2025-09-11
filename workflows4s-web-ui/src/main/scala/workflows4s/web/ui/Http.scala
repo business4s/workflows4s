@@ -1,4 +1,4 @@
-package workflows4s.web.ui.http
+package workflows4s.web.ui
 
 import cats.effect.IO
 import io.circe.Json

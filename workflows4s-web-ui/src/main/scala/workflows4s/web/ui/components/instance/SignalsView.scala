@@ -1,10 +1,10 @@
-package workflows4s.web.ui.components
+package workflows4s.web.ui.components.instance
 
 import cats.effect.IO
-import tyrian.{Cmd, Empty, Html}
 import tyrian.Html.*
+import tyrian.{Cmd, Empty, Html}
 import workflows4s.web.api.model.{Signal, WorkflowInstance}
-import workflows4s.web.ui.components.SignalsView.Msg
+import workflows4s.web.ui.components.instance.SignalsView.Msg
 
 case class SignalsView(workflowInstance: WorkflowInstance, modal: Option[SignalModal]) {
 

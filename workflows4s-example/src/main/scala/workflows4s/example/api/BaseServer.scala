@@ -9,9 +9,8 @@ import workflows4s.example.courseregistration.CourseRegistrationWorkflow
 import workflows4s.example.docs.pullrequest.PullRequestWorkflow
 import workflows4s.runtime.InMemoryRuntime
 import workflows4s.runtime.wakeup.NoOpKnockerUpper
-import workflows4s.web.api.server.WorkflowServerEndpoints
-import workflows4s.web.api.service.RealWorkflowService
-import workflows4s.web.api.service.RealWorkflowService.{SignalSchemaProvider, WorkflowEntry}
+import workflows4s.web.api.server.{RealWorkflowService, WorkflowServerEndpoints}
+import RealWorkflowService.{SignalSchemaProvider, WorkflowEntry}
 
 trait BaseServer {
 

@@ -1,23 +1,21 @@
-package workflows4s.web.ui.components
+package workflows4s.web.ui.components.instance
 
 import cats.effect.IO
 import cats.implicits.catsSyntaxOptionId
 import forms4s.circe.extractJson
-import forms4s.{FormElement, FormElementState, FormElementUpdate}
 import forms4s.jsonschema.*
 import forms4s.tyrian.BulmaFormRenderer
+import forms4s.{FormElement, FormElementState, FormElementUpdate}
 import io.circe.Json
-import tyrian.Html.{button, *}
-import tyrian.{Cmd, Elem, Empty, Html, Style}
+import tyrian.Html.*
+import tyrian.*
 import workflows4s.web.api.model.{Signal, SignalRequest, WorkflowInstance}
-import workflows4s.web.ui.components.SignalModal.Msg
+import workflows4s.web.ui.Http
+import workflows4s.web.ui.components.instance.SignalModal.Msg
 import workflows4s.web.ui.components.util.{AsyncView, Component}
-import workflows4s.web.ui.http.Http
 
 case class SignalResponseView(response: Json) extends Component.ReadOnly[SignalResponseView] {
-  override type Self = SignalResponseView
-  override def view: Html[Nothing] =
-    code(response.spaces2)
+  override def view: Html[Nothing] = code(response.spaces2)
 }
 
 case class SignalModal(

@@ -1,4 +1,4 @@
-package workflows4s.web.ui
+package workflows4s.web.ui.util
 
 import scala.scalajs.js
 import scala.scalajs.js.annotation.*

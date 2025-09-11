@@ -1,9 +1,9 @@
-package workflows4s.web.ui.subs
+package workflows4s.web.ui.components.template
 
 import cats.effect.IO
 import tyrian.*
 import tyrian.Html.*
-import workflows4s.web.ui.components.WorkflowSelector
+import workflows4s.web.ui.Http
 import workflows4s.web.ui.components.util.AsyncView
 
 final case class WorkflowsManager(
@@ -40,7 +40,7 @@ final case class WorkflowsManager(
 
 object WorkflowsManager {
   def initial: (WorkflowsManager, Cmd[IO, Msg]) = {
-    val (selectorAsync, start) = AsyncView.empty_(workflows4s.web.ui.http.Http.listDefinitions, WorkflowSelector(_, None))
+    val (selectorAsync, start) = AsyncView.empty_(Http.listDefinitions, WorkflowSelector(_, None))
     (WorkflowsManager(state = selectorAsync), start.map(Msg.ForSelector(_)))
   }
 

@@ -1,11 +1,11 @@
-package workflows4s.web.ui.components
+package workflows4s.web.ui.components.instance
 
 import cats.effect.IO
 import cats.implicits.catsSyntaxApplicativeId
-import tyrian.{Cmd, Html}
 import tyrian.Html.*
-import workflows4s.web.ui.components.MermaidDiagramView.Msg
-import workflows4s.web.ui.{MermaidHelper, MermaidJS}
+import tyrian.{Cmd, Html}
+import workflows4s.web.ui.components.instance.MermaidDiagramView.Msg
+import workflows4s.web.ui.util.{MermaidHelper, MermaidJS}
 
 import scala.concurrent.duration.DurationInt
 import scala.scalajs.js

@@ -1,10 +1,11 @@
-package workflows4s.web.ui.components
+package workflows4s.web.ui.components.instance
 
 import cats.effect.IO
 import tyrian.Html.*
 import tyrian.{Cmd, Html}
 import workflows4s.web.api.model.WorkflowInstance
-import workflows4s.web.ui.components.InstanceView.Msg
+import workflows4s.web.ui.components.ReusableViews
+import workflows4s.web.ui.components.instance.InstanceView.Msg
 import workflows4s.web.ui.components.util.Component
 
 case class InstanceView(instance: WorkflowInstance, diagramView: MermaidDiagramView, signalsView: SignalsView) extends Component {

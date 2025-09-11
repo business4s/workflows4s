@@ -1,10 +1,9 @@
 package workflows4s.web.api.server
 
 import cats.effect.IO
-import cats.syntax.either.*
-import workflows4s.web.api.endpoints.WorkflowEndpoints
-import workflows4s.web.api.service.WorkflowApiService
+import cats.implicits.toBifunctorOps
 import sttp.tapir.server.ServerEndpoint
+import workflows4s.web.api.endpoints.WorkflowEndpoints
 
 class WorkflowServerEndpoints(workflowService: WorkflowApiService) {
 
@@ -16,4 +15,5 @@ class WorkflowServerEndpoints(workflowService: WorkflowApiService) {
     ),
     WorkflowEndpoints.deliverSignal.serverLogic(request => workflowService.deliverSignal(request).attempt.map(_.leftMap(_.getMessage))),
   )
+
 }

@@ -1,4 +1,4 @@
-package workflows4s.web.api.service
+package workflows4s.web.api.server
 
 import cats.effect.IO
 import com.typesafe.scalalogging.StrictLogging
@@ -8,8 +8,8 @@ import sttp.tapir.docs.apispec.schema.TapirSchemaToJsonSchema
 import workflows4s.mermaid.MermaidRenderer
 import workflows4s.runtime.WorkflowRuntime
 import workflows4s.web.api.model.*
-import workflows4s.web.api.service.RealWorkflowService.SignalSchemaProvider.RequestHandler
-import workflows4s.web.api.service.RealWorkflowService.WorkflowEntry
+import workflows4s.web.api.server.RealWorkflowService.SignalSchemaProvider.RequestHandler
+import workflows4s.web.api.server.RealWorkflowService.WorkflowEntry
 import workflows4s.wio.{SignalDef, WorkflowContext}
 
 class RealWorkflowService(

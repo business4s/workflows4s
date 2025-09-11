@@ -1,12 +1,11 @@
-package workflows4s.web.ui.subs
+package workflows4s.web.ui.components.instance
 
 import cats.effect.IO
 import cats.implicits.catsSyntaxOptionId
 import tyrian.*
 import tyrian.Html.*
-import workflows4s.web.ui.components.InstanceView
+import workflows4s.web.ui.Http
 import workflows4s.web.ui.components.util.AsyncView
-import workflows4s.web.ui.http.Http
 
 import java.util.UUID
 
