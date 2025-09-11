@@ -31,6 +31,7 @@ class ExamplesTest extends AnyFreeSpec {
     ExampleConfig("draft-interruption", DraftInterruptionExample.documentProcessingWorkflow),
     ExampleConfig("checkpoint", CheckpointExample.checkpoint.checkpointed, technical = true),
     ExampleConfig("recovery", CheckpointExample.recovery.myWorkflow, technical = true),
+    ExampleConfig("draft-checkpoint", DraftCheckpointExample.v1, technical = true),
     ExampleConfig("pure", PureExample.doThings),
     ExampleConfig("pure-error", PureExample.doThingsWithError),
     ExampleConfig("pull-request-draft", PullRequestWorkflowDraft.workflow),

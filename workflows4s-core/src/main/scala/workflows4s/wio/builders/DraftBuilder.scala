@@ -81,6 +81,30 @@ object DraftBuilder {
         ).transformInput((_: Any) => ???).map(_ => ???)
       }
 
+      def checkpoint(name: String = null)(using autoName: sourcecode.Name): WIO.Draft[Ctx] = {
+        WIO.RunIO(
+          _ => ???,
+          dummyEventHandler,
+          WIO.RunIO.Meta(
+            ErrorMeta.noError,
+            getEffectiveName(name, autoName).some,
+            None,
+          ),
+        )
+      }
+
+      def recovery(name: String = null)(using autoName: sourcecode.Name): WIO.Draft[Ctx] = {
+        WIO.RunIO(
+          _ => ???,
+          dummyEventHandler,
+          WIO.RunIO.Meta(
+            ErrorMeta.noError,
+            getEffectiveName(name, autoName).some,
+            None,
+          ),
+        )
+      }
+
       def interruptionSignal(
           signalName: String = null,
           operationName: String = null,

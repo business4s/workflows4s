@@ -1,0 +1,29 @@
+{
+  "steps" : [
+    {
+      "meta" : {
+        "name" : "CP",
+        "error" : null,
+        "description" : null
+      },
+      "_type" : "RunIO"
+    },
+    {
+      "meta" : {
+        "name" : "A",
+        "error" : null,
+        "description" : null
+      },
+      "_type" : "RunIO"
+    },
+    {
+      "meta" : {
+        "name" : "B",
+        "error" : null,
+        "description" : null
+      },
+      "_type" : "RunIO"
+    }
+  ],
+  "_type" : "Sequence"
+}

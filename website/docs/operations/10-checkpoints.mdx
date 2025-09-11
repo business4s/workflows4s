@@ -53,4 +53,10 @@ In practice, checkpointing and recovery are often used together to enable workfl
 
 ## Drafting Support
 
-For Checkpointing and Recovery, no dedicated draft API is required. Drafting can be done using the standard API.
+When drafting workflows that need checkpointing and recovery, you can use the draft API.
+
+### Draft Checkpoint
+```scala file=./main/scala/workflows4s/example/docs/DraftCheckpointExample.scala start=start_draft_checkpoint end=end_draft_recovery
+
+```
+<OperationOutputs name="draft-checkpoint" showBpmn={false}/> 
