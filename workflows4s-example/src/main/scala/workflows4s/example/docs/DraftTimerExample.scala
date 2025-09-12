@@ -4,7 +4,7 @@ import scala.concurrent.duration.*
 
 object DraftTimerExample {
 
-  import workflows4s.wio.DraftWorkflowContext._
+  import workflows4s.wio.DraftWorkflowContext.*
 
   // start_draft
   // Create timer operation with draft API

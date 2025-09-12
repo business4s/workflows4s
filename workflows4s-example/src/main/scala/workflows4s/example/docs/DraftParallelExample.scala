@@ -1,7 +1,7 @@
 package workflows4s.example.docs
 
 object DraftParallelExample {
-  import workflows4s.wio.DraftWorkflowContext._
+  import workflows4s.wio.DraftWorkflowContext.*
 
   // start_draft
   // Create a simple parallel workflow
@@ -12,4 +12,3 @@ object DraftParallelExample {
   val parallelWorkflow = WIO.draft.parallel(stepA, stepB, stepC)
   // end_draft
 }
-

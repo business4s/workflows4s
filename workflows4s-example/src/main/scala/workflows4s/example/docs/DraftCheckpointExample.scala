@@ -1,6 +1,6 @@
 package workflows4s.example.docs
 
-import workflows4s.wio.DraftWorkflowContext._
+import workflows4s.wio.DraftWorkflowContext.*
 
 object DraftCheckpointExample {
 
@@ -12,5 +12,3 @@ object DraftCheckpointExample {
   val v2 = WIO.draft.recovery("RC") >>> WIO.draft.step("C")
   // end_draft_recovery
 }
-
-

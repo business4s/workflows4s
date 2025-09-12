@@ -2,7 +2,7 @@ package workflows4s.example.docs
 
 object DraftSignalExample {
 
-  import workflows4s.wio.DraftWorkflowContext._
+  import workflows4s.wio.DraftWorkflowContext.*
 
   // start_draft
   // Create a signal operation

@@ -16,7 +16,7 @@ object DraftBuilder {
     def draft: DraftBuilderStep1 = DraftBuilderStep1()
 
     class DraftBuilderStep1 {
-      def signal(name: String = null, error: String = null)(using autoName: sourcecode.Name): WIO.Draft[Ctx]                                  = WIO.HandleSignal(
+      def signal(name: String = null, error: String = null)(using autoName: sourcecode.Name): WIO.Draft[Ctx]           = WIO.HandleSignal(
         draftSignal,
         SignalHandler[Unit, Unit, Any]((_, _) => ???),
         dummyEventHandler,
@@ -74,11 +74,14 @@ object DraftBuilder {
         val parallelElements = elements.map { element =>
           WIO.Parallel.Element(element.map(_ => ???), (interimState: WCState[Ctx], _: WCState[Ctx]) => interimState)
         }
-        WIO.Parallel[Ctx, Any, Nothing, WCState[Ctx], WCState[Ctx]](
-          elements = parallelElements,
-          formResult = _ => ???,
-          initialInterimState = (_: Any) => ???
-        ).transformInput((_: Any) => ???).map(_ => ???)
+        WIO
+          .Parallel[Ctx, Any, Nothing, WCState[Ctx], WCState[Ctx]](
+            elements = parallelElements,
+            formResult = _ => ???,
+            initialInterimState = (_: Any) => ???,
+          )
+          .transformInput((_: Any) => ???)
+          .map(_ => ???)
       }
 
       def checkpoint(name: String = null)(using autoName: sourcecode.Name): WIO.Draft[Ctx] = {
@@ -108,42 +111,51 @@ object DraftBuilder {
       def interruptionSignal(
           signalName: String = null,
           operationName: String = null,
-          error: String = null
+          error: String = null,
       )(using autoName: sourcecode.Name): WIO.Interruption[Ctx, Nothing, Nothing] = {
-        val draftSignalHandling = WIO.HandleSignal(
-          draftSignal,
-          SignalHandler[Unit, Unit, WCState[Ctx]]((_, _) => ???),
-          dummyEventHandler[WCEvent[Ctx], Unit],
-          WIO.HandleSignal.Meta(
-            Option(error).map(ErrorMeta.Present(_)).getOrElse(ErrorMeta.noError),
-            Option(signalName).getOrElse(getEffectiveName(null, autoName)),
-            Option(operationName)
-          ),
-        ).transformInput((_: WCState[Ctx]) => ???).map(_ => ???)
+        val draftSignalHandling = WIO
+          .HandleSignal(
+            draftSignal,
+            SignalHandler[Unit, Unit, WCState[Ctx]]((_, _) => ???),
+            dummyEventHandler[WCEvent[Ctx], Unit],
+            WIO.HandleSignal.Meta(
+              Option(error).map(ErrorMeta.Present(_)).getOrElse(ErrorMeta.noError),
+              Option(signalName).getOrElse(getEffectiveName(null, autoName)),
+              Option(operationName),
+            ),
+          )
+          .transformInput((_: WCState[Ctx]) => ???)
+          .map(_ => ???)
         WIO.Interruption(draftSignalHandling, WIO.HandleInterruption.InterruptionType.Signal)
       }
 
       def interruptionTimeout(
           timerName: String = null,
-          duration: FiniteDuration = null
+          duration: FiniteDuration = null,
       )(using autoName: sourcecode.Name): WIO.Interruption[Ctx, Nothing, Nothing] = {
-        val draftTimer = WIO.Timer(
-          Option(duration) match {
-            case Some(value) => WIO.Timer.DurationSource.Static(value.toJava)
-            case None        => WIO.Timer.DurationSource.Dynamic(_ => ???)
-          },
-          dummyEventHandler[WCEvent[Ctx], WIO.Timer.Started],
-          Option(timerName).orElse(getEffectiveName(null, autoName).some),
-          dummyEventHandler[WCEvent[Ctx], WIO.Timer.Released],
-        ).transformInput((_: WCState[Ctx]) => ???).map(_ => ???)
+        val draftTimer = WIO
+          .Timer(
+            Option(duration) match {
+              case Some(value) => WIO.Timer.DurationSource.Static(value.toJava)
+              case None        => WIO.Timer.DurationSource.Dynamic(_ => ???)
+            },
+            dummyEventHandler[WCEvent[Ctx], WIO.Timer.Started],
+            Option(timerName).orElse(getEffectiveName(null, autoName).some),
+            dummyEventHandler[WCEvent[Ctx], WIO.Timer.Released],
+          )
+          .transformInput((_: WCState[Ctx]) => ???)
+          .map(_ => ???)
         WIO.Interruption(draftTimer, WIO.HandleInterruption.InterruptionType.Timer)
       }
 
       def retry(base: WIO.Draft[Ctx]): WIO.Draft[Ctx] = {
-        WIO.Retry(
-          base,
-          (_: Throwable, _: WCState[Ctx], _: java.time.Instant) => ???
-        ).transformInput((_: Any) => ???).map(_ => ???)
+        WIO
+          .Retry(
+            base,
+            (_: Throwable, _: WCState[Ctx], _: java.time.Instant) => ???,
+          )
+          .transformInput((_: Any) => ???)
+          .map(_ => ???)
       }
 
     }
