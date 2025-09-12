@@ -61,4 +61,12 @@ For short-lived retries (e.g., retrying within milliseconds or seconds), prefer 
 
 ## Drafting Support
 
-For Retrying Operations, no dedicated draft API is required. Drafting can be done using the standard API.
+When drafting workflows that need retry handling, use `WIO.draft.retry()`:
+
+```scala file=./main/scala/workflows4s/example/docs/DraftRetryExample.scala start=start_draft end=end_draft
+```
+<OperationOutputs name="draft-retry"/>
+
+The draft retry operation simplifies the API by:
+- Not requiring explicit retry logic implementation
+- Automatically generating names from the context if not provided

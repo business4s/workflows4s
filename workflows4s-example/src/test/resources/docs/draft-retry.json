@@ -1,0 +1,32 @@
+{
+  "steps" : [
+    {
+      "meta" : {
+        "name" : "Prepare Request",
+        "error" : null,
+        "description" : null
+      },
+      "_type" : "RunIO"
+    },
+    {
+      "base" : {
+        "meta" : {
+          "name" : "Call External API",
+          "error" : null,
+          "description" : null
+        },
+        "_type" : "RunIO"
+      },
+      "_type" : "Retried"
+    },
+    {
+      "meta" : {
+        "name" : "Process Response",
+        "error" : null,
+        "description" : null
+      },
+      "_type" : "RunIO"
+    }
+  ],
+  "_type" : "Sequence"
+}

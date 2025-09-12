@@ -139,6 +139,13 @@ object DraftBuilder {
         WIO.Interruption(draftTimer, WIO.HandleInterruption.InterruptionType.Timer)
       }
 
+      def retry(base: WIO.Draft[Ctx]): WIO.Draft[Ctx] = {
+        WIO.Retry(
+          base,
+          (_: Throwable, _: WCState[Ctx], _: java.time.Instant) => ???
+        ).transformInput((_: Any) => ???).map(_ => ???)
+      }
+
     }
 
   }

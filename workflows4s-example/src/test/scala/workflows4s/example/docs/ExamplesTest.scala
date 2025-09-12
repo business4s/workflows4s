@@ -39,6 +39,7 @@ class ExamplesTest extends AnyFreeSpec {
     ExampleConfig("for-each-draft", ForEachExample.draft.forEachDraft),
     ExampleConfig("for-each", ForEachExample.real.forEachStep),
     ExampleConfig("retry", RetryExample.withRetry),
+    ExampleConfig("draft-retry", DraftRetryExample.workflow),
   )
 
   "examples" - {
