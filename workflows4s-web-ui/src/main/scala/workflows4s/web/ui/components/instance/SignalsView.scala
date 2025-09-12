@@ -9,7 +9,6 @@ import workflows4s.web.ui.components.instance.SignalsView.Msg
 case class SignalsView(workflowInstance: WorkflowInstance, modal: Option[SignalModal]) {
 
   def view: Html[SignalsView.Msg] = div(
-    h2("Signals"),
     ul(
       workflowInstance.expectedSignals.map(s =>
         li(

@@ -1,6 +1,7 @@
 package workflows4s.web.api.server
 
-import cats.effect.IO
+import cats.MonadError
+import cats.syntax.all.*
 import com.typesafe.scalalogging.StrictLogging
 import io.circe.{Decoder, Encoder, Json}
 import sttp.apispec.Schema
@@ -8,44 +9,45 @@ import sttp.tapir.docs.apispec.schema.TapirSchemaToJsonSchema
 import workflows4s.mermaid.MermaidRenderer
 import workflows4s.runtime.WorkflowRuntime
 import workflows4s.web.api.model.*
-import workflows4s.web.api.server.RealWorkflowService.SignalSchemaProvider.RequestHandler
+import workflows4s.web.api.server.RealWorkflowService.SignalSupport.RequestHandler
 import workflows4s.web.api.server.RealWorkflowService.WorkflowEntry
 import workflows4s.wio.{SignalDef, WorkflowContext}
 
-class RealWorkflowService(
-    workflowEntries: List[RealWorkflowService.WorkflowEntry[?]],
-) extends WorkflowApiService {
+class RealWorkflowService[F[_]](
+    workflowEntries: List[RealWorkflowService.WorkflowEntry[F, ?]],
+)(using me: MonadError[F, Throwable])
+    extends WorkflowApiService[F] {
 
-  def listDefinitions(): IO[List[WorkflowDefinition]] =
-    IO.pure(workflowEntries.map(e => WorkflowDefinition(e.id, e.name)))
+  def listDefinitions(): F[List[WorkflowDefinition]] =
+    workflowEntries.map(e => WorkflowDefinition(e.id, e.name)).pure[F]
 
-  def getDefinition(id: String): IO[WorkflowDefinition] =
+  def getDefinition(id: String): F[WorkflowDefinition] =
     findEntry(id).map(e => WorkflowDefinition(e.id, e.name))
 
-  def getInstance(definitionId: String, instanceId: String): IO[WorkflowInstance] =
+  def getInstance(definitionId: String, instanceId: String): F[WorkflowInstance] =
     for {
       entry    <- findEntry(definitionId)
       instance <- getRealInstance(entry, instanceId)
     } yield instance
 
-  override def deliverSignal(request: SignalRequest): IO[Json] = {
+  override def deliverSignal(request: SignalRequest): F[Json] = {
     for {
       entry        <- findEntry(request.templateId)
       instance     <- entry.runtime.createInstance(request.instanceId)
-      signalHandler = entry.signalSchemaProvider.transformRequest(request.signalId)
+      signalHandler = entry.signalSupport.transformRequest(request.signalId)
       responseE    <- instance.deliverSignal(signalHandler.signalDef, signalHandler.decodeReq(request.signalRequest))
-      response     <- IO.fromEither(responseE.left.map(_ => new Exception("Unexpected signal")))
+      response     <- me.fromEither(responseE.left.map(_ => new Exception("Unexpected signal")))
       respJson      = signalHandler.encodeResp(response)
     } yield respJson
   }
 
-  private def findEntry(definitionId: String): IO[RealWorkflowService.WorkflowEntry[?]] =
-    IO.fromOption(workflowEntries.find(_.id == definitionId))(new Exception(s"Definition not found: $definitionId"))
+  private def findEntry(definitionId: String): F[RealWorkflowService.WorkflowEntry[F, ?]] =
+    me.fromOption(workflowEntries.find(_.id == definitionId), new Exception(s"Definition not found: $definitionId"))
 
   private def getRealInstance[Ctx <: WorkflowContext](
-      entry: RealWorkflowService.WorkflowEntry[Ctx],
+      entry: RealWorkflowService.WorkflowEntry[F, Ctx],
       instanceId: String,
-  ): IO[WorkflowInstance] = {
+  ): F[WorkflowInstance] = {
     for {
       workflowInstance <- entry.runtime.createInstance(instanceId)
       currentState     <- workflowInstance.queryState()
@@ -62,32 +64,32 @@ class RealWorkflowService(
     )
   }
 
-  private def convertSignal(entry: WorkflowEntry[?], sig: SignalDef[?, ?]): Signal = {
+  private def convertSignal(entry: WorkflowEntry[F, ?], sig: SignalDef[?, ?]): Signal = {
     Signal(
       id = sig.id,
       name = sig.name,
-      requestSchema = entry.signalSchemaProvider.getSchema(sig),
+      requestSchema = entry.signalSupport.getSchema(sig),
     )
   }
 
 }
 
 object RealWorkflowService {
-  case class WorkflowEntry[Ctx <: WorkflowContext](
+  case class WorkflowEntry[F[_], Ctx <: WorkflowContext](
       id: String,
       name: String,
-      runtime: WorkflowRuntime[IO, Ctx],
+      runtime: WorkflowRuntime[F, Ctx],
       stateEncoder: Encoder[workflows4s.wio.WCState[Ctx]],
-      signalSchemaProvider: SignalSchemaProvider,
+      signalSupport: SignalSupport,
   )
 
-  trait SignalSchemaProvider {
+  trait SignalSupport {
     def getSchema(signalDef: SignalDef[?, ?]): Option[sttp.apispec.Schema]
     def transformRequest(signalId: String): RequestHandler[?, ?]
   }
 
-  object SignalSchemaProvider {
-    val NoOp: SignalSchemaProvider = new SignalSchemaProvider {
+  object SignalSupport {
+    val NoSupport: SignalSupport = new SignalSupport {
       override def getSchema(signalDef: SignalDef[?, ?]): Option[Schema]    = None
       override def transformRequest(signalId: String): RequestHandler[?, ?] = ??? // TODO
     }
@@ -103,7 +105,7 @@ object RealWorkflowService {
         new Builder(entries.updated(sigDef.id, entry))
       }
 
-      def build: SignalSchemaProvider = new SignalSchemaProvider {
+      def build: SignalSupport = new SignalSupport {
         override def getSchema(signalDef: SignalDef[?, ?]): Option[Schema] = {
           val result = entries.get(signalDef.id)
           if result.isEmpty then logger.warn(s"Couldn't find schema for signal ${signalDef}")

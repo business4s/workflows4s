@@ -1,20 +1,20 @@
 package workflows4s.ui.bundle
 
-import sttp.tapir.server.ServerEndpoint
+import sttp.tapir.*
 import sttp.tapir.files.staticResourcesGetServerEndpoint
-import sttp.tapir.stringToPath
+import sttp.tapir.json.circe.jsonBody
+import sttp.tapir.server.ServerEndpoint
+import workflows4s.web.api.model.UIConfig
 
-/** Defines server-agnostic Tapir endpoints for serving the Web UI bundle.
-  *
-  * These endpoints can be interpreted by any server backend supported by Tapir
-  *
-  * The UI files are expected to be located in the "META-INF/resources/workflows4s/ui" resource directory of the JAR.
+/** Defines Tapir endpoints for serving the Web UI bundle.
   */
 object UiEndpoints {
 
-  /** ServerEndpoints to serve the static UI content from the classpath.
-    */
-  def endpoints[F[_]]: List[ServerEndpoint[Any, F]] = List(
+  def get[F[_]](config: UIConfig): List[ServerEndpoint[Any, F]] = List(
+    endpoint.get
+      .in("ui" / "config.json")
+      .out(jsonBody[UIConfig])
+      .serverLogicSuccessPure(_ => config),
     staticResourcesGetServerEndpoint[F]("ui")(
       this.getClass.getClassLoader,
       "workflows4s-web-ui-bundle",

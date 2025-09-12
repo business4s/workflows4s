@@ -7,6 +7,7 @@ import tyrian.Html.*
 import workflows4s.web.ui.components.instance.InstancesManager
 import workflows4s.web.ui.components.template.{WorkflowSelector, WorkflowsManager}
 import workflows4s.web.ui.components.util.AsyncView
+import workflows4s.web.ui.util.UIConfig
 
 import scala.scalajs.js.annotation.*
 
@@ -29,7 +30,8 @@ object Main extends TyrianIOApp[Msg, Model] {
 
   def init(flags: Map[String, String]): (Model, Cmd[IO, Msg]) = {
     val (workflowsManager, workflowsCmd) = WorkflowsManager.initial
-    (Model(workflowsManager, None), workflowsCmd.map(Msg.ForWorkflows(_)))
+    val cmd: Cmd[IO, Msg]                = workflowsCmd.map(Msg.ForWorkflows(_)) |+| Cmd.Run(UIConfig.reload.as(Msg.NoOp))
+    (Model(workflowsManager, None), cmd)
   }
 
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {

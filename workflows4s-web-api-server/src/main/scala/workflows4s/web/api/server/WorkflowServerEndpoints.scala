@@ -1,19 +1,22 @@
 package workflows4s.web.api.server
 
-import cats.effect.IO
-import cats.implicits.toBifunctorOps
+import cats.MonadError
+import cats.syntax.all.*
 import sttp.tapir.server.ServerEndpoint
 import workflows4s.web.api.endpoints.WorkflowEndpoints
+import workflows4s.web.api.server.RealWorkflowService.WorkflowEntry
 
-class WorkflowServerEndpoints(workflowService: WorkflowApiService) {
+object WorkflowServerEndpoints {
 
-  val endpoints: List[ServerEndpoint[Any, IO]] = List(
-    WorkflowEndpoints.listDefinitions.serverLogic(_ => workflowService.listDefinitions().attempt.map(_.leftMap(_.getMessage))),
-    WorkflowEndpoints.getDefinition.serverLogic(workflowId => workflowService.getDefinition(workflowId).attempt.map(_.leftMap(_.getMessage))),
-    WorkflowEndpoints.getInstance.serverLogic((workflowId, instanceId) =>
-      workflowService.getInstance(workflowId, instanceId).attempt.map(_.leftMap(_.getMessage)),
-    ),
-    WorkflowEndpoints.deliverSignal.serverLogic(request => workflowService.deliverSignal(request).attempt.map(_.leftMap(_.getMessage))),
-  )
-
+  def get[F[_]](entries: List[WorkflowEntry[F, ?]])(using MonadError[F, Throwable]): List[ServerEndpoint[Any, F]] = {
+    val service = RealWorkflowService(entries)
+    List(
+      WorkflowEndpoints.listDefinitions.serverLogic(_ => service.listDefinitions().attempt.map(_.leftMap(_.getMessage))),
+      WorkflowEndpoints.getDefinition.serverLogic(workflowId => service.getDefinition(workflowId).attempt.map(_.leftMap(_.getMessage))),
+      WorkflowEndpoints.getInstance.serverLogic((workflowId, instanceId) =>
+        service.getInstance(workflowId, instanceId).attempt.map(_.leftMap(_.getMessage)),
+      ),
+      WorkflowEndpoints.deliverSignal.serverLogic(request => service.deliverSignal(request).attempt.map(_.leftMap(_.getMessage))),
+    )
+  }
 }

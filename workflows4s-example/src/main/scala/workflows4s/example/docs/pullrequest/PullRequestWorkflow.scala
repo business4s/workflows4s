@@ -2,7 +2,7 @@ package workflows4s.example.docs.pullrequest
 
 import java.io.File
 import cats.effect.IO
-import io.circe.Decoder
+import io.circe.{Decoder, Encoder}
 import org.camunda.bpm.model.bpmn.Bpmn
 import sttp.tapir.Schema
 import workflows4s.bpmn.BpmnRenderer
@@ -15,7 +15,7 @@ import scala.annotation.nowarn
 object PullRequestWorkflow {
 
   // start_state
-  sealed trait PRState
+  sealed trait PRState derives Encoder
   object PRState {
     case object Empty                                                               extends PRState
     case class Initiated(commit: String)                                            extends PRState
@@ -45,7 +45,7 @@ object PullRequestWorkflow {
   // end_events
 
   // start_error
-  sealed trait PRError
+  sealed trait PRError derives Encoder
   object PRError {
     case object CommitNotFound extends PRError
     case object PipelineFailed extends PRError

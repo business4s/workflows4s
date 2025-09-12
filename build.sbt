@@ -142,6 +142,7 @@ lazy val `workflows4s-web-ui` = (project in file("workflows4s-web-ui"))
 
 lazy val `workflows4s-web-ui-bundle` = (project in file("workflows4s-web-ui-bundle"))
   .settings(commonSettings)
+  .dependsOn(`workflows4s-web-api-shared`.jvm)
   .settings(
     name                := "workflows4s-web-ui-bundle",
     libraryDependencies ++= Seq(

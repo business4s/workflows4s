@@ -22,49 +22,22 @@ case class InstanceView(instance: WorkflowInstance, diagramView: MermaidDiagramV
       this.copy(signalsView = newCmp) -> cmd.map(Msg.ForSignalsView(_))
   }
 
-  override def view: Html[InstanceView.Msg] =
-    div(
-      instanceDetailsView,
-      progressVisualizationView,
-    )
+  def sectionHeader(text: String) = h4(cls := "mt-4")(text)
 
-  private def instanceDetailsView: Html[InstanceView.Msg] =
+  override def view: Html[InstanceView.Msg] =
     div(cls := "content mt-4")(
       h3(s"Instance: ${instance.id}"),
-      ReusableViews.instanceField("Definition", Html.span(instance.templateId)),
+      ReusableViews.instanceField("Template", Html.span(instance.templateId)),
+      sectionHeader("Signals"),
       signalsView.view.map(Msg.ForSignalsView(_)),
+      sectionHeader("State"),
       instanceStateView,
+      sectionHeader("Progress"),
+      progressVisualizationView
     )
 
-  private def instanceStateView: Html[InstanceView.Msg] =
-    jsonStateViewer
-
-  private def progressVisualizationView: Html[InstanceView.Msg] =
-    div(cls := "mt-5")(
-      h4("Workflow Progress"),
-      mermaidDiagramView,
-    )
-
-  private def mermaidDiagramView: Html[InstanceView.Msg] =
-    div(cls := "box mt-4")(
-      h5("🎨 Workflow Diagram"),
-      // Action buttons
-      div(cls := "field is-grouped mb-4")(
-        div(cls := "control")(
-          a(
-            cls    := "button is-success is-small",
-            href   := instance.mermaidUrl,
-            target := "_blank",
-          )("🔗 View in Mermaid Live"),
-        ),
-      ),
-      diagramView.view.map(InstanceView.Msg.ForDiagram(_)),
-    )
-
-  // 2. Add the missing jsonStateViewer method
-  private def jsonStateViewer: Html[Nothing] = {
-    div(cls := "box mt-4")(
-      h5("Instance State"),
+  private def instanceStateView: Html[InstanceView.Msg] = {
+    div(
       instance.state match {
         case Some(stateJson) =>
           pre(cls := "mt-2 content is-small")(
@@ -77,6 +50,21 @@ case class InstanceView(instance: WorkflowInstance, diagramView: MermaidDiagramV
       },
     )
   }
+
+  private def progressVisualizationView: Html[InstanceView.Msg] =
+    div(
+      diagramView.view.map(InstanceView.Msg.ForDiagram(_)),
+      div(cls := "field is-grouped mb-4")(
+        div(cls := "control")(
+          a(
+            cls    := "button is-success is-small",
+            href   := instance.mermaidUrl,
+            target := "_blank",
+          )("🔗 View in Mermaid Live"),
+        ),
+      ),
+    )
+
 }
 
 object InstanceView {

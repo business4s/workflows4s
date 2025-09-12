@@ -1,17 +1,19 @@
 package workflows4s.web.ui
 
 import cats.effect.IO
+import cats.implicits.catsSyntaxOptionId
 import io.circe.Json
-import sttp.client4.*
 import sttp.client4.impl.cats.FetchCatsBackend
 import sttp.tapir.client.sttp4.SttpClientInterpreter
 import workflows4s.web.api.endpoints.WorkflowEndpoints
 import workflows4s.web.api.model.{SignalRequest, WorkflowDefinition, WorkflowInstance}
+import workflows4s.web.ui.util.UIConfig
 
 object Http {
   private val backend     = FetchCatsBackend[IO]()
-  private val baseUrl     = Some(uri"http://localhost:8081")
+  private def baseUrl     = UIConfig.get.apiUrl.some
   private val interpreter = SttpClientInterpreter()
+  
 
   def getInstance(workflowId: String, instanceId: String): IO[WorkflowInstance] = {
     val request = interpreter.toRequestThrowErrors(WorkflowEndpoints.getInstance, baseUrl)((workflowId, instanceId))
