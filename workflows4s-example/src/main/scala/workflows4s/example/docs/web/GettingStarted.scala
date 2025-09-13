@@ -19,17 +19,26 @@ object GettingStarted {
   object ServerWithUI extends IOApp.Simple {
     def run: IO[Unit] = {
 
-      val myRuntime: WorkflowRuntime[IO, MyWorkflowCtx]                = ???
-      val myApiEntry: RealWorkflowService.WorkflowEntry[IO, MyWorkflowCtx] = RealWorkflowService.WorkflowEntry(
-        id = "my-workflow",
-        name = "My Workflow",
-        runtime = myRuntime,
-        stateEncoder = ??? : Encoder[WCState[MyWorkflowCtx]],
-        signalSupport = SignalSupport.NoSupport,
-      )
+      // doc_start
+      // the same runtime that is used for running the workflows
+      val myRuntime: WorkflowRuntime[IO, MyWorkflowCtx]                    = ???
 
+      // each runtime needs to be enriched by some information required by the UI
+      val myApiEntry: RealWorkflowService.WorkflowEntry[IO, MyWorkflowCtx] =
+        RealWorkflowService.WorkflowEntry(
+          id = "my-workflow",
+          name = "My Workflow",
+          runtime = myRuntime,
+          stateEncoder = ??? : Encoder[WCState[MyWorkflowCtx]],
+          signalSupport = SignalSupport.NoSupport,
+        )
+
+      // tapir endpoints for serving the API
       val apiEndpoints = WorkflowServerEndpoints.get(List(myApiEntry))
+      // tapir endpoints for service the UI assets
       val uiEndpoints  = UiEndpoints.get[IO](UIConfig(Uri.unsafeParse("http://localhost:8080")))
+
+      // example tapir interpretation, this part is orthogonal to workflows4s
       val routes       = Http4sServerInterpreter[IO]().toRoutes(apiEndpoints ++ uiEndpoints)
       for {
         _ <- EmberServerBuilder
@@ -43,6 +52,7 @@ object GettingStarted {
                    IO.never
                }
       } yield ()
+      // doc_end
     }
   }
 
