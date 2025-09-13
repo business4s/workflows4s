@@ -50,3 +50,13 @@ In practice, checkpointing and recovery are often used together to enable workfl
 1. Version 1 of a workflow includes a segment that is checkpointed
 2. Version 2 of the workflow removes that segment but includes a recovery mechanism
 3. When a workflow instance created with version 1 is resumed using version 2, the recovery mechanism processes the checkpoint event, allowing the workflow to continue without the removed segment
+
+## Drafting Support
+
+When drafting workflows that need checkpointing and recovery, you can use the draft API.
+
+### Draft Checkpoint
+```scala file=./main/scala/workflows4s/example/docs/DraftCheckpointExample.scala start=start_draft_checkpoint end=end_draft_recovery
+
+```
+<OperationOutputs name="draft-checkpoint" showBpmn={false}/> 

@@ -1,0 +1,29 @@
+{
+  "elements" : [
+    {
+      "meta" : {
+        "name" : "Task A",
+        "error" : null,
+        "description" : null
+      },
+      "_type" : "RunIO"
+    },
+    {
+      "meta" : {
+        "name" : "Task B",
+        "error" : null,
+        "description" : null
+      },
+      "_type" : "RunIO"
+    },
+    {
+      "meta" : {
+        "name" : "Task C",
+        "error" : null,
+        "description" : null
+      },
+      "_type" : "RunIO"
+    }
+  ],
+  "_type" : "Parallel"
+}

@@ -1,0 +1,8 @@
+flowchart TD
+node0@{ shape: circle, label: "Start"}
+node1["Prepare Request"]
+node0 --> node1
+node2["fa:fa-redo Call External API"]
+node1 --> node2
+node3["Process Response"]
+node2 --> node3
