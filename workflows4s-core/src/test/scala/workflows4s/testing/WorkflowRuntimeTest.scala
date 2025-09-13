@@ -3,7 +3,7 @@ package workflows4s.testing
 import cats.effect.std.Semaphore
 import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Ref}
-import cats.implicits.toFoldableOps
+import cats.syntax.all.*
 import org.scalatest.freespec.AnyFreeSpecLike
 import sourcecode.Text.generate
 import workflows4s.runtime.registry.InMemoryWorkflowRegistry
@@ -117,12 +117,12 @@ object WorkflowRuntimeTest {
         val registry = InMemoryWorkflowRegistry(runtime.clock).unsafeRunSync()
 
         def expectRegistryEntry(status: ExecutionStatus)                     = {
-          val registeredWorkflows = registry.getWorkflows().unsafeRunSync()
+          val registeredWorkflows = runtime.registry.getWorkflows().unsafeRunSync()
           assert(registeredWorkflows.size == 1)
           assert(registeredWorkflows.head.status == status)
         }
         def createInstance(wio: TestCtx2.WIO[TestState, Nothing, TestState]) = {
-          runtime.runWorkflow(wio.provideInput(TestState.empty), TestState.empty, registry)
+          runtime.runWorkflow(wio.provideInput(TestState.empty), TestState.empty)
         }
       }
 

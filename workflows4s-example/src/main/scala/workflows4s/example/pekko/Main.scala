@@ -11,6 +11,7 @@ import org.apache.pekko.persistence.jdbc.testkit.scaladsl.SchemaUtils
 import org.apache.pekko.persistence.query.PersistenceQuery
 import workflows4s.example.withdrawal.checks.ChecksEngine
 import workflows4s.example.withdrawal.{WithdrawalData, WithdrawalWorkflow}
+import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.pekko.PekkoRuntime
 import workflows4s.runtime.wakeup.SleepingKnockerUpper
 
@@ -22,16 +23,15 @@ object Main extends IOApp {
       .flatTap(_ => Resource.make(IO.unit)(_ => IO(system.terminate())))
       .use(knockerUpper =>
         for {
-          journal <- setupJournal()
-          workflow = WithdrawalWorkflow(DummyWithdrawalService, ChecksEngine)
-          runtime  =
+          journal                  <- setupJournal()
+          workflow                  = WithdrawalWorkflow(DummyWithdrawalService, ChecksEngine)
+          runtime                   =
             PekkoRuntime.create[WithdrawalWorkflow.Context.Ctx](
               "withdrawal",
               workflow.workflowDeclarative,
               WithdrawalData.Empty,
-              knockerUpper,
+              WorkflowInstanceEngine.builder.withJavaTime().withWakeUps(knockerUpper).withoutRegistering.withGreedyEvaluation.withLogging.get,
             )
-
           _                        <- IO(runtime.initializeShard())
           _                        <- knockerUpper.initialize(wokeup => IO.println(s"Woke up! $wokeup"))
           withdrawalWorkflowService = WithdrawalWorkflowService.Impl(journal, runtime)

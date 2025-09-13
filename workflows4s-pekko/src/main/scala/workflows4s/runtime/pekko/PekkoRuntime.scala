@@ -3,13 +3,11 @@ package workflows4s.runtime.pekko
 import org.apache.pekko.actor.typed.ActorSystem
 import org.apache.pekko.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity, EntityTypeKey}
 import org.apache.pekko.persistence.typed.PersistenceId
-import workflows4s.runtime.registry.{NoOpWorkflowRegistry, WorkflowRegistry}
-import workflows4s.runtime.wakeup.KnockerUpper
+import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.{WorkflowInstance, WorkflowInstanceId, WorkflowRuntime}
 import workflows4s.wio.WIO.Initial
 import workflows4s.wio.{WCState, WorkflowContext}
 
-import java.time.Clock
 import scala.concurrent.Future
 
 trait PekkoRuntime[Ctx <: WorkflowContext] extends WorkflowRuntime[Future, Ctx] {
@@ -21,9 +19,7 @@ class PekkoRuntimeImpl[Ctx <: WorkflowContext](
     workflow: Initial[Ctx],
     initialState: WCState[Ctx],
     entityName: String,
-    clock: Clock,
-    knockerUpper: KnockerUpper.Agent,
-    registry: WorkflowRegistry.Agent,
+    engine: WorkflowInstanceEngine,
     val templateId: String,
 )(using system: ActorSystem[?])
     extends PekkoRuntime[Ctx] {
@@ -36,14 +32,15 @@ class PekkoRuntimeImpl[Ctx <: WorkflowContext](
   }
   override def createInstance_(id: String): WorkflowInstance[Future, WCState[Ctx]]        = {
     val instanceId = WorkflowInstanceId(templateId, id)
-    PekkoWorkflowInstance(instanceId, sharding.entityRefFor(typeKey, id), knockerUpper, clock, registry)
+    PekkoWorkflowInstance(instanceId, sharding.entityRefFor(typeKey, id))
   }
 
   def initializeShard(): Unit = {
     val _ = sharding.init(
       Entity(typeKey)(createBehavior = entityContext => {
         val persistenceId = PersistenceId(entityContext.entityTypeKey.name, entityContext.entityId)
-        WorkflowBehavior(persistenceId, workflow, initialState, clock)
+        val instanceId    = WorkflowInstanceId(templateId, persistenceId.entityId)
+        WorkflowBehavior(instanceId, persistenceId, workflow, initialState, engine)
       }),
     )
     ()
@@ -59,15 +56,13 @@ object PekkoRuntime {
       entityName: String,
       workflow: Initial[Ctx],
       initialState: WCState[Ctx],
-      knockerUpper: KnockerUpper.Agent,
-      clock: Clock = Clock.systemUTC(),
-      registry: WorkflowRegistry.Agent = NoOpWorkflowRegistry.Agent,
+      engine: WorkflowInstanceEngine,
   )(using
       system: ActorSystem[?],
   ): PekkoRuntime[Ctx] = {
     // this might need customization if you have two clusters with the same entities but workflows from both in the same knocker-upper/registry.
     val templateId = s"pekko-runtime-$entityName}"
-    new PekkoRuntimeImpl(workflow, initialState, entityName, clock, knockerUpper, registry, templateId)
+    new PekkoRuntimeImpl(workflow, initialState, entityName, engine, templateId)
   }
 
 }

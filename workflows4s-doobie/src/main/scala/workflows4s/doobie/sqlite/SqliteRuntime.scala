@@ -1,8 +1,5 @@
 package workflows4s.doobie.sqlite
 
-import java.nio.file.{Files, Path}
-import java.time.Clock
-import java.util.Properties
 import cats.data.Kleisli
 import cats.effect.{IO, LiftIO}
 import com.typesafe.scalalogging.StrictLogging
@@ -11,21 +8,21 @@ import doobie.util.fragment.Fragment
 import doobie.util.transactor.Transactor
 import doobie.{ConnectionIO, WeakAsync}
 import workflows4s.doobie.{ByteCodec, DbWorkflowInstance}
-import workflows4s.runtime.registry.{NoOpWorkflowRegistry, WorkflowRegistry}
-import workflows4s.runtime.wakeup.KnockerUpper
+import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.{MappedWorkflowInstance, WorkflowInstance, WorkflowInstanceId, WorkflowRuntime}
 import workflows4s.wio.WIO.Initial
 import workflows4s.wio.WorkflowContext.State
 import workflows4s.wio.{ActiveWorkflow, WCEvent, WCState, WorkflowContext}
 
+import java.nio.file.{Files, Path}
+import java.util.Properties
+
 class SqliteRuntime[Ctx <: WorkflowContext](
     workflow: Initial[Ctx],
     initialState: WCState[Ctx],
-    clock: Clock,
-    knockerUpper: KnockerUpper.Agent,
+    engine: WorkflowInstanceEngine,
     eventCodec: ByteCodec[WCEvent[Ctx]],
     workdir: Path,
-    registryAgent: WorkflowRegistry.Agent,
     val templateId: String,
 ) extends WorkflowRuntime[IO, Ctx]
     with StrictLogging {
@@ -38,13 +35,12 @@ class SqliteRuntime[Ctx <: WorkflowContext](
     for {
       _ <- initSchema(xa, dbPath)
     } yield {
-      val base = new DbWorkflowInstance(
-        WorkflowInstanceId(templateId, id), // Storage doesn't need ID since each DB has one workflow
-        ActiveWorkflow(workflow, initialState),
+      val instanceId = WorkflowInstanceId(templateId, id)
+      val base       = new DbWorkflowInstance(
+        instanceId,
+        ActiveWorkflow(instanceId, workflow, initialState),
         storage,
-        clock,
-        knockerUpper,
-        registryAgent,
+        engine,
       )
 
       new MappedWorkflowInstance(
@@ -93,14 +89,12 @@ class SqliteRuntime[Ctx <: WorkflowContext](
 }
 
 object SqliteRuntime {
-  def default[Ctx <: WorkflowContext](
+  def create[Ctx <: WorkflowContext](
       workflow: Initial[Ctx],
       initialState: WCState[Ctx],
       eventCodec: ByteCodec[WCEvent[Ctx]],
-      knockerUpper: KnockerUpper.Agent,
+      engine: WorkflowInstanceEngine,
       workdir: Path,
-      clock: Clock = Clock.systemUTC(),
-      registry: WorkflowRegistry.Agent = NoOpWorkflowRegistry.Agent,
       templateId: String = s"sqlite-runtime-${java.util.UUID.randomUUID().toString.take(8)}",
   ): IO[SqliteRuntime[Ctx]] = {
 
@@ -110,10 +104,8 @@ object SqliteRuntime {
       workflow = workflow,
       initialState = initialState,
       eventCodec = eventCodec,
-      knockerUpper = knockerUpper,
+      engine = engine,
       workdir = workdir,
-      clock = clock,
-      registryAgent = registry,
       templateId = templateId,
     )
 

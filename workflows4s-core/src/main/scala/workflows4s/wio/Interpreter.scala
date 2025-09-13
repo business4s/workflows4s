@@ -1,6 +1,5 @@
 package workflows4s.wio
 
-import cats.effect.IO
 import cats.syntax.all.*
 import workflows4s.wio.internal.WorkflowEmbedding
 
@@ -22,36 +21,6 @@ object Interpreter {
     case class UnexpectedEvent[Ctx <: WorkflowContext]()             extends EventResponse[Ctx]
   }
 
-  sealed trait ProceedResponse[Ctx <: WorkflowContext] {
-    def newWorkflow: Option[ActiveWorkflow[Ctx]] = this match {
-      case ProceedResponse.Executed(newFlow) => newFlow.some
-      case ProceedResponse.Noop()            => none
-    }
-  }
-
-  object ProceedResponse {
-    case class Executed[Ctx <: WorkflowContext](newFlow: ActiveWorkflow[Ctx]) extends ProceedResponse[Ctx]
-    case class Noop[Ctx <: WorkflowContext]()                                 extends ProceedResponse[Ctx]
-  }
-
-  sealed trait RunIOResponse[Ctx <: WorkflowContext] {
-    def event: Option[IO[WCEvent[Ctx]]] = this match {
-      case RunIOResponse.Executed(newFlow) => newFlow.some
-      case RunIOResponse.Noop()            => None
-    }
-  }
-
-  object RunIOResponse {
-    case class Executed[Ctx <: WorkflowContext](newFlow: IO[WCEvent[Ctx]]) extends RunIOResponse[Ctx]
-    case class Noop[Ctx <: WorkflowContext]()                              extends RunIOResponse[Ctx]
-  }
-
-  sealed trait SignalResponse[Ctx <: WorkflowContext, Resp]
-
-  object SignalResponse {
-    case class Ok[Ctx <: WorkflowContext, Resp](value: IO[(WCEvent[Ctx], Resp)]) extends SignalResponse[Ctx, Resp]
-    case class UnexpectedSignal[Ctx <: WorkflowContext, Resp]()                  extends SignalResponse[Ctx, Resp]
-  }
 }
 
 abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio: WIO[In, Err, Out, Ctx]) {

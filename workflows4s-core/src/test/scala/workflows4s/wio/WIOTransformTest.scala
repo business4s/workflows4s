@@ -3,8 +3,6 @@ package workflows4s.wio
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.time.Instant
-
 class WIOTransformTest extends AnyFreeSpec with Matchers {
 
   import TestCtx.*
@@ -18,7 +16,7 @@ class WIOTransformTest extends AnyFreeSpec with Matchers {
         .map(_.toUpperCase)
         .toWorkflow("")
 
-      val state = wf.liveState(Instant.now)
+      val state = wf.liveState
       assert(state == "MYVALUE")
     }
 
@@ -30,7 +28,7 @@ class WIOTransformTest extends AnyFreeSpec with Matchers {
         .transformInput[String](_.toUpperCase)
         .toWorkflow("initial state")
 
-      val state = wf.liveState(Instant.now)
+      val state = wf.liveState
       assert(state == "INITIAL STATE")
     }
 

@@ -5,7 +5,6 @@ import cats.effect.IO
 import doobie.util.transactor.Transactor
 import workflows4s.doobie.postgres.PostgresWorkflowStorage
 import workflows4s.doobie.{ByteCodec, DatabaseRuntime}
-import workflows4s.runtime.registry.WorkflowRegistry
 import workflows4s.runtime.{MappedWorkflowInstance, WorkflowInstance}
 import workflows4s.testing.TestRuntimeAdapter
 import workflows4s.utils.StringUtils
@@ -20,10 +19,9 @@ class PostgresRuntimeAdapter[Ctx <: WorkflowContext](xa: Transactor[IO], eventCo
   override def runWorkflow(
       workflow: WIO.Initial[Ctx],
       state: WCState[Ctx],
-      registryAgent: WorkflowRegistry.Agent,
   ): Actor = {
     val storage = PostgresWorkflowStorage()(using eventCodec)
-    val runtime = DatabaseRuntime.default[Ctx](workflow, state, xa, knockerUpper, storage, "test", clock, registryAgent)
+    val runtime = DatabaseRuntime.create[Ctx](workflow, state, xa, engine, storage, "test")
     val id      = StringUtils.randomAlphanumericString(12)
     import cats.effect.unsafe.implicits.global
 

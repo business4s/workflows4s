@@ -32,7 +32,7 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers {
       GetSignalDefsEvaluator.run(wf.wio) should contain(mySignalDef)
 
       // Act
-      val signalResult = wf.handleSignal(mySignalDef)(42, Instant.now)
+      val signalResult = wf.handleSignal(mySignalDef)(42).toRaw
 
       // Assert
       signalResult should not be empty
@@ -61,7 +61,7 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers {
 
       GetSignalDefsEvaluator.run(wf.wio) should contain(validSignalDef)
 
-      val unexpectedSignalResult = wf.handleSignal(unexpectedSignalDef)("unexpected", Instant.now)
+      val unexpectedSignalResult = wf.handleSignal(unexpectedSignalDef)("unexpected").toRaw
 
       assert(unexpectedSignalResult.isEmpty)
     }
@@ -77,7 +77,7 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers {
         .toWorkflow("initialState")
 
       val event          = "test-event"
-      val newWorkflowOpt = wf.handleEvent(event, Instant.now)
+      val newWorkflowOpt = wf.handleEvent(event)
 
       assert(newWorkflowOpt.isDefined)
       assert(newWorkflowOpt.get.staticState == "eventHandled(initialState, SimpleEvent(test-event))")
@@ -113,7 +113,7 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers {
         .toWorkflow("initialState")
 
       val resultOpt = wf.proceed(Instant.now)
-      assert(resultOpt.isEmpty)
+      assert(resultOpt.toRaw.isEmpty)
     }
 
     "attach meta" - {
