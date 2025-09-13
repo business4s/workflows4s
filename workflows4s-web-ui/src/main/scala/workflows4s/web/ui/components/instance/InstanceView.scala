@@ -70,7 +70,7 @@ case class InstanceView(instance: WorkflowInstance, diagramView: MermaidDiagramV
 object InstanceView {
 
   def initial(instance: WorkflowInstance) = {
-    InstanceView(instance, MermaidDiagramView(instance.mermaidCode, None), SignalsView(instance, None)) -> Cmd.emit(
+    InstanceView(instance, MermaidDiagramView(instance.mermaidCode), SignalsView(instance, None)) -> Cmd.emit(
       Msg.ForDiagram(MermaidDiagramView.Msg.Retry),
     )
   }
