@@ -18,7 +18,7 @@ lazy val `workflows4s-core` = (project in file("workflows4s-core"))
     libraryDependencies ++= Seq(
       "org.typelevel"              %% "cats-effect"     % "3.6.3",
       "co.fs2"                     %% "fs2-core"        % "3.12.2",
-      "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.5",
+      "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.6",
       "io.circe"                   %% "circe-core"      % "0.14.14", // for model serialization
       "io.circe"                   %% "circe-generic"   % "0.14.14", // for model serialization
       "com.lihaoyi"                %% "sourcecode"      % "0.4.4", // for auto naming
@@ -58,7 +58,7 @@ lazy val `workflows4s-doobie` = (project in file("workflows4s-doobie"))
       "org.tpolecat"  %% "doobie-core"                     % "1.0.0-RC10",
       "com.dimafeng"  %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
       "com.dimafeng"  %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
-      "org.postgresql" % "postgresql"                      % "42.7.7"                   % Test,
+      "org.postgresql" % "postgresql"                      % "42.7.8"                   % Test,
       "org.xerial"     % "sqlite-jdbc"                     % "3.50.3.0"                 % Test,
     ),
   )
@@ -96,11 +96,11 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "io.r2dbc"              % "r2dbc-h2"                        % "1.0.0.RELEASE",
       "com.github.pjfanning" %% "pekko-http-circe"                % "3.3.0",
       "ch.qos.logback"        % "logback-classic"                 % "1.5.18",
-      "org.scalamock"        %% "scalamock"                       % "7.4.2"                    % Test,
+      "org.scalamock"        %% "scalamock"                       % "7.5.0"                    % Test,
       "org.apache.pekko"     %% "pekko-actor-testkit-typed"       % pekkoVersion               % Test,
       "com.dimafeng"         %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
       "com.dimafeng"         %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
-      "org.postgresql"        % "postgresql"                      % "42.7.7"                   % Test,
+      "org.postgresql"        % "postgresql"                      % "42.7.8"                   % Test,
       "org.xerial"            % "sqlite-jdbc"                     % "3.50.3.0"                 % Test,
     ),
     Test / parallelExecution := false, // otherwise akka clusters clash
