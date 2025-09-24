@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<definitions xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="definitions_0" targetNamespace="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL">
+  <process camunda:historyTimeToLive="P180D" id="process_2" isExecutable="true">
+    <startEvent id="startEvent_20">
+      <outgoing>sequenceFlow_9</outgoing>
+    </startEvent>
+    <serviceTask id="serviceTask_4" name="Validate Document">
+      <incoming>sequenceFlow_9</incoming>
+      <outgoing>sequenceFlow_15</outgoing>
+    </serviceTask>
+    <sequenceFlow id="sequenceFlow_9" sourceRef="startEvent_20" targetRef="serviceTask_4"/>
+    <subProcess id="subProcess_0">
+      <incoming>sequenceFlow_15</incoming>
+      <startEvent id="startEvent_21" name="">
+        <outgoing>sequenceFlow_12</outgoing>
+      </startEvent>
+      <subProcess id="subProcess_1">
+        <incoming>sequenceFlow_12</incoming>
+        <startEvent id="startEvent_22" name="">
+          <outgoing>sequenceFlow_10</outgoing>
+        </startEvent>
+        <serviceTask id="serviceTask_5" name="Extract Content">
+          <incoming>sequenceFlow_10</incoming>
+          <outgoing>sequenceFlow_11</outgoing>
+        </serviceTask>
+        <sequenceFlow id="sequenceFlow_10" sourceRef="startEvent_22" targetRef="serviceTask_5"/>
+        <endEvent id="endEvent_23">
+          <incoming>sequenceFlow_11</incoming>
+        </endEvent>
+        <sequenceFlow id="sequenceFlow_11" sourceRef="serviceTask_5" targetRef="endEvent_23"/>
+      </subProcess>
+      <sequenceFlow id="sequenceFlow_12" sourceRef="startEvent_21" targetRef="subProcess_1"/>
+      <boundaryEvent attachedToRef="subProcess_1" id="boundaryEvent_7" name="Urgent Processing Request">
+        <outgoing>sequenceFlow_13</outgoing>
+        <signalEventDefinition id="signalEventDefinition_19" signalRef="signal_18"/>
+      </boundaryEvent>
+      <serviceTask id="serviceTask_6" name="Handle Urgent Processing Request">
+        <incoming>sequenceFlow_13</incoming>
+        <outgoing>sequenceFlow_14</outgoing>
+      </serviceTask>
+      <sequenceFlow id="sequenceFlow_13" sourceRef="boundaryEvent_7" targetRef="serviceTask_6"/>
+      <endEvent id="endEvent_24">
+        <incoming>sequenceFlow_14</incoming>
+      </endEvent>
+      <sequenceFlow id="sequenceFlow_14" sourceRef="serviceTask_6" targetRef="endEvent_24"/>
+    </subProcess>
+    <sequenceFlow id="sequenceFlow_15" sourceRef="serviceTask_4" targetRef="subProcess_0"/>
+    <boundaryEvent attachedToRef="subProcess_0" id="boundaryEvent_8" name="Processing Deadline">
+      <outgoing>sequenceFlow_16</outgoing>
+      <timerEventDefinition id="timerEventDefinition_3">
+        <timeDuration id="timeDuration_17"/>
+      </timerEventDefinition>
+    </boundaryEvent>
+    <endEvent id="endEvent_25">
+      <incoming>sequenceFlow_16</incoming>
+    </endEvent>
+    <sequenceFlow id="sequenceFlow_16" sourceRef="boundaryEvent_8" targetRef="endEvent_25"/>
+  </process>
+  <signal id="signal_18" name="Urgent Processing Request"/>
+  <bpmndi:BPMNDiagram id="BpmnDiagram_0">
+    <bpmndi:BPMNPlane bpmnElement="process_2" id="BpmnPlaneImpl_21">
+      <bpmndi:BPMNShape bpmnElement="startEvent_20" id="BpmnShapeImpl_8">
+        <dc:Bounds height="36.0" width="36.0" x="100.0" y="100.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="serviceTask_4" id="BpmnShapeImpl_9">
+        <dc:Bounds height="80.0" width="100.0" x="186.0" y="78.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_9" id="BpmnEdgeImpl_0">
+        <di:waypoint x="136.0" y="118.0"/>
+        <di:waypoint x="186.0" y="118.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape bpmnElement="subProcess_0" id="BpmnShapeImpl_10" isExpanded="true">
+        <dc:Bounds height="408.0" width="588.5" x="336.0" y="-32.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_15" id="BpmnEdgeImpl_1">
+        <di:waypoint x="286.0" y="118.0"/>
+        <di:waypoint x="336.0" y="118.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape bpmnElement="startEvent_21" id="BpmnShapeImpl_11">
+        <dc:Bounds height="36.0" width="36.0" x="386.0" y="100.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="subProcess_1" id="BpmnShapeImpl_12" isExpanded="true">
+        <dc:Bounds height="200.0" width="372.0" x="472.0" y="18.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_12" id="BpmnEdgeImpl_2">
+        <di:waypoint x="422.0" y="118.0"/>
+        <di:waypoint x="472.0" y="118.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape bpmnElement="startEvent_22" id="BpmnShapeImpl_13">
+        <dc:Bounds height="36.0" width="36.0" x="522.0" y="100.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="serviceTask_5" id="BpmnShapeImpl_14">
+        <dc:Bounds height="80.0" width="100.0" x="608.0" y="78.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_10" id="BpmnEdgeImpl_3">
+        <di:waypoint x="558.0" y="118.0"/>
+        <di:waypoint x="608.0" y="118.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape bpmnElement="endEvent_23" id="BpmnShapeImpl_15">
+        <dc:Bounds height="36.0" width="36.0" x="758.0" y="100.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_11" id="BpmnEdgeImpl_4">
+        <di:waypoint x="708.0" y="118.0"/>
+        <di:waypoint x="758.0" y="118.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape bpmnElement="boundaryEvent_7" id="BpmnShapeImpl_16">
+        <dc:Bounds height="36.0" width="36.0" x="640.0" y="200.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="serviceTask_6" id="BpmnShapeImpl_17">
+        <dc:Bounds height="80.0" width="100.0" x="688.5" y="246.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_13" id="BpmnEdgeImpl_5">
+        <di:waypoint x="658.0" y="236.0"/>
+        <di:waypoint x="658.0" y="286.0"/>
+        <di:waypoint x="688.5" y="286.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape bpmnElement="endEvent_24" id="BpmnShapeImpl_18">
+        <dc:Bounds height="36.0" width="36.0" x="838.5" y="268.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_14" id="BpmnEdgeImpl_6">
+        <di:waypoint x="788.5" y="286.0"/>
+        <di:waypoint x="838.5" y="286.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape bpmnElement="boundaryEvent_8" id="BpmnShapeImpl_19">
+        <dc:Bounds height="36.0" width="36.0" x="612.25" y="358.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="endEvent_25" id="BpmnShapeImpl_20">
+        <dc:Bounds height="36.0" width="36.0" x="660.75" y="426.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_16" id="BpmnEdgeImpl_7">
+        <di:waypoint x="630.25" y="394.0"/>
+        <di:waypoint x="630.25" y="444.0"/>
+        <di:waypoint x="660.75" y="444.0"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>

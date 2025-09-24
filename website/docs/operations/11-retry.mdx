@@ -58,3 +58,11 @@ If you see it as a major limitation, please reach out.
 Use workflow-level retries for retry schedules spanning **minutes to hours or days**
 
 For short-lived retries (e.g., retrying within milliseconds or seconds), prefer handling them directly inside the `IO` operation using libraries like [`cats-retry`](https://github.com/cats-effect/cats-retry).
+
+## Drafting Support
+
+Retries come with [drafting support](20-drafting.mdx).
+
+```scala file=./main/scala/workflows4s/example/docs/draft/DraftRetryExample.scala start=start_draft end=end_draft
+```
+<OperationOutputs name="draft-retry"/>

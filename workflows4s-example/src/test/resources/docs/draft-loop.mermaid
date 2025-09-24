@@ -1,0 +1,12 @@
+flowchart TD
+node0:::executed@{ shape: circle, label: "Start"}
+node1["Process Item"]
+node0 --> node1
+node2@{ shape: stadium, label: "fa:fa-clock Wait before retry (1m)"}
+node1 --> node2
+node3@{ shape: hex, label: "Is processing complete?"}
+node2 --> node3
+node4["Reset for retry"]
+node3 -->|"No"| node4
+node4 --> node1
+classDef executed fill:#0e0

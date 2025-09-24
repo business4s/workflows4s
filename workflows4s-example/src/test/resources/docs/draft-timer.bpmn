@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<definitions xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="definitions_0" targetNamespace="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL">
+  <process camunda:historyTimeToLive="P180D" id="process_1" isExecutable="true">
+    <startEvent id="startEvent_6">
+      <outgoing>sequenceFlow_3</outgoing>
+    </startEvent>
+    <intermediateCatchEvent id="intermediateCatchEvent_0" name="Wait For Review">
+      <incoming>sequenceFlow_3</incoming>
+      <outgoing>sequenceFlow_4</outgoing>
+      <timerEventDefinition id="timerEventDefinition_2">
+        <timeDuration id="timeDuration_5">24h</timeDuration>
+      </timerEventDefinition>
+    </intermediateCatchEvent>
+    <sequenceFlow id="sequenceFlow_3" sourceRef="startEvent_6" targetRef="intermediateCatchEvent_0"/>
+    <endEvent id="endEvent_7">
+      <incoming>sequenceFlow_4</incoming>
+    </endEvent>
+    <sequenceFlow id="sequenceFlow_4" sourceRef="intermediateCatchEvent_0" targetRef="endEvent_7"/>
+  </process>
+  <bpmndi:BPMNDiagram id="BpmnDiagram_0">
+    <bpmndi:BPMNPlane bpmnElement="process_1" id="BpmnPlaneImpl_5">
+      <bpmndi:BPMNShape bpmnElement="startEvent_6" id="BpmnShapeImpl_2">
+        <dc:Bounds height="36.0" width="36.0" x="100.0" y="100.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="intermediateCatchEvent_0" id="BpmnShapeImpl_3">
+        <dc:Bounds height="36.0" width="36.0" x="186.0" y="100.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_3" id="BpmnEdgeImpl_0">
+        <di:waypoint x="136.0" y="118.0"/>
+        <di:waypoint x="186.0" y="118.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape bpmnElement="endEvent_7" id="BpmnShapeImpl_4">
+        <dc:Bounds height="36.0" width="36.0" x="272.0" y="100.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_4" id="BpmnEdgeImpl_1">
+        <di:waypoint x="222.0" y="118.0"/>
+        <di:waypoint x="272.0" y="118.0"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>
