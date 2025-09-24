@@ -13,9 +13,9 @@ object DraftBuilder {
 
   trait Step0[Ctx <: WorkflowContext]() {
 
-    def draft: DraftBuilderStep1 = DraftBuilderStep1()
+    val draft: DraftBuilderStep1.type = DraftBuilderStep1
 
-    class DraftBuilderStep1 {
+    object DraftBuilderStep1 {
       def signal(name: String = null, error: String = null)(using autoName: sourcecode.Name): WIO.Draft[Ctx]           = WIO.HandleSignal(
         draftSignal,
         SignalHandler[Unit, Unit, Any]((_, _) => ???),
@@ -84,29 +84,7 @@ object DraftBuilder {
           .map(_ => ???)
       }
 
-      def checkpoint(name: String = null)(using autoName: sourcecode.Name): WIO.Draft[Ctx] = {
-        WIO.RunIO(
-          _ => ???,
-          dummyEventHandler,
-          WIO.RunIO.Meta(
-            ErrorMeta.noError,
-            getEffectiveName(name, autoName).some,
-            None,
-          ),
-        )
-      }
-
-      def recovery(name: String = null)(using autoName: sourcecode.Name): WIO.Draft[Ctx] = {
-        WIO.RunIO(
-          _ => ???,
-          dummyEventHandler,
-          WIO.RunIO.Meta(
-            ErrorMeta.noError,
-            getEffectiveName(name, autoName).some,
-            None,
-          ),
-        )
-      }
+      def recovery: WIO.Draft[Ctx] = WIO.Recovery(dummyEventHandler)
 
       def interruptionSignal(
           signalName: String = null,
@@ -156,6 +134,15 @@ object DraftBuilder {
           )
           .transformInput((_: Any) => ???)
           .map(_ => ???)
+      }
+      def checkpoint(base: WIO.Draft[Ctx]): WIO.Draft[Ctx] = WIO.Checkpoint(base, (_, _) => ???, dummyEventHandler)
+
+
+      object syntax {
+        extension (base: WIO.Draft[Ctx]) {
+          def draftCheckpointed: WIO.Draft[Ctx] = checkpoint(base)
+          def draftRetry: WIO.Draft[Ctx] = retry(base)
+        }
       }
 
     }

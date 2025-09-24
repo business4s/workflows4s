@@ -53,10 +53,14 @@ In practice, checkpointing and recovery are often used together to enable workfl
 
 ## Drafting Support
 
-When drafting workflows that need checkpointing and recovery, you can use the draft API.
+Checkpointing and recovery come with [drafting support](20-drafting.mdx).
 
 ### Draft Checkpoint
-```scala file=./main/scala/workflows4s/example/docs/DraftCheckpointExample.scala start=start_draft_checkpoint end=end_draft_recovery
-
+```scala file=./main/scala/workflows4s/example/docs/draft/DraftCheckpointExample.scala start=start_draft_checkpoint end=end_draft_checkpoint
 ```
-<OperationOutputs name="draft-checkpoint" showBpmn={false}/> 
+<OperationOutputs name="draft-checkpoint" showBpmn={false}/>
+
+### Draft Checkpoint
+```scala file=./main/scala/workflows4s/example/docs/draft/DraftCheckpointExample.scala start=start_draft_recovery end=end_draft_recovery
+```
+<OperationOutputs name="draft-recovery" showBpmn={false}/>

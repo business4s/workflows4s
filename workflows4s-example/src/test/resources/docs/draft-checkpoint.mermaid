@@ -1,8 +1,7 @@
 flowchart TD
 node0@{ shape: circle, label: "Start"}
-node1["CP"]
-node0 --> node1
+node1:::checkpoint
+subgraph node1 ["Checkpoint"]
 node2["A"]
-node1 --> node2
-node3["B"]
-node2 --> node3
+node0 --> node2
+end

@@ -11,17 +11,12 @@ Signal handling is essential for workflows that need to pause and wait for exter
 
 ## Drafting Support
 
-When drafting workflows that need signal handling, use `WIO.draft.signal()`:
+Awaiting signals come with [drafting support](20-drafting.mdx).
 
-```scala file=./main/scala/workflows4s/example/docs/DraftSignalExample.scala start=start_draft end=end_draft
+```scala file=./main/scala/workflows4s/example/docs/draft/DraftSignalExample.scala start=start_draft end=end_draft
 ```
 
 <OperationOutputs name="draft-signal"/>
-
-The draft signal operation simplifies the API by:
-- Not requiring signal type parameters
-- Not requiring explicit event handling
-- Automatically generating names from the context if not provided
 
 # Unhandled Signals
 

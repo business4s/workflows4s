@@ -2,7 +2,7 @@
   "meta" : {
     "duration" : "PT24H",
     "releaseAt" : null,
-    "name" : "Wait for Review"
+    "name" : "Wait For Review"
   },
   "_type" : "Timer"
 }

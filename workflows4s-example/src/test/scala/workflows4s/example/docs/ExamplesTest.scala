@@ -2,6 +2,7 @@ package workflows4s.example.docs
 
 import org.scalatest.freespec.AnyFreeSpec
 import workflows4s.example.TestUtils
+import workflows4s.example.docs.draft.{DraftCheckpointExample, DraftForkExample, DraftInterruptionExample, DraftLoopExample, DraftParallelExample, DraftRetryExample, DraftSignalExample, DraftTimerExample}
 import workflows4s.example.docs.pullrequest.{PullRequestWorkflow, PullRequestWorkflowDraft}
 import workflows4s.wio.WIO
 
@@ -16,7 +17,7 @@ class ExamplesTest extends AnyFreeSpec {
     ExampleConfig("timer", TimerExample.waitForInput),
     ExampleConfig("draft-timer", DraftTimerExample.waitForReview),
     ExampleConfig("handle-signal", HandleSignalExample.doThings),
-    ExampleConfig("draft-signal", DraftSignalExample.workflow),
+    ExampleConfig("draft-signal", DraftSignalExample.awaitApproval),
     ExampleConfig("and-then", SequencingExample.sequence1),
     ExampleConfig("flat-map", SequencingExample.Dynamic.sequence1),
     ExampleConfig("handle-error-with", HandleErrorExample.errorHandled),
@@ -31,7 +32,8 @@ class ExamplesTest extends AnyFreeSpec {
     ExampleConfig("draft-interruption", DraftInterruptionExample.documentProcessingWorkflow),
     ExampleConfig("checkpoint", CheckpointExample.checkpoint.checkpointed, technical = true),
     ExampleConfig("recovery", CheckpointExample.recovery.myWorkflow, technical = true),
-    ExampleConfig("draft-checkpoint", DraftCheckpointExample.v1, technical = true),
+    ExampleConfig("draft-checkpoint", DraftCheckpointExample.checkpointed, technical = true),
+    ExampleConfig("draft-recovery", DraftCheckpointExample.recovery, technical = true),
     ExampleConfig("pure", PureExample.doThings),
     ExampleConfig("pure-error", PureExample.doThingsWithError),
     ExampleConfig("pull-request-draft", PullRequestWorkflowDraft.workflow),

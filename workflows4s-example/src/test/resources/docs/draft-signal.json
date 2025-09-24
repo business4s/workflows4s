@@ -1,23 +1,10 @@
 {
-  "steps" : [
-    {
-      "meta" : {
-        "name" : "Submit PR",
-        "error" : null,
-        "description" : null
-      },
-      "_type" : "RunIO"
-    },
-    {
-      "meta" : {
-        "signalName" : "Approval Required",
-        "operationName" : null,
-        "error" : {
-          "name" : "Rejected"
-        }
-      },
-      "_type" : "HandleSignal"
+  "meta" : {
+    "signalName" : "Approval Required",
+    "operationName" : null,
+    "error" : {
+      "name" : "Rejected"
     }
-  ],
-  "_type" : "Sequence"
+  },
+  "_type" : "HandleSignal"
 }

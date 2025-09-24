@@ -1,4 +1,4 @@
-package workflows4s.example.docs
+package workflows4s.example.docs.draft
 
 object DraftParallelExample {
   import workflows4s.wio.DraftWorkflowContext.*

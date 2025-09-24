@@ -12,13 +12,9 @@ It's equivalent to `if` instructions but allow for static rendering of the workf
 
 ## Drafting Support
 
-When drafting workflows that need conditional branching, use `WIO.draft.choice()` to create forks with a simpler API:
+Branching comes with [drafting support](20-drafting.mdx).
 
-```scala file=./main/scala/workflows4s/example/docs/DraftForkExample.scala start=start_draft end=end_draft
+```scala file=./main/scala/workflows4s/example/docs/draft/DraftForkExample.scala start=start_draft end=end_draft
 ```
 
 <OperationOutputs name="draft-choice"/>
-
-The draft choice operation simplifies the API by:
-- Not requiring explicit condition functions
-- Automatically generating names from the context if not provided

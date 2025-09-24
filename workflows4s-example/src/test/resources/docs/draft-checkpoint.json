@@ -1,29 +1,11 @@
 {
-  "steps" : [
-    {
-      "meta" : {
-        "name" : "CP",
-        "error" : null,
-        "description" : null
-      },
-      "_type" : "RunIO"
+  "base" : {
+    "meta" : {
+      "name" : "A",
+      "error" : null,
+      "description" : null
     },
-    {
-      "meta" : {
-        "name" : "A",
-        "error" : null,
-        "description" : null
-      },
-      "_type" : "RunIO"
-    },
-    {
-      "meta" : {
-        "name" : "B",
-        "error" : null,
-        "description" : null
-      },
-      "_type" : "RunIO"
-    }
-  ],
-  "_type" : "Sequence"
+    "_type" : "RunIO"
+  },
+  "_type" : "Checkpoint"
 }

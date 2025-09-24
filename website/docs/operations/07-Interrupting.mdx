@@ -12,15 +12,9 @@ This allows selecting an alternative path based on such a signal.
 
 ## Drafting Support
 
-When drafting workflows that need interruption handling, use `WIO.draft.interruptionSignal()` and `WIO.draft.interruptionTimeout()`:
+Interruptions come with [drafting support](20-drafting.mdx).
 
-```scala file=./main/scala/workflows4s/example/docs/DraftInterruptionExample.scala start=start_draft end=end_draft
+```scala file=./main/scala/workflows4s/example/docs/draft/DraftInterruptionExample.scala start=start_draft end=end_draft
 ```
 
 <OperationOutputs name="draft-interruption"/>
-
-The draft interruption operations simplify the API by:
-- Not requiring signal type parameters or event handling for signals
-- Not requiring duration source configuration for timeouts  
-- Automatically generating names from the context if not provided
-- Providing a simple interface for creating interruptible workflows

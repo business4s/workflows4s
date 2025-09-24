@@ -39,7 +39,7 @@ These operations need special handling because they shouldn't be re-executed dur
 
 :::info
 
-Workflows4s currently supports onyl cats-effect IO. If you're interested in other effect systems, please check [here](https://github.com/business4s/workflows4s/issues/59).
+Workflows4s currently supports only cats-effect IO. If you're interested in other effect systems, please check [here](https://github.com/business4s/workflows4s/issues/59).
 
 :::
 
@@ -69,3 +69,10 @@ You can add descriptions to RunIO operations to provide additional context in di
 ```
 
 <OperationOutputs name="run-io-description"/>
+
+## Drafting support
+
+Executing logic comes with [drafting support](20-drafting.mdx).
+
+```scala file=./main/scala/workflows4s/example/docs/draft/DraftStepExample.scala start=start_doc end=end_doc
+```
