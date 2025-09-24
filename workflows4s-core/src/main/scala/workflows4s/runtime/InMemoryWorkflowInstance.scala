@@ -1,21 +1,17 @@
 package workflows4s.runtime
 
 import cats.Monad
-import cats.effect.std.AtomicCell
-import cats.effect.{IO, LiftIO, Ref}
-import workflows4s.runtime.registry.WorkflowRegistry
-import workflows4s.runtime.wakeup.KnockerUpper
+import cats.effect.std.{AtomicCell, Semaphore}
+import cats.effect.{IO, LiftIO, Ref, Resource}
+import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.wio.*
-
-import java.time.Clock
 
 class InMemoryWorkflowInstance[Ctx <: WorkflowContext](
     val id: WorkflowInstanceId,
     stateCell: AtomicCell[IO, ActiveWorkflow[Ctx]],
     eventsRef: Ref[IO, Vector[WCEvent[Ctx]]],
-    protected val clock: Clock,
-    protected val knockerUpper: KnockerUpper.Agent,
-    protected val registry: WorkflowRegistry.Agent,
+    protected val engine: WorkflowInstanceEngine,
+    val lock: Semaphore[IO],
 ) extends WorkflowInstanceBase[IO, Ctx] {
 
   def getEvents: IO[Vector[WCEvent[Ctx]]] = eventsRef.get
@@ -33,20 +29,10 @@ class InMemoryWorkflowInstance[Ctx <: WorkflowContext](
 
   override protected def getWorkflow: IO[ActiveWorkflow[Ctx]] = stateCell.get
 
-  override protected def lockAndUpdateState[T](
-      update: ActiveWorkflow[Ctx] => IO[LockOutcome[T]],
-  ): IO[StateUpdate[T]] = {
-    stateCell.evalModify { oldState =>
-      update(oldState).flatMap {
-        case LockOutcome.NewEvent(event, result) =>
-          for {
-            now     <- IO(clock.instant())
-            newState = processLiveEvent(event, oldState, now)
-            _       <- eventsRef.update(_ :+ event)
-          } yield (newState, StateUpdate.Updated(oldState, newState, result))
-        case LockOutcome.NoOp(result)            =>
-          IO.pure((oldState, StateUpdate.NoOp(oldState, result)))
-      }
-    }
-  }
+  override protected def persistEvent(event: WCEvent[Ctx]): IO[Unit] = eventsRef.update(_ :+ event)
+
+  override protected def updateState(newState: ActiveWorkflow[Ctx]): IO[Unit] = stateCell.set(newState)
+
+  override protected def lockState[T](update: ActiveWorkflow[Ctx] => IO[T]): IO[T] =
+    Resource.make(lock.acquire)(_ => lock.release).use(_ => stateCell.get.flatMap(update))
 }

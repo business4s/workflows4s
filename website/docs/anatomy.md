@@ -12,11 +12,14 @@ The diagram below illustrates the key components of Workflows4s and their relati
 ```mermaid
 flowchart LR
     UserLogic["Your Business Logic"] --> WIO["WIO (Workflow Definition)"]
-    RuntimeDeps["Runtime Dependencies"] --> Runtime["WorkflowRuntime"]
+    RuntimeDeps["Runtime-specific Dependencies"] --> Runtime["WorkflowRuntime"]
     WIO --> Runtime
+    
+    Engine[WorkflowInstanceEngine] --> Runtime
 
-    KnockerUpper["KnockerUpper"] --> Runtime
-    WorkflowRegistry["WorkflowRegistry"] --> Runtime
+    KnockerUpper["KnockerUpper"] --> Engine
+    WorkflowRegistry["WorkflowRegistry"] --> Engine
+    Clock["Clock"] --> Engine
 
     Runtime -- "createInstance(id)" --> Instance["WorkflowInstance"]
     Events["Events"] -. "persisted/retrieved" .-> Instance
@@ -24,9 +27,10 @@ flowchart LR
     Instance -- "queryState()" --> State["Current State"]
     Instance -- "wakeup()" --> Events
     Instance -- "deliverSignal()" --> Events
+    Instance -- "uses" --> Engine
     KnockerUpper -. "wakeups" .-> Instance
-    Instance -. "register wakeups" .-> KnockerUpper
-    Instance -. "records execution status" .-> WorkflowRegistry
+    Engine -. "register wakeups" .-> KnockerUpper
+    Engine -. "records execution status" .-> WorkflowRegistry
 
     WIO --> StaticViz["Static Visualization"]
     Instance --> ProgressViz["Progress Visualization"]
@@ -38,7 +42,7 @@ flowchart LR
     classDef viz fill:#bfb,stroke:#333,stroke-width:2px;
 
     class WIO,Events core;
-    class Runtime,Instance,State,KnockerUpper,WorkflowRegistry runtime;
+    class Runtime,Instance,State,KnockerUpper,WorkflowRegistry,Engine runtime;
     class Renderer,StaticViz,ProgressViz viz;
 ```
 
@@ -59,6 +63,8 @@ flowchart LR
 - **Runtime Dependencies**: External services required by the runtime (e.g., event storage).
 - **WorkflowInstance**: A specific execution of a workflow with a unique ID.
 - **Events**: Persistent records of all actions and state changes in the workflow.
+- **WorkflowInstanceEngine**: Expandable, runtime-agnostic component that participates in all operations executed by the
+  instance. Similar to sttp Backend
 - **KnockerUpper**: Responsible for waking up workflows at scheduled times, handling timer-based operations.
 - **WorkflowRegistry**: Keeps track of executed instances and their execution status.
 
