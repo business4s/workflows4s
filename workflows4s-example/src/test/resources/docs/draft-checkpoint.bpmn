@@ -4,7 +4,7 @@
     <startEvent id="startEvent_4">
       <outgoing>sequenceFlow_2</outgoing>
     </startEvent>
-    <serviceTask id="serviceTask_1" name="A">
+    <serviceTask id="serviceTask_1" name="Base">
       <incoming>sequenceFlow_2</incoming>
       <outgoing>sequenceFlow_3</outgoing>
     </serviceTask>
