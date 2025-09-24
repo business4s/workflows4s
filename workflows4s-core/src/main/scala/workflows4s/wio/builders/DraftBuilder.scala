@@ -26,7 +26,7 @@ object DraftBuilder {
           None,
         ),
       )
-      def timer(name: String = null, duration: FiniteDuration = null)(using autoName: sourcecode.Name): WIO.Draft[Ctx] =
+      def timer(name: String = null, duration: FiniteDuration = null)(using autoName: sourcecode.Name): WIO.Timer[Ctx, Any, Nothing, Nothing] =
         WIO.Timer(
           Option(duration) match {
             case Some(value) => WIO.Timer.DurationSource.Static(value.toJava)
