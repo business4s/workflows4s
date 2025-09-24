@@ -58,8 +58,8 @@ object PostgresWorkflowRegistry {
         now       <- fs2.Stream.eval(Sync[ConnectionIO].delay(Instant.now(clock)))
         cutoffTime = now.minusMillis(notUpdatedFor.toMillis)
         elem      <- sql"""SELECT template_id, instance_id
-                     |FROM ${tableNameFr}
-                     |WHERE updated_at <= ${Timestamp.from(cutoffTime)}""".stripMargin
+                          |FROM ${tableNameFr}
+                          |WHERE updated_at <= ${Timestamp.from(cutoffTime)}""".stripMargin
                        .query[(String, String)]
                        .stream
       } yield WorkflowInstanceId(elem._1, elem._2)

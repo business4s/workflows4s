@@ -1,0 +1,10 @@
+{
+  "meta" : {
+    "signalName" : "Approval Required",
+    "operationName" : null,
+    "error" : {
+      "name" : "Rejected"
+    }
+  },
+  "_type" : "HandleSignal"
+}
