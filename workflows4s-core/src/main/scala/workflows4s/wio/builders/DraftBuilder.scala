@@ -16,16 +16,17 @@ object DraftBuilder {
     val draft: DraftBuilderStep1.type = DraftBuilderStep1
 
     object DraftBuilderStep1 {
-      def signal(name: String = null, error: String = null)(using autoName: sourcecode.Name): WIO.Draft[Ctx]           = WIO.HandleSignal(
-        draftSignal,
-        SignalHandler[Unit, Unit, Any]((_, _) => ???),
-        dummyEventHandler,
-        WIO.HandleSignal.Meta(
-          Option(error).map(ErrorMeta.Present(_)).getOrElse(ErrorMeta.noError),
-          getEffectiveName(name, autoName),
-          None,
-        ),
-      )
+      def signal(name: String = null, error: String = null)(using autoName: sourcecode.Name): WIO.Draft[Ctx]                                  =
+        WIO.HandleSignal(
+          draftSignal,
+          SignalHandler[Unit, Unit, Any]((_, _) => ???),
+          dummyEventHandler,
+          WIO.HandleSignal.Meta(
+            Option(error).map(ErrorMeta.Present(_)).getOrElse(ErrorMeta.noError),
+            getEffectiveName(name, autoName),
+            None,
+          ),
+        )
       def timer(name: String = null, duration: FiniteDuration = null)(using autoName: sourcecode.Name): WIO.Timer[Ctx, Any, Nothing, Nothing] =
         WIO.Timer(
           Option(duration) match {
