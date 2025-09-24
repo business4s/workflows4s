@@ -2,7 +2,16 @@ package workflows4s.example.docs
 
 import org.scalatest.freespec.AnyFreeSpec
 import workflows4s.example.TestUtils
-import workflows4s.example.docs.draft.{DraftCheckpointExample, DraftForkExample, DraftInterruptionExample, DraftLoopExample, DraftParallelExample, DraftRetryExample, DraftSignalExample, DraftTimerExample}
+import workflows4s.example.docs.draft.{
+  DraftCheckpointExample,
+  DraftForkExample,
+  DraftInterruptionExample,
+  DraftLoopExample,
+  DraftParallelExample,
+  DraftRetryExample,
+  DraftSignalExample,
+  DraftTimerExample,
+}
 import workflows4s.example.docs.pullrequest.{PullRequestWorkflow, PullRequestWorkflowDraft}
 import workflows4s.wio.WIO
 
@@ -59,7 +68,6 @@ class ExamplesTest extends AnyFreeSpec {
   "render progress" in {
     val instance = PullRequestWorkflow.run
     TestUtils.renderDocsProgressExample(instance, "pull-request-completed")
-
   }
 
 }

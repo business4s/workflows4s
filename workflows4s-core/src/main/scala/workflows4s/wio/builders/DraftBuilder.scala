@@ -126,7 +126,7 @@ object DraftBuilder {
         WIO.Interruption(draftTimer, WIO.HandleInterruption.InterruptionType.Timer)
       }
 
-      def retry(base: WIO.Draft[Ctx]): WIO.Draft[Ctx] = {
+      def retry(base: WIO.Draft[Ctx]): WIO.Draft[Ctx]      = {
         WIO
           .Retry(
             base,
@@ -137,11 +137,10 @@ object DraftBuilder {
       }
       def checkpoint(base: WIO.Draft[Ctx]): WIO.Draft[Ctx] = WIO.Checkpoint(base, (_, _) => ???, dummyEventHandler)
 
-
       object syntax {
         extension (base: WIO.Draft[Ctx]) {
           def draftCheckpointed: WIO.Draft[Ctx] = checkpoint(base)
-          def draftRetry: WIO.Draft[Ctx] = retry(base)
+          def draftRetry: WIO.Draft[Ctx]        = retry(base)
         }
       }
 
