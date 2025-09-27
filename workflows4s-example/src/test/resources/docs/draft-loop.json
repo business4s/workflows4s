@@ -1,0 +1,37 @@
+{
+  "base" : {
+    "steps" : [
+      {
+        "meta" : {
+          "name" : "Process Item",
+          "error" : null,
+          "description" : null
+        },
+        "_type" : "RunIO"
+      },
+      {
+        "meta" : {
+          "duration" : "PT1M",
+          "releaseAt" : null,
+          "name" : "Wait before retry"
+        },
+        "_type" : "Timer"
+      }
+    ],
+    "_type" : "Sequence"
+  },
+  "onRestart" : {
+    "meta" : {
+      "name" : "Reset for retry",
+      "error" : null,
+      "description" : null
+    },
+    "_type" : "RunIO"
+  },
+  "meta" : {
+    "conditionName" : "Is processing complete?",
+    "exitBranchName" : "Yes",
+    "restartBranchName" : "No"
+  },
+  "_type" : "Loop"
+}

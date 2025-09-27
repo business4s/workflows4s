@@ -4,36 +4,30 @@ import cats.data.Kleisli
 import cats.effect.{IO, LiftIO}
 import doobie.util.transactor.Transactor
 import doobie.{ConnectionIO, WeakAsync}
-import workflows4s.runtime.registry.{NoOpWorkflowRegistry, WorkflowRegistry}
-import workflows4s.runtime.wakeup.KnockerUpper
+import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.{MappedWorkflowInstance, WorkflowInstance, WorkflowInstanceId, WorkflowRuntime}
 import workflows4s.wio.WIO.Initial
 import workflows4s.wio.{ActiveWorkflow, WCEvent, WCState, WorkflowContext}
 
-import java.time.Clock
-
 class DatabaseRuntime[Ctx <: WorkflowContext](
     workflow: Initial[Ctx],
     initialState: WCState[Ctx],
-    clock: Clock,
-    knockerUpper: KnockerUpper.Agent,
+    engine: WorkflowInstanceEngine,
     xa: Transactor[IO],
     storage: WorkflowStorage[WCEvent[Ctx]],
-    registry: WorkflowRegistry.Agent,
     val templateId: String,
 ) extends WorkflowRuntime[IO, Ctx] {
 
   override def createInstance(id: String): IO[WorkflowInstance[IO, WCState[Ctx]]] = {
-    val base   = new DbWorkflowInstance(
-      WorkflowInstanceId(templateId, id),
-      ActiveWorkflow(workflow, initialState),
+    val instanceId = WorkflowInstanceId(templateId, id)
+    val base       = new DbWorkflowInstance(
+      instanceId,
+      ActiveWorkflow(instanceId, workflow, initialState),
       storage,
-      clock,
-      knockerUpper,
-      registry,
+      engine,
     )
     // alternative is to take `LiftIO` as runtime parameter but this complicates call site
-    val mapped = new MappedWorkflowInstance(
+    val mapped     = new MappedWorkflowInstance(
       base,
       [t] =>
         (connIo: Kleisli[ConnectionIO, LiftIO[ConnectionIO], t]) => WeakAsync.liftIO[ConnectionIO].use(liftIO => xa.trans.apply(connIo.apply(liftIO))),
@@ -43,17 +37,15 @@ class DatabaseRuntime[Ctx <: WorkflowContext](
 }
 
 object DatabaseRuntime {
-  def default[Ctx <: WorkflowContext](
+  // TODO seems redundant, to be removed if its still the case after few months
+  def create[Ctx <: WorkflowContext](
       workflow: Initial[Ctx],
       initialState: WCState[Ctx],
       transactor: Transactor[IO],
-      knockerUpper: KnockerUpper.Agent,
+      engine: WorkflowInstanceEngine,
       storage: WorkflowStorage[WCEvent[Ctx]],
       templateId: String, // this has to be explicit, as it will be saved in the database and has to be consistent across runtimes
-      clock: Clock = Clock.systemUTC(),
-      registry: WorkflowRegistry.Agent = NoOpWorkflowRegistry.Agent,
-  ) = {
-
-    new DatabaseRuntime[Ctx](workflow, initialState, clock, knockerUpper, transactor, storage, registry, templateId)
+  ): DatabaseRuntime[Ctx] = {
+    new DatabaseRuntime[Ctx](workflow, initialState, engine, transactor, storage, templateId)
   }
 }

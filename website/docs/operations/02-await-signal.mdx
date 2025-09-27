@@ -9,6 +9,15 @@ Signal handling is essential for workflows that need to pause and wait for exter
 
 <OperationOutputs name="handle-signal"/>
 
+## Drafting Support
+
+Awaiting signals come with [drafting support](20-drafting.mdx).
+
+```scala file=./main/scala/workflows4s/example/docs/draft/DraftSignalExample.scala start=start_draft end=end_draft
+```
+
+<OperationOutputs name="draft-signal"/>
+
 # Unhandled Signals
 
 The Workflows4s API allows arbitrary signals to be sent to a workflow instance. While this provides flexibility, it also

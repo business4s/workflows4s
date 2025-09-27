@@ -6,6 +6,7 @@ import io.circe.{Decoder, Encoder}
 import org.camunda.bpm.model.bpmn.Bpmn
 import sttp.tapir.Schema
 import workflows4s.bpmn.BpmnRenderer
+import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.{InMemorySyncRuntime, InMemorySyncWorkflowInstance}
 import workflows4s.wio.{SignalDef, WorkflowContext}
 
@@ -119,7 +120,8 @@ object CourseRegistrationWorkflow {
     // end_render
 
     // start_execution
-    val runtime    = InMemorySyncRuntime.default[Context.Ctx](workflow, RegistrationState.Empty)
+    val engine     = WorkflowInstanceEngine.basic()
+    val runtime    = InMemorySyncRuntime.create[Context.Ctx](workflow, RegistrationState.Empty, engine)
     val wfInstance = runtime.createInstance("student-123")
 
     println("=== Course Registration Workflow ===")

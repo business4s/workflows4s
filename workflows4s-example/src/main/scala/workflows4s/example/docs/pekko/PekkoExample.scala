@@ -1,12 +1,11 @@
 package workflows4s.example.docs.pekko
 
 import scala.concurrent.Future
-
 import cats.effect.unsafe.IORuntime
 import org.apache.pekko.actor.typed.ActorSystem
 import workflows4s.runtime.WorkflowInstance
+import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.pekko.PekkoRuntime
-import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.wio.WorkflowContext
 
 object PekkoExample {
@@ -19,12 +18,12 @@ object PekkoExample {
 
   // doc_start
   import MyWorkflowCtx.*
-  given IORuntime                      = ???
-  given ActorSystem[?]                 = ???
-  val knockerUpper: KnockerUpper.Agent = ???
-  val workflow: WIO.Initial            = ???
+  given IORuntime                    = ???
+  given ActorSystem[?]               = ???
+  val engine: WorkflowInstanceEngine = ???
+  val workflow: WIO.Initial          = ???
 
-  val runtime: PekkoRuntime[Ctx] = PekkoRuntime.create("my-workflow", workflow, InitialState(), knockerUpper)
+  val runtime: PekkoRuntime[Ctx] = PekkoRuntime.create("my-workflow", workflow, InitialState(), engine)
 
   runtime.initializeShard()
 

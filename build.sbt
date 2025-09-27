@@ -23,7 +23,7 @@ lazy val `workflows4s-core` = (project in file("workflows4s-core"))
     libraryDependencies ++= Seq(
       "org.typelevel"              %% "cats-effect"   % "3.6.3",
       "co.fs2"                     %% "fs2-core"      % "3.12.2",
-      "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",
+      "com.typesafe.scala-logging" %% "scala-logging" % "3.9.6",
       "io.circe"                   %% "circe-core"    % circeVersion, // for model serialization
       "io.circe"                   %% "circe-generic" % circeVersion, // for model serialization
       "com.lihaoyi"                %% "sourcecode"    % "0.4.4",      // for auto naming
@@ -51,6 +51,7 @@ lazy val `workflows4s-pekko` = (project in file("workflows4s-pekko"))
       "org.apache.pekko" %% "pekko-persistence-jdbc"       % "1.1.0"         % Test,
       "com.h2database"    % "h2"                           % "2.3.232"       % Test,
       "io.r2dbc"          % "r2dbc-h2"                     % "1.0.0.RELEASE" % Test,
+      "io.altoo"         %% "pekko-kryo-serialization"     % "1.3.0",
     ),
   )
   .dependsOn(`workflows4s-core` % "compile->compile;test->test")
@@ -62,7 +63,7 @@ lazy val `workflows4s-doobie` = (project in file("workflows4s-doobie"))
       "org.tpolecat"  %% "doobie-core"                     % "1.0.0-RC10",
       "com.dimafeng"  %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
       "com.dimafeng"  %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
-      "org.postgresql" % "postgresql"                      % "42.7.7"                   % Test,
+      "org.postgresql" % "postgresql"                      % "42.7.8"                   % Test,
       "org.xerial"     % "sqlite-jdbc"                     % "3.50.3.0"                 % Test,
     ),
   )
@@ -182,11 +183,11 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "io.r2dbc"              % "r2dbc-h2"                        % "1.0.0.RELEASE",
       "com.github.pjfanning" %% "pekko-http-circe"                % "3.3.0",
       "ch.qos.logback"        % "logback-classic"                 % "1.5.18",
-      "org.scalamock"        %% "scalamock"                       % "7.4.1"                    % Test,
+      "org.scalamock"        %% "scalamock"                       % "7.5.0"                    % Test,
       "org.apache.pekko"     %% "pekko-actor-testkit-typed"       % pekkoVersion               % Test,
       "com.dimafeng"         %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
       "com.dimafeng"         %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
-      "org.postgresql"        % "postgresql"                      % "42.7.7"                   % Test,
+      "org.postgresql"        % "postgresql"                      % "42.7.8"                   % Test,
       "org.xerial"            % "sqlite-jdbc"                     % "3.50.3.0"                 % Test,
     ),
     Test / parallelExecution := false, // otherwise akka clusters clash
@@ -216,7 +217,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
   .settings(Revolver.enableDebugging(port = 5050))
 
 lazy val commonSettings = Seq(
-  scalaVersion      := "3.7.2",
+  scalaVersion      := "3.7.3",
   scalacOptions ++= Seq("-no-indent", "-Xmax-inlines", "64", "-explain-cyclic", "-Ydebug-cyclic"),
   libraryDependencies ++= Seq(
     "org.scalatest" %% "scalatest"       % "3.2.19" % Test,

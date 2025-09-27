@@ -1,0 +1,20 @@
+# Drafting
+
+Workflows4s comes with a dedicated API for creating renderable but NOT runnable workflow definitions.
+Its goal is to allow defining the structure of a workflow that can be discussed with the team or stakeholders,
+before committing more time to the actual implementation.
+
+The entire drafting API is exposed under `WIO.draft` and documented alongside specific operations.
+
+## Details
+
+Drafts use exactly the same model under the hood as real definitions, but filled with dummy logic.
+
+The drafting support simplifies the API in the following ways:
+
+* Not requiring type parameters
+* Not requiring event handling
+* Not requiring run logic
+* Automatically generating names from the context if not provided explicitly
+* Making as many parameters as possible optional
+
