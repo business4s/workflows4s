@@ -16,6 +16,7 @@ case class SearchResultsTable(results: List[WorkflowSearchResult]) extends Compo
           th("Status"),
           th("Created"),
           th("Updated"),
+          th("Wakeup"),
         ),
       ),
       tbody(
@@ -25,7 +26,7 @@ case class SearchResultsTable(results: List[WorkflowSearchResult]) extends Compo
             td(r.status.toString),
             td(r.createdAt.toString),
             td(r.updatedAt.toString),
-            td(r.wakeupAt.toString),
+            td(r.wakeupAt.map(_.toString).getOrElse("-")),
           )
         }
       )
