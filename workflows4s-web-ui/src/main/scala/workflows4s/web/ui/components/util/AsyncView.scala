@@ -13,6 +13,8 @@ case class AsyncView[S <: Component.Aux[S, M], M](
     @unused x: Int = 1, // https://github.com/scala-js/scala-js/issues/5235
 ) {
 
+  def refresh: Cmd.Emit[Msg.Start[S]] = AsyncView.startCmd[S]
+
   def isLoading: Boolean = state match {
     case State.Initial() => false
     case State.Loading() => true
@@ -29,11 +31,12 @@ case class AsyncView[S <: Component.Aux[S, M], M](
     }
   }
 
-  def update(msg: AsyncView.Msg[S]): (AsyncView[S, M], Cmd[IO, AsyncView.Msg[S]]) =
+  def update(msg: AsyncView.Msg[S]): (AsyncView[S, M], Cmd[IO, AsyncView.Msg[S]]) = {
+    def restart: (AsyncView[S, M], Cmd[IO, AsyncView.Msg[S]]) = this.copy(state = AsyncView.State.Loading()) -> Cmd.Run(action.attempt, Msg.Finished.apply)
     state match {
       case State.Initial()        =>
         msg match {
-          case Msg.Start() => this.copy(state = AsyncView.State.Loading()) -> Cmd.Run(action.attempt, Msg.Finished.apply)
+          case Msg.Start() => restart
           case _           => ???
         }
       case State.Loading()        =>
@@ -49,6 +52,7 @@ case class AsyncView[S <: Component.Aux[S, M], M](
         }
       case State.Ready(component) =>
         msg match {
+          case Msg.Start()        => restart
           case Msg.Propagate(msg) =>
             val (newComp, cmd) = component.update(msg)
             this.copy(state = State.Ready(newComp)) -> cmd.map(Msg.Propagate(_))
@@ -56,10 +60,11 @@ case class AsyncView[S <: Component.Aux[S, M], M](
         }
       case State.Failed(_)        =>
         msg match {
-          case Msg.Start() => this.copy(state = AsyncView.State.Loading()) -> Cmd.Run(action.attempt, Msg.Finished.apply)
+          case Msg.Start() => restart
           case _           => ???
         }
     }
+  }
 
 }
 

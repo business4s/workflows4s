@@ -8,6 +8,7 @@ import sttp.model.Uri
 import sttp.tapir.server.http4s.Http4sServerInterpreter
 import workflows4s.example.docs.wakeups.common.MyWorkflowCtx
 import workflows4s.runtime.WorkflowRuntime
+import workflows4s.runtime.registry.WorkflowSearch
 import workflows4s.ui.bundle.UiEndpoints
 import workflows4s.web.api.model.UIConfig
 import workflows4s.web.api.server.RealWorkflowService.SignalSupport
@@ -21,12 +22,11 @@ object GettingStarted {
 
       // doc_start
       // the same runtime that is used for running the workflows
-      val myRuntime: WorkflowRuntime[IO, MyWorkflowCtx]                    = ???
+      val myRuntime: WorkflowRuntime[IO, MyWorkflowCtx] = ???
 
       // each runtime needs to be enriched by some information required by the UI
       val myApiEntry: RealWorkflowService.WorkflowEntry[IO, MyWorkflowCtx] =
         RealWorkflowService.WorkflowEntry(
-          id = "my-workflow",
           name = "My Workflow",
           runtime = myRuntime,
           stateEncoder = ??? : Encoder[WCState[MyWorkflowCtx]],
@@ -34,12 +34,12 @@ object GettingStarted {
         )
 
       // tapir endpoints for serving the API
-      val apiEndpoints = WorkflowServerEndpoints.get(List(myApiEntry))
+      val apiEndpoints = WorkflowServerEndpoints.get(List(myApiEntry), WorkflowSearch.disabled)
       // tapir endpoints for service the UI assets
       val uiEndpoints  = UiEndpoints.get[IO](UIConfig(Uri.unsafeParse("http://localhost:8080")))
 
       // example tapir interpretation, this part is orthogonal to workflows4s
-      val routes       = Http4sServerInterpreter[IO]().toRoutes(apiEndpoints ++ uiEndpoints)
+      val routes = Http4sServerInterpreter[IO]().toRoutes(apiEndpoints ++ uiEndpoints)
       for {
         _ <- EmberServerBuilder
                .default[IO]

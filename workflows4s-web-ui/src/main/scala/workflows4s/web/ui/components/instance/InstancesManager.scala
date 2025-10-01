@@ -5,6 +5,8 @@ import cats.implicits.catsSyntaxOptionId
 import tyrian.*
 import tyrian.Html.*
 import workflows4s.web.ui.Http
+import workflows4s.web.ui.components.instance.InstancesManager.Msg
+import workflows4s.web.ui.components.template.SearchResultsTable
 import workflows4s.web.ui.components.util.AsyncView
 
 import java.util.UUID
@@ -13,6 +15,7 @@ final case class InstancesManager(
     templateId: String,
     instanceIdInput: String,
     state: Option[AsyncView.For[InstanceView]],
+    instancesTable: AsyncView.For[SearchResultsTable],
 ) {
 
   def update(msg: InstancesManager.Msg): (InstancesManager, Cmd[IO, InstancesManager.Msg]) = msg match {
@@ -22,6 +25,11 @@ final case class InstancesManager(
     case InstancesManager.Msg.LoadInstance(instanceId) =>
       val (asyncView, asyncCmd) = AsyncView.empty(Http.getInstance(templateId, instanceId), instance => InstanceView.initial(instance))
       this.copy(state = asyncView.some) -> asyncCmd.map(InstancesManager.Msg.ForInstance(_))
+    case InstancesManager.Msg.ForInstTable(msg)        =>
+      val (asyncView, asyncCmd) = instancesTable.update(msg)
+      this.copy(instancesTable = asyncView) -> asyncCmd.map(InstancesManager.Msg.ForInstTable(_))
+    case InstancesManager.Msg.RefreshInstances         =>
+      this -> instancesTable.refresh.map(InstancesManager.Msg.ForInstTable(_))
 
     case InstancesManager.Msg.ForInstance(subMsg) =>
       state match {
@@ -36,10 +44,21 @@ final case class InstancesManager(
     div(
       div(cls := "tabs")(
         ul(
-          li(cls := "is-active")(a("Instances")),
+          li(cls := "is-active")(a("Instance details")),
           li()(a("Definition")),
+          li()(a("Instances")),
         ),
       ),
+
+      div(cls := "control is-flex is-justify-content-flex-end")(
+        button(
+          cls := s"button is-small is-info ${if instancesTable.isLoading then "is-loading" else ""}",
+          onClick(Msg.RefreshInstances),
+          disabled(instancesTable.isLoading),
+        )("Refresh"),
+      ),
+      
+      instancesTable.view.map(Msg.ForInstTable(_)),
       instanceInputView,
       state match {
         case Some(value) => value.view.map(InstancesManager.Msg.ForInstance(_))
@@ -81,17 +100,22 @@ final case class InstancesManager(
 }
 
 object InstancesManager {
-  def initial(templateId: String): InstancesManager =
+  def initial(templateId: String): (InstancesManager, Cmd[IO, Msg]) = {
+    val (instancesTable, cmd) = AsyncView.empty_(Http.searchWorkflows(templateId), results => SearchResultsTable(results))
     InstancesManager(
       templateId = templateId,
       instanceIdInput = "",
       state = None,
-    )
+      instancesTable = instancesTable,
+    ) -> cmd.map(Msg.ForInstTable(_))
+  }
 
   enum Msg {
     case InstanceIdChanged(id: String)
     case LoadInstance(instanceId: String)
     case ForInstance(msg: AsyncView.Msg[InstanceView])
+    case ForInstTable(msg: AsyncView.Msg[SearchResultsTable])
+    case RefreshInstances
   }
 
 }

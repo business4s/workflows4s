@@ -1,22 +1,33 @@
 package workflows4s.web.api.server
 
-import cats.MonadError
+import cats.effect.Async
 import cats.syntax.all.*
+import com.typesafe.scalalogging.StrictLogging
 import sttp.tapir.server.ServerEndpoint
+import workflows4s.runtime.registry.WorkflowSearch
 import workflows4s.web.api.endpoints.WorkflowEndpoints
 import workflows4s.web.api.server.RealWorkflowService.WorkflowEntry
 
-object WorkflowServerEndpoints {
+object WorkflowServerEndpoints extends StrictLogging {
 
-  def get[F[_]](entries: List[WorkflowEntry[F, ?]])(using MonadError[F, Throwable]): List[ServerEndpoint[Any, F]] = {
-    val service = RealWorkflowService(entries)
+  def get[F[_]](entries: List[WorkflowEntry[F, ?]], search: WorkflowSearch[F])(using F: Async[F]): List[ServerEndpoint[Any, F]] = {
+    val service = RealWorkflowService(entries, search)
+
     List(
-      WorkflowEndpoints.listDefinitions.serverLogic(_ => service.listDefinitions().attempt.map(_.leftMap(_.getMessage))),
-      WorkflowEndpoints.getDefinition.serverLogic(workflowId => service.getDefinition(workflowId).attempt.map(_.leftMap(_.getMessage))),
-      WorkflowEndpoints.getInstance.serverLogic((workflowId, instanceId) =>
-        service.getInstance(workflowId, instanceId).attempt.map(_.leftMap(_.getMessage)),
-      ),
-      WorkflowEndpoints.deliverSignal.serverLogic(request => service.deliverSignal(request).attempt.map(_.leftMap(_.getMessage))),
+      WorkflowEndpoints.listDefinitions.serverLogic(_ => handleError(service.listDefinitions())),
+      WorkflowEndpoints.getDefinition.serverLogic(workflowId => handleError(service.getDefinition(workflowId))),
+      WorkflowEndpoints.getInstance.serverLogic((workflowId, instanceId) => handleError(service.getInstance(workflowId, instanceId))),
+      WorkflowEndpoints.deliverSignal.serverLogic(request => handleError(service.deliverSignal(request))),
+      WorkflowEndpoints.searchWorkflows.serverLogic { templateId => handleError(service.searchWorkflows(templateId)) },
     )
   }
+
+  private def handleError[F[_]: Async, A](fa: F[A]): F[Either[String, A]] =
+    fa.attempt.map {
+      case Left(error)  =>
+        logger.error("Operation failed", error)
+        Left(error.getMessage)
+      case Right(value) => Right(value)
+    }
+
 }

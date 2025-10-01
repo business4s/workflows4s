@@ -8,6 +8,7 @@ import sttp.apispec.Schema
 import sttp.tapir.docs.apispec.schema.TapirSchemaToJsonSchema
 import workflows4s.mermaid.MermaidRenderer
 import workflows4s.runtime.WorkflowRuntime
+import workflows4s.runtime.registry.{WorkflowRegistry, WorkflowSearch}
 import workflows4s.web.api.model.*
 import workflows4s.web.api.server.RealWorkflowService.SignalSupport.RequestHandler
 import workflows4s.web.api.server.RealWorkflowService.WorkflowEntry
@@ -15,6 +16,7 @@ import workflows4s.wio.{SignalDef, WorkflowContext}
 
 class RealWorkflowService[F[_]](
     workflowEntries: List[RealWorkflowService.WorkflowEntry[F, ?]],
+    workflowSearch: WorkflowSearch[F],
 )(using me: MonadError[F, Throwable])
     extends WorkflowApiService[F] {
 
@@ -72,16 +74,37 @@ class RealWorkflowService[F[_]](
     )
   }
 
+  override def searchWorkflows(templateId: String): F[List[WorkflowSearchResult]] = {
+    workflowSearch
+      .search(templateId, WorkflowSearch.Query())
+      .map(
+        _.map(r =>
+          WorkflowSearchResult(
+            r.id.templateId,
+            r.id.instanceId,
+            r.status match {
+              case WorkflowRegistry.ExecutionStatus.Running  => ExecutionStatus.Running
+              case WorkflowRegistry.ExecutionStatus.Awaiting => ExecutionStatus.Awaiting
+              case WorkflowRegistry.ExecutionStatus.Finished => ExecutionStatus.Finished
+            },
+            r.createdAt,
+            r.updatedAt,
+            r.wakeupAt,
+          ),
+        ),
+      )
+  }
 }
 
 object RealWorkflowService {
   case class WorkflowEntry[F[_], Ctx <: WorkflowContext](
-      id: String,
       name: String,
       runtime: WorkflowRuntime[F, Ctx],
       stateEncoder: Encoder[workflows4s.wio.WCState[Ctx]],
       signalSupport: SignalSupport,
-  )
+  ) {
+    def id: String = runtime.templateId
+  }
 
   trait SignalSupport {
     def getSchema(signalDef: SignalDef[?, ?]): Option[sttp.apispec.Schema]

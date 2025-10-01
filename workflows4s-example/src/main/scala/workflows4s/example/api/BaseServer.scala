@@ -9,7 +9,9 @@ import workflows4s.example.courseregistration.CourseRegistrationWorkflow
 import workflows4s.example.docs.pullrequest.PullRequestWorkflow
 import workflows4s.example.docs.pullrequest.PullRequestWorkflow.PRState
 import workflows4s.runtime.InMemoryRuntime
-import workflows4s.runtime.wakeup.NoOpKnockerUpper
+import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
+import workflows4s.runtime.registry.InMemoryWorkflowRegistry
+import workflows4s.runtime.wakeup.SleepingKnockerUpper
 import workflows4s.web.api.server.RealWorkflowService.{SignalSupport, WorkflowEntry}
 import workflows4s.web.api.server.WorkflowServerEndpoints
 
@@ -17,41 +19,45 @@ trait BaseServer {
 
   /** Creates the API routes with CORS enabled
     */
-  protected def apiRoutes: IO[HttpRoutes[IO]] = for {
-    courseRegRuntime <- InMemoryRuntime.default[CourseRegistrationWorkflow.Context.Ctx](
-                  workflow = CourseRegistrationWorkflow.workflow,
-                  initialState = CourseRegistrationWorkflow.RegistrationState.Empty,
-                  knockerUpper = NoOpKnockerUpper.Agent,
-                )
+  protected def apiRoutes: IO[HttpRoutes[IO]] = {
 
-    pullReqRuntime <- InMemoryRuntime.default[PullRequestWorkflow.Context.Ctx](
-                  workflow = PullRequestWorkflow.workflow,
-                  initialState = PullRequestWorkflow.PRState.Empty,
-                  knockerUpper = NoOpKnockerUpper.Agent,
-                )
+    for {
+      (knockerUpper, release) <- SleepingKnockerUpper.create().allocated // TODO, leaking resources
+      registry                <- InMemoryWorkflowRegistry()
+      engine                   = WorkflowInstanceEngine.default(knockerUpper, registry)
+      courseRegRuntime        <- InMemoryRuntime.default[CourseRegistrationWorkflow.Context.Ctx](
+                                   workflow = CourseRegistrationWorkflow.workflow,
+                                   initialState = CourseRegistrationWorkflow.RegistrationState.Empty,
+                                   engine = engine,
+                                 )
 
-    workflowEntries = List(
-                        WorkflowEntry(
-                          id = "course-registration-v1",
-                          name = "Course Registration",
-                          runtime = courseRegRuntime,
-                          stateEncoder = summon[Encoder[CourseRegistrationWorkflow.CourseRegistrationState]],
-                          signalSupport = SignalSupport.builder
-                            .add(CourseRegistrationWorkflow.Signals.startBrowsing)
-                            .add(CourseRegistrationWorkflow.Signals.setPriorities)
-                            .build,
-                        ),
-                        WorkflowEntry(
-                          id = "pull-request-v1",
-                          name = "Pull Request",
-                          runtime = pullReqRuntime,
-                          stateEncoder = summon[Encoder[PRState]],
-                          signalSupport = SignalSupport.builder
-                            .add(PullRequestWorkflow.Signals.createPR)
-                            .add(PullRequestWorkflow.Signals.reviewPR)
-                            .build,
-                        ),
-                      )
-    routes          = Http4sServerInterpreter[IO]().toRoutes(WorkflowServerEndpoints.get[IO](workflowEntries))
-  } yield CORS.policy.withAllowOriginAll(routes)
+      pullReqRuntime <- InMemoryRuntime.default[PullRequestWorkflow.Context.Ctx](
+                          workflow = PullRequestWorkflow.workflow,
+                          initialState = PullRequestWorkflow.PRState.Empty,
+                          engine = engine,
+                        )
+
+      workflowEntries = List(
+                          WorkflowEntry(
+                            name = "Course Registration",
+                            runtime = courseRegRuntime,
+                            stateEncoder = summon[Encoder[CourseRegistrationWorkflow.CourseRegistrationState]],
+                            signalSupport = SignalSupport.builder
+                              .add(CourseRegistrationWorkflow.Signals.startBrowsing)
+                              .add(CourseRegistrationWorkflow.Signals.setPriorities)
+                              .build,
+                          ),
+                          WorkflowEntry(
+                            name = "Pull Request",
+                            runtime = pullReqRuntime,
+                            stateEncoder = summon[Encoder[PRState]],
+                            signalSupport = SignalSupport.builder
+                              .add(PullRequestWorkflow.Signals.createPR)
+                              .add(PullRequestWorkflow.Signals.reviewPR)
+                              .build,
+                          ),
+                        )
+      routes          = Http4sServerInterpreter[IO]().toRoutes(WorkflowServerEndpoints.get[IO](workflowEntries, registry))
+    } yield CORS.policy.withAllowOriginAll(routes)
+  }
 }

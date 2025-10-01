@@ -7,6 +7,8 @@ import sttp.apispec.circe.*
 import sttp.tapir
 import sttp.tapir.json.circe.*
 
+import java.time.Instant
+
 case class WorkflowDefinition(
     id: String,
     name: String,
@@ -39,3 +41,18 @@ case class SignalRequest(
     signalId: String,
     signalRequest: Json,
 )
+
+enum ExecutionStatus derives Codec, tapir.Schema {
+  case Running, Awaiting, Finished
+}
+
+// Search API models
+case class WorkflowSearchResult(
+    templateId: String,
+    instanceId: String,
+    status: ExecutionStatus,
+    createdAt: Instant,
+    updatedAt: Instant,
+    wakeupAt: Option[Instant]
+) derives Codec.AsObject,
+      tapir.Schema

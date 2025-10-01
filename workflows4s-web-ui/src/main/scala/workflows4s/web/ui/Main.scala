@@ -39,7 +39,7 @@ object Main extends TyrianIOApp[Msg, Model] {
       (model, Cmd.None)
 
     case Msg.ForWorkflows(workflowsMsg) =>
-      val newTemplateId           = workflowsMsg match {
+      val newTemplateId            = workflowsMsg match {
         case WorkflowsManager.Msg.ForSelector(msg) =>
           msg match {
             case AsyncView.Msg.Propagate(msg) =>
@@ -49,9 +49,13 @@ object Main extends TyrianIOApp[Msg, Model] {
             case _                            => None
           }
       }
-      val newInstanceManager      = newTemplateId.map(id => InstancesManager.initial(id))
-      val (updatedWorkflows, cmd) = model.workflows.update(workflowsMsg)
-      (model.copy(workflows = updatedWorkflows, instances = newInstanceManager.orElse(model.instances)), cmd.map(Msg.ForWorkflows.apply))
+      val newInstanceManager       = newTemplateId.map(id => InstancesManager.initial(id))
+      val cmd1                     = newInstanceManager.map(_._2).getOrElse(Cmd.None).map(Msg.ForInstances(_))
+      val (updatedWorkflows, cmd2) = model.workflows.update(workflowsMsg)
+      (
+        model.copy(workflows = updatedWorkflows, instances = newInstanceManager.map(_._1).orElse(model.instances)),
+        Cmd.merge(cmd1, cmd2.map(Msg.ForWorkflows.apply)),
+      )
 
     case Msg.ForInstances(instancesMsg) =>
       model.instances.map(_.update(instancesMsg)) match {

@@ -6,7 +6,7 @@ import io.circe.Json
 import sttp.client4.impl.cats.FetchCatsBackend
 import sttp.tapir.client.sttp4.SttpClientInterpreter
 import workflows4s.web.api.endpoints.WorkflowEndpoints
-import workflows4s.web.api.model.{SignalRequest, WorkflowDefinition, WorkflowInstance}
+import workflows4s.web.api.model.{SignalRequest, WorkflowDefinition, WorkflowInstance, WorkflowSearchResult}
 import workflows4s.web.ui.util.UIConfig
 
 object Http {
@@ -27,6 +27,11 @@ object Http {
 
   def sendSignal(req: SignalRequest): IO[Json] = {
     val request = interpreter.toRequestThrowErrors(WorkflowEndpoints.deliverSignal, baseUrl)(req)
+    backend.send(request).map(_.body)
+  }
+
+  def searchWorkflows(templateId: String): IO[List[WorkflowSearchResult]] = {
+    val request = interpreter.toRequestThrowErrors(WorkflowEndpoints.searchWorkflows, baseUrl)(templateId)
     backend.send(request).map(_.body)
   }
 
