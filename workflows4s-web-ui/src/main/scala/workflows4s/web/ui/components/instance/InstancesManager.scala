@@ -14,7 +14,7 @@ import java.util.UUID
 final case class InstancesManager(
     templateId: String,
     instanceIdInput: String,
-    state: Option[AsyncView.For[InstanceView]],
+    instanceDetails: Option[AsyncView.For[InstanceView]],
     instancesTable: AsyncView.For[SearchResultsTable],
     selectedTab: InstancesManager.Tab,
 ) {
@@ -25,7 +25,10 @@ final case class InstancesManager(
 
     case InstancesManager.Msg.LoadInstance(instanceId) =>
       val (asyncView, asyncCmd) = AsyncView.empty(Http.getInstance(templateId, instanceId), instance => InstanceView.initial(instance))
-      this.copy(state = asyncView.some) -> asyncCmd.map(InstancesManager.Msg.ForInstance(_))
+      this.copy(instanceDetails = asyncView.some) -> asyncCmd.map(InstancesManager.Msg.ForInstance(_))
+
+    case InstancesManager.Msg.InstanceSelected(instanceId) =>
+      this.copy(instanceIdInput = instanceId, selectedTab = InstancesManager.Tab.InstanceDetails) -> Cmd.emit(Msg.LoadInstance(instanceId))
 
     case InstancesManager.Msg.ForInstTable(msg) =>
       val (asyncView, asyncCmd) = instancesTable.update(msg)
@@ -35,10 +38,10 @@ final case class InstancesManager(
       this -> instancesTable.refresh.map(InstancesManager.Msg.ForInstTable(_))
 
     case InstancesManager.Msg.ForInstance(subMsg) =>
-      state match {
+      instanceDetails match {
         case Some(value) =>
           val (newState, cmd) = value.update(subMsg)
-          this.copy(state = newState.some) -> cmd.map(InstancesManager.Msg.ForInstance(_))
+          this.copy(instanceDetails = newState.some) -> cmd.map(InstancesManager.Msg.ForInstance(_))
         case None        => this -> Cmd.None
       }
 
@@ -51,19 +54,18 @@ final case class InstancesManager(
       div(cls := "tabs")(
         ul(
           li(cls := s"${if selectedTab == InstancesManager.Tab.InstanceDetails then "is-active" else ""}")(
-            a(onClick(InstancesManager.Msg.TabSelected(InstancesManager.Tab.InstanceDetails)))("Instance details")
+            a(onClick(InstancesManager.Msg.TabSelected(InstancesManager.Tab.InstanceDetails)))("Instance details"),
           ),
           li(cls := s"${if selectedTab == InstancesManager.Tab.Definition then "is-active" else ""}")(
-            a(onClick(InstancesManager.Msg.TabSelected(InstancesManager.Tab.Definition)))("Definition")
+            a(onClick(InstancesManager.Msg.TabSelected(InstancesManager.Tab.Definition)))("Definition"),
           ),
           li(cls := s"${if selectedTab == InstancesManager.Tab.Instances then "is-active" else ""}")(
-            a(onClick(InstancesManager.Msg.TabSelected(InstancesManager.Tab.Instances)))("Instances")
+            a(onClick(InstancesManager.Msg.TabSelected(InstancesManager.Tab.Instances)))("Instances"),
           ),
         ),
       ),
-
       selectedTab match {
-        case InstancesManager.Tab.Instances =>
+        case InstancesManager.Tab.Instances       =>
           div(
             div(cls := "control is-flex is-justify-content-flex-end")(
               button(
@@ -72,22 +74,25 @@ final case class InstancesManager(
                 disabled(instancesTable.isLoading),
               )("Refresh"),
             ),
-            instancesTable.view.map(Msg.ForInstTable(_)),
+            instancesTable.view.map({
+              case AsyncView.Msg.Propagate(SearchResultsTable.Msg.RowClicked(id)) => Msg.InstanceSelected(id)
+              case x                                                              => Msg.ForInstTable(x)
+            }),
           )
         case InstancesManager.Tab.InstanceDetails =>
           div(
             instanceInputView,
-            state match {
+            instanceDetails match {
               case Some(value) => value.view.map(InstancesManager.Msg.ForInstance(_))
               case None        => div()
             },
           )
-        case InstancesManager.Tab.Definition =>
+        case InstancesManager.Tab.Definition      =>
           div(
             h4("Definition"),
             p(s"Template ID: ${templateId}"),
           )
-      }
+      },
     )
 
   private def instanceInputView: Html[InstancesManager.Msg] =
@@ -106,16 +111,16 @@ final case class InstancesManager(
       div(cls := "field is-grouped mt-2")(
         div(cls := "control")(
           button(
-            cls := s"button is-primary ${if state.exists(_.isLoading) then "is-loading" else ""}",
+            cls := s"button is-primary ${if instanceDetails.exists(_.isLoading) then "is-loading" else ""}",
             onClick(InstancesManager.Msg.LoadInstance(instanceIdInput)),
-            disabled(state.exists(_.isLoading)),
+            disabled(instanceDetails.exists(_.isLoading)),
           )("Load"),
         ),
         div(cls := "control")(
           button(
-            cls := s"button is-info is-outlined ${if state.exists(_.isLoading) then "is-loading" else ""}",
+            cls := s"button is-info is-outlined ${if instanceDetails.exists(_.isLoading) then "is-loading" else ""}",
             onClick(InstancesManager.Msg.LoadInstance(s"test-instance-${UUID.randomUUID()}")),
-            disabled(state.exists(_.isLoading)),
+            disabled(instanceDetails.exists(_.isLoading)),
           )("Create Test Instance"),
         ),
       ),
@@ -129,7 +134,7 @@ object InstancesManager {
     InstancesManager(
       templateId = templateId,
       instanceIdInput = "",
-      state = None,
+      instanceDetails = None,
       instancesTable = instancesTable,
       selectedTab = Tab.InstanceDetails,
     ) -> cmd.map(Msg.ForInstTable(_))
@@ -142,6 +147,7 @@ object InstancesManager {
     case ForInstTable(msg: AsyncView.Msg[SearchResultsTable])
     case RefreshInstances
     case TabSelected(tab: Tab)
+    case InstanceSelected(instanceId: String)
   }
 
   enum Tab {
