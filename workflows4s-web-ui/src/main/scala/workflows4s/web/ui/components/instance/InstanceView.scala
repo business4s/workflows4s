@@ -28,12 +28,12 @@ case class InstanceView(instance: WorkflowInstance, diagramView: MermaidDiagramV
     div(cls := "content mt-4")(
       h3(s"Instance: ${instance.id}"),
       ReusableViews.instanceField("Template", Html.span(instance.templateId)),
-      sectionHeader("Signals"),
+      sectionHeader("Expected Signals"),
       signalsView.view.map(Msg.ForSignalsView(_)),
       sectionHeader("State"),
       instanceStateView,
       sectionHeader("Progress"),
-      progressVisualizationView
+      progressVisualizationView,
     )
 
   private def instanceStateView: Html[InstanceView.Msg] = {
@@ -70,9 +70,8 @@ case class InstanceView(instance: WorkflowInstance, diagramView: MermaidDiagramV
 object InstanceView {
 
   def initial(instance: WorkflowInstance) = {
-    InstanceView(instance, MermaidDiagramView(instance.mermaidCode), SignalsView(instance, None)) -> Cmd.emit(
-      Msg.ForDiagram(MermaidDiagramView.Msg.Retry),
-    )
+    val (mermaidView, cmd) = MermaidDiagramView.initial(instance.mermaidCode)
+    InstanceView(instance, mermaidView, SignalsView(instance, None)) -> cmd.map(Msg.ForDiagram(_))
   }
 
   enum Msg {

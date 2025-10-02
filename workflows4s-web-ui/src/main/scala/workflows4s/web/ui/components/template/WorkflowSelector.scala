@@ -11,7 +11,7 @@ case class WorkflowSelector(defs: List[WorkflowDefinition], selectedWorkflowId: 
   override type Msg  = WorkflowSelector.Msg
 
   override def update(msg: WorkflowSelector.Msg): (WorkflowSelector, Cmd[IO, WorkflowSelector.Msg]) = msg match {
-    case WorkflowSelector.Msg.Select(workflowId) => this.copy(selectedWorkflowId = Some(workflowId)) -> Cmd.None
+    case WorkflowSelector.Msg.Select(workflow) => this.copy(selectedWorkflowId = Some(workflow.id)) -> Cmd.None
   }
 
   override def view: Html[WorkflowSelector.Msg] =
@@ -20,7 +20,7 @@ case class WorkflowSelector(defs: List[WorkflowDefinition], selectedWorkflowId: 
         li(
           a(
             cls := (if selectedWorkflowId.contains(wf.id) then "is-active" else ""),
-            onClick(WorkflowSelector.Msg.Select(wf.id)),
+            onClick(WorkflowSelector.Msg.Select(wf)),
           )(
             div(
               strong(wf.name),
@@ -44,6 +44,6 @@ case class WorkflowSelector(defs: List[WorkflowDefinition], selectedWorkflowId: 
 
 object WorkflowSelector {
   enum Msg {
-    case Select(workflowId: String)
+    case Select(workflow: WorkflowDefinition)
   }
 }

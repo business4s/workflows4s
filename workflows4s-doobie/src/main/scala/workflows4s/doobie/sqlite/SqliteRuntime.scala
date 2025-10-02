@@ -18,7 +18,7 @@ import java.nio.file.{Files, Path}
 import java.util.Properties
 
 class SqliteRuntime[Ctx <: WorkflowContext](
-    workflow: Initial[Ctx],
+    val workflow: Initial[Ctx],
     initialState: WCState[Ctx],
     engine: WorkflowInstanceEngine,
     eventCodec: ByteCodec[WCEvent[Ctx]],

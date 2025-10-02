@@ -13,6 +13,8 @@ case class WorkflowDefinition(
     id: String,
     name: String,
     description: Option[String] = None,
+    mermaidUrl: String,
+    mermaidCode: String,
 ) derives Codec.AsObject,
       tapir.Schema
 

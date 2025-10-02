@@ -21,10 +21,15 @@ class RealWorkflowService[F[_]](
     extends WorkflowApiService[F] {
 
   def listDefinitions(): F[List[WorkflowDefinition]] =
-    workflowEntries.map(e => WorkflowDefinition(e.id, e.name)).pure[F]
+    workflowEntries.map(convertEntry).pure[F]
 
   def getDefinition(id: String): F[WorkflowDefinition] =
-    findEntry(id).map(e => WorkflowDefinition(e.id, e.name))
+    findEntry(id).map(convertEntry)
+
+  private def convertEntry(e: WorkflowEntry[F, ?]): WorkflowDefinition = {
+    val mermaidDiagram = MermaidRenderer.renderWorkflow(e.runtime.workflow.toProgress, true)
+    WorkflowDefinition(e.id, e.name, None, mermaidDiagram.toViewUrl, mermaidDiagram.render)
+  }
 
   def getInstance(definitionId: String, instanceId: String): F[WorkflowInstance] =
     for {

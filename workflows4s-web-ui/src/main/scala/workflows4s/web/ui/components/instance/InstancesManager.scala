@@ -4,6 +4,7 @@ import cats.effect.IO
 import cats.implicits.catsSyntaxOptionId
 import tyrian.*
 import tyrian.Html.*
+import workflows4s.web.api.model.WorkflowDefinition
 import workflows4s.web.ui.Http
 import workflows4s.web.ui.components.instance.InstancesManager.Msg
 import workflows4s.web.ui.components.template.SearchResultsTable
@@ -12,9 +13,10 @@ import workflows4s.web.ui.components.util.AsyncView
 import java.util.UUID
 
 final case class InstancesManager(
-    templateId: String,
+    definition: WorkflowDefinition,
     instanceIdInput: String,
     instanceDetails: Option[AsyncView.For[InstanceView]],
+    definitionDetails: DefinitionView,
     instancesTable: AsyncView.For[SearchResultsTable],
     selectedTab: InstancesManager.Tab,
 ) {
@@ -24,7 +26,7 @@ final case class InstancesManager(
       (this.copy(instanceIdInput = id), Cmd.None)
 
     case InstancesManager.Msg.LoadInstance(instanceId) =>
-      val (asyncView, asyncCmd) = AsyncView.empty(Http.getInstance(templateId, instanceId), instance => InstanceView.initial(instance))
+      val (asyncView, asyncCmd) = AsyncView.empty(Http.getInstance(definition.id, instanceId), instance => InstanceView.initial(instance))
       this.copy(instanceDetails = asyncView.some) -> asyncCmd.map(InstancesManager.Msg.ForInstance(_))
 
     case InstancesManager.Msg.InstanceSelected(instanceId) =>
@@ -33,6 +35,10 @@ final case class InstancesManager(
     case InstancesManager.Msg.ForInstTable(msg) =>
       val (asyncView, asyncCmd) = instancesTable.update(msg)
       this.copy(instancesTable = asyncView) -> asyncCmd.map(InstancesManager.Msg.ForInstTable(_))
+
+    case InstancesManager.Msg.ForDefinition(msg) =>
+      val (newState, cmd) = definitionDetails.update(msg)
+      this.copy(definitionDetails = newState) -> cmd.map(InstancesManager.Msg.ForDefinition(_))
 
     case InstancesManager.Msg.RefreshInstances =>
       this -> instancesTable.refresh.map(InstancesManager.Msg.ForInstTable(_))
@@ -89,8 +95,7 @@ final case class InstancesManager(
           )
         case InstancesManager.Tab.Definition      =>
           div(
-            h4("Definition"),
-            p(s"Template ID: ${templateId}"),
+            definitionDetails.view.map(InstancesManager.Msg.ForDefinition(_)),
           )
       },
     )
@@ -128,21 +133,24 @@ final case class InstancesManager(
 }
 
 object InstancesManager {
-  def initial(templateId: String): (InstancesManager, Cmd[IO, Msg]) = {
-    val (instancesTable, cmd) = AsyncView.empty_(Http.searchWorkflows(templateId), results => SearchResultsTable(results))
+  def initial(definition: WorkflowDefinition): (InstancesManager, Cmd[IO, Msg]) = {
+    val (instancesTable, cmd1) = AsyncView.empty_(Http.searchWorkflows(definition.id), results => SearchResultsTable(results))
+    val (definitionView, cmd2) = DefinitionView.initial(definition)
     InstancesManager(
-      templateId = templateId,
+      definition = definition,
       instanceIdInput = "",
       instanceDetails = None,
+      definitionDetails = definitionView,
       instancesTable = instancesTable,
       selectedTab = Tab.InstanceDetails,
-    ) -> cmd.map(Msg.ForInstTable(_))
+    ) -> Cmd.merge(cmd1.map(Msg.ForInstTable(_)), cmd2.map(Msg.ForDefinition(_)))
   }
 
   enum Msg {
     case InstanceIdChanged(id: String)
     case LoadInstance(instanceId: String)
     case ForInstance(msg: AsyncView.Msg[InstanceView])
+    case ForDefinition(msg: DefinitionView.Msg)
     case ForInstTable(msg: AsyncView.Msg[SearchResultsTable])
     case RefreshInstances
     case TabSelected(tab: Tab)

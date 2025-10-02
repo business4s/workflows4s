@@ -47,7 +47,6 @@ trait BaseServer {
                              initialState = WithdrawalData.Empty,
                              engine = engine,
                            )
-
       workflowEntries = List[WorkflowEntry[IO, ?]](
                           WorkflowEntry(
                             name = "Course Registration",

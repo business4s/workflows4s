@@ -35,21 +35,20 @@ object Main extends TyrianIOApp[Msg, Model] {
   }
 
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
-    case Msg.NoOp =>
-      (model, Cmd.None)
+    case Msg.NoOp        => (model, Cmd.None)
 
     case Msg.ForWorkflows(workflowsMsg) =>
-      val newTemplateId            = workflowsMsg match {
+      val newWorkflowDef           = workflowsMsg match {
         case WorkflowsManager.Msg.ForSelector(msg) =>
           msg match {
             case AsyncView.Msg.Propagate(msg) =>
               msg match {
-                case WorkflowSelector.Msg.Select(workflowId) => Some(workflowId)
+                case WorkflowSelector.Msg.Select(workflowDef) => Some(workflowDef)
               }
             case _                            => None
           }
       }
-      val newInstanceManager       = newTemplateId.map(id => InstancesManager.initial(id))
+      val newInstanceManager       = newWorkflowDef.map(wd => InstancesManager.initial(wd))
       val cmd1                     = newInstanceManager.map(_._2).getOrElse(Cmd.None).map(Msg.ForInstances(_))
       val (updatedWorkflows, cmd2) = model.workflows.update(workflowsMsg)
       (
