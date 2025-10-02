@@ -20,7 +20,9 @@ object ServerWithUI extends IOApp.Simple with BaseServer {
       api <- apiRoutes
       // Convert Tapir endpoints to Http4s routes
 
-      uiRoutes  = Http4sServerInterpreter[IO]().toRoutes(UiEndpoints.get(UIConfig(sttp.model.Uri.unsafeParse(s"http://localhost:${port}"), true)))
+      apiUrl = sys.env.getOrElse("WORKFLOWS4S_API_URL", s"http://localhost:${port}")
+
+      uiRoutes  = Http4sServerInterpreter[IO]().toRoutes(UiEndpoints.get(UIConfig(sttp.model.Uri.unsafeParse(apiUrl), true)))
       // Add redirect from /ui to /ui/
       redirect  = org.http4s.HttpRoutes.of[IO] { case req @ org.http4s.Method.GET -> Root / "ui" =>
                     org.http4s
