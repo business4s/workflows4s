@@ -118,9 +118,8 @@ final case class InstancesManager(
         ),
         div(cls := "control")(
           button(
-            cls := s"button is-info is-outlined ${if instanceDetails.exists(_.isLoading) then "is-loading" else ""}",
-            onClick(InstancesManager.Msg.LoadInstance(s"test-instance-${UUID.randomUUID()}")),
-            disabled(instanceDetails.exists(_.isLoading)),
+            cls := s"button is-info is-outlined",
+            onClick(InstancesManager.Msg.InstanceIdChanged(s"test-instance-${UUID.randomUUID()}")),
           )("Create Test Instance"),
         ),
       ),
