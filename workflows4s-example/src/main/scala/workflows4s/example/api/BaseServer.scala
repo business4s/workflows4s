@@ -8,6 +8,9 @@ import sttp.tapir.server.http4s.Http4sServerInterpreter
 import workflows4s.example.courseregistration.CourseRegistrationWorkflow
 import workflows4s.example.docs.pullrequest.PullRequestWorkflow
 import workflows4s.example.docs.pullrequest.PullRequestWorkflow.PRState
+import workflows4s.example.pekko.DummyWithdrawalService
+import workflows4s.example.withdrawal.{WithdrawalData, WithdrawalWorkflow}
+import workflows4s.example.withdrawal.checks.ChecksEngine
 import workflows4s.runtime.InMemoryRuntime
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.registry.InMemoryWorkflowRegistry
@@ -16,6 +19,7 @@ import workflows4s.web.api.server.RealWorkflowService.{SignalSupport, WorkflowEn
 import workflows4s.web.api.server.WorkflowServerEndpoints
 
 trait BaseServer {
+
 
   /** Creates the API routes with CORS enabled
     */
@@ -37,7 +41,14 @@ trait BaseServer {
                           engine = engine,
                         )
 
-      workflowEntries = List(
+      withdrawalWf       = WithdrawalWorkflow(DummyWithdrawalService, ChecksEngine)
+      withdrawalRuntime <- InMemoryRuntime.default[WithdrawalWorkflow.Context.Ctx](
+                             workflow = withdrawalWf.workflowDeclarative,
+                             initialState = WithdrawalData.Empty,
+                             engine = engine,
+                           )
+
+      workflowEntries = List[WorkflowEntry[IO, ?]](
                           WorkflowEntry(
                             name = "Course Registration",
                             runtime = courseRegRuntime,
@@ -54,6 +65,17 @@ trait BaseServer {
                             signalSupport = SignalSupport.builder
                               .add(PullRequestWorkflow.Signals.createPR)
                               .add(PullRequestWorkflow.Signals.reviewPR)
+                              .build,
+                          ),
+                          WorkflowEntry(
+                            name = "Withdrawal",
+                            runtime = withdrawalRuntime,
+                            stateEncoder = summon[Encoder[WithdrawalData]],
+                            signalSupport = SignalSupport.builder
+                              .add(WithdrawalWorkflow.Signals.createWithdrawal)
+                              .add(WithdrawalWorkflow.Signals.executionCompleted)
+                              .add(WithdrawalWorkflow.Signals.cancel)
+                              .add(ChecksEngine.Signals.review)
                               .build,
                           ),
                         )

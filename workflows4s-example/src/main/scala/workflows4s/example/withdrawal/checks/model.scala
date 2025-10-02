@@ -1,9 +1,10 @@
 package workflows4s.example.withdrawal.checks
 
 import cats.effect.IO
-import io.circe.{Codec, KeyDecoder, KeyEncoder}
+import io.circe.{Codec, Encoder, KeyDecoder, KeyEncoder}
+import sttp.tapir.Schema
 
-sealed trait ReviewDecision derives Codec.AsObject
+sealed trait ReviewDecision derives Codec.AsObject, Schema
 object ReviewDecision {
   case object Approve extends ReviewDecision
   case object Reject  extends ReviewDecision
@@ -23,6 +24,7 @@ object CheckResult {
   sealed trait Final          extends Finished
   case class Pending()        extends CheckResult
   case class Approved()       extends Final
+
   case class Rejected()       extends Final
   case class RequiresReview() extends Finished
   case class TimedOut()       extends Finished
@@ -40,14 +42,13 @@ trait Check[-Data] {
   def run(data: Data): IO[CheckResult]
 }
 
-sealed trait ChecksState {
+sealed trait ChecksState derives Encoder {
   def results: Map[CheckKey, CheckResult]
-
 }
 
 object ChecksState {
 
-  sealed trait InProgress extends ChecksState
+  sealed trait InProgress extends ChecksState derives Encoder
 
   case object Empty extends InProgress {
     override def results: Map[CheckKey, CheckResult] = Map()
@@ -69,7 +70,7 @@ object ChecksState {
     def requiresReview: Boolean                = !isRejected && results.exists(x => x._2 == CheckResult.RequiresReview() || x._2 == CheckResult.TimedOut())
     def asDecided(decision: Decision): Decided = ChecksState.Decided(results, decision)
   }
-  case class Decided(results: Map[CheckKey, CheckResult.Finished], decision: Decision) extends ChecksState
+  case class Decided(results: Map[CheckKey, CheckResult.Finished], decision: Decision) extends ChecksState derives Encoder
 
 }
 
@@ -86,4 +87,12 @@ object ChecksInput {
     def data: Data                         = data0
     def checks: Map[CheckKey, Check[Data]] = checks0.map(x => x.key -> x).toMap
   }
+
+  given  Encoder[ChecksInput] = Encoder.instance { input =>
+    import io.circe.syntax.*
+    io.circe.Json.obj(
+      "checks" -> input.checks.keys.map(_.value).asJson
+    )
+  }
+
 }
