@@ -30,7 +30,7 @@ object Main extends TyrianIOApp[Msg, Model] {
 
   def init(flags: Map[String, String]): (Model, Cmd[IO, Msg]) = {
     val (workflowsManager, workflowsCmd) = WorkflowsManager.initial
-    val cmd: Cmd[IO, Msg]                = workflowsCmd.map(Msg.ForWorkflows(_)) |+| Cmd.Run(UIConfig.reload.as(Msg.NoOp))
+    val cmd: Cmd[IO, Msg]                = workflowsCmd.map(Msg.ForWorkflows(_)) |+| Cmd.Run(UIConfig.load.as(Msg.NoOp))
     (Model(workflowsManager, None), cmd)
   }
 
