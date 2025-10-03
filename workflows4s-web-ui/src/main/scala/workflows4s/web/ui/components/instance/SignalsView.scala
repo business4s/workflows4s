@@ -9,16 +9,15 @@ import workflows4s.web.ui.components.instance.SignalsView.Msg
 case class SignalsView(workflowInstance: WorkflowInstance, modal: Option[SignalModal]) {
 
   def view: Html[SignalsView.Msg] = div(
-    ul(
-      workflowInstance.expectedSignals.map(s =>
-        li(
+    div(cls := "buttons")(
+      workflowInstance.expectedSignals.map(s => {
+        val attrs =
+          if s.requestSchema.isDefined then List(cls := "button is-small is-light", onClick(SignalsView.Msg.OpenModal(s)))
+          else List(cls                              := "button is-small is-light", disabled(true))
+        button(attrs*)(
           text(s.name),
-          if s.requestSchema.isDefined then button(
-            onClick(SignalsView.Msg.OpenModal(s)),
-          )(span(cls := "icon is-small")(i(cls := "fas fa-paper-plane")()))
-          else Empty,
-        ),
-      )*,
+        )
+      })*,
     ),
     modal.map(_.view.map(SignalsView.Msg.ForDetails(_))).getOrElse(Empty),
   )

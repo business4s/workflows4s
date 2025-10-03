@@ -15,7 +15,7 @@ import java.util.UUID
 final case class InstancesManager(
     definition: WorkflowDefinition,
     instanceIdInput: String,
-    instanceDetails: Option[AsyncView.For[InstanceView]],
+    instanceView: Option[InstanceView],
     definitionDetails: DefinitionView,
     instancesTable: AsyncView.For[SearchResultsTable],
     selectedTab: InstancesManager.Tab,
@@ -26,8 +26,8 @@ final case class InstancesManager(
       (this.copy(instanceIdInput = id), Cmd.None)
 
     case InstancesManager.Msg.LoadInstance(instanceId) =>
-      val (asyncView, asyncCmd) = AsyncView.empty(Http.getInstance(definition.id, instanceId), instance => InstanceView.initial(instance))
-      this.copy(instanceDetails = asyncView.some) -> asyncCmd.map(InstancesManager.Msg.ForInstance(_))
+      val (view, cmd) = InstanceView.initial(definition.id, instanceId)
+      this.copy(instanceView = view.some, selectedTab = InstancesManager.Tab.InstanceDetails) -> cmd.map(InstancesManager.Msg.ForInstance(_))
 
     case InstancesManager.Msg.InstanceSelected(instanceId) =>
       this.copy(instanceIdInput = instanceId, selectedTab = InstancesManager.Tab.InstanceDetails) -> Cmd.emit(Msg.LoadInstance(instanceId))
@@ -44,11 +44,11 @@ final case class InstancesManager(
       this -> instancesTable.refresh.map(InstancesManager.Msg.ForInstTable(_))
 
     case InstancesManager.Msg.ForInstance(subMsg) =>
-      instanceDetails match {
-        case Some(value) =>
-          val (newState, cmd) = value.update(subMsg)
-          this.copy(instanceDetails = newState.some) -> cmd.map(InstancesManager.Msg.ForInstance(_))
-        case None        => this -> Cmd.None
+      instanceView match {
+        case Some(view) =>
+          val (newView, cmd) = view.update(subMsg)
+          this.copy(instanceView = newView.some) -> cmd.map(InstancesManager.Msg.ForInstance(_))
+        case None       => this -> Cmd.None
       }
 
     case InstancesManager.Msg.TabSelected(tab) =>
@@ -88,7 +88,7 @@ final case class InstancesManager(
         case InstancesManager.Tab.InstanceDetails =>
           div(
             instanceInputView,
-            instanceDetails match {
+            instanceView match {
               case Some(value) => value.view.map(InstancesManager.Msg.ForInstance(_))
               case None        => div()
             },
@@ -116,9 +116,8 @@ final case class InstancesManager(
       div(cls := "field is-grouped mt-2")(
         div(cls := "control")(
           button(
-            cls := s"button is-primary ${if instanceDetails.exists(_.isLoading) then "is-loading" else ""}",
+            cls := s"button is-primary",
             onClick(InstancesManager.Msg.LoadInstance(instanceIdInput)),
-            disabled(instanceDetails.exists(_.isLoading)),
           )("Load"),
         ),
         div(cls := "control")(
@@ -139,7 +138,7 @@ object InstancesManager {
     InstancesManager(
       definition = definition,
       instanceIdInput = "",
-      instanceDetails = None,
+      instanceView = None,
       definitionDetails = definitionView,
       instancesTable = instancesTable,
       selectedTab = Tab.Definition,
@@ -149,7 +148,7 @@ object InstancesManager {
   enum Msg {
     case InstanceIdChanged(id: String)
     case LoadInstance(instanceId: String)
-    case ForInstance(msg: AsyncView.Msg[InstanceView])
+    case ForInstance(msg: InstanceView.Msg)
     case ForDefinition(msg: DefinitionView.Msg)
     case ForInstTable(msg: AsyncView.Msg[SearchResultsTable])
     case RefreshInstances
