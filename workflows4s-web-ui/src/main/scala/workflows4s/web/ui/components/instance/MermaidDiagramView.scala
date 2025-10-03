@@ -20,6 +20,7 @@ case class MermaidDiagramView(code: String, svg: Option[String]) {
       val renderCmd =
         if MermaidHelper.mermaidAvailable then Cmd.Run(renderMermaidDiagram)
         else Cmd.Run(IO.sleep(500.millis).as(Msg.Retry))
+
       (this, renderCmd)
 
   }
@@ -28,7 +29,9 @@ case class MermaidDiagramView(code: String, svg: Option[String]) {
     div(id := "my-mermaid-container")(
       svg match {
         case Some(svg) =>
-          Html.raw(MermaidWebComponent.name)(svg)
+          div(cls := "box")(
+            Html.raw(MermaidWebComponent.name)(svg),
+          )
         case None      =>
           div(cls := "notification is-info is-light has-text-centered")(
             text("🔄 Rendering diagram..."),

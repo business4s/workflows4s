@@ -20,9 +20,18 @@ case class DefinitionView(definition: WorkflowDefinition, diagramView: MermaidDi
 
   override def view: Html[Msg] =
     div(cls := "content mt-4")(
-      h3(s"Definition: ${definition.name}"),
-      div(cls := "field is-grouped mb-4")(
-        div(cls := "control")(
+      div(cls := "field")(
+        label(cls := "label")("Name"),
+        div(cls := "control")(p(definition.name)),
+      ),
+      div(cls := "field")(
+        label(cls := "label")("Id"),
+        div(cls := "control")(p(definition.id)),
+      ),
+      div(cls := "field")(
+        label(cls := "label")("Diagram"),
+        div(cls := "control")(diagramView.view.map(Msg.ForDiagram(_))),
+        div(cls := "control mt-2")(
           a(
             cls    := "button is-success is-small",
             href   := definition.mermaidUrl,
@@ -30,7 +39,6 @@ case class DefinitionView(definition: WorkflowDefinition, diagramView: MermaidDi
           )("🔗 View in Mermaid Live"),
         ),
       ),
-      diagramView.view.map(Msg.ForDiagram(_)),
     )
 }
 

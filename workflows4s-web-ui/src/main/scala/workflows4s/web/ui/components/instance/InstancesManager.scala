@@ -59,14 +59,14 @@ final case class InstancesManager(
     div(
       div(cls := "tabs")(
         ul(
-          li(cls := s"${if selectedTab == InstancesManager.Tab.InstanceDetails then "is-active" else ""}")(
-            a(onClick(InstancesManager.Msg.TabSelected(InstancesManager.Tab.InstanceDetails)))("Instance details"),
-          ),
           li(cls := s"${if selectedTab == InstancesManager.Tab.Definition then "is-active" else ""}")(
             a(onClick(InstancesManager.Msg.TabSelected(InstancesManager.Tab.Definition)))("Definition"),
           ),
           li(cls := s"${if selectedTab == InstancesManager.Tab.Instances then "is-active" else ""}")(
             a(onClick(InstancesManager.Msg.TabSelected(InstancesManager.Tab.Instances)))("Instances"),
+          ),
+          li(cls := s"${if selectedTab == InstancesManager.Tab.InstanceDetails then "is-active" else ""}")(
+            a(onClick(InstancesManager.Msg.TabSelected(InstancesManager.Tab.InstanceDetails)))("Instance details"),
           ),
         ),
       ),
@@ -142,7 +142,7 @@ object InstancesManager {
       instanceDetails = None,
       definitionDetails = definitionView,
       instancesTable = instancesTable,
-      selectedTab = Tab.InstanceDetails,
+      selectedTab = Tab.Definition,
     ) -> Cmd.merge(cmd1.map(Msg.ForInstTable(_)), cmd2.map(Msg.ForDefinition(_)))
   }
 
