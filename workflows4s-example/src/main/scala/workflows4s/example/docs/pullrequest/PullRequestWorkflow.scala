@@ -10,6 +10,7 @@ import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.{InMemorySyncRuntime, InMemorySyncWorkflowInstance}
 import workflows4s.wio.{SignalDef, WorkflowContext}
 
+import java.nio.file.Files
 import scala.annotation.nowarn
 
 @nowarn("msg=unused explicit parameter")
@@ -115,9 +116,11 @@ object PullRequestWorkflow {
 
   @nowarn("msg=unused value")
   def run: InMemorySyncWorkflowInstance[Ctx] = {
+
+    val file = Files.createTempFile("pr", ".bpmn").toFile
     // start_render
     val bpmnModel = BpmnRenderer.renderWorkflow(workflow.toProgress.toModel, "process")
-    Bpmn.writeModelToFile(new File(s"pr.bpmn").getAbsoluteFile, bpmnModel)
+    Bpmn.writeModelToFile(file, bpmnModel)
     // end_render
 
     // start_execution
