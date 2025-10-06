@@ -6,7 +6,7 @@ import org.scalajs.dom
 import tyrian.Html.*
 import tyrian.{Cmd, Html}
 import workflows4s.web.ui.components.instance.MermaidDiagramView.Msg
-import workflows4s.web.ui.util.{MermaidHelper, MermaidJS}
+import workflows4s.web.ui.util.{IOFromPromise, MermaidHelper, MermaidJS}
 
 import scala.concurrent.duration.DurationInt
 import scala.scalajs.js
@@ -45,7 +45,7 @@ case class MermaidDiagramView(code: String, svg: Option[String]) {
       for {
         // todo, initialize shouldn't happen every time
         _            <- IO(MermaidJS.initialize(js.Dynamic.literal("startOnLoad" -> false, "htmlLabels" -> true)))
-        renderResult <- MermaidHelper.fromPromise(MermaidJS.render("mermaid-diagram", code))
+        renderResult <- IOFromPromise(MermaidJS.render("mermaid-diagram", code))
       } yield Msg.SvgReady(renderResult.svg)
     } else {
       println("Mermaid isn't ready, retrying...")
@@ -58,7 +58,7 @@ case class MermaidDiagramView(code: String, svg: Option[String]) {
 object MermaidDiagramView {
 
   def initial(code: String): (MermaidDiagramView, Cmd[IO, Msg]) = {
-    (MermaidDiagramView(code, None), Cmd.Run(IO(MermaidWebComponent.register()).as(Msg.Retry)))
+    (MermaidDiagramView(code, None), Cmd.Run(MermaidWebComponent.register().as(Msg.Retry)))
   }
 
   enum Msg {
@@ -75,7 +75,7 @@ object MermaidWebComponent {
 
   val name = "svg-container"
 
-  def register(): Unit = {
+  def register(): IO[Unit] = IO {
     if js.isUndefined(dom.window.customElements.asInstanceOf[js.Dynamic].get(name)) then {
       class MermaidDiagramElement extends dom.HTMLElement {
         def connectedCallback(): Unit = {

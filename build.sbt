@@ -93,17 +93,13 @@ lazy val `workflows4s-web-api-shared` = crossProject(JSPlatform, JVMPlatform)
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "com.softwaremill.sttp.tapir" %%% "tapir-core"         % tapirVersion,
-      "com.softwaremill.sttp.tapir" %%% "tapir-json-circe"   % tapirVersion,
-      "io.circe"                    %%% "circe-core"         % circeVersion,
-      "io.circe"                    %%% "circe-generic"      % circeVersion,
-      "com.softwaremill.sttp.tapir" %%% "tapir-apispec-docs" % tapirVersion exclude (
-        "org.scala-lang",
-        "scala3-library_3",
-      ), // https://github.com/softwaremill/tapir/pull/4803,
-      "com.softwaremill.sttp.apispec" %%% "jsonschema-circe" % "0.11.10",
+      "com.softwaremill.sttp.tapir"   %%% "tapir-core"         % tapirVersion,
+      "com.softwaremill.sttp.tapir"   %%% "tapir-json-circe"   % tapirVersion,
+      "io.circe"                      %%% "circe-core"         % circeVersion,
+      "io.circe"                      %%% "circe-generic"      % circeVersion,
+      "com.softwaremill.sttp.tapir"   %%% "tapir-apispec-docs" % tapirVersion,
+      "com.softwaremill.sttp.apispec" %%% "jsonschema-circe"   % "0.11.10",
     ),
-    publish / skip := true,
   )
 
 lazy val `workflows4s-web-api-server` = (project in file("workflows4s-web-api-server"))
@@ -137,7 +133,6 @@ lazy val `workflows4s-web-ui` = (project in file("workflows4s-web-ui"))
       "org.business4s"                %%% "forms4s-circe"      % "0.1.0",
     ),
     scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
-    publish / skip := true,
   )
   .dependsOn(`workflows4s-core`, `workflows4s-web-api-shared`.js)
 
@@ -243,7 +238,7 @@ lazy val commonSettings = Seq(
 lazy val pekkoVersion               = "1.2.0"
 lazy val pekkoHttpVersion           = "1.2.0"
 lazy val testcontainersScalaVersion = "0.43.0"
-lazy val tapirVersion               = "1.11.40"
+lazy val tapirVersion               = "1.11.48"
 lazy val circeVersion               = "0.14.14"
 
 addCommandAlias("prePR", List("compile", "Test / compile", "test", "scalafmtCheckAll").mkString(";", ";", ""))

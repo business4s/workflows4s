@@ -17,12 +17,8 @@ object ServerWithUI extends IOApp.Simple with BaseServer with StrictLogging {
 
   def run: IO[Unit] = {
     for {
-      // Get API routes from BaseServer
-      api <- apiRoutes
-      // Convert Tapir endpoints to Http4s routes
-
-      apiUrl = sys.env.getOrElse("WORKFLOWS4S_API_URL", s"http://localhost:${port}")
-
+      api      <- apiRoutes
+      apiUrl    = sys.env.getOrElse("WORKFLOWS4S_API_URL", s"http://localhost:${port}")
       uiRoutes  = Http4sServerInterpreter[IO]().toRoutes(UiEndpoints.get(UIConfig(sttp.model.Uri.unsafeParse(apiUrl), true)))
       // Add redirect from /ui to /ui/
       redirect  = org.http4s.HttpRoutes.of[IO] { case req @ org.http4s.Method.GET -> Root / "ui" =>
@@ -31,7 +27,6 @@ object ServerWithUI extends IOApp.Simple with BaseServer with StrictLogging {
                       .putHeaders(org.http4s.headers.Location(req.uri / ""))
                       .pure[IO]
                   }
-      // Combine with UI routes from UiEndpoints
       allRoutes = api <+> redirect <+> uiRoutes
       _        <- EmberServerBuilder
                     .default[IO]

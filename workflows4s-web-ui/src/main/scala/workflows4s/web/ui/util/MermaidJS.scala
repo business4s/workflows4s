@@ -17,9 +17,6 @@ trait RenderResult extends js.Object {
 }
 
 object MermaidHelper {
-  def fromPromise[A](p: js.Promise[A]): cats.effect.IO[A] =
-    cats.effect.IO.fromFuture(cats.effect.IO(p.toFuture))
-
   def mermaidAvailable: Boolean =
     js.Dynamic.global.mermaid != null && js.Dynamic.global.mermaid != js.undefined
 }

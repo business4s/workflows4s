@@ -11,13 +11,17 @@ import workflows4s.web.api.model.UIConfig
 object UiEndpoints {
 
   def get[F[_]](config: UIConfig): List[ServerEndpoint[Any, F]] = List(
-    endpoint.get
-      .in("ui" / "config.json")
-      .out(jsonBody[UIConfig])
-      .serverLogicSuccessPure(_ => config),
-    staticResourcesGetServerEndpoint[F]("ui")(
-      this.getClass.getClassLoader,
-      "workflows4s-web-ui-bundle",
-    ),
+    uiConfigEndpoint(config),
+    uiBundleEndpoint,
+  )
+
+  private def uiConfigEndpoint[F[_]](config: UIConfig) = endpoint.get
+    .in("ui" / "config.json")
+    .out(jsonBody[UIConfig])
+    .serverLogicSuccessPure[F](_ => config)
+
+  private def uiBundleEndpoint[F[_]] = staticResourcesGetServerEndpoint[F]("ui")(
+    this.getClass.getClassLoader,
+    "workflows4s-web-ui-bundle",
   )
 }

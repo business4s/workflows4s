@@ -34,7 +34,7 @@ class RealWorkflowService[F[_]](
   def getInstance(definitionId: String, instanceId: String): F[WorkflowInstance] =
     for {
       entry    <- findEntry(definitionId)
-      instance <- getRealInstance(entry, instanceId)
+      instance <- getInstanceFromEntry(entry, instanceId)
     } yield instance
 
   override def deliverSignal(request: SignalRequest): F[Json] = {
@@ -51,7 +51,7 @@ class RealWorkflowService[F[_]](
   private def findEntry(definitionId: String): F[RealWorkflowService.WorkflowEntry[F, ?]] =
     me.fromOption(workflowEntries.find(_.id == definitionId), new Exception(s"Definition not found: $definitionId"))
 
-  private def getRealInstance[Ctx <: WorkflowContext](
+  private def getInstanceFromEntry[Ctx <: WorkflowContext](
       entry: RealWorkflowService.WorkflowEntry[F, Ctx],
       instanceId: String,
   ): F[WorkflowInstance] = {
@@ -64,7 +64,7 @@ class RealWorkflowService[F[_]](
     } yield WorkflowInstance(
       id = instanceId,
       templateId = entry.id,
-      state = Some(entry.stateEncoder(currentState)),
+      state = entry.stateEncoder(currentState),
       mermaidUrl = mermaid.toViewUrl,
       mermaidCode = mermaid.render,
       expectedSignals = signals.map(convertSignal(entry, _)),
@@ -111,6 +111,8 @@ object RealWorkflowService {
     def id: String = runtime.templateId
   }
 
+  /** Allows api to support retriving expected signals and sending them
+    */
   trait SignalSupport {
     def getSchema(signalDef: SignalDef[?, ?]): Option[sttp.apispec.Schema]
     def transformRequest(signalId: String): RequestHandler[?, ?]
@@ -119,7 +121,9 @@ object RealWorkflowService {
   object SignalSupport {
     val NoSupport: SignalSupport = new SignalSupport {
       override def getSchema(signalDef: SignalDef[?, ?]): Option[Schema]    = None
-      override def transformRequest(signalId: String): RequestHandler[?, ?] = ??? // TODO
+      override def transformRequest(signalId: String): RequestHandler[?, ?] = throw new Exception(
+        "transformRequest executed in NoSupport SignalSupport. This should never happen.",
+      )
     }
 
     val builder = Builder(Map())

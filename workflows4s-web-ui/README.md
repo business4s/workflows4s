@@ -2,7 +2,7 @@
 
 ## Development
 
-We recommend you have two terminal tabs:
+We recommend you have three terminal tabs:
 
 ### Terminal 1 - scala JS side
 

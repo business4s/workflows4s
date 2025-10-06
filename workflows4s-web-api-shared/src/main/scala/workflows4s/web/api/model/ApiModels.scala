@@ -21,7 +21,7 @@ case class WorkflowDefinition(
 case class WorkflowInstance(
     id: String,
     templateId: String,
-    state: Option[io.circe.Json] = None,
+    state: io.circe.Json,
     mermaidUrl: String,
     mermaidCode: String,
     expectedSignals: Seq[Signal],

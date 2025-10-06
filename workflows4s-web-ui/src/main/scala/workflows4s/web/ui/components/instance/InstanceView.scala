@@ -71,16 +71,9 @@ object InstanceView {
 
     private def instanceStateView: Html[Content.Msg] = {
       div(
-        instance.state match {
-          case Some(stateJson) =>
-            pre(cls := "mt-2 content is-small")(
-              code(stateJson.spaces2),
-            )
-          case None            =>
-            div(cls := "notification is-light")(
-              text("No state data available"),
-            )
-        },
+        pre(cls := "mt-2 content is-small")(
+          code(instance.state.spaces2),
+        )
       )
     }
 
