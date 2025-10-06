@@ -61,7 +61,6 @@ case class SignalModal(
       }
 
     case Msg.Send =>
-      println(formState.extractJson)
       val (cmp, cmd) =
         AsyncView.empty_(
           Http.sendSignal(SignalRequest(wfInstance.templateId, wfInstance.id, signal.id, formState.extractJson)),

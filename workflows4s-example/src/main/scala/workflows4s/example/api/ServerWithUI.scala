@@ -3,6 +3,7 @@ package workflows4s.example.api
 import cats.effect.{IO, IOApp}
 import cats.syntax.all.*
 import com.comcast.ip4s.*
+import com.typesafe.scalalogging.StrictLogging
 import org.http4s.dsl.io.*
 import org.http4s.ember.server.EmberServerBuilder
 import org.http4s.implicits.*
@@ -10,7 +11,7 @@ import sttp.tapir.server.http4s.Http4sServerInterpreter
 import workflows4s.ui.bundle.UiEndpoints
 import workflows4s.web.api.model.UIConfig
 
-object ServerWithUI extends IOApp.Simple with BaseServer {
+object ServerWithUI extends IOApp.Simple with BaseServer with StrictLogging {
 
   val port = 8080
 
@@ -39,7 +40,7 @@ object ServerWithUI extends IOApp.Simple with BaseServer {
                     .withHttpApp(allRoutes.orNotFound)
                     .build
                     .use { server =>
-                      IO.println(s"Server with UI running at http://${server.address}") *>
+                      IO(logger.info(s"Server with UI running at http://${server.address}")) *>
                         IO.never
                     }
     } yield ()

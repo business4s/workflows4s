@@ -69,12 +69,7 @@ object InMemoryWorkflowRegistry {
       for {
         state <- stateRef.get
       } yield {
-        // apply filters
-        println(state)
-        val filtered = state.values.toList.filter(d => applyFiltersWithLogging(d, filters))
-        println(filtered)
-
-        // sorting
+        val filtered = state.values.toList.filter(x => filters.forall(_.apply(x)))
         val sorted = query.sort match {
           case Some(WorkflowSearch.SortBy.CreatedAsc)  => filtered.sortBy(_.createdAt)
           case Some(WorkflowSearch.SortBy.CreatedDesc) => filtered.sortBy(_.createdAt)(using Ordering[Instant].reverse)
@@ -84,24 +79,11 @@ object InMemoryWorkflowRegistry {
           case Some(WorkflowSearch.SortBy.WakeupDesc)  => filtered.sortBy(_.wakeupAt)(using Ordering.Option(using Ordering[Instant]).reverse)
           case None                                    => filtered
         }
-
-        // pagination
         val paged = sorted
           .drop(query.offset.getOrElse(0))
           .take(query.limit.getOrElse(sorted.size))
 
-        // to results
         paged.map(d => WorkflowSearch.Result(d.id, d.status, d.createdAt, d.updatedAt, d.tags, d.wakeupAt))
-      }
-    }
-
-    private def applyFiltersWithLogging(data: Data, filters: List[Data => Boolean]): Boolean = {
-      filters.zipWithIndex.forall { (filter, idx) =>
-        val result = filter(data)
-        if !result then {
-          logger.debug(s"Workflow ${data.id} filtered out by predicate: $idx")
-        }
-        result
       }
     }
 

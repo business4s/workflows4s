@@ -2,8 +2,10 @@ package workflows4s.runtime.registry
 
 import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.runtime.registry.WorkflowRegistry.ExecutionStatus
+
 import java.time.Instant
 import WorkflowSearch.*
+import cats.MonadThrow
 
 trait WorkflowSearch[F[_]] {
   def search(templateId: String, query: Query): F[List[Result]]
@@ -46,7 +48,7 @@ object WorkflowSearch {
       wakeupAt: Option[Instant],
   )
 
-  def disabled[F[_]]: WorkflowSearch[F] = new WorkflowSearch[F] {
-    override def search(templateId: String, query: Query): F[List[Result]] = ??? // TODO
+  def disabled[F[_]: {MonadThrow as mt}]: WorkflowSearch[F] = new WorkflowSearch[F] {
+    override def search(templateId: String, query: Query): F[List[Result]] = mt.raiseError(new Exception("Search disabled"))
   }
 }
