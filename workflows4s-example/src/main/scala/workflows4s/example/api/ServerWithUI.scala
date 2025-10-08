@@ -16,7 +16,7 @@ object ServerWithUI extends IOApp.Simple with BaseServer with StrictLogging {
   val port = 8080
 
   def run: IO[Unit] = {
-    for {
+    (for {
       api      <- apiRoutes
       apiUrl    = sys.env.getOrElse("WORKFLOWS4S_API_URL", s"http://localhost:${port}")
       uiRoutes  = Http4sServerInterpreter[IO]().toRoutes(UiEndpoints.get(UIConfig(sttp.model.Uri.unsafeParse(apiUrl), true)))
@@ -28,16 +28,15 @@ object ServerWithUI extends IOApp.Simple with BaseServer with StrictLogging {
                       .pure[IO]
                   }
       allRoutes = api <+> redirect <+> uiRoutes
-      _        <- EmberServerBuilder
+      server   <- EmberServerBuilder
                     .default[IO]
                     .withHost(ipv4"0.0.0.0")
                     .withPort(Port.fromInt(8080).get)
                     .withHttpApp(allRoutes.orNotFound)
                     .build
-                    .use { server =>
-                      IO(logger.info(s"Server with UI running at http://${server.address}")) *>
-                        IO.never
-                    }
-    } yield ()
+    } yield server).use { server =>
+      IO(logger.info(s"Server with UI running at http://${server.address}")) *>
+        IO.never
+    }
   }
 }

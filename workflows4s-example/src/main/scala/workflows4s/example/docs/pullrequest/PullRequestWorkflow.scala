@@ -1,6 +1,5 @@
 package workflows4s.example.docs.pullrequest
 
-import java.io.File
 import cats.effect.IO
 import io.circe.{Decoder, Encoder}
 import org.camunda.bpm.model.bpmn.Bpmn

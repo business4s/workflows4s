@@ -11,8 +11,7 @@ import workflows4s.runtime.WorkflowRuntime
 import workflows4s.runtime.registry.WorkflowSearch
 import workflows4s.ui.bundle.UiEndpoints
 import workflows4s.web.api.model.UIConfig
-import workflows4s.web.api.server.RealWorkflowService.SignalSupport
-import workflows4s.web.api.server.{RealWorkflowService, WorkflowServerEndpoints}
+import workflows4s.web.api.server.{SignalSupport, WorkflowEntry, WorkflowServerEndpoints}
 import workflows4s.wio.WCState
 
 object GettingStarted {
@@ -25,8 +24,8 @@ object GettingStarted {
       val myRuntime: WorkflowRuntime[IO, MyWorkflowCtx] = ???
 
       // each runtime needs to be enriched by some information required by the UI
-      val myApiEntry: RealWorkflowService.WorkflowEntry[IO, MyWorkflowCtx] =
-        RealWorkflowService.WorkflowEntry(
+      val myApiEntry: WorkflowEntry[IO, MyWorkflowCtx] =
+        WorkflowEntry(
           name = "My Workflow",
           runtime = myRuntime,
           stateEncoder = ??? : Encoder[WCState[MyWorkflowCtx]],

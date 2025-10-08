@@ -6,13 +6,12 @@ import com.typesafe.scalalogging.StrictLogging
 import sttp.tapir.server.ServerEndpoint
 import workflows4s.runtime.registry.WorkflowSearch
 import workflows4s.web.api.endpoints.WorkflowEndpoints
-import workflows4s.web.api.server.RealWorkflowService.WorkflowEntry
+import workflows4s.web.api.server.WorkflowEntry
 
 object WorkflowServerEndpoints extends StrictLogging {
 
   def get[F[_]](entries: List[WorkflowEntry[F, ?]], search: WorkflowSearch[F])(using F: Async[F]): List[ServerEndpoint[Any, F]] = {
-    val service = RealWorkflowService(entries, search)
-
+    val service = WorkflowApiServiceImpl(entries, search)
     List(
       WorkflowEndpoints.listDefinitions.serverLogic(_ => handleError(service.listDefinitions())),
       WorkflowEndpoints.getDefinition.serverLogic(workflowId => handleError(service.getDefinition(workflowId))),

@@ -1,6 +1,7 @@
 package workflows4s.example.api
 
 import cats.effect.IO
+import cats.effect.kernel.Resource
 import io.circe.Encoder
 import org.http4s.HttpRoutes
 import org.http4s.server.middleware.CORS
@@ -9,44 +10,42 @@ import workflows4s.example.courseregistration.CourseRegistrationWorkflow
 import workflows4s.example.docs.pullrequest.PullRequestWorkflow
 import workflows4s.example.docs.pullrequest.PullRequestWorkflow.PRState
 import workflows4s.example.pekko.DummyWithdrawalService
-import workflows4s.example.withdrawal.{WithdrawalData, WithdrawalWorkflow}
 import workflows4s.example.withdrawal.checks.ChecksEngine
+import workflows4s.example.withdrawal.{WithdrawalData, WithdrawalWorkflow}
 import workflows4s.runtime.InMemoryRuntime
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.registry.InMemoryWorkflowRegistry
 import workflows4s.runtime.wakeup.SleepingKnockerUpper
-import workflows4s.web.api.server.RealWorkflowService.{SignalSupport, WorkflowEntry}
-import workflows4s.web.api.server.WorkflowServerEndpoints
+import workflows4s.web.api.server.{SignalSupport, WorkflowEntry, WorkflowServerEndpoints}
 
 trait BaseServer {
 
 
   /** Creates the API routes with CORS enabled
     */
-  protected def apiRoutes: IO[HttpRoutes[IO]] = {
-
+  protected def apiRoutes: Resource[IO, HttpRoutes[IO]] = {
     for {
-      (knockerUpper, release) <- SleepingKnockerUpper.create().allocated // TODO, leaking resources
-      registry                <- InMemoryWorkflowRegistry()
+      knockerUpper <- SleepingKnockerUpper.create()
+      registry                <- InMemoryWorkflowRegistry().toResource
       engine                   = WorkflowInstanceEngine.default(knockerUpper, registry)
       courseRegRuntime        <- InMemoryRuntime.default[CourseRegistrationWorkflow.Context.Ctx](
                                    workflow = CourseRegistrationWorkflow.workflow,
                                    initialState = CourseRegistrationWorkflow.RegistrationState.Empty,
                                    engine = engine,
-                                 )
+                                 ).toResource
 
       pullReqRuntime <- InMemoryRuntime.default[PullRequestWorkflow.Context.Ctx](
                           workflow = PullRequestWorkflow.workflow,
                           initialState = PullRequestWorkflow.PRState.Empty,
                           engine = engine,
-                        )
+                        ).toResource
 
       withdrawalWf       = WithdrawalWorkflow(DummyWithdrawalService, ChecksEngine)
       withdrawalRuntime <- InMemoryRuntime.default[WithdrawalWorkflow.Context.Ctx](
                              workflow = withdrawalWf.workflowDeclarative,
                              initialState = WithdrawalData.Empty,
                              engine = engine,
-                           )
+                           ).toResource
       workflowEntries = List[WorkflowEntry[IO, ?]](
                           WorkflowEntry(
                             name = "Course Registration",

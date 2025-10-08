@@ -9,19 +9,18 @@ import org.http4s.implicits.*
 object Server extends IOApp.Simple, BaseServer, StrictLogging {
 
   def run: IO[Unit] = {
-    for {
-      // Use shared API routes from BaseServer
-      routes <- apiRoutes
-      _      <- EmberServerBuilder
-                  .default[IO]
-                  .withHost(ipv4"0.0.0.0")
-                  .withPort(port"8081")
-                  .withHttpApp(routes.orNotFound)
-                  .build
-                  .use { server =>
-                    IO(logger.info(s"API Server running at http://${server.address}")) *>
-                      IO.never
-                  }
-    } yield ()
+    apiRoutes
+      .flatMap(routes =>
+        EmberServerBuilder
+          .default[IO]
+          .withHost(ipv4"0.0.0.0")
+          .withPort(port"8081")
+          .withHttpApp(routes.orNotFound)
+          .build,
+      )
+      .use { server =>
+        IO(logger.info(s"API Server running at http://${server.address}")) *>
+          IO.never
+      }
   }
 }
