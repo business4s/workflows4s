@@ -12,7 +12,7 @@ import java.time.Instant
 case class WorkflowDefinition(
     id: String,
     name: String,
-    description: Option[String] = None,
+    description: Option[String],
     mermaidUrl: String,
     mermaidCode: String,
 ) derives Codec.AsObject,

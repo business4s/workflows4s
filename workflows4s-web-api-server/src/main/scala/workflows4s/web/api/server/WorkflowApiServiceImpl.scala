@@ -22,7 +22,7 @@ class WorkflowApiServiceImpl[F[_]](
 
   private def convertEntry(e: WorkflowEntry[F, ?]): WorkflowDefinition = {
     val mermaidDiagram = MermaidRenderer.renderWorkflow(e.runtime.workflow.toProgress, true)
-    WorkflowDefinition(e.id, e.name, None, mermaidDiagram.toViewUrl, mermaidDiagram.render)
+    WorkflowDefinition(e.id, e.name, e.description, mermaidDiagram.toViewUrl, mermaidDiagram.render)
   }
 
   def getInstance(templateId: String, instanceId: String): F[WorkflowInstance] =

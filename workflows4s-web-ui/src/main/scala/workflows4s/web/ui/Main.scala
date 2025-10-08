@@ -4,22 +4,21 @@ import cats.effect.IO
 import cats.implicits.catsSyntaxOptionId
 import tyrian.*
 import tyrian.Html.*
-import workflows4s.web.ui.components.instance.InstancesManager
-import workflows4s.web.ui.components.template.{WorkflowSelector, WorkflowsManager}
+import workflows4s.web.ui.components.template.{TemplateDetailsView, TemplateSelector, TemplatesList}
 import workflows4s.web.ui.components.util.AsyncView
 import workflows4s.web.ui.util.UIConfig
 
 import scala.scalajs.js.annotation.*
 
 final case class Model(
-    workflows: WorkflowsManager,
-    instances: Option[InstancesManager],
+                        workflows: TemplatesList,
+                        instances: Option[TemplateDetailsView],
 )
 
 enum Msg {
   case NoOp
-  case ForWorkflows(msg: WorkflowsManager.Msg)
-  case ForInstances(msg: InstancesManager.Msg)
+  case ForWorkflows(msg: TemplatesList.Msg)
+  case ForInstances(msg: TemplateDetailsView.Msg)
   case FollowExternalLink(str: String)
 }
 
@@ -29,7 +28,7 @@ object Main extends TyrianIOApp[Msg, Model] {
   def router: Location => Msg = Routing.basic(_ => Msg.NoOp, Msg.FollowExternalLink(_))
 
   def init(flags: Map[String, String]): (Model, Cmd[IO, Msg]) = {
-    val (workflowsManager, workflowsCmd) = WorkflowsManager.initial
+    val (workflowsManager, workflowsCmd) = TemplatesList.initial
     val cmd: Cmd[IO, Msg]                = workflowsCmd.map(Msg.ForWorkflows(_)) |+| Cmd.Run(UIConfig.load.as(Msg.NoOp))
     (Model(workflowsManager, None), cmd)
   }
@@ -39,16 +38,16 @@ object Main extends TyrianIOApp[Msg, Model] {
 
     case Msg.ForWorkflows(workflowsMsg) =>
       val newWorkflowDef           = workflowsMsg match {
-        case WorkflowsManager.Msg.ForSelector(msg) =>
+        case TemplatesList.Msg.ForSelector(msg) =>
           msg match {
             case AsyncView.Msg.Propagate(msg) =>
               msg match {
-                case WorkflowSelector.Msg.Select(workflowDef) => Some(workflowDef)
+                case TemplateSelector.Msg.Select(workflowDef) => Some(workflowDef)
               }
             case _                            => None
           }
       }
-      val newInstanceManager       = newWorkflowDef.map(wd => InstancesManager.initial(wd))
+      val newInstanceManager       = newWorkflowDef.map(wd => TemplateDetailsView.initial(wd))
       val cmd1                     = newInstanceManager.map(_._2).getOrElse(Cmd.None).map(Msg.ForInstances(_))
       val (updatedWorkflows, cmd2) = model.workflows.update(workflowsMsg)
       (

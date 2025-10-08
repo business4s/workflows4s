@@ -1,11 +1,12 @@
-package workflows4s.web.ui.components.instance
+package workflows4s.web.ui.components.template
 
 import cats.effect.IO
 import tyrian.Html.*
 import tyrian.{Cmd, Html}
 import workflows4s.web.api.model.WorkflowDefinition
+import workflows4s.web.ui.components.instance.MermaidDiagramView
+import workflows4s.web.ui.components.template.DefinitionView.Msg
 import workflows4s.web.ui.components.util.Component
-import workflows4s.web.ui.components.instance.DefinitionView.Msg
 
 case class DefinitionView(definition: WorkflowDefinition, diagramView: MermaidDiagramView) extends Component {
 
@@ -21,13 +22,21 @@ case class DefinitionView(definition: WorkflowDefinition, diagramView: MermaidDi
   override def view: Html[Msg] =
     div(cls := "content mt-4")(
       div(cls := "field")(
-        label(cls := "label")("Name"),
-        div(cls := "control")(p(definition.name)),
-      ),
-      div(cls := "field")(
         label(cls := "label")("Id"),
         div(cls := "control")(p(definition.id)),
       ),
+      div(cls := "field")(
+        label(cls := "label")("Name"),
+        div(cls := "control")(p(definition.name)),
+      ),
+      definition.description
+        .map(desc =>
+          div(cls := "field")(
+            label(cls := "label")("Description"),
+            div(cls := "control")(p(desc)),
+          ),
+        )
+        .getOrElse(text("")),
       div(cls := "field")(
         label(cls := "label")("Diagram"),
         div(cls := "control")(diagramView.view.map(Msg.ForDiagram(_))),

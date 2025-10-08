@@ -26,7 +26,7 @@ case class MermaidDiagramView(code: String, svg: Option[String]) {
   }
 
   def view: Html[MermaidDiagramView.Msg] = {
-    div(id := "my-mermaid-container")(
+    div()(
       svg match {
         case Some(svg) =>
           div(cls := "box")(

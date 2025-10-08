@@ -6,6 +6,7 @@ import workflows4s.wio.WorkflowContext
 
 case class WorkflowEntry[F[_], Ctx <: WorkflowContext](
     name: String,
+    description: Option[String],
     runtime: WorkflowRuntime[F, Ctx],
     stateEncoder: Encoder[workflows4s.wio.WCState[Ctx]],
     signalSupport: SignalSupport,

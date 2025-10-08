@@ -26,6 +26,7 @@ object GettingStarted {
       val myApiEntry: WorkflowEntry[IO, MyWorkflowCtx] =
         WorkflowEntry(
           name = "My Workflow",
+          description = None,
           runtime = myRuntime,
           stateEncoder = ??? : Encoder[WCState[MyWorkflowCtx]],
           signalSupport = SignalSupport.NoSupport,
