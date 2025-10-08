@@ -2,6 +2,7 @@ package workflows4s.example.api
 
 import cats.effect.IO
 import cats.effect.kernel.Resource
+import cats.implicits.catsSyntaxOptionId
 import io.circe.Encoder
 import org.http4s.HttpRoutes
 import org.http4s.server.middleware.CORS
@@ -77,7 +78,7 @@ trait BaseServer {
                               .build,
                           ),
                         )
-      routes          = Http4sServerInterpreter[IO]().toRoutes(WorkflowServerEndpoints.get[IO](workflowEntries, registry))
+      routes          = Http4sServerInterpreter[IO]().toRoutes(WorkflowServerEndpoints.get[IO](workflowEntries, registry.some))
     } yield CORS.policy.withAllowOriginAll(routes)
   }
 }

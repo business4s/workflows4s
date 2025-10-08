@@ -10,7 +10,7 @@ import workflows4s.wio.{SignalDef, WorkflowContext}
 
 class WorkflowApiServiceImpl[F[_]](
     workflowEntries: List[WorkflowEntry[F, ?]],
-    workflowSearch: WorkflowSearch[F],
+    workflowSearch: Option[WorkflowSearch[F]],
 )(using me: MonadError[F, Throwable])
     extends WorkflowApiService[F] {
 
@@ -25,9 +25,9 @@ class WorkflowApiServiceImpl[F[_]](
     WorkflowDefinition(e.id, e.name, None, mermaidDiagram.toViewUrl, mermaidDiagram.render)
   }
 
-  def getInstance(definitionId: String, instanceId: String): F[WorkflowInstance] =
+  def getInstance(templateId: String, instanceId: String): F[WorkflowInstance] =
     for {
-      entry    <- findEntry(definitionId)
+      entry    <- findEntry(templateId)
       instance <- getInstanceFromEntry(entry, instanceId)
     } yield instance
 
@@ -42,8 +42,8 @@ class WorkflowApiServiceImpl[F[_]](
     } yield respJson
   }
 
-  private def findEntry(definitionId: String): F[WorkflowEntry[F, ?]] =
-    me.fromOption(workflowEntries.find(_.id == definitionId), new Exception(s"Definition not found: $definitionId"))
+  private def findEntry(templateId: String): F[WorkflowEntry[F, ?]] =
+    me.fromOption(workflowEntries.find(_.id == templateId), new Exception(s"Definition not found: $templateId"))
 
   private def getInstanceFromEntry[Ctx <: WorkflowContext](
       entry: WorkflowEntry[F, Ctx],
@@ -74,23 +74,28 @@ class WorkflowApiServiceImpl[F[_]](
   }
 
   override def searchWorkflows(templateId: String): F[List[WorkflowSearchResult]] = {
-    workflowSearch
-      .search(templateId, WorkflowSearch.Query())
-      .map(
-        _.map(r =>
-          WorkflowSearchResult(
-            r.id.templateId,
-            r.id.instanceId,
-            r.status match {
-              case WorkflowRegistry.ExecutionStatus.Running  => ExecutionStatus.Running
-              case WorkflowRegistry.ExecutionStatus.Awaiting => ExecutionStatus.Awaiting
-              case WorkflowRegistry.ExecutionStatus.Finished => ExecutionStatus.Finished
-            },
-            r.createdAt,
-            r.updatedAt,
-            r.wakeupAt,
-          ),
-        ),
-      )
+    workflowSearch match {
+      case Some(search) =>
+        search
+          .search(templateId, WorkflowSearch.Query())
+          .map(
+            _.map(r =>
+              WorkflowSearchResult(
+                r.id.templateId,
+                r.id.instanceId,
+                r.status match {
+                  case WorkflowRegistry.ExecutionStatus.Running  => ExecutionStatus.Running
+                  case WorkflowRegistry.ExecutionStatus.Awaiting => ExecutionStatus.Awaiting
+                  case WorkflowRegistry.ExecutionStatus.Finished => ExecutionStatus.Finished
+                },
+                r.createdAt,
+                r.updatedAt,
+                r.wakeupAt,
+              ),
+            ),
+          )
+      case None         => me.raiseError(new Exception("Search not configured")) // in the future we will expose this information and UI will handle it gracefully
+    }
+
   }
 }

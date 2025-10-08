@@ -8,7 +8,6 @@ import sttp.model.Uri
 import sttp.tapir.server.http4s.Http4sServerInterpreter
 import workflows4s.example.docs.wakeups.common.MyWorkflowCtx
 import workflows4s.runtime.WorkflowRuntime
-import workflows4s.runtime.registry.WorkflowSearch
 import workflows4s.ui.bundle.UiEndpoints
 import workflows4s.web.api.model.UIConfig
 import workflows4s.web.api.server.{SignalSupport, WorkflowEntry, WorkflowServerEndpoints}
@@ -23,7 +22,7 @@ object GettingStarted {
       // the same runtime that is used for running the workflows
       val myRuntime: WorkflowRuntime[IO, MyWorkflowCtx] = ???
 
-      // each runtime needs to be enriched by some information required by the UI
+      // each runtime needs to be enriched with information required by the UI
       val myApiEntry: WorkflowEntry[IO, MyWorkflowCtx] =
         WorkflowEntry(
           name = "My Workflow",
@@ -32,8 +31,8 @@ object GettingStarted {
           signalSupport = SignalSupport.NoSupport,
         )
 
-      // tapir endpoints for serving the API
-      val apiEndpoints = WorkflowServerEndpoints.get(List(myApiEntry), WorkflowSearch.disabled)
+      // tapir endpoints for serving the API, we dont configure search for now
+      val apiEndpoints = WorkflowServerEndpoints.get(List(myApiEntry), search = None)
       // tapir endpoints for service the UI assets
       val uiEndpoints  = UiEndpoints.get[IO](UIConfig(Uri.unsafeParse("http://localhost:8080")))
 

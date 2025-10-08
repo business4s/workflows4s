@@ -10,7 +10,7 @@ import workflows4s.web.api.server.WorkflowEntry
 
 object WorkflowServerEndpoints extends StrictLogging {
 
-  def get[F[_]](entries: List[WorkflowEntry[F, ?]], search: WorkflowSearch[F])(using F: Async[F]): List[ServerEndpoint[Any, F]] = {
+  def get[F[_]](entries: List[WorkflowEntry[F, ?]], search: Option[WorkflowSearch[F]])(using F: Async[F]): List[ServerEndpoint[Any, F]] = {
     val service = WorkflowApiServiceImpl(entries, search)
     List(
       WorkflowEndpoints.listDefinitions.serverLogic(_ => handleError(service.listDefinitions())),
