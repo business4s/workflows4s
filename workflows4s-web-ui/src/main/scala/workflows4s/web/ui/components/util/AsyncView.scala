@@ -32,36 +32,26 @@ case class AsyncView[S <: Component.Aux[S, M], M](
   }
 
   def update(msg: AsyncView.Msg[S]): (AsyncView[S, M], Cmd[IO, AsyncView.Msg[S]]) = {
-    def restart: (AsyncView[S, M], Cmd[IO, AsyncView.Msg[S]]) = this.copy(state = AsyncView.State.Loading()) -> Cmd.Run(action.attempt, Msg.Finished.apply)
-    state match {
-      case State.Initial()        =>
-        msg match {
-          case Msg.Start() => restart
-          case _           => ???
+    def restart: (AsyncView[S, M], Cmd[IO, AsyncView.Msg[S]]) =
+      this.copy(state = AsyncView.State.Loading()) -> Cmd.Run(action.attempt, Msg.Finished.apply)
+
+    msg match {
+      case Msg.Start()          => restart
+      case Msg.Finished(result) =>
+        result match {
+          case Left(error)            =>
+            this.copy(state = State.Failed(error)) -> Cmd.None
+          case Right((newState, cmd)) =>
+            this.copy(state = State.Ready(newState)) -> cmd.map(Msg.Propagate(_))
         }
-      case State.Loading()        =>
-        msg match {
-          case Msg.Finished(result) =>
-            result match {
-              case Left(error)            =>
-                this.copy(state = State.Failed(error)) -> Cmd.None
-              case Right((newState, cmd)) =>
-                this.copy(state = State.Ready(newState)) -> cmd.map(Msg.Propagate(_))
-            }
-          case _                    => ???
-        }
-      case State.Ready(component) =>
-        msg match {
-          case Msg.Start()        => restart
-          case Msg.Propagate(msg) =>
+      case Msg.Propagate(msg)   =>
+        state match {
+          case State.Ready(component) =>
             val (newComp, cmd) = component.update(msg)
             this.copy(state = State.Ready(newComp)) -> cmd.map(Msg.Propagate(_))
-          case _                  => ???
-        }
-      case State.Failed(_)        =>
-        msg match {
-          case Msg.Start() => restart
-          case _           => ???
+          case state                  =>
+            println(s"Propagate in unexpected state $state")
+            this -> Cmd.None
         }
     }
   }

@@ -4,6 +4,7 @@ import cats.effect.IO
 import tyrian.Html.*
 import tyrian.{Cmd, Html}
 import workflows4s.web.api.model.WorkflowDefinition
+import workflows4s.web.ui.components.ReusableViews
 import workflows4s.web.ui.components.instance.MermaidDiagramView
 import workflows4s.web.ui.components.template.DefinitionView.Msg
 import workflows4s.web.ui.components.util.Component
@@ -21,21 +22,10 @@ case class DefinitionView(definition: WorkflowDefinition, diagramView: MermaidDi
 
   override def view: Html[Msg] =
     div(cls := "content mt-4")(
-      div(cls := "field")(
-        label(cls := "label")("Id"),
-        div(cls := "control")(p(definition.id)),
-      ),
-      div(cls := "field")(
-        label(cls := "label")("Name"),
-        div(cls := "control")(p(definition.name)),
-      ),
+      ReusableViews.inlineField("Id", definition.id),
+      ReusableViews.inlineField("Name", definition.name),
       definition.description
-        .map(desc =>
-          div(cls := "field")(
-            label(cls := "label")("Description"),
-            div(cls := "control")(p(desc)),
-          ),
-        )
+        .map(desc => ReusableViews.inlineField("Description", desc))
         .getOrElse(text("")),
       div(cls := "field")(
         label(cls := "label")("Diagram"),

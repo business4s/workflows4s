@@ -17,10 +17,9 @@ object ReusableViews {
       text(error),
     )
 
-  def instanceField(label: String, value: Html[Nothing]): Html[Nothing] =
-    div(cls := "field")(
-      Html.label(cls := "label")(label),
-      div(cls := "control")(value),
+  def inlineField(label: String, value: String): Html[Nothing] =
+    div()(
+      strong()(label),text(": "), text(value)
     )
 
 }
