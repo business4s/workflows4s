@@ -4,15 +4,16 @@ import cats.effect.IO
 import cats.implicits.catsSyntaxOptionId
 import tyrian.*
 import tyrian.Html.*
+import workflows4s.web.ui.components.instance.MermaidWebComponent
 import workflows4s.web.ui.components.template.{TemplateDetailsView, TemplateSelector, TemplatesList}
 import workflows4s.web.ui.components.util.AsyncView
-import workflows4s.web.ui.util.UIConfig
+import workflows4s.web.ui.util.{MermaidSupport, UIConfig}
 
 import scala.scalajs.js.annotation.*
 
 final case class Model(
-                        workflows: TemplatesList,
-                        instances: Option[TemplateDetailsView],
+    workflows: TemplatesList,
+    instances: Option[TemplateDetailsView],
 )
 
 enum Msg {
@@ -29,12 +30,16 @@ object Main extends TyrianIOApp[Msg, Model] {
 
   def init(flags: Map[String, String]): (Model, Cmd[IO, Msg]) = {
     val (workflowsManager, workflowsCmd) = TemplatesList.initial
-    val cmd: Cmd[IO, Msg]                = workflowsCmd.map(Msg.ForWorkflows(_)) |+| Cmd.Run(UIConfig.load.as(Msg.NoOp))
+    val cmd: Cmd[IO, Msg]                = workflowsCmd.map(Msg.ForWorkflows(_)) |+|
+      Cmd.Run(UIConfig.load.as(Msg.NoOp)) |+|
+      Cmd.Run(MermaidWebComponent.register().as(Msg.NoOp)) |+|
+      Cmd.Run(MermaidSupport.initialize.as(Msg.NoOp))
+
     (Model(workflowsManager, None), cmd)
   }
 
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
-    case Msg.NoOp        => (model, Cmd.None)
+    case Msg.NoOp => (model, Cmd.None)
 
     case Msg.ForWorkflows(workflowsMsg) =>
       val newWorkflowDef           = workflowsMsg match {

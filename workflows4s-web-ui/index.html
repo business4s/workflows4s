@@ -3,66 +3,6 @@
   <head>
     <meta charset="UTF-8" />
     <title>Workflows4s</title>
-
-    <style> 
-       /*still need to decide if this css is the correct way, need @dave's review on this */
-      /* GLOBAL HORIZONTAL SCROLLING FOR BETTER UX */
-      html, body {
-        overflow-x: auto !important;
-        overflow-y: auto !important;
-        min-width: 100%;
-        width: auto;
-      }
-      
-      /* Allow containers to expand beyond viewport width */
-      .container {
-        max-width: none !important;
-        width: auto !important;
-        min-width: 100%;
-      }
-      
-      /* Make columns flexible for wide content */
-      .columns {
-        flex-wrap: nowrap !important;
-        min-width: 100%;
-      }
-      
-      .column {
-        min-width: 0;
-        flex-shrink: 0;
-      }
-      
-      /* Specific fixes for workflow diagrams */
-      .box {
-        overflow-x: auto;
-        min-width: 0;
-      }
-      
-      /* Prevent text wrapping in code blocks */
-      pre, code {
-        white-space: pre !important;
-        word-wrap: normal !important;
-        overflow-x: auto !important;
-      }
-      
-      /* Make sure Mermaid diagrams can expand horizontally */
-      .mermaid-container {
-        min-width: 0;
-        overflow-x: auto;
-      }
-      
-      /* Responsive design - maintain scrolling on mobile */
-      @media screen and (max-width: 768px) {
-        html, body {
-          overflow-x: auto !important;
-        }
-        
-        .container {
-          padding-left: 0.75rem;
-          padding-right: 0.75rem;
-        }
-      }
-    </style>
   </head>
   <body>
     <div id="myapp"></div>

@@ -1,12 +1,12 @@
 package workflows4s.web.ui.components.instance
 
 import cats.effect.IO
-import cats.implicits.{catsSyntaxApplicativeId, catsSyntaxOptionId}
+import cats.implicits.catsSyntaxOptionId
 import org.scalajs.dom
 import tyrian.Html.*
 import tyrian.{Cmd, Html}
 import workflows4s.web.ui.components.instance.MermaidDiagramView.Msg
-import workflows4s.web.ui.util.{IOFromPromise, MermaidHelper, MermaidJS}
+import workflows4s.web.ui.util.{IOFromPromise, MermaidJS, MermaidSupport}
 
 import scala.concurrent.duration.DurationInt
 import scala.scalajs.js
@@ -14,15 +14,12 @@ import scala.scalajs.js
 case class MermaidDiagramView(code: String, svg: Option[String]) {
 
   def update(msg: MermaidDiagramView.Msg): (MermaidDiagramView, Cmd[IO, MermaidDiagramView.Msg]) = msg match {
-    case Msg.NoOp          => (this, Cmd.None)
     case Msg.SvgReady(svg) => (this.copy(svg = svg.some), Cmd.None)
-    case Msg.Retry         =>
+    case Msg.Render        =>
       val renderCmd =
-        if MermaidHelper.mermaidAvailable then Cmd.Run(renderMermaidDiagram)
-        else Cmd.Run(IO.sleep(500.millis).as(Msg.Retry))
-
+        if MermaidSupport.mermaidAvailable then Cmd.Run(renderMermaidDiagram)
+        else Cmd.Run(IO.sleep(500.millis).as(Msg.Render))
       (this, renderCmd)
-
   }
 
   def view: Html[MermaidDiagramView.Msg] = {
@@ -41,16 +38,9 @@ case class MermaidDiagramView(code: String, svg: Option[String]) {
   }
 
   private def renderMermaidDiagram: IO[MermaidDiagramView.Msg] = {
-    if MermaidHelper.mermaidAvailable then {
-      for {
-        // todo, initialize shouldn't happen every time
-        _            <- IO(MermaidJS.initialize(js.Dynamic.literal("startOnLoad" -> false, "htmlLabels" -> true)))
-        renderResult <- IOFromPromise(MermaidJS.render("mermaid-diagram", code))
-      } yield Msg.SvgReady(renderResult.svg)
-    } else {
-      println("Mermaid isn't ready, retrying...")
-      Msg.Retry.pure[IO]
-    }
+    for {
+      renderResult <- IOFromPromise(MermaidJS.render("mermaid-diagram", code))
+    } yield Msg.SvgReady(renderResult.svg)
   }
 
 }
@@ -58,12 +48,11 @@ case class MermaidDiagramView(code: String, svg: Option[String]) {
 object MermaidDiagramView {
 
   def initial(code: String): (MermaidDiagramView, Cmd[IO, Msg]) = {
-    (MermaidDiagramView(code, None), Cmd.Run(MermaidWebComponent.register().as(Msg.Retry)))
+    (MermaidDiagramView(code, None), Cmd.Emit(Msg.Render))
   }
 
   enum Msg {
-    case Retry
-    case NoOp
+    case Render
     case SvgReady(svg: String)
   }
 
