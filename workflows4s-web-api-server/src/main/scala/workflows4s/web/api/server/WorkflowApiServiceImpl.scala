@@ -73,11 +73,36 @@ class WorkflowApiServiceImpl[F[_]](
     )
   }
 
-  override def searchWorkflows(templateId: String): F[List[WorkflowSearchResult]] = {
+  override def searchWorkflows(query: WorkflowSearchRequest): F[List[WorkflowSearchResult]] = {
     workflowSearch match {
       case Some(search) =>
+        val domainQuery = WorkflowSearch.Query(
+          status = query.status.map({
+            case ExecutionStatus.Running  => WorkflowRegistry.ExecutionStatus.Running
+            case ExecutionStatus.Awaiting => WorkflowRegistry.ExecutionStatus.Awaiting
+            case ExecutionStatus.Finished => WorkflowRegistry.ExecutionStatus.Finished
+          }),
+          createdAfter = query.createdAfter,
+          createdBefore = query.createdBefore,
+          updatedAfter = query.updatedAfter,
+          updatedBefore = query.updatedBefore,
+          wakeupBefore = query.wakeupBefore,
+          wakeupAfter = query.wakeupAfter,
+          tagFilters = List(), // not supported yet
+          sort = query.sort.map {
+            case WorkflowSearchRequest.SortBy.CreatedAsc  => WorkflowSearch.SortBy.CreatedAsc
+            case WorkflowSearchRequest.SortBy.CreatedDesc => WorkflowSearch.SortBy.CreatedDesc
+            case WorkflowSearchRequest.SortBy.UpdatedAsc  => WorkflowSearch.SortBy.UpdatedAsc
+            case WorkflowSearchRequest.SortBy.UpdatedDesc => WorkflowSearch.SortBy.UpdatedDesc
+            case WorkflowSearchRequest.SortBy.WakeupAsc   => WorkflowSearch.SortBy.WakeupAsc
+            case WorkflowSearchRequest.SortBy.WakeupDesc  => WorkflowSearch.SortBy.WakeupDesc
+          },
+          limit = query.limit,
+          offset = query.offset,
+        )
+
         search
-          .search(templateId, WorkflowSearch.Query())
+          .search(query.templateId, domainQuery)
           .map(
             _.map(r =>
               WorkflowSearchResult(
@@ -94,7 +119,8 @@ class WorkflowApiServiceImpl[F[_]](
               ),
             ),
           )
-      case None         => me.raiseError(new Exception("Search not configured")) // in the future we will expose this information and UI will handle it gracefully
+      case None         =>
+        me.raiseError(new Exception("Search not configured")) // in the future we will expose this information and UI will handle it gracefully
     }
 
   }

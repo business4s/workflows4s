@@ -17,7 +17,7 @@ object WorkflowServerEndpoints extends StrictLogging {
       WorkflowEndpoints.getDefinition.serverLogic(workflowId => handleError(service.getDefinition(workflowId))),
       WorkflowEndpoints.getInstance.serverLogic((workflowId, instanceId) => handleError(service.getInstance(workflowId, instanceId))),
       WorkflowEndpoints.deliverSignal.serverLogic(request => handleError(service.deliverSignal(request))),
-      WorkflowEndpoints.searchWorkflows.serverLogic { templateId => handleError(service.searchWorkflows(templateId)) },
+      WorkflowEndpoints.searchWorkflows.serverLogic { query => handleError(service.searchWorkflows(query)) },
     )
   }
 

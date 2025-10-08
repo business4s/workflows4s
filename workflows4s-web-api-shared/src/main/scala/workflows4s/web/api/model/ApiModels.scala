@@ -48,6 +48,27 @@ enum ExecutionStatus derives Codec, tapir.Schema {
   case Running, Awaiting, Finished
 }
 
+case class WorkflowSearchRequest(
+                                  templateId: String,
+                                  status: Set[ExecutionStatus],
+                                  createdAfter: Option[Instant],
+                                  createdBefore: Option[Instant],
+                                  updatedAfter: Option[Instant],
+                                  updatedBefore: Option[Instant],
+                                  wakeupBefore: Option[Instant],
+                                  wakeupAfter: Option[Instant],
+                                  sort: Option[WorkflowSearchRequest.SortBy],
+                                  limit: Option[Int],
+                                  offset: Option[Int],
+) derives Codec,
+      tapir.Schema
+
+object WorkflowSearchRequest {
+  enum SortBy derives Codec, tapir.Schema {
+    case CreatedAsc, CreatedDesc, UpdatedAsc, UpdatedDesc, WakeupAsc, WakeupDesc
+  }
+}
+
 // Search API models
 case class WorkflowSearchResult(
     templateId: String,
@@ -55,6 +76,6 @@ case class WorkflowSearchResult(
     status: ExecutionStatus,
     createdAt: Instant,
     updatedAt: Instant,
-    wakeupAt: Option[Instant]
+    wakeupAt: Option[Instant],
 ) derives Codec.AsObject,
       tapir.Schema

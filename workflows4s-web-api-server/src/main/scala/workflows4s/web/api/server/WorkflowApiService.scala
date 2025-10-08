@@ -8,5 +8,5 @@ trait WorkflowApiService[F[_]] {
   def getDefinition(id: String): F[WorkflowDefinition]
   def getInstance(templateId: String, instanceId: String): F[WorkflowInstance]
   def deliverSignal(request: SignalRequest): F[Json]
-  def searchWorkflows(templateId: String): F[List[WorkflowSearchResult]]
+  def searchWorkflows(query: WorkflowSearchRequest): F[List[WorkflowSearchResult]]
 }

@@ -3,7 +3,7 @@ package workflows4s.web.api.endpoints
 import io.circe.Json
 import sttp.tapir.*
 import sttp.tapir.json.circe.*
-import workflows4s.web.api.model.{SignalRequest, WorkflowDefinition, WorkflowInstance, WorkflowSearchResult}
+import workflows4s.web.api.model.{SignalRequest, WorkflowDefinition, WorkflowInstance, WorkflowSearchRequest, WorkflowSearchResult}
 
 object WorkflowEndpoints {
 
@@ -38,10 +38,10 @@ object WorkflowEndpoints {
       .mapInTo[SignalRequest]
 
   // Search workflows (instances) endpoint
-  val searchWorkflows: PublicEndpoint[String, String, List[WorkflowSearchResult], Any] =
-    baseEndpoint.get
+  val searchWorkflows: PublicEndpoint[WorkflowSearchRequest, String, List[WorkflowSearchResult], Any] =
+    baseEndpoint.post
       .in("workflows" / "search")
-      .in(query[String]("templateId"))
+      .in(jsonBody[WorkflowSearchRequest])
       .out(jsonBody[List[WorkflowSearchResult]])
       .description("Search among workflow instances")
 }
