@@ -49,17 +49,17 @@ enum ExecutionStatus derives Codec, tapir.Schema {
 }
 
 case class WorkflowSearchRequest(
-                                  templateId: String,
-                                  status: Set[ExecutionStatus],
-                                  createdAfter: Option[Instant],
-                                  createdBefore: Option[Instant],
-                                  updatedAfter: Option[Instant],
-                                  updatedBefore: Option[Instant],
-                                  wakeupBefore: Option[Instant],
-                                  wakeupAfter: Option[Instant],
-                                  sort: Option[WorkflowSearchRequest.SortBy],
-                                  limit: Option[Int],
-                                  offset: Option[Int],
+    templateId: String,
+    status: Set[ExecutionStatus],
+    createdAfter: Option[Instant],
+    createdBefore: Option[Instant],
+    updatedAfter: Option[Instant],
+    updatedBefore: Option[Instant],
+    wakeupBefore: Option[Instant],
+    wakeupAfter: Option[Instant],
+    sort: Option[WorkflowSearchRequest.SortBy],
+    limit: Option[Int],
+    offset: Option[Int],
 ) derives Codec,
       tapir.Schema
 

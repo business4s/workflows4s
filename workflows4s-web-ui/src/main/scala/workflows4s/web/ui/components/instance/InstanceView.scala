@@ -21,12 +21,12 @@ final case class InstanceView(
     case InstanceView.Msg.ForContent(inner) =>
       val (av, cmd) = content.update(inner)
       this.copy(content = av) -> cmd.map(InstanceView.Msg.ForContent(_))
-    case InstanceView.Msg.Refresh            =>
+    case InstanceView.Msg.Refresh           =>
       this -> content.refresh.map(InstanceView.Msg.ForContent(_))
   }
 
   override def view: Html[InstanceView.Msg] =
-    div(cls:="content")(
+    div(cls := "content")(
       div(cls := "is-flex is-justify-content-space-between is-align-items-center mt-4")(
         p(strong(s"Instance: "), text(instanceId)),
         button(
@@ -43,8 +43,7 @@ final case class InstanceView(
 object InstanceView {
 
   // Inner content that actually renders the instance details
-  final case class Content(instance: WorkflowInstance, diagramView: MermaidDiagramView, signalsView: SignalsView)
-      extends Component {
+  final case class Content(instance: WorkflowInstance, diagramView: MermaidDiagramView, signalsView: SignalsView) extends Component {
     override type Self = Content
     override type Msg  = Content.Msg
 
@@ -73,7 +72,7 @@ object InstanceView {
       div(
         pre(cls := "mt-2 content is-small")(
           code(instance.state.spaces2),
-        )
+        ),
       )
     }
 

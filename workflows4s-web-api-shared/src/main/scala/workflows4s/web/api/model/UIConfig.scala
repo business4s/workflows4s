@@ -9,4 +9,3 @@ given Decoder[Uri] = summon[Decoder[String]].emap(Uri.parse)
 
 // This structure is expected to be returned by the UI server as a static asset
 case class UIConfig(apiUrl: Uri, enableTestUtils: Boolean = false) derives Codec, Schema
-

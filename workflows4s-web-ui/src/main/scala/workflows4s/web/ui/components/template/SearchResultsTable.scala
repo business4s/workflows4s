@@ -32,8 +32,8 @@ case class SearchResultsTable(results: List[WorkflowSearchResult]) extends Compo
             td(r.updatedAt.toString),
             td(r.wakeupAt.map(_.toString).getOrElse("-")),
           )
-        })*
-      )
+        })*,
+      ),
     )
 }
 

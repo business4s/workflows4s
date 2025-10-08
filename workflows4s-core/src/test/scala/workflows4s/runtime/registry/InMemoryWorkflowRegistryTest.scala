@@ -64,5 +64,5 @@ class InMemoryWorkflowRegistryTest extends AnyFreeSpec with Matchers {
     }
   }
 
-  def dummyAW(id: WorkflowInstanceId): ActiveWorkflow[WorkflowContext { type State = Null}] = ActiveWorkflow(id, WIO.End(), null)
+  def dummyAW(id: WorkflowInstanceId): ActiveWorkflow[WorkflowContext { type State = Null }] = ActiveWorkflow(id, WIO.End(), null)
 }

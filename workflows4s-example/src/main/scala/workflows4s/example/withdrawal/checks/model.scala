@@ -20,10 +20,10 @@ object Decision {
 
 sealed trait CheckResult derives Codec.AsObject
 object CheckResult {
-  sealed trait Finished       extends CheckResult derives Codec.AsObject
-  sealed trait Final          extends Finished
-  case class Pending()        extends CheckResult
-  case class Approved()       extends Final
+  sealed trait Finished extends CheckResult derives Codec.AsObject
+  sealed trait Final    extends Finished
+  case class Pending()  extends CheckResult
+  case class Approved() extends Final
 
   case class Rejected()       extends Final
   case class RequiresReview() extends Finished
@@ -88,10 +88,10 @@ object ChecksInput {
     def checks: Map[CheckKey, Check[Data]] = checks0.map(x => x.key -> x).toMap
   }
 
-  given  Encoder[ChecksInput] = Encoder.instance { input =>
+  given Encoder[ChecksInput] = Encoder.instance { input =>
     import io.circe.syntax.*
     io.circe.Json.obj(
-      "checks" -> input.checks.keys.map(_.value).asJson
+      "checks" -> input.checks.keys.map(_.value).asJson,
     )
   }
 

@@ -19,7 +19,9 @@ object ReusableViews {
 
   def inlineField(label: String, value: String): Html[Nothing] =
     div()(
-      strong()(label),text(": "), text(value)
+      strong()(label),
+      text(": "),
+      text(value),
     )
 
 }

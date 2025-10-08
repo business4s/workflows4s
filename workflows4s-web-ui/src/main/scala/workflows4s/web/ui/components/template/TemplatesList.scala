@@ -7,7 +7,7 @@ import workflows4s.web.ui.Http
 import workflows4s.web.ui.components.util.AsyncView
 
 final case class TemplatesList(
-                                state: AsyncView.For[TemplateSelector],
+    state: AsyncView.For[TemplateSelector],
 ) {
 
   def update(msg: TemplatesList.Msg): (TemplatesList, Cmd[IO, TemplatesList.Msg]) = msg match {

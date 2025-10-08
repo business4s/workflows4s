@@ -116,7 +116,7 @@ object PullRequestWorkflow {
   @nowarn("msg=unused value")
   def run: InMemorySyncWorkflowInstance[Ctx] = {
 
-    val file = Files.createTempFile("pr", ".bpmn").toFile
+    val file      = Files.createTempFile("pr", ".bpmn").toFile
     // start_render
     val bpmnModel = BpmnRenderer.renderWorkflow(workflow.toProgress.toModel, "process")
     Bpmn.writeModelToFile(file, bpmnModel)
