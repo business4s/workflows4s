@@ -16,13 +16,12 @@ lazy val `workflows4s-core` = (project in file("workflows4s-core"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel"              %% "cats-effect"     % "3.6.3",
-      "co.fs2"                     %% "fs2-core"        % "3.12.2",
-      "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.6",
-      "io.circe"                   %% "circe-core"      % "0.14.14", // for model serialization
-      "io.circe"                   %% "circe-generic"   % "0.14.14", // for model serialization
-      "com.lihaoyi"                %% "sourcecode"      % "0.4.4", // for auto naming
-      "ch.qos.logback"              % "logback-classic" % "1.5.18" % Test,
+      "org.typelevel"              %% "cats-effect"   % "3.6.3",
+      "co.fs2"                     %% "fs2-core"      % "3.12.2",
+      "com.typesafe.scala-logging" %% "scala-logging" % "3.9.6",
+      "io.circe"                   %% "circe-core"    % "0.14.15", // for model serialization
+      "io.circe"                   %% "circe-generic" % "0.14.15", // for model serialization
+      "com.lihaoyi"                %% "sourcecode"    % "0.4.4",   // for auto naming
     ),
     Test / parallelExecution := false,
   )
@@ -45,7 +44,7 @@ lazy val `workflows4s-pekko` = (project in file("workflows4s-pekko"))
       "org.apache.pekko" %% "pekko-cluster-sharding-typed" % pekkoVersion,
       "org.apache.pekko" %% "pekko-persistence-testkit"    % pekkoVersion    % Test,
       "org.apache.pekko" %% "pekko-persistence-jdbc"       % "1.1.0"         % Test,
-      "com.h2database"    % "h2"                           % "2.3.232"       % Test,
+      "com.h2database"    % "h2"                           % "2.4.240"       % Test,
       "io.r2dbc"          % "r2dbc-h2"                     % "1.0.0.RELEASE" % Test,
       "io.altoo"         %% "pekko-kryo-serialization"     % "1.3.0",
     ),
@@ -69,8 +68,7 @@ lazy val `workflows4s-filesystem` = (project in file("workflows4s-filesystem"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "co.fs2"        %% "fs2-io"          % "3.12.2",
-      "ch.qos.logback" % "logback-classic" % "1.5.18" % Test,
+      "co.fs2" %% "fs2-io" % "3.12.2",
     ),
   )
   .dependsOn(`workflows4s-core` % "compile->compile;test->test")
@@ -79,8 +77,7 @@ lazy val `workflows4s-quartz` = (project in file("workflows4s-quartz"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.quartz-scheduler" % "quartz"          % "2.5.0",
-      "ch.qos.logback"       % "logback-classic" % "1.5.14" % Test,
+      "org.quartz-scheduler" % "quartz" % "2.5.0",
     ),
   )
   .dependsOn(`workflows4s-core` % "compile->compile;test->test")
@@ -92,11 +89,11 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "org.apache.pekko"     %% "pekko-http"                      % pekkoHttpVersion, // for interacting with the app
       "org.apache.pekko"     %% "pekko-cluster-sharding-typed"    % pekkoVersion, // for realistic example and spawning actors
       "org.apache.pekko"     %% "pekko-persistence-jdbc"          % "1.1.1", // published locally until the release is there
-      "org.apache.pekko"     %% "pekko-serialization-jackson"     % "1.2.0",
-      "com.h2database"        % "h2"                              % "2.3.232",
+      "org.apache.pekko"     %% "pekko-serialization-jackson"     % "1.2.1",
+      "com.h2database"        % "h2"                              % "2.4.240",
       "io.r2dbc"              % "r2dbc-h2"                        % "1.0.0.RELEASE",
-      "com.github.pjfanning" %% "pekko-http-circe"                % "3.3.0",
-      "ch.qos.logback"        % "logback-classic"                 % "1.5.18",
+      "com.github.pjfanning" %% "pekko-http-circe"                % "3.4.0",
+      "ch.qos.logback"        % "logback-classic"                 % "1.5.19",
       "org.scalamock"        %% "scalamock"                       % "7.5.0"                    % Test,
       "org.apache.pekko"     %% "pekko-actor-testkit-typed"       % pekkoVersion               % Test,
       "com.dimafeng"         %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
@@ -120,7 +117,8 @@ lazy val commonSettings = Seq(
   scalaVersion      := "3.7.3",
   scalacOptions ++= Seq("-no-indent", "-Xmax-inlines", "64", "-explain-cyclic", "-Ydebug-cyclic"),
   libraryDependencies ++= Seq(
-    "org.scalatest" %% "scalatest" % "3.2.19" % Test,
+    "org.scalatest" %% "scalatest"       % "3.2.19" % Test,
+    "ch.qos.logback" % "logback-classic" % "1.5.19" % Test,
   ),
   // scalafix settings
   semanticdbEnabled := true, // enable SemanticDB
@@ -139,7 +137,7 @@ lazy val commonSettings = Seq(
   Test / tpolecatExcludeOptions += ScalacOptions.warnNonUnitStatement,
 )
 
-lazy val pekkoVersion               = "1.2.0"
+lazy val pekkoVersion               = "1.2.1"
 lazy val pekkoHttpVersion           = "1.2.0"
 lazy val testcontainersScalaVersion = "0.43.0"
 
