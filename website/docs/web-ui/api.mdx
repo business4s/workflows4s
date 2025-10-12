@@ -1,1 +1,54 @@
+---
+sidebar_position: 1
+---
+
+import SbtDependencies from "../../src/components/SbtDependencies";
+
 # HTTP API
+
+Workflows4s HTTP API aims to expose comprehensive information about the workflows. This means
+
+* inspecting workflows definitions
+* inspecting and searching among workflow instances
+* interacting with instances through signals
+
+It's available through the following dependencies
+
+<SbtDependencies deps={[
+    {moduleName: "workflows4s-web-api-shared", comment: "Endpoint definitions and models"},
+    {moduleName: "workflows4s-web-api-server", comment: "Server implementation"},
+]}/>
+
+See [Getting Started](./index.mdx#getting-started) for the example usage.
+
+## Workflow Entries
+
+To expose its functionalities, API relies on `WorkflowEntry`,
+a dedicated object that enriches a `WorkflowRuntime` with additional information required to serve the API.
+
+It consists of the following elements:
+
+* Workflow runtime - grants access to the instances
+* Name & description - used for display purposes
+* State encoder - used for rendering current instance state into json, that can be later presented to the user.
+* Signal support - For each signal provides request json schema schema (so a form can rendered in the UI generically) and
+a way to deserialize request and serizalize the response, allowing for exchanging those with the client
+
+:::warning
+Current API for `SignalSupport` is not type safe and might change in the future.
+:::
+
+## Workflow Search
+
+`WorkflowSearch` is an interface allowing searching among workflow instances and is meant to be implemented by workflow registries.
+
+Currently, only in-memory implementation is provided, while other implementation might come later on.
+Users are encouraged to create their own and contribute them to the project if they are generic enough.
+
+## Compatibility guarantees
+
+:::warning
+Current API is in experimental phase and **no compatibility guarantees are provided**.
+We advise to use the API through tapir definitions,
+consume it from scala-js and ensure version match between the client and the server.
+:::

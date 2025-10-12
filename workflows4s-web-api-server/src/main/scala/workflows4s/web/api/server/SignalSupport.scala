@@ -10,13 +10,13 @@ import workflows4s.wio.SignalDef
 /** Allows api to support retriving expected signals and sending them
   */
 trait SignalSupport {
-  def getSchema(signalDef: SignalDef[?, ?]): Option[sttp.apispec.Schema]
+  def getRequestSchema(signalDef: SignalDef[?, ?]): Option[sttp.apispec.Schema]
   def getCodec(signalId: String): SignalCodec[?, ?]
 }
 
 object SignalSupport {
   val NoSupport: SignalSupport = new SignalSupport {
-    override def getSchema(signalDef: SignalDef[?, ?]): Option[Schema] = None
+    override def getRequestSchema(signalDef: SignalDef[?, ?]): Option[Schema] = None
     override def getCodec(signalId: String): SignalCodec[?, ?]         = throw new Exception(
       "transformRequest executed in NoSupport SignalSupport. This should never happen.",
     )
@@ -34,10 +34,10 @@ object SignalSupport {
     }
 
     def build: SignalSupport = new SignalSupport {
-      override def getSchema(signalDef: SignalDef[?, ?]): Option[Schema] = {
+      override def getRequestSchema(signalDef: SignalDef[?, ?]): Option[Schema] = {
         val result = entries.get(signalDef.id)
         if result.isEmpty then logger.warn(s"Couldn't find schema for signal ${signalDef}")
-        result.map(_.schema)
+        result.map(_.reqSchema)
       }
 
       override def getCodec(signalId: String): SignalCodec[?, ?] = {
@@ -52,7 +52,7 @@ object SignalSupport {
   object Builder {
     case class Entry[Req, Resp](
         signalDef: SignalDef[Req, Resp],
-        schema: sttp.apispec.Schema,
+        reqSchema: sttp.apispec.Schema,
         reqDecoder: Decoder[Req],
         respEncoder: Encoder[Resp],
     )

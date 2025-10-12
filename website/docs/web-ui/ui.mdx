@@ -1,0 +1,49 @@
+---
+sidebar_position: 2
+---
+
+import SbtDependency from "@site/src/components/SbtDependency";
+
+# Web UI
+
+## Usage
+
+The Web UI is a Scala.js single page app (SPA) that can be used in a few different ways. Pick the one that matches how you run your backend:
+
+### 1) Bundle and serve from Scala (recommended)
+
+The simplest way is to leverage the `workflows4s-web-ui-bundle` that has all the web assets built and packed into JAR resources.
+It also defines tapir endpoint that serves those assets.
+
+Dependency:
+<SbtDependency moduleName="workflows4s-web-ui-bundle"/>
+
+See [Getting Started](./index.mdx#getting-started) for the example usage.
+
+### 2) Host the bundle with another web server
+
+If you don't want to serve the assets from your Scala process, you can host the same static bundle on any web server (NGINX, CDN, etc.).
+
+To do so, simply unpack the assets from the JAR file.
+
+Dependency:
+<SbtDependency moduleName="workflows4s-web-ui-bundle"/>
+
+### 3) Direct Scala.js usage (advanced)
+
+If more cusotmization is required,
+a raw scala code for the UI can be used to incorporate it in full (or in parts) in a separate scala.js project.
+
+<SbtDependency moduleName="workflows4s-web-ui"/>
+
+## UI Config
+
+Web UI comes with a mechanism for configuring the api url.
+When the page is loaded, it will try to fetch `config.json` file and read `apiUrl` from there.
+
+This file is automatically exposed when using the bundle through tapir but has to be manually provided in other scenarios.
+
+Important:
+- UI can be served under any base path, but the config file will be fetched through a relative path, hence it's important for the user url (through which they access the ui) to end with a `/`.
+Otherwise, the mechanism wont work.
+- For this reason it's recommended to add a redirect from `{basePath}` to `{basePath}` in your http server. Unfortunately this is not possible in raw tapir.

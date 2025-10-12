@@ -69,7 +69,7 @@ class WorkflowApiServiceImpl[F[_]](
     Signal(
       id = sig.id,
       name = sig.name,
-      requestSchema = entry.signalSupport.getSchema(sig),
+      requestSchema = entry.signalSupport.getRequestSchema(sig),
     )
   }
 
