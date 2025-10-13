@@ -127,8 +127,8 @@ lazy val `workflows4s-web-ui` = (project in file("workflows4s-web-ui"))
       "io.circe"                      %%% "circe-core"         % circeVersion,
       "io.circe"                      %%% "circe-generic"      % circeVersion,
       "io.circe"                      %%% "circe-parser"       % circeVersion,
-      "com.softwaremill.sttp.tapir"   %%% "tapir-sttp-client4" % "1.11.40",
-      "com.softwaremill.sttp.client4" %%% "cats"               % "4.0.0-M16",
+      "com.softwaremill.sttp.tapir"   %%% "tapir-sttp-client4" % "1.11.49",
+      "com.softwaremill.sttp.client4" %%% "cats"               % "4.0.12",
       "org.business4s"                %%% "forms4s-jsonschema" % "0.1.0",
       "org.business4s"                %%% "forms4s-tyrian"     % "0.1.0",
       "org.business4s"                %%% "forms4s-circe"      % "0.1.0",
@@ -169,8 +169,8 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.http4s"           %% "http4s-ember-server"             % "0.23.30",
-      "org.http4s"           %% "http4s-dsl"                      % "0.23.30",
+      "org.http4s"           %% "http4s-ember-server"             % "0.23.32",
+      "org.http4s"           %% "http4s-dsl"                      % "0.23.32",
       "org.apache.pekko"     %% "pekko-http"                      % pekkoHttpVersion, // for interacting with the app
       "org.apache.pekko"     %% "pekko-cluster-sharding-typed"    % pekkoVersion, // for realistic example and spawning actors
       "org.apache.pekko"     %% "pekko-persistence-jdbc"          % "1.1.1", // published locally until the release is there
@@ -239,8 +239,8 @@ lazy val commonSettings = Seq(
 lazy val pekkoVersion               = "1.2.1"
 lazy val pekkoHttpVersion           = "1.2.0"
 lazy val testcontainersScalaVersion = "0.43.0"
-lazy val tapirVersion               = "1.11.48"
-lazy val circeVersion               = "0.14.14"
+lazy val tapirVersion               = "1.11.49"
+lazy val circeVersion               = "0.14.15"
 
 addCommandAlias("prePR", List("compile", "Test / compile", "test", "scalafmtCheckAll").mkString(";", ";", ""))
 
