@@ -7,7 +7,7 @@ import workflows4s.wio.*
 import workflows4s.wio.WIO.Initial
 
 class InMemorySyncRuntime[Ctx <: WorkflowContext](
-    workflow: Initial[Ctx],
+    val workflow: Initial[Ctx],
     initialState: WCState[Ctx],
     engine: WorkflowInstanceEngine,
     val templateId: String,

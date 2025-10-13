@@ -1,0 +1,54 @@
+---
+sidebar_position: 1
+---
+
+import SbtDependencies from "../../src/components/SbtDependencies";
+
+# HTTP API
+
+The Workflows4s HTTP API exposes comprehensive information about workflows, including:
+
+* inspecting workflow definitions
+* inspecting and searching workflow instances
+* interacting with instances through signals
+
+It is available through the following modules:
+
+<SbtDependencies deps={[
+    {moduleName: "workflows4s-web-api-shared", comment: "Endpoint definitions and models"},
+    {moduleName: "workflows4s-web-api-server", comment: "Server implementation"},
+]}/>
+
+See [Getting Started](./index.mdx#getting-started) for an example usage.
+
+## Workflow Entries
+
+To expose its functionality, the API relies on `WorkflowEntry`,
+a helper that enriches a `WorkflowRuntime` with additional information required to serve the API.
+
+It consists of the following elements:
+
+* Workflow runtime - grants access to instances
+* Name and description - used for display purposes
+* State encoder - renders the current instance state to JSON for display
+* Signal support - for each signal, provides a request JSON Schema (so a form can be rendered generically in the UI) and
+  codecs to deserialize the request and serialize the response, enabling exchanging them with the client
+
+:::warning
+The current API for `SignalSupport` is not type-safe and might change in the future.
+:::
+
+## Workflow Search
+
+`WorkflowSearch` is an interface for searching workflow instances and is intended to be implemented by workflow registries.
+
+Currently, only an in-memory implementation is provided; other implementations may come later.
+Contributions of reusable implementations are welcome.
+
+## Compatibility guarantees
+
+:::warning
+The API is experimental and **no compatibility guarantees are provided**.
+We recommend using the API via the Tapir definitions,
+consuming it from Scala.js, and ensuring the client and server versions match.
+:::

@@ -13,9 +13,15 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      # required for dmn-to-image tests
-      - uses: nanasess/setup-chromedriver@v2
       - uses: sbt/setup-sbt@v1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+
+      - name: Install frontend dependencies
+        run: npm install
+        working-directory: ./workflows4s-web-ui
+
       - name: Build and Test
         run: sbt test
       - name: scalafmt check

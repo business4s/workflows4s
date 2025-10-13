@@ -2,7 +2,9 @@ package workflows4s.example.courseregistration
 
 import java.io.File
 import cats.effect.IO
+import io.circe.{Decoder, Encoder}
 import org.camunda.bpm.model.bpmn.Bpmn
+import sttp.tapir.Schema
 import workflows4s.bpmn.BpmnRenderer
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.{InMemorySyncRuntime, InMemorySyncWorkflowInstance}
@@ -14,7 +16,7 @@ import scala.annotation.nowarn
 object CourseRegistrationWorkflow {
 
   // start_state
-  sealed trait CourseRegistrationState
+  sealed trait CourseRegistrationState derives Encoder
   object RegistrationState {
     case object Empty                                                                                          extends CourseRegistrationState
     case class Browsing(studentId: String, semester: String, currentCR: String)                                extends CourseRegistrationState
@@ -28,8 +30,8 @@ object CourseRegistrationWorkflow {
   object Signals {
     val startBrowsing: SignalDef[BrowsingRequest, Unit] = SignalDef()
     val setPriorities: SignalDef[PriorityRequest, Unit] = SignalDef()
-    case class BrowsingRequest(studentId: String, semester: String)
-    case class PriorityRequest(courseRequirement: String, priorities: List[String])
+    case class BrowsingRequest(studentId: String, semester: String) derives Schema, Decoder
+    case class PriorityRequest(courseRequirement: String, priorities: List[String]) derives Schema, Decoder
   }
   // end_signals
 
@@ -43,7 +45,7 @@ object CourseRegistrationWorkflow {
   // end_events
 
   // start_error
-  sealed trait RegistrationError
+  sealed trait RegistrationError derives Encoder
   object RegistrationError {
     case object RegistrationClosed extends RegistrationError
     case object InvalidPriorities  extends RegistrationError

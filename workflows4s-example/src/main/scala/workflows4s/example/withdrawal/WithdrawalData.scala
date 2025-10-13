@@ -1,9 +1,10 @@
 package workflows4s.example.withdrawal
 
+import io.circe.Encoder
 import workflows4s.example.withdrawal.WithdrawalService.{Fee, Iban}
 import workflows4s.example.withdrawal.checks.ChecksState
 
-sealed trait WithdrawalData
+sealed trait WithdrawalData derives Encoder
 object WithdrawalData {
   type Empty = Empty.type
   case object Empty                                                                                                      extends WithdrawalData {

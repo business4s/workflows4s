@@ -1,0 +1,36 @@
+name: Deploy workflows4s-example to Fly.io
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy-example:
+    name: Deploy workflows4s-example
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4.6.0
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: sbt/setup-sbt@v1
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+
+      - name: Install frontend dependencies
+        run: npm install
+        working-directory: ./workflows4s-web-ui
+
+      - name: Build Docker image locally
+        run: sbt workflows4s-example/docker:publishLocal
+
+      - name: Deploy example project
+        run: flyctl deploy --local-only
+        working-directory: ./workflows4s-example
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_DEPLOY_TOKEN }}

@@ -1,20 +1,22 @@
 package workflows4s.example.docs.pullrequest
 
-import java.io.File
 import cats.effect.IO
+import io.circe.{Decoder, Encoder}
 import org.camunda.bpm.model.bpmn.Bpmn
+import sttp.tapir.Schema
 import workflows4s.bpmn.BpmnRenderer
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.{InMemorySyncRuntime, InMemorySyncWorkflowInstance}
 import workflows4s.wio.{SignalDef, WorkflowContext}
 
+import java.nio.file.Files
 import scala.annotation.nowarn
 
 @nowarn("msg=unused explicit parameter")
 object PullRequestWorkflow {
 
   // start_state
-  sealed trait PRState
+  sealed trait PRState derives Encoder
   object PRState {
     case object Empty                                                               extends PRState
     case class Initiated(commit: String)                                            extends PRState
@@ -29,8 +31,8 @@ object PullRequestWorkflow {
   object Signals {
     val createPR: SignalDef[CreateRequest, Unit] = SignalDef()
     val reviewPR: SignalDef[ReviewRequest, Unit] = SignalDef()
-    case class CreateRequest(commit: String)
-    case class ReviewRequest(approve: Boolean)
+    case class CreateRequest(commit: String) derives Schema, Decoder
+    case class ReviewRequest(approve: Boolean) derives Schema, Decoder
   }
   // end_signals
 
@@ -44,7 +46,7 @@ object PullRequestWorkflow {
   // end_events
 
   // start_error
-  sealed trait PRError
+  sealed trait PRError derives Encoder
   object PRError {
     case object CommitNotFound extends PRError
     case object PipelineFailed extends PRError
@@ -113,9 +115,11 @@ object PullRequestWorkflow {
 
   @nowarn("msg=unused value")
   def run: InMemorySyncWorkflowInstance[Ctx] = {
+
+    val file      = Files.createTempFile("pr", ".bpmn").toFile
     // start_render
     val bpmnModel = BpmnRenderer.renderWorkflow(workflow.toProgress.toModel, "process")
-    Bpmn.writeModelToFile(new File(s"pr.bpmn").getAbsoluteFile, bpmnModel)
+    Bpmn.writeModelToFile(file, bpmnModel)
     // end_render
 
     // start_execution

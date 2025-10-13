@@ -8,7 +8,9 @@ import workflows4s.wio.WorkflowContext
 object common {
 
   trait MyWorkflowId
-  trait MyWorkflowCtx extends WorkflowContext
+  trait MyWorkflowCtx extends WorkflowContext {
+    type State = String
+  }
 
   // docs_start
   def createRuntime(knockerUpper: KnockerUpper.Agent): WorkflowRuntime[IO, MyWorkflowCtx] = ???

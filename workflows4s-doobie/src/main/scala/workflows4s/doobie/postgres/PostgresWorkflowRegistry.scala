@@ -8,6 +8,7 @@ import doobie.util.transactor.Transactor
 import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.runtime.registry.WorkflowRegistry
 import workflows4s.runtime.registry.WorkflowRegistry.ExecutionStatus
+import workflows4s.wio.ActiveWorkflow
 
 import java.time.{Clock, Instant}
 import java.sql.Timestamp
@@ -32,7 +33,8 @@ object PostgresWorkflowRegistry {
 
     val tableNameFr = Fragment.const(tableName)
 
-    override def upsertInstance(id: WorkflowInstanceId, executionStatus: ExecutionStatus): IO[Unit] = {
+    override def upsertInstance(inst: ActiveWorkflow[?], executionStatus: ExecutionStatus): IO[Unit] = {
+      val id    = inst.id
       val query = for {
         now <- Sync[ConnectionIO].delay(Instant.now(clock))
         _   <- executionStatus match {

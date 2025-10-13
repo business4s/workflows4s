@@ -1,12 +1,16 @@
-# IDE files
+# IDE files / BSP / LSP caches
 .idea
 .bsp
-target
-/pr.bpmn
-node_modules
-.aider*
-.metals/
-.bloop/
-project/metals.sbt
-.vscode/
+.vscode
+.metals
+.bloop
 .scala-build
+
+# sbt
+target
+project/metals.sbt
+
+# JS
+dist
+node_modules
+.vite

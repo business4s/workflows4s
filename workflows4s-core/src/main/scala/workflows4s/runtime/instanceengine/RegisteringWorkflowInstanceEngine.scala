@@ -37,13 +37,13 @@ class RegisteringWorkflowInstanceEngine(protected val delegate: WorkflowInstance
   }
 
   private def registeringRunningInstance(workflow: ActiveWorkflow[?], hasFollowup: Boolean) =
-    if hasFollowup then registry.upsertInstance(workflow.id, WorkflowRegistry.ExecutionStatus.Running)
+    if hasFollowup then registry.upsertInstance(workflow, WorkflowRegistry.ExecutionStatus.Running)
     else registerNotRunningInstance(workflow)
 
   private def registerNotRunningInstance(workflow: ActiveWorkflow[?]): IO[Unit] = {
     val status =
       if workflow.wio.asExecuted.isDefined then ExecutionStatus.Finished
       else ExecutionStatus.Awaiting
-    registry.upsertInstance(workflow.id, status)
+    registry.upsertInstance(workflow, status)
   }
 }

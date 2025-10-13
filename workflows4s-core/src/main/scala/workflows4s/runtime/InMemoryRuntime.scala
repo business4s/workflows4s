@@ -13,7 +13,7 @@ import java.util.UUID
   * IT'S NOT A GENERAL-PURPOSE RUNTIME
   */
 class InMemoryRuntime[Ctx <: WorkflowContext](
-    workflow: Initial[Ctx],
+    val workflow: Initial[Ctx],
     initialState: WCState[Ctx],
     engine: WorkflowInstanceEngine,
     instances: Ref[IO, Map[String, InMemoryWorkflowInstance[Ctx]]],

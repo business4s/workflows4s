@@ -2,6 +2,7 @@ package workflows4s.example.withdrawal
 
 import cats.effect.IO
 import io.circe.Codec
+import sttp.tapir.Schema
 import workflows4s.example.withdrawal.WithdrawalService.{ExecutionResponse, Fee, Iban, NotEnoughFunds}
 import workflows4s.example.withdrawal.checks.Check
 
@@ -25,7 +26,7 @@ object WithdrawalService {
 
   case class Fee(value: BigDecimal) derives Codec.AsObject
 
-  case class Iban(value: String) derives Codec.AsObject
+  case class Iban(value: String) derives Codec.AsObject, Schema
 
   sealed trait ExecutionResponse derives Codec.AsObject
   object ExecutionResponse {

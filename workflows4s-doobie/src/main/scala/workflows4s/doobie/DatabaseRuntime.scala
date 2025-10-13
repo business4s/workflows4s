@@ -10,7 +10,7 @@ import workflows4s.wio.WIO.Initial
 import workflows4s.wio.{ActiveWorkflow, WCEvent, WCState, WorkflowContext}
 
 class DatabaseRuntime[Ctx <: WorkflowContext](
-    workflow: Initial[Ctx],
+    val workflow: Initial[Ctx],
     initialState: WCState[Ctx],
     engine: WorkflowInstanceEngine,
     xa: Transactor[IO],

@@ -24,7 +24,6 @@ class FilesystemKnockerUpper(scheduler: FsScheduler) extends KnockerUpper.Proces
   }
 
   override def initialize(wakeUp: WorkflowInstanceId => IO[Unit]): ResourceIO[Unit] = scheduler.events
-    .evalTap(x => IO(println(x)))
     .evalMap(event => {
       (for {
         workflowId <- IO.fromEither(WorkflowInstanceIdConverter.fromString(event.entity))

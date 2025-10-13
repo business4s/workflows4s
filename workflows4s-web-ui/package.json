@@ -1,0 +1,20 @@
+{
+  "name": "workflows4s-web-ui",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@scala-js/vite-plugin-scalajs": "^1.0.0",
+    "vite": "^5.0.0"
+  },
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "^7.0.1",
+    "bulma": "^1.0.4",
+    "mermaid": "^11.0.0"
+  }
+}

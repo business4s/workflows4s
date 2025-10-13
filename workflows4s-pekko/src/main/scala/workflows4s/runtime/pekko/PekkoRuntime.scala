@@ -16,7 +16,7 @@ trait PekkoRuntime[Ctx <: WorkflowContext] extends WorkflowRuntime[Future, Ctx] 
 }
 
 class PekkoRuntimeImpl[Ctx <: WorkflowContext](
-    workflow: Initial[Ctx],
+    val workflow: Initial[Ctx],
     initialState: WCState[Ctx],
     entityName: String,
     engine: WorkflowInstanceEngine,
