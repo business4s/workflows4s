@@ -17,7 +17,7 @@ trait SignalSupport {
 object SignalSupport {
   val NoSupport: SignalSupport = new SignalSupport {
     override def getRequestSchema(signalDef: SignalDef[?, ?]): Option[Schema] = None
-    override def getCodec(signalId: String): SignalCodec[?, ?]         = throw new Exception(
+    override def getCodec(signalId: String): SignalCodec[?, ?]                = throw new Exception(
       "transformRequest executed in NoSupport SignalSupport. This should never happen.",
     )
   }
