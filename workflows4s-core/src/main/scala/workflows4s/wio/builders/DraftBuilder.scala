@@ -57,7 +57,7 @@ object DraftBuilder {
 
       def forEach(forEach: WIO.Draft[Ctx], name: String = null)(using autoName: sourcecode.Name): WIO.Draft[Ctx] = {
         val effName = getEffectiveName(name, autoName).some
-        WIO.ForEach(_ => ???, forEach, () => ???, null, _ => ???, (_, _, _) => ???, (_, _) => ???, None, null, WIOMeta.ForEach(effName))
+        WIO.ForEach(_ => ???, forEach, () => ???, null, (_, _) => ???, (_, _) => ???, None, null, WIOMeta.ForEach(effName))
       }
 
       def repeat(conditionName: String = null, releaseBranchName: String = null, restartBranchName: String = null)(

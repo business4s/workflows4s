@@ -2,7 +2,7 @@ package workflows4s.wio.builders
 
 import workflows4s.wio.internal.WorkflowEmbedding
 import workflows4s.wio.model.{ModelUtils, WIOMeta}
-import workflows4s.wio.{SignalRouter, WCEvent, WCState, WIO, WorkflowContext}
+import workflows4s.wio.*
 
 object ForEachBuilder {
 
@@ -34,45 +34,51 @@ object ForEachBuilder {
 
             case class Step4(private val eventEmbedding: WorkflowEmbedding.Event[(Elem, WCEvent[InnerCtx]), WCEvent[Ctx]]) {
 
-              def withInterimState[InterimState <: WCState[Ctx]](in: In => InterimState): Step5[InterimState] = Step5(in)
+              def withInitialInterimState[InterimState <: WCState[Ctx]](in: In => InterimState): Step5[InterimState] = Step5(in)
+
+              def withInterimState[InterimState <: WCState[Ctx]](builder: (In, Map[Elem, WCState[InnerCtx]]) => InterimState): Step6[InterimState] =
+                Step6(builder)
 
               case class Step5[InterimState <: WCState[Ctx]](private val initial: In => InterimState) {
 
-                def incorporatingChangesThrough(f: (Elem, WCState[InnerCtx], InterimState) => InterimState): Step6 = Step6(f)
+                def incorporatingChangesThrough(f: (Elem, WCState[InnerCtx], InterimState) => InterimState): Step6[InterimState] = {
+                  val builder: (In, Map[Elem, WCState[InnerCtx]]) => InterimState = (in, elems) =>
+                    elems.foldLeft(initial(in)) { case (interim, (elem, inner)) => f(elem, inner, interim) }
+                  Step6(builder)
+                }
 
-                case class Step6(private val incorporatingChangesThrough: (Elem, WCState[InnerCtx], InterimState) => InterimState) {
+              }
 
-                  def withOutputBuiltWith[Out <: WCState[Ctx]](outputBuilder: (In, Map[Elem, ElemOut]) => Out): Step7[Out] = Step7(outputBuilder)
+              case class Step6[InterimState <: WCState[Ctx]](private val interimStateBuilder: (In, Map[Elem, WCState[InnerCtx]]) => InterimState) {
 
-                  def withInterimStateAsOutput: Step7[InterimState] = withOutputBuiltWith[InterimState]((in, outs) =>
-                    outs.foldLeft(initial(in))((interim, result) => incorporatingChangesThrough(result._1, result._2, interim)),
-                  )
+                def withOutputBuiltWith[Out <: WCState[Ctx]](outputBuilder: (In, Map[Elem, ElemOut]) => Out): Step7[Out] = Step7(outputBuilder)
 
-                  case class Step7[Out <: WCState[Ctx]](private val outputBuilder: (In, Map[Elem, ElemOut]) => Out) {
+                def withInterimStateAsOutput: Step7[InterimState] = withOutputBuiltWith[InterimState]((in, outs) => interimStateBuilder(in, outs))
 
-                    def withSignalsWrappedWith(signalWrapper: SignalRouter.Receiver[Elem, InterimState]): Step8 = Step8(signalWrapper)
+                case class Step7[Out <: WCState[Ctx]](private val outputBuilder: (In, Map[Elem, ElemOut]) => Out) {
 
-                    case class Step8(private val signalRouter: SignalRouter.Receiver[Elem, InterimState]) {
-                      def named(name: String)                   = build(Some(name))
-                      def autoNamed()(using n: sourcecode.Name) = named(ModelUtils.prettifyName(n.value))
+                  def withSignalsWrappedWith(signalWrapper: SignalRouter.Receiver[Elem, InterimState]): Step8 = Step8(signalWrapper)
 
-                      def build(name: Option[String]): WIO.ForEach[Ctx, In, Err, Out, Elem, InnerCtx, ElemOut, InterimState] = {
-                        WIO.ForEach(
-                          getElements = getElements,
-                          elemWorkflow = forEachElem,
-                          initialElemState = initialState,
-                          eventEmbedding = eventEmbedding,
-                          initialInterimState = initial,
-                          incorporatePartial = incorporatingChangesThrough,
-                          buildOutput = outputBuilder,
-                          stateOpt = None,
-                          signalRouter = signalRouter,
-                          meta = WIOMeta.ForEach(name),
-                        )
-                      }
+                  case class Step8(private val signalRouter: SignalRouter.Receiver[Elem, InterimState]) {
+                    def named(name: String) = build(Some(name))
+
+                    def autoNamed()(using n: sourcecode.Name) = named(ModelUtils.prettifyName(n.value))
+
+                    def build(name: Option[String]): WIO.ForEach[Ctx, In, Err, Out, Elem, InnerCtx, ElemOut, InterimState] = {
+                      WIO.ForEach(
+                        getElements = getElements,
+                        elemWorkflow = forEachElem,
+                        initialElemState = initialState,
+                        eventEmbedding = eventEmbedding,
+                        interimStateBuilder = interimStateBuilder,
+                        buildOutput = outputBuilder,
+                        stateOpt = None,
+                        signalRouter = signalRouter,
+                        meta = WIOMeta.ForEach(name),
+                      )
                     }
-
                   }
+
                 }
               }
 

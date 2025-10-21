@@ -246,35 +246,32 @@ object WIO {
   ) extends WIO[In, Err, Out, Ctx]
 
   case class ForEach[
-      Ctx <: WorkflowContext,
-      -In,
-      +Err,
-      +Out <: WCState[Ctx],
-      Elem,
-      InnerCtx <: WorkflowContext,
-      ElemOut <: WCState[InnerCtx],
-      InterimState <: WCState[Ctx],
+    Ctx <: WorkflowContext,
+    -In,
+    +Err,
+    +Out <: WCState[Ctx],
+    Elem,
+    InnerCtx <: WorkflowContext,
+    ElemOut <: WCState[InnerCtx],
+    InterimState <: WCState[Ctx],
   ](
-      getElements: In => Set[Elem],
-      elemWorkflow: WIO[Elem, Err, ElemOut, InnerCtx],
-      initialElemState: () => WCState[InnerCtx],
-      eventEmbedding: WorkflowEmbedding.Event[(Elem, WCEvent[InnerCtx]), WCEvent[Ctx]],
-      initialInterimState: In => InterimState,
-      incorporatePartial: (Elem, WCState[InnerCtx], InterimState) => InterimState,
-      buildOutput: (In, Map[Elem, ElemOut]) => Out,
-      stateOpt: Option[Map[Elem, WIO[Any, Err, ElemOut, InnerCtx]]],
-      signalRouter: SignalRouter.Receiver[Elem, InterimState],
-      meta: WIOMeta.ForEach,
-  ) extends WIO[In, Err, Out, Ctx] {
+     getElements: In => Set[Elem],
+     elemWorkflow: WIO[Elem, Err, ElemOut, InnerCtx],
+     initialElemState: () => WCState[InnerCtx],
+     eventEmbedding: WorkflowEmbedding.Event[(Elem, WCEvent[InnerCtx]), WCEvent[Ctx]],
+     interimStateBuilder: (In, Map[Elem, WCState[InnerCtx]]) => InterimState,
+     buildOutput: (In, Map[Elem, ElemOut]) => Out,
+     stateOpt: Option[Map[Elem, WIO[Any, Err, ElemOut, InnerCtx]]],
+     signalRouter: SignalRouter.Receiver[Elem, InterimState],
+     meta: WIOMeta.ForEach,
+   ) extends WIO[In, Err, Out, Ctx] {
     def state(input: In): Map[Elem, WIO[Any, Err, ElemOut, InnerCtx]] =
       stateOpt.getOrElse(getElements(input).map(elemId => elemId -> elemWorkflow.provideInput(elemId)).toMap)
 
-    def interimState(input: In) = {
+    def interimState(input: In): InterimState = {
       val initialElemState = this.initialElemState()
-      state(input)
-        .foldLeft(initialInterimState(input))({ case (interim, (elemId, elemState)) =>
-          incorporatePartial(elemId, GetStateEvaluator.extractLastState(elemState, (), initialElemState).getOrElse(initialElemState), interim)
-        })
+      val elemStates = state(input).view.mapValues(elemWio => GetStateEvaluator.extractLastState(elemWio, (), initialElemState).getOrElse(initialElemState)).toMap
+      interimStateBuilder(input, elemStates)
     }
   }
 
