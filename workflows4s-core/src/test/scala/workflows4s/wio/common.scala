@@ -19,7 +19,7 @@ object TestCtx extends WorkflowContext {
 
 opaque type StepId <: String = String
 object StepId {
-  def random: StepId = scala.util.Random.alphanumeric.take(8).mkString
+  def random: StepId                 = scala.util.Random.alphanumeric.take(8).mkString
   def random(prefix: String): StepId = s"$prefix-$random"
   extension (s: StepId) {
     def prefixedWith(prefix: String): StepId = s"${prefix}:${s}"
