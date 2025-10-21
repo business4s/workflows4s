@@ -36,7 +36,7 @@ lazy val `workflows4s-bpmn` = (project in file("workflows4s-bpmn"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.camunda.bpm.model" % "camunda-bpmn-model" % "7.23.0",
+      "org.camunda.bpm.model" % "camunda-bpmn-model" % "7.24.0",
     ),
   )
   .dependsOn(`workflows4s-core`)
