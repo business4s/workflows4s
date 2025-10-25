@@ -2,11 +2,11 @@ package workflows4s.wio
 
 import cats.effect.IO
 import cats.syntax.all.*
+import workflows4s.wio.builders.RetryBuilder
 import workflows4s.wio.internal.{EventHandler, ExecutionProgressEvaluator}
 import workflows4s.wio.model.WIOExecutionProgress
 
 import java.time.Instant
-import java.time.Duration
 import scala.annotation.targetName
 import scala.reflect.ClassTag
 
@@ -64,12 +64,5 @@ trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self
   }
 
   type Now = Instant
-  def retry(onError: (Throwable, WCState[Ctx], Now) => IO[Option[Instant]]): WIO[In, Err, Out, Ctx] = WIO.Retry(this, onError)
-  def retryIn(onError: PartialFunction[Throwable, Duration]): WIO[In, Err, Out, Ctx]                = {
-    val adapted: (Throwable, WCState[Ctx], Now) => IO[Option[Instant]] = (err, _, now) => {
-      onError.lift(err).map(d => now.plus(d)).pure[IO]
-    }
-    WIO.Retry(this, adapted)
-  }
-
+  def retry[In1 <: In, Err1 >: Err, Out1 >: Out <: WCState[Ctx]]: RetryBuilder.Step0[In1, Err1, Out1, Ctx] = new RetryBuilder.Step0[In1, Err1, Out1, Ctx](this)
 }
