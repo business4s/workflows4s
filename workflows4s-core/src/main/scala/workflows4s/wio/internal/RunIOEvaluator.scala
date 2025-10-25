@@ -26,7 +26,7 @@ object RunIOEvaluator {
       lastSeenState: WCState[Ctx],
       now: Instant,
   ) extends Visitor[Ctx, In, Err, Out](wio) {
-    override type Result = Option[IO[Either[Instant, WCEvent[Ctx]]]]
+    override type Result = Option[IO[Ior[Instant, WCEvent[Ctx]]]]
 
     def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result                             = None
     def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result = None
@@ -35,7 +35,7 @@ object RunIOEvaluator {
     def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result                                       = None
     override def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): Result                = None
 
-    def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result = wio.buildIO(input).map(wio.evtHandler.convert).map(_.asRight).some
+    def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result = wio.buildIO(input).map(wio.evtHandler.convert).map(_.rightIor).some
 
     def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result          = recurse(wio.base, input)
     def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Result          =
@@ -96,13 +96,13 @@ object RunIOEvaluator {
     def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result = {
       val started   = WIO.Timer.Started(now)
       val converted = wio.startedEventHandler.convert(started)
-      Some(IO.pure(converted.asRight))
+      Some(IO.pure(converted.rightIor))
     }
 
     def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result = {
       val timeCame = now.plusNanos(1).isAfter(wio.resumeAt)
       Option.when(timeCame)(
-        wio.releasedEventHandler.convert(Timer.Released(now)).asRight.pure[IO],
+        wio.releasedEventHandler.convert(Timer.Released(now)).rightIor.pure[IO],
       )
     }
 
@@ -117,7 +117,7 @@ object RunIOEvaluator {
         case Some(executedBase) =>
           executedBase.output match {
             case Left(_)        => None
-            case Right(baseOut) => wio.genEvent(input, baseOut).map(wio.eventHandler.convert).map(_.asRight).some
+            case Right(baseOut) => wio.genEvent(input, baseOut).map(wio.eventHandler.convert).map(_.rightIor).some
           }
         case None               => recurse(wio.base, input)
       }
@@ -157,7 +157,7 @@ object RunIOEvaluator {
         .map { case (elemId, io) => io.map(_.map(wio.eventEmbedding.convertEvent(elemId, _))) }
     }
 
-    private def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], s: I1): Option[IO[Either[Instant, WCEvent[Ctx]]]] =
+    private def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], s: I1): Option[IO[Ior[Instant, WCEvent[Ctx]]]] =
       new RunIOVisitor(wio, s, lastSeenState, now).run
 
   }

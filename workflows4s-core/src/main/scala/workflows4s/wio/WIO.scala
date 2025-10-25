@@ -2,7 +2,6 @@ package workflows4s.wio
 
 import cats.effect.IO
 import cats.implicits.catsSyntaxOptionId
-import workflows4s.wio.DraftWorkflowContext.Ctx
 import workflows4s.wio.WIO.HandleInterruption.InterruptionType
 import workflows4s.wio.WIO.Timer.DurationSource
 import workflows4s.wio.builders.AllBuilders
@@ -203,8 +202,8 @@ object WIO {
   }
 
   case class Retry[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]](
-                                                                             base: WIO[In, Err, Out, Ctx],
-                                                                             mode: Retry.Mode[Ctx, In, Err, Out],
+      base: WIO[In, Err, Out, Ctx],
+      mode: Retry.Mode[Ctx, In, Err, Out],
   ) extends WIO[In, Err, Out, Ctx]
 
   object Retry {
@@ -228,7 +227,7 @@ object WIO {
     object Mode {
       case class Stateless[Ctx <: WorkflowContext, -In](errorHandler: (In, Throwable, WCState[Ctx], Instant) => IO[Result.ForStateless])
           extends Mode[Ctx, In, Nothing, Nothing]
-      case class Stateful[Ctx <: WorkflowContext, Evt <: WCState[Ctx], -In, Err, +Out <: WCState[Ctx], RetryState](
+      case class Stateful[Ctx <: WorkflowContext, Evt <: WCEvent[Ctx], -In, Err, +Out <: WCState[Ctx], RetryState](
           errorHandler: (In, Throwable, WCState[Ctx], Option[RetryState]) => IO[ErrHandlerResult[Evt, Evt]],
           eventHandler: EventHandler[In, Either[RetryState, Either[Err, Out]], WCEvent[Ctx], Evt],
           state: Option[RetryState],

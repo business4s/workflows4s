@@ -2,14 +2,14 @@ package workflows4s.wio
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import org.scalatest.EitherValues
+import org.scalatest.{EitherValues, OptionValues}
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 import workflows4s.wio.WIO.RunIO
 
 import java.time.Instant
 
-class WIORunIOTest extends AnyFreeSpec with Matchers with EitherValues {
+class WIORunIOTest extends AnyFreeSpec, Matchers, EitherValues, OptionValues {
 
   import TestCtx.*
 
@@ -25,7 +25,7 @@ class WIORunIOTest extends AnyFreeSpec with Matchers with EitherValues {
       val resultOpt = wf.proceed(Instant.now)
 
       assert(resultOpt.toRaw.isDefined)
-      val newEvent = resultOpt.toRaw.get.unsafeRunSync().value
+      val newEvent = resultOpt.toRaw.get.unsafeRunSync().toOption.value
       assert(newEvent == SimpleEvent("ProcessedEvent(initialState)"))
     }
 

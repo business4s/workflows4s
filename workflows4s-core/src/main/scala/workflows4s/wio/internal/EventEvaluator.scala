@@ -3,7 +3,7 @@ package workflows4s.wio.internal
 import cats.implicits.{catsSyntaxEitherId, toFunctorOps}
 import workflows4s.wio.*
 import workflows4s.wio.Interpreter.EventResponse
-import workflows4s.wio.WIO.Retry.{Mode, Result}
+import workflows4s.wio.WIO.Retry.Mode
 
 object EventEvaluator {
 

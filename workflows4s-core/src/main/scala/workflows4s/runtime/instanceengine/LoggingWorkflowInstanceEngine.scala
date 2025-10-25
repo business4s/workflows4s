@@ -58,8 +58,8 @@ class LoggingWorkflowInstanceEngine(
                     .flatTap({
                       case ProcessingResult.Proceeded(event) =>
                         IO(logger.debug(s"[${workflow.id}] ⤷ wakeupEffect returned event: $event"))
-                      case ProcessingResult.Failed(retry)    =>
-                        IO(logger.debug(s"[${workflow.id}] ⤷ wakeupEffect failed with retry at $retry"))
+                      case ProcessingResult.Failed(retry, event)    =>
+                        IO(logger.debug(s"[${workflow.id}] ⤷ wakeupEffect failed with retry at $retry, event: $event"))
                     })
                     .onError(e => IO(logger.error("wakeupEffect failed", e))),
               )

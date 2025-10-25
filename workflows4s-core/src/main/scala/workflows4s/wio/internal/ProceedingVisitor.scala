@@ -295,7 +295,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
 
   override def onRetry(wio: WIO.Retry[Ctx, In, Err, Out]): Option[NewWf] =
     recurse(wio.base, input).map({
-      case WFExecution.Complete(newWio) => WFExecution.complete(wio.copy(base = newWio), newWio.output, newWio.input, newWio.index)
+      case WFExecution.Complete(newWio) => WFExecution.complete(wio.copy(base = newWio), newWio.output, input, newWio.index)
       case WFExecution.Partial(newWio)  => WFExecution.Partial(wio.copy(base = newWio))
     })
 

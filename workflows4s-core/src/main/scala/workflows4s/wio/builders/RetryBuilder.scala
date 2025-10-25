@@ -1,13 +1,12 @@
 package workflows4s.wio.builders
 
-import cats.effect.IO
 import workflows4s.wio.{WCState, WIO, WorkflowContext}
 
-import java.time.Duration
+import scala.annotation.unused
 
 object RetryBuilder {
 
-  class Step0[In, Err, Out <: WCState[Ctx], Ctx <: WorkflowContext](wio: WIO[In, Err, Out, Ctx]) {
+  class Step0[In, Err, Out <: WCState[Ctx], Ctx <: WorkflowContext](@unused wio: WIO[In, Err, Out, Ctx]) {
 
     object stateless {
 //      def apply(onError: (In, Throwable, WCState[Ctx]) => IO[WIO.Retry.Result[WCState[Ctx]]]): WIO[In, Err, Out, Ctx] = {
