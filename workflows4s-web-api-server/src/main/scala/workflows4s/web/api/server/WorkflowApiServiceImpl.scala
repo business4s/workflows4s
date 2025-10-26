@@ -73,7 +73,7 @@ class WorkflowApiServiceImpl[F[_]](
     )
   }
 
-  override def searchWorkflows(query: WorkflowSearchRequest): F[List[WorkflowSearchResult]] = {
+  override def searchWorkflows(query: WorkflowSearchRequest): F[WorkflowSearchResponse] = {
     workflowSearch match {
       case Some(search) =>
         val domainQuery = WorkflowSearch.Query(
@@ -102,9 +102,9 @@ class WorkflowApiServiceImpl[F[_]](
         )
 
         search
-          .search(query.templateId, domainQuery)
-          .map(
-            _.map(r =>
+          .searchWithCount(query.templateId, domainQuery)
+          .map { case (results, totalCount) =>
+            val apiResults = results.map(r =>
               WorkflowSearchResult(
                 r.id.templateId,
                 r.id.instanceId,
@@ -117,8 +117,12 @@ class WorkflowApiServiceImpl[F[_]](
                 r.updatedAt,
                 r.wakeupAt,
               ),
-            ),
-          )
+            )
+            WorkflowSearchResponse(
+              results = apiResults,
+              totalCount = totalCount,
+            )
+          }
       case None         =>
         me.raiseError(new Exception("Search not configured")) // in the future we will expose this information and UI will handle it gracefully
     }
