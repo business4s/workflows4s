@@ -141,7 +141,7 @@ object RunIOEvaluator {
                     case Some(value) => Ior.both(at, value)
                     case None        => Ior.left(at)
                   })
-                case StatefulResult.Continue(event)           => event.rightIor.pure[IO]
+                case StatefulResult.Recover(event)           => event.rightIor.pure[IO]
               })
           },
         ),
