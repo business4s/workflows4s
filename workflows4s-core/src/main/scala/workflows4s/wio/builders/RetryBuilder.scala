@@ -9,6 +9,7 @@ import java.time.{Duration, Instant}
 import scala.annotation.unused
 import scala.reflect.ClassTag
 import scala.util.NotGiven
+import scala.util.chaining.scalaUtilChainingOps
 
 object RetryBuilder {
 
@@ -44,8 +45,19 @@ object RetryBuilder {
 
       def onError[RetryEvent, RecoverEvent](
           onError: (In, Throwable, WCState[Ctx], Option[RetryState]) => IO[WIO.Retry.StatefulResult[RetryEvent, RecoverEvent]],
-      )(using retBound: RetryEvent <:< WCEvent[Ctx], recBound: RecoverEvent <:< WCEvent[Ctx]): Step1[RetryEvent & WCEvent[Ctx], RecoverEvent & WCEvent[Ctx]] = {
-        new Step1[RetryEvent & WCEvent[Ctx], RecoverEvent & WCEvent[Ctx]](onError.asInstanceOf)
+      )(using
+          retBound: RetryEvent <:< (RetryEvent & WCEvent[Ctx]),
+          recBound: RecoverEvent <:< (RecoverEvent & WCEvent[Ctx]),
+      ): Step1[RetryEvent & WCEvent[Ctx], RecoverEvent & WCEvent[Ctx]] = {
+        // we could just cast here and gain negligible performance at the cost of typesafety
+        val widened: (In, Throwable, WCState[Ctx], Option[RetryState]) => IO[
+          WIO.Retry.StatefulResult[RetryEvent & WCEvent[Ctx], RecoverEvent & WCEvent[Ctx]],
+        ] = (a, b, c, d) =>
+          onError(a, b, c, d).map(
+            _.pipe(retBound.substituteCo[[t] =>> WIO.Retry.StatefulResult[t, RecoverEvent]])
+              .pipe(recBound.substituteCo[[t] =>> WIO.Retry.StatefulResult[RetryEvent & WCEvent[Ctx], t]]),
+          )
+        new Step1[RetryEvent & WCEvent[Ctx], RecoverEvent & WCEvent[Ctx]](widened)
       }
 
       class Step1[RetryEvent <: WCEvent[Ctx], RecoverEvent <: WCEvent[Ctx]](
@@ -61,16 +73,11 @@ object RetryBuilder {
             recoverEvtCt: ClassTag[RecoverEvent],
             @unused n1: NotGiven[RetryEvent <:< RecoverEvent],
             @unused n2: NotGiven[RecoverEvent <:< RetryEvent],
-            retBound: RetryEvent <:< WCEvent[Ctx],
-            recBound: RecoverEvent <:< WCEvent[Ctx],
         ) = {
           val evtHandler =
             EventHandler[WCEvent[Ctx], (In, WCState[Ctx], Option[RetryState]), Either[RetryState, Either[Err, Out]], RetryEvent | RecoverEvent](
               x => retryEvtCt.unapply(x).orElse(recoverEvtCt.unapply(x)),
-              {
-                case x: RetryEvent   => retBound(x)
-                case x: RecoverEvent => recBound(x)
-              },
+              identity,
               (in, evt) =>
                 evt match {
                   case retryEvtCt(value)   => onRetry(in._1, value, in._3).asLeft
@@ -83,11 +90,11 @@ object RetryBuilder {
 
         def handleEventsTogetherWith(
             onEvent: (In, RetryEvent | RecoverEvent, WCState[Ctx], Option[RetryState]) => Either[RetryState, Either[Err, Out]],
-        )(using ct: ClassTag[RetryEvent | RecoverEvent], sumBound: (RetryEvent | RecoverEvent) <:< WCEvent[Ctx]) = {
+        )(using ct: ClassTag[RetryEvent | RecoverEvent]) = {
           val evtHandler =
             EventHandler[WCEvent[Ctx], (In, WCState[Ctx], Option[RetryState]), Either[RetryState, Either[Err, Out]], RetryEvent | RecoverEvent](
               x => ct.unapply(x),
-              x => sumBound(x),
+              identity,
               (in, evt) => onEvent(in._1, evt, in._2, in._3),
             )
           val mode       = WIO.Retry.Mode.Stateful(onError, evtHandler, None)
