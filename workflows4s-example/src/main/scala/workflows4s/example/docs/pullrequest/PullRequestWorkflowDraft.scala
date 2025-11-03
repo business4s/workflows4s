@@ -13,9 +13,9 @@ object PullRequestWorkflowDraft {
   // end_context
 
   // start_steps
-  val createPR: WIO.Draft    = WIO.draft.signal()
-  val runPipeline: WIO.Draft = WIO.draft.step(error = "Critical Issue")
-  val awaitReview: WIO.Draft = WIO.draft.signal(error = "Rejected")
+  val createPR: WIO.Draft             = WIO.draft.signal()
+  val runPipeline: WIO.DraftWithError = WIO.draft.step(error = "Critical Issue")
+  val awaitReview: WIO.Draft          = WIO.draft.signal(error = "Rejected")
 
   val mergePR: WIO.Draft = WIO.draft.step()
   val closePR: WIO.Draft = WIO.draft.step()

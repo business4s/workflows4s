@@ -69,6 +69,16 @@ class WIOHandleErrorTest extends AnyFreeSpec with Matchers with EitherValues {
       assert(wf.queryState() === TestState(executed = List(step1Id, step3id), errors = List(error)))
     }
 
+    "not allow attaching handler to non-raising node" in {
+      val (_, step1) = TestUtils.pure
+      val handler          = TestUtils.errorHandler
+
+      assertDoesNotCompile(
+        "step1.handleErrorWith(handler)"
+      )
+      step1.handleErrorWith(handler)
+    }
+
   }
 
 }

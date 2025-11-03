@@ -2,7 +2,7 @@ package workflows4s.wio
 
 import cats.effect.IO
 import cats.syntax.all.*
-import workflows4s.wio.internal.{EventHandler, ExecutionProgressEvaluator}
+import workflows4s.wio.internal.{ErrorPresent, EventHandler, ExecutionProgressEvaluator}
 import workflows4s.wio.model.WIOExecutionProgress
 
 import java.time.Instant
@@ -31,7 +31,7 @@ trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self
 
   def handleErrorWith[Err1, Out1 >: Out <: WCState[Ctx], ErrIn >: Err](
       wio: WIO[(WCState[Ctx], ErrIn), Err1, Out1, Ctx],
-  )(using errMeta: ErrorMeta[ErrIn], newErrMeta: ErrorMeta[Err1]): WIO[In, Err1, Out1, Ctx] = {
+  )(using errMeta: ErrorMeta[ErrIn], newErrMeta: ErrorMeta[Err1], errorPresent: ErrorPresent[ErrIn]): WIO[In, Err1, Out1, Ctx] = {
     WIO.HandleErrorWith(this, wio, errMeta, newErrMeta)
   }
 
