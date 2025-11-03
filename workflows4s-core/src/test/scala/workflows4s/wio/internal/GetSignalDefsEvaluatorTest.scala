@@ -5,6 +5,8 @@ import org.scalatest.matchers.should.Matchers
 import workflows4s.testing.TestUtils
 import workflows4s.wio.{TestCtx2, TestState, WIO}
 import cats.effect.IO
+import workflows4s.wio.WIO.IHandleSignal
+
 import java.time.Duration
 
 class GetSignalDefsEvaluatorTest extends AnyFreeSpec with Matchers {
@@ -68,7 +70,8 @@ class GetSignalDefsEvaluatorTest extends AnyFreeSpec with Matchers {
       "should return the signal from the base if the base has not failed" in {
         val (signalDef, _, base) = TestUtils.signal
         val handler              = TestCtx2.WIO.pure(TestState(Nil, Nil)).done
-        val wio                  = base.handleErrorWith(handler)
+        val baseWithFakeError: WIO[TestState, Any, TestState, TestCtx2.Ctx] = base
+        val wio                  = baseWithFakeError.handleErrorWith(handler)
         GetSignalDefsEvaluator.run(wio).should(contain).theSameElementsAs(List(signalDef))
       }
 
