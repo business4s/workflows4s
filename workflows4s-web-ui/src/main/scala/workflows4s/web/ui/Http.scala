@@ -7,32 +7,17 @@ import sttp.client4.impl.cats.FetchCatsBackend
 import sttp.tapir.PublicEndpoint
 import sttp.tapir.client.sttp4.SttpClientInterpreter
 import workflows4s.web.api.endpoints.WorkflowEndpoints
-import workflows4s.web.api.model.{SignalRequest, WorkflowDefinition, WorkflowInstance, WorkflowSearchRequest, WorkflowSearchResult}
+import workflows4s.web.api.model.{SignalRequest, WorkflowDefinition, WorkflowInstance, WorkflowSearchRequest, WorkflowSearchResponse}
 import workflows4s.web.ui.util.UIConfig
 
 object Http {
   private val backend     = FetchCatsBackend[IO]()
   private val interpreter = SttpClientInterpreter()
 
-  def getInstance(workflowId: String, instanceId: String): IO[WorkflowInstance] = send(WorkflowEndpoints.getInstance)((workflowId, instanceId))
-  def listDefinitions: IO[List[WorkflowDefinition]]                             = send(WorkflowEndpoints.listDefinitions)(())
-  def sendSignal(req: SignalRequest): IO[Json]                                  = send(WorkflowEndpoints.deliverSignal)(req)
-  def searchWorkflows(templateId: String): IO[List[WorkflowSearchResult]]       = send(WorkflowEndpoints.searchWorkflows)(
-    // filtering is not yet supported on the UI
-    WorkflowSearchRequest(
-      templateId = templateId,
-      status = Set(),
-      createdAfter = None,
-      createdBefore = None,
-      updatedAfter = None,
-      updatedBefore = None,
-      wakeupBefore = None,
-      wakeupAfter = None,
-      sort = None,
-      limit = None,
-      offset = None,
-    ),
-  )
+  def getInstance(workflowId: String, instanceId: String): IO[WorkflowInstance]   = send(WorkflowEndpoints.getInstance)((workflowId, instanceId))
+  def listDefinitions: IO[List[WorkflowDefinition]]                               = send(WorkflowEndpoints.listDefinitions)(())
+  def sendSignal(req: SignalRequest): IO[Json]                                    = send(WorkflowEndpoints.deliverSignal)(req)
+  def searchWorkflows(request: WorkflowSearchRequest): IO[WorkflowSearchResponse] = send(WorkflowEndpoints.searchWorkflows)(request)
 
   private def send[I, E, O](e: PublicEndpoint[I, E, O, Any]): I => IO[O] = { input =>
     for {
