@@ -10,6 +10,7 @@ package object docs {
   case class MyEvent()                      extends MyEventBase
   case class MyTimerStarted(time: Instant)  extends MyEventBase
   case class MyTimerReleased(time: Instant) extends MyEventBase
+  case object MyRetryEvent                  extends MyEventBase
   case class MyState(counter: Int)
   case class MyError()
   case class MyRequest()

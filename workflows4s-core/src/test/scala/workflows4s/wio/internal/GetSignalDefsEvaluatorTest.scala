@@ -59,7 +59,7 @@ class GetSignalDefsEvaluatorTest extends AnyFreeSpec with Matchers {
       "should return the signal from the base" in {
         val (signalDef, _, base) = TestUtils.signal
         val retryDelay           = Duration.ofSeconds(13)
-        val wio                  = base.retryIn { case _ => retryDelay }
+        val wio                  = base.retry.statelessly.wakeupIn { case _ => retryDelay }
         GetSignalDefsEvaluator.run(wio) should contain(signalDef)
       }
     }
