@@ -27,12 +27,11 @@ object ForEachExample {
     // real_start
     type Element
     type Input
-    def elementWorkflow: SubWorkflowContext.WIO[Element, Nothing, SubWorkflowState]             = SubWorkflowContext.WIO.pure(SubWorkflowState()).autoNamed
-    def getElements(input: Input): Set[Element]                                                 = ???
-    def initialElementState: SubWorkflowState                                                   = ???
-    def initialInterimState(input: Input): MyState                                              = ???
-    def updateInterimState(elem: Element, elemState: SubWorkflowState, state: MyState): MyState = ???
-    def buildOutput(input: Input, results: Map[Element, SubWorkflowState]): MyState             = ???
+    def elementWorkflow: SubWorkflowContext.WIO[Element, Nothing, SubWorkflowState]         = SubWorkflowContext.WIO.pure(SubWorkflowState()).autoNamed
+    def getElements(input: Input): Set[Element]                                             = ???
+    def initialElementState: SubWorkflowState                                               = ???
+    def buildInterimState(input: Input, subStates: Map[Element, SubWorkflowState]): MyState = ???
+    def buildOutput(input: Input, results: Map[Element, SubWorkflowState]): MyState         = ???
 
     def eventEmbedding: WorkflowEmbedding.Event[(Element, SubWorkflowEvent), MyEventBase] =
       new WorkflowEmbedding.Event[(Element, SubWorkflowEvent), MyEventBase] {
@@ -46,8 +45,7 @@ object ForEachExample {
       .forEach[Input](getElements)
       .execute[SubWorkflowContext.Ctx](elementWorkflow, initialElementState)
       .withEventsEmbeddedThrough(eventEmbedding)
-      .withInterimState(initialInterimState)
-      .incorporatingChangesThrough(updateInterimState)
+      .withInterimState(buildInterimState)
       .withOutputBuiltWith(buildOutput)
       .withSignalsWrappedWith(signalRouter)
       .autoNamed()
