@@ -7,7 +7,7 @@ object BundleIt {
   def bundle(from: File, to: File): Set[File] = {
     val distDir = os.Path(from)
 
-    val viteBuild = 
+    val viteBuild =
       os.proc("npm", "run", "build").call(distDir, stdin = os.Inherit, stdout = os.Inherit, stderr = os.Inherit)
 
     if (viteBuild.exitCode != 0) sys.error("Vite build failed")
