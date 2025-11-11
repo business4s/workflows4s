@@ -36,7 +36,7 @@ lazy val `workflows4s-bpmn` = (project in file("workflows4s-bpmn"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.camunda.bpm.model" % "camunda-bpmn-model" % "7.23.0",
+      "org.camunda.bpm.model" % "camunda-bpmn-model" % "7.24.0",
     ),
   )
   .dependsOn(`workflows4s-core`)
@@ -51,7 +51,7 @@ lazy val `workflows4s-pekko` = (project in file("workflows4s-pekko"))
       "org.apache.pekko" %% "pekko-persistence-testkit"    % pekkoVersion    % Test,
       "org.apache.pekko" %% "pekko-persistence-jdbc"       % "1.1.0"         % Test,
       "com.h2database"    % "h2"                           % "2.4.240"       % Test,
-      "io.r2dbc"          % "r2dbc-h2"                     % "1.0.0.RELEASE" % Test,
+      "io.r2dbc"          % "r2dbc-h2"                     % "1.0.1.RELEASE" % Test,
       "io.altoo"         %% "pekko-kryo-serialization"     % "1.3.0",
     ),
   )
@@ -127,7 +127,7 @@ lazy val `workflows4s-web-ui` = (project in file("workflows4s-web-ui"))
       "io.circe"                      %%% "circe-core"         % circeVersion,
       "io.circe"                      %%% "circe-generic"      % circeVersion,
       "io.circe"                      %%% "circe-parser"       % circeVersion,
-      "com.softwaremill.sttp.tapir"   %%% "tapir-sttp-client4" % "1.11.49",
+      "com.softwaremill.sttp.tapir"   %%% "tapir-sttp-client4" % "1.11.50",
       "com.softwaremill.sttp.client4" %%% "cats"               % "4.0.12",
       "org.business4s"                %%% "forms4s-jsonschema" % "0.1.0",
       "org.business4s"                %%% "forms4s-tyrian"     % "0.1.0",
@@ -176,9 +176,9 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "org.apache.pekko"     %% "pekko-persistence-jdbc"          % "1.1.1", // published locally until the release is there
       "org.apache.pekko"     %% "pekko-serialization-jackson"     % "1.2.1",
       "com.h2database"        % "h2"                              % "2.4.240",
-      "io.r2dbc"              % "r2dbc-h2"                        % "1.0.0.RELEASE",
-      "com.github.pjfanning" %% "pekko-http-circe"                % "3.4.0",
-      "ch.qos.logback"        % "logback-classic"                 % "1.5.19",
+      "io.r2dbc"              % "r2dbc-h2"                        % "1.0.1.RELEASE",
+      "com.github.pjfanning" %% "pekko-http-circe"                % "3.5.0",
+      "ch.qos.logback"        % "logback-classic"                 % "1.5.20",
       "org.scalamock"        %% "scalamock"                       % "7.5.0"                    % Test,
       "org.apache.pekko"     %% "pekko-actor-testkit-typed"       % pekkoVersion               % Test,
       "com.dimafeng"         %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
@@ -217,7 +217,7 @@ lazy val commonSettings = Seq(
   scalacOptions ++= Seq("-no-indent", "-Xmax-inlines", "64", "-explain-cyclic", "-Ydebug-cyclic"),
   libraryDependencies ++= Seq(
     "org.scalatest" %% "scalatest"       % "3.2.19" % Test,
-    "ch.qos.logback" % "logback-classic" % "1.5.19" % Test,
+    "ch.qos.logback" % "logback-classic" % "1.5.20" % Test,
   ),
   // scalafix settings
   semanticdbEnabled := true, // enable SemanticDB
@@ -239,7 +239,7 @@ lazy val commonSettings = Seq(
 lazy val pekkoVersion               = "1.2.1"
 lazy val pekkoHttpVersion           = "1.2.0"
 lazy val testcontainersScalaVersion = "0.43.0"
-lazy val tapirVersion               = "1.11.49"
+lazy val tapirVersion               = "1.11.50"
 lazy val circeVersion               = "0.14.15"
 
 addCommandAlias("prePR", List("compile", "Test / compile", "test", "scalafmtCheckAll").mkString(";", ";", ""))
