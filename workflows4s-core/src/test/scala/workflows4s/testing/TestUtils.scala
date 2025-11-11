@@ -59,7 +59,7 @@ object TestUtils {
 
   def pure: (StepId, WIO[TestState, Nothing, TestState, TestCtx2.Ctx]) = {
     import TestCtx2.*
-    val stepId = StepId.random
+    val stepId = StepId.random("pure")
     (stepId, WIO.pure.makeFrom[TestState].value(_.addExecuted(stepId)).done)
   }
   def error: (Error, WIO[Any, String, Nothing, TestCtx2.Ctx])          = {
@@ -109,7 +109,7 @@ object TestUtils {
     class SigEvent(val req: Int) extends TestCtx2.Event with Serializable {
       override def toString: String = s"SigEvent(${req})"
     }
-    val stepId = StepId.random.prefixedWith("sig-step")
+    val stepId = StepId.random("signal")
     val wio = WIO
       .handleSignal(signalDef)
       .using[TestState]
