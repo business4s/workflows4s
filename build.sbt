@@ -65,7 +65,7 @@ lazy val `workflows4s-doobie` = (project in file("workflows4s-doobie"))
       "com.dimafeng"  %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
       "com.dimafeng"  %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
       "org.postgresql" % "postgresql"                      % "42.7.8"                   % Test,
-      "org.xerial"     % "sqlite-jdbc"                     % "3.50.3.0"                 % Test,
+      "org.xerial"     % "sqlite-jdbc"                     % "3.51.0.0"                 % Test,
     ),
   )
   .dependsOn(`workflows4s-core` % "compile->compile;test->test")
@@ -184,7 +184,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "com.dimafeng"         %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
       "com.dimafeng"         %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
       "org.postgresql"        % "postgresql"                      % "42.7.8"                   % Test,
-      "org.xerial"            % "sqlite-jdbc"                     % "3.50.3.0"                 % Test,
+      "org.xerial"            % "sqlite-jdbc"                     % "3.51.0.0"                 % Test,
     ),
     Test / parallelExecution := false, // otherwise akka clusters clash
     publish / skip           := true,
