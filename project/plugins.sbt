@@ -9,5 +9,5 @@ addSbtPlugin("io.spray"           % "sbt-revolver"             % "0.10.0")
 addSbtPlugin("org.portable-scala" % "sbt-scalajs-crossproject" % "1.3.2")
 
 libraryDependencies ++= Seq(
-  "com.lihaoyi" %% "os-lib" % "0.11.5",
+  "com.lihaoyi" %% "os-lib" % "0.11.6",
 )
