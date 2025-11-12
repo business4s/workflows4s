@@ -170,7 +170,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
   .settings(
     libraryDependencies ++= Seq(
       "org.http4s"           %% "http4s-ember-server"             % "0.23.32",
-      "org.http4s"           %% "http4s-dsl"                      % "0.23.32",
+      "org.http4s"           %% "http4s-dsl"                      % "0.23.33",
       "org.apache.pekko"     %% "pekko-http"                      % pekkoHttpVersion, // for interacting with the app
       "org.apache.pekko"     %% "pekko-cluster-sharding-typed"    % pekkoVersion, // for realistic example and spawning actors
       "org.apache.pekko"     %% "pekko-persistence-jdbc"          % "1.1.1", // published locally until the release is there
