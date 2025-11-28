@@ -47,8 +47,8 @@ class RegistryBasedWakeupPollerTest extends AnyFreeSpec with Matchers {
         templateId,
       )
 
-      val instanceId: String                                     = UUID.randomUUID().toString
-      val instance: InMemorySyncWorkflowInstance[TestCtx2.Ctx]   = runtime.createInstance(instanceId)
+      val instanceId: String                                   = UUID.randomUUID().toString
+      val instance: InMemorySyncWorkflowInstance[TestCtx2.Ctx] = runtime.createInstance(instanceId)
 
       // Create poller
       val poller: RegistryBasedWakeupPoller = RegistryBasedWakeupPoller.forSync[TestState](
@@ -197,7 +197,7 @@ class RegistryBasedWakeupPollerTest extends AnyFreeSpec with Matchers {
   private def createRunIOStep(name: String): (StepId, TestCtx2.WIO[TestState, Nothing, TestState]) = {
     import TestCtx2.WIO
     case class RunIODone(stepId: StepId) extends TestCtx2.Event
-    val stepId: StepId = StepId.random(name)
+    val stepId: StepId                                   = StepId.random(name)
     val wio: TestCtx2.WIO[TestState, Nothing, TestState] = WIO
       .runIO[TestState](_ => IO.pure(RunIODone(stepId)))
       .handleEvent((st, evt) => st.addExecuted(evt.stepId))

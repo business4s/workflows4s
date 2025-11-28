@@ -35,29 +35,29 @@ object Main extends IOApp {
       // Create engine with single-step evaluation and registry
       // Single-step means signal responses return after first step only
       engine: WorkflowInstanceEngine = WorkflowInstanceEngine.builder
-        .withJavaTime(clock)
-        .withoutWakeUps // No knocker-upper needed - we use polling instead
-        .withRegistering(registry)
-        .withSingleStepEvaluation // Fast signal response
-        .withLogging
-        .get
+                                         .withJavaTime(clock)
+                                         .withoutWakeUps           // No knocker-upper needed - we use polling instead
+                                         .withRegistering(registry)
+                                         .withSingleStepEvaluation // Fast signal response
+                                         .withLogging
+                                         .get
 
       // Create workflow and runtime
-      workflow: WithdrawalWorkflow = WithdrawalWorkflow(DummyWithdrawalService, ChecksEngine)
+      workflow: WithdrawalWorkflow                                 = WithdrawalWorkflow(DummyWithdrawalService, ChecksEngine)
       runtime: InMemorySyncRuntime[WithdrawalWorkflow.Context.Ctx] = new InMemorySyncRuntime[WithdrawalWorkflow.Context.Ctx](
-        workflow.workflowDeclarative.provideInput(WithdrawalData.Empty),
-        WithdrawalData.Empty,
-        engine,
-        templateId,
-      )
+                                                                       workflow.workflowDeclarative.provideInput(WithdrawalData.Empty),
+                                                                       WithdrawalData.Empty,
+                                                                       engine,
+                                                                       templateId,
+                                                                     )
 
       // Create the poller that will drive workflow progression
       poller: RegistryBasedWakeupPoller = RegistryBasedWakeupPoller.forSync[WithdrawalData](
-        registry = registry,
-        templateId = templateId,
-        pollInterval = 100.millis, // Poll every 100ms
-        lookupInstance = (id: String) => Option(runtime.instances.get(id)),
-      )
+                                            registry = registry,
+                                            templateId = templateId,
+                                            pollInterval = 100.millis, // Poll every 100ms
+                                            lookupInstance = (id: String) => Option(runtime.instances.get(id)),
+                                          )
 
       // Create the service that handles HTTP-like requests
       service: WithdrawalWorkflowService = WithdrawalWorkflowService.Impl(runtime)
@@ -101,7 +101,7 @@ object Main extends IOApp {
       _      <- IO.println(s"State after polling: $state2")
 
       // Wait more for further progression
-      _ <- IO.sleep(500.millis)
+      _      <- IO.sleep(500.millis)
       state3 <- service.getState(workflowId)
       _      <- IO.println(s"Final state: $state3")
 

@@ -23,7 +23,7 @@ object WithdrawalWorkflowService {
       IO {
         val instance = runtime.createInstance(id)
         instance.deliverSignal(WithdrawalWorkflow.Signals.createWithdrawal, input) match {
-          case Right(_)                                    => ()
+          case Right(_)                                     => ()
           case Left(WorkflowInstance.UnexpectedSignal(sig)) =>
             throw new Exception(s"Unexpected creation signal $sig for instance $id")
         }
@@ -31,7 +31,7 @@ object WithdrawalWorkflowService {
     }
 
     override def listWorkflows: IO[Seq[String]] = IO {
-      import scala.jdk.CollectionConverters._
+      import scala.jdk.CollectionConverters.*
       runtime.instances.keys().asScala.toSeq
     }
 

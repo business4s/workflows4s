@@ -2,7 +2,7 @@ package workflows4s.runtime.wakeup
 
 import cats.Id
 import cats.effect.IO
-import cats.syntax.all._
+import cats.syntax.all.*
 import workflows4s.runtime.WorkflowInstance
 import workflows4s.runtime.registry.WorkflowRegistry.ExecutionStatus
 import workflows4s.runtime.registry.WorkflowSearch
