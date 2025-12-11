@@ -120,7 +120,7 @@ object ContextFunctionApproach {
       transparent inline def runIO[Ctx <: WorkflowContext, In, Out](using
           he: HasEffect[Ctx]
       )(f: In => he.F[Out]): RunIO[Ctx, In, Out] =
-        RunIO(f.asInstanceOf[In => Any])
+        RunIO(f) // no cast needed - In => he.F[Out] <: In => Any
     }
   }
 

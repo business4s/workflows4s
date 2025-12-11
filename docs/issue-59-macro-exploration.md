@@ -16,9 +16,12 @@ val value: he.F[Int] = IO.pure(42)  // Error: Found IO[Int], Required: he.F[Int]
 `transparent inline` + non-inline `using` parameter:
 
 ```scala
+case class RunIO[Ctx, In, Out](buildIO: In => Any)
+
 transparent inline def runIO[Ctx, In, Out](using
     he: HasEffect[Ctx]  // NOT inline - needed for path-dependent type
-)(f: In => he.F[Out]): RunIO[Ctx, In, Out]
+)(f: In => he.F[Out]): RunIO[Ctx, In, Out] =
+  RunIO(f)  // no cast - he.F[Out] <: Any
 ```
 
 This works because:
