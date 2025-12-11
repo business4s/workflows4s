@@ -1,6 +1,7 @@
 package workflows4s.example.docs.wakeups
 
 import cats.effect.{IO, ResourceIO}
+import workflows4s.catseffect.CatsEffect.given
 import workflows4s.example.docs.wakeups.common.*
 import workflows4s.runtime.WorkflowRuntime
 

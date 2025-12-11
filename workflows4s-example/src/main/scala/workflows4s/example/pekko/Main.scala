@@ -9,9 +9,10 @@ import org.apache.pekko.http.scaladsl.Http
 import org.apache.pekko.persistence.jdbc.query.scaladsl.JdbcReadJournal
 import org.apache.pekko.persistence.jdbc.testkit.scaladsl.SchemaUtils
 import org.apache.pekko.persistence.query.PersistenceQuery
+import workflows4s.catseffect.CatsEffect.given
 import workflows4s.example.withdrawal.checks.ChecksEngine
 import workflows4s.example.withdrawal.{WithdrawalData, WithdrawalWorkflow}
-import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
+import workflows4s.runtime.instanceengine.WorkflowInstanceEngineBuilder
 import workflows4s.runtime.pekko.PekkoRuntime
 import workflows4s.runtime.wakeup.SleepingKnockerUpper
 
@@ -30,7 +31,7 @@ object Main extends IOApp {
               "withdrawal",
               workflow.workflowDeclarative,
               WithdrawalData.Empty,
-              WorkflowInstanceEngine.builder.withJavaTime().withWakeUps(knockerUpper).withoutRegistering.withGreedyEvaluation.withLogging.get,
+              WorkflowInstanceEngineBuilder.withJavaTime[IO]().withWakeUps(knockerUpper).withoutRegistering.withGreedyEvaluation.withLogging.get,
             )
           _                        <- IO(runtime.initializeShard())
           _                        <- knockerUpper.initialize(wokeup => IO.println(s"Woke up! $wokeup"))

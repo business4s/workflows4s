@@ -7,6 +7,7 @@ import io.circe.Encoder
 import org.http4s.HttpRoutes
 import org.http4s.server.middleware.CORS
 import sttp.tapir.server.http4s.Http4sServerInterpreter
+import workflows4s.catseffect.CatsEffect.given
 import workflows4s.example.courseregistration.CourseRegistrationWorkflow
 import workflows4s.example.docs.pullrequest.PullRequestWorkflow
 import workflows4s.example.docs.pullrequest.PullRequestWorkflow.PRState
@@ -14,7 +15,7 @@ import workflows4s.example.pekko.DummyWithdrawalService
 import workflows4s.example.withdrawal.checks.ChecksEngine
 import workflows4s.example.withdrawal.{WithdrawalData, WithdrawalWorkflow}
 import workflows4s.runtime.InMemoryRuntime
-import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
+import workflows4s.runtime.instanceengine.WorkflowInstanceEngineBuilder
 import workflows4s.runtime.registry.InMemoryWorkflowRegistry
 import workflows4s.runtime.wakeup.SleepingKnockerUpper
 import workflows4s.web.api.server.{SignalSupport, WorkflowEntry, WorkflowServerEndpoints}
@@ -27,7 +28,8 @@ trait BaseServer {
     for {
       knockerUpper     <- SleepingKnockerUpper.create()
       registry         <- InMemoryWorkflowRegistry().toResource
-      engine            = WorkflowInstanceEngine.default(knockerUpper, registry)
+      engine            =
+        WorkflowInstanceEngineBuilder.withJavaTime[IO]().withWakeUps(knockerUpper).withRegistering(registry).withGreedyEvaluation.withLogging.get
       courseRegRuntime <- InMemoryRuntime
                             .default[CourseRegistrationWorkflow.Context.Ctx](
                               workflow = CourseRegistrationWorkflow.workflow,

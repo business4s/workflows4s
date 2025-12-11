@@ -1,9 +1,13 @@
 package workflows4s.example.docs.pullrequest
 
+import cats.Id
+import workflows4s.effect.Effect.idEffect
 import workflows4s.mermaid.MermaidRenderer
 import workflows4s.runtime.InMemorySyncRuntime
-import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
+import workflows4s.runtime.instanceengine.BasicJavaTimeEngine
 import workflows4s.wio.WorkflowContext
+
+import java.time.Clock
 
 object MinimalWorkflow {
 
@@ -20,7 +24,7 @@ object MinimalWorkflow {
 
     println(MermaidRenderer.renderWorkflow(workflow.toProgress).toViewUrl)
 
-    val engine     = WorkflowInstanceEngine.basic()
+    val engine     = new BasicJavaTimeEngine[Id](Clock.systemUTC())
     val runtime    = InMemorySyncRuntime.create[Context.Ctx](workflow, "", engine)
     val wfInstance = runtime.createInstance("id")
 

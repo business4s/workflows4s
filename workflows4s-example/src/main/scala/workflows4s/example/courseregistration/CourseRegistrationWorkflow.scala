@@ -1,12 +1,15 @@
 package workflows4s.example.courseregistration
 
 import java.io.File
+import java.time.Clock
+import cats.Id
 import cats.effect.IO
 import io.circe.{Decoder, Encoder}
 import org.camunda.bpm.model.bpmn.Bpmn
 import sttp.tapir.Schema
 import workflows4s.bpmn.BpmnRenderer
-import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
+import workflows4s.effect.Effect.idEffect
+import workflows4s.runtime.instanceengine.BasicJavaTimeEngine
 import workflows4s.runtime.{InMemorySyncRuntime, InMemorySyncWorkflowInstance}
 import workflows4s.wio.{SignalDef, WorkflowContext}
 
@@ -121,7 +124,7 @@ object CourseRegistrationWorkflow {
     // end_render
 
     // start_execution
-    val engine     = WorkflowInstanceEngine.basic()
+    val engine     = new BasicJavaTimeEngine[Id](Clock.systemUTC())
     val runtime    = InMemorySyncRuntime.create[Context.Ctx](workflow, RegistrationState.Empty, engine)
     val wfInstance = runtime.createInstance("student-123")
 

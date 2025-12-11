@@ -1,15 +1,18 @@
 package workflows4s.example.docs.pullrequest
 
+import cats.Id
 import cats.effect.IO
 import io.circe.{Decoder, Encoder}
 import org.camunda.bpm.model.bpmn.Bpmn
 import sttp.tapir.Schema
 import workflows4s.bpmn.BpmnRenderer
-import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
+import workflows4s.effect.Effect.idEffect
+import workflows4s.runtime.instanceengine.BasicJavaTimeEngine
 import workflows4s.runtime.{InMemorySyncRuntime, InMemorySyncWorkflowInstance}
 import workflows4s.wio.{SignalDef, WorkflowContext}
 
 import java.nio.file.Files
+import java.time.Clock
 import scala.annotation.nowarn
 
 @nowarn("msg=unused explicit parameter")
@@ -124,7 +127,7 @@ object PullRequestWorkflow {
     // end_render
 
     // start_execution
-    val engine     = WorkflowInstanceEngine.basic()
+    val engine     = new BasicJavaTimeEngine[Id](Clock.systemUTC())
     val runtime    = InMemorySyncRuntime.create[Context.Ctx](workflow, PRState.Empty, engine)
     val wfInstance = runtime.createInstance("id")
 

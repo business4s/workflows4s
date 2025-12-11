@@ -20,7 +20,7 @@ object SQLiteExample {
     // sqlite_start
     val workflow: WIO.Initial              = ???
     val initialState: MyState              = ???
-    val engine: WorkflowInstanceEngine     = ???
+    val engine: WorkflowInstanceEngine[IO] = ???
     val eventCodec: ByteCodec[MyEventBase] = ???
     val workdir: Path                      = ??? // Directory where database files will be created
 

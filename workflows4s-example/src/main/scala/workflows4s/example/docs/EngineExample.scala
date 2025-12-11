@@ -1,17 +1,19 @@
 package workflows4s.example.docs
 
-import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
+import cats.effect.IO
+import workflows4s.catseffect.CatsEffect.given
+import workflows4s.runtime.instanceengine.{WorkflowInstanceEngine, WorkflowInstanceEngineBuilder}
 import workflows4s.runtime.registry.WorkflowRegistry
 import workflows4s.runtime.wakeup.KnockerUpper
 
 object EngineExample {
 
   // doc_start
-  val knockerUpper: KnockerUpper.Agent = ???
-  val registry: WorkflowRegistry.Agent = ???
+  val knockerUpper: KnockerUpper.Agent[IO] = ???
+  val registry: WorkflowRegistry.Agent[IO] = ???
 
-  val engine: WorkflowInstanceEngine = WorkflowInstanceEngine.builder
-    .withJavaTime()
+  val engine: WorkflowInstanceEngine[IO] = WorkflowInstanceEngineBuilder
+    .withJavaTime[IO]()
     .withWakeUps(knockerUpper)
     .withRegistering(registry)
     .withGreedyEvaluation

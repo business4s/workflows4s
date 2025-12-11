@@ -14,7 +14,7 @@ object common {
   }
 
   // docs_start
-  def createRuntime(knockerUpper: KnockerUpper.Agent): WorkflowRuntime[IO, MyWorkflowCtx] = ???
+  def createRuntime(knockerUpper: KnockerUpper.Agent[IO]): WorkflowRuntime[IO, MyWorkflowCtx] = ???
   // docs_end
 
 }
