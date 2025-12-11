@@ -3,6 +3,7 @@ import org.typelevel.scalacoptions.ScalacOptions
 lazy val `workflows4s` = (project in file("."))
   .settings(commonSettings)
   .aggregate(
+    `workflows4s-macros`,
     `workflows4s-core`,
     `workflows4s-bpmn`,
     `workflows4s-pekko`,
@@ -15,6 +16,15 @@ lazy val `workflows4s` = (project in file("."))
     `workflows4s-web-api-shared`.js,
     `workflows4s-web-api-shared`.jvm,
     `workflows4s-web-api-server`,
+  )
+
+// Macro utilities for effect type extraction
+lazy val `workflows4s-macros` = (project in file("workflows4s-macros"))
+  .settings(commonSettings)
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.typelevel" %% "cats-effect" % "3.6.3",
+    ),
   )
 
 lazy val `workflows4s-core` = (project in file("workflows4s-core"))
