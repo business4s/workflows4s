@@ -1,23 +1,24 @@
 package workflows4s.testing
 
 import cats.Id
-import cats.effect.IO
-import cats.effect.unsafe.IORuntime
-import cats.effect.unsafe.implicits.global
 import com.typesafe.scalalogging.StrictLogging
+import workflows4s.effect.Effect
 import workflows4s.runtime.*
-import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
-import workflows4s.runtime.registry.InMemoryWorkflowRegistry
+import workflows4s.runtime.instanceengine.{BasicJavaTimeEngine, GreedyWorkflowInstanceEngine, LoggingWorkflowInstanceEngine, WorkflowInstanceEngine}
 import workflows4s.wio.*
 
 // Adapt various runtimes to a single interface for tests
+// Uses cats.Id for synchronous testing without cats-effect dependency
 trait TestRuntimeAdapter[Ctx <: WorkflowContext] extends StrictLogging {
 
-  protected val knockerUpper             = RecordingKnockerUpper()
-  val clock: TestClock                   = TestClock()
-  val registry: InMemoryWorkflowRegistry = InMemoryWorkflowRegistry(clock).unsafeRunSync()
+  protected val knockerUpper: RecordingKnockerUpper[Id] = new RecordingKnockerUpper[Id](using Effect.idEffect)
+  val clock: TestClock                                  = TestClock()
 
-  val engine: WorkflowInstanceEngine = WorkflowInstanceEngine.default(knockerUpper, registry, clock)
+  val engine: WorkflowInstanceEngine[Id] = {
+    val base   = new BasicJavaTimeEngine[Id](clock)(using Effect.idEffect)
+    val greedy = GreedyWorkflowInstanceEngine[Id](base)(using Effect.idEffect)
+    new LoggingWorkflowInstanceEngine[Id](greedy)(using Effect.idEffect)
+  }
 
   type Actor <: WorkflowInstance[Id, WCState[Ctx]]
 
@@ -43,58 +44,97 @@ object TestRuntimeAdapter {
     def getEvents: Seq[Event]
   }
 
+  /** Simple in-memory runtime adapter for tests using cats.Id */
   case class InMemorySync[Ctx <: WorkflowContext]() extends TestRuntimeAdapter[Ctx] {
 
     override def runWorkflow(
         workflow: WIO.Initial[Ctx],
         state: WCState[Ctx],
     ): Actor = {
-      val runtime = new InMemorySyncRuntime[Ctx](workflow, state, engine, "test")(using IORuntime.global)
-      Actor(List(), runtime)
+      val activeWorkflow = ActiveWorkflow(WorkflowInstanceId("test", ""), workflow.provideInput(state), state)
+      Actor(List(), activeWorkflow, engine)
     }
 
-    override def recover(first: Actor): Actor = Actor(first.getEvents, first.runtime)
+    override def recover(first: Actor): Actor = {
+      // Replay events to recover state
+      val recovered = first.events.foldLeft(first.initialWorkflow) { (wf, event) =>
+        engine.processEvent(wf, event.asInstanceOf[WCEvent[Ctx]])(using Effect.idEffect)
+      }
+      Actor(first.events, recovered, engine)
+    }
 
-    case class Actor(events: Seq[WCEvent[Ctx]], runtime: InMemorySyncRuntime[Ctx])
-        extends DelegateWorkflowInstance[Id, WCState[Ctx]]
+    case class Actor(
+        events: Seq[WCEvent[Ctx]],
+        private[TestRuntimeAdapter] val initialWorkflow: ActiveWorkflow[Ctx],
+        private val eng: WorkflowInstanceEngine[Id],
+    ) extends WorkflowInstance[Id, WCState[Ctx]]
         with EventIntrospection[WCEvent[Ctx]] {
-      val delegate: InMemorySyncWorkflowInstance[Ctx] = {
-        val inst = runtime.createInstance("")
-        inst.recover(events)
-        inst
+
+      private var currentWorkflow: ActiveWorkflow[Ctx] = initialWorkflow
+      private var eventLog: List[WCEvent[Ctx]]         = events.toList
+
+      /** Recover from events - useful for testing recovery scenarios */
+      def recover(newEvents: Seq[WCEvent[Ctx]]): Unit = {
+        newEvents.foreach { event =>
+          eventLog = eventLog :+ event
+          eng.handleEvent(currentWorkflow, event).foreach { newWf =>
+            currentWorkflow = newWf
+          }
+        }
       }
 
-      override def getEvents: Seq[WCEvent[Ctx]]                  = delegate.getEvents
-      override def getExpectedSignals: Id[List[SignalDef[?, ?]]] = delegate.getExpectedSignals
+      override def id: WorkflowInstanceId = currentWorkflow.id
+
+      override def queryState(): Id[WCState[Ctx]] = eng.queryState(currentWorkflow)
+
+      override def getProgress: Id[model.WIOExecutionProgress[WCState[Ctx]]] = eng.getProgress(currentWorkflow)
+
+      override def getExpectedSignals: Id[List[SignalDef[?, ?]]] = eng.getExpectedSignals(currentWorkflow)
+
+      override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): Id[Either[WorkflowInstance.UnexpectedSignal, Resp]] = {
+        val result = eng.handleSignal(currentWorkflow, signalDef, req)
+        if !result.hasEffect then Left(WorkflowInstance.UnexpectedSignal(signalDef))
+        else {
+          val processed    = result.asInstanceOf[workflows4s.wio.internal.SignalResult.Processed[Id, WCEvent[Ctx], Resp]]
+          val eventAndResp = processed.resultIO
+          eventLog = eventLog :+ eventAndResp.event
+          eng.handleEvent(currentWorkflow, eventAndResp.event).foreach { newWf =>
+            currentWorkflow = newWf
+          }
+          // Handle greedy execution
+          eng.onStateChange(initialWorkflow, currentWorkflow).foreach { case WorkflowInstanceEngine.PostExecCommand.WakeUp =>
+            wakeup()
+          }
+          Right(eventAndResp.response)
+        }
+      }
+
+      override def wakeup(): Id[Unit] = {
+        val result = eng.triggerWakeup(currentWorkflow)
+        if result.hasEffect then {
+          val processed        = result.asInstanceOf[workflows4s.wio.internal.WakeupResult.Processed[Id, WCEvent[Ctx]]]
+          val processingResult = processed.result
+          processingResult.toRaw match {
+            case Right(event) =>
+              eventLog = eventLog :+ event
+              eng.handleEvent(currentWorkflow, event).foreach { newWf =>
+                currentWorkflow = newWf
+              }
+              // Handle greedy execution
+              eng.onStateChange(initialWorkflow, currentWorkflow).foreach { case WorkflowInstanceEngine.PostExecCommand.WakeUp =>
+                wakeup()
+              }
+            case Left(_)      => () // Retry scheduled, nothing to do
+          }
+        }
+      }
+
+      override def getEvents: Seq[WCEvent[Ctx]] = eventLog
     }
   }
 
-  case class InMemory[Ctx <: WorkflowContext]() extends TestRuntimeAdapter[Ctx] {
-
-    override def runWorkflow(
-        workflow: WIO.Initial[Ctx],
-        state: WCState[Ctx],
-    ): Actor = {
-      val runtime = InMemoryRuntime.default[Ctx](workflow, state, engine).unsafeRunSync()
-      Actor(List(), runtime)
-    }
-
-    override def recover(first: Actor): Actor = Actor(first.getEvents, first.runtime)
-
-    case class Actor(events: Seq[WCEvent[Ctx]], runtime: InMemoryRuntime[Ctx])
-        extends DelegateWorkflowInstance[Id, WCState[Ctx]]
-        with EventIntrospection[WCEvent[Ctx]] {
-      val base: InMemoryWorkflowInstance[Ctx]          = {
-        val inst = runtime.createInstance("").unsafeRunSync()
-        inst.recover(events).unsafeRunSync()
-        inst
-      }
-      val delegate: WorkflowInstance[Id, WCState[Ctx]] = MappedWorkflowInstance(base, [t] => (x: IO[t]) => x.unsafeRunSync())
-
-      override def getEvents: Seq[WCEvent[Ctx]]                  = base.getEvents.unsafeRunSync()
-      override def getExpectedSignals: Id[List[SignalDef[?, ?]]] = delegate.getExpectedSignals
-    }
-
-  }
+  // Alias for backwards compatibility
+  type InMemory[Ctx <: WorkflowContext] = InMemorySync[Ctx]
+  def InMemory[Ctx <: WorkflowContext](): InMemorySync[Ctx] = InMemorySync[Ctx]()
 
 }

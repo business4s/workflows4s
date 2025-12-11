@@ -1,31 +1,31 @@
 package workflows4s.wio.internal
 
-import cats.effect.IO
+import workflows4s.effect.Effect
 
-sealed trait SignalResult[+Event, +Resp] {
-
-  def hasEffect: Boolean = this match {
-    case SignalResult.UnexpectedSignal => false
-    case SignalResult.Processed(_)     => true
-  }
-
-  def toRaw: Option[IO[(Event, Resp)]] = this match {
-    case SignalResult.UnexpectedSignal    => None
-    case SignalResult.Processed(resultIO) => Some(resultIO.map(x => (x.event, x.response)))
-  }
+sealed trait SignalResult[F[_], Event, Resp] {
+  def hasEffect: Boolean
+  def toRaw(using E: Effect[F]): Option[F[(Event, Resp)]]
 }
 
 object SignalResult {
 
-  type Raw[Event, Resp] = Option[IO[(Event, Resp)]]
+  type Raw[F[_], Event, Resp] = Option[F[(Event, Resp)]]
 
-  case object UnexpectedSignal                                                     extends SignalResult[Nothing, Nothing]
-  case class Processed[+Event, +Resp](resultIO: IO[ProcessingResult[Event, Resp]]) extends SignalResult[Event, Resp]
+  case class UnexpectedSignal[F[_]]() extends SignalResult[F, Nothing, Nothing] {
+    override def hasEffect: Boolean                                       = false
+    override def toRaw(using E: Effect[F]): Option[F[(Nothing, Nothing)]] = None
+  }
 
-  case class ProcessingResult[+Event, +Resp](event: Event, response: Resp)
+  case class Processed[F[_], Event, Resp](resultIO: F[ProcessingResult[Event, Resp]]) extends SignalResult[F, Event, Resp] {
+    override def hasEffect: Boolean                                  = true
+    override def toRaw(using E: Effect[F]): Option[F[(Event, Resp)]] =
+      Some(E.map(resultIO)(x => (x.event, x.response)))
+  }
 
-  def fromRaw[Event, Resp](raw: Raw[Event, Resp]): SignalResult[Event, Resp] = raw match {
-    case Some(value) => Processed(value.map(ProcessingResult(_, _)))
-    case None        => UnexpectedSignal
+  case class ProcessingResult[Event, Resp](event: Event, response: Resp)
+
+  def fromRaw[F[_]: Effect, Event, Resp](raw: Raw[F, Event, Resp]): SignalResult[F, Event, Resp] = raw match {
+    case Some(value) => Processed[F, Event, Resp](Effect[F].map(value)(ProcessingResult[Event, Resp](_, _)))
+    case None        => UnexpectedSignal[F]().asInstanceOf[SignalResult[F, Event, Resp]]
   }
 }

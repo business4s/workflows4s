@@ -1,47 +1,47 @@
 package workflows4s.wio.internal
 
-import cats.effect.IO
-import cats.implicits.catsSyntaxEitherId
+import workflows4s.effect.Effect
 
 import java.time.Instant
 
-sealed trait WakeupResult[+Event] {
-  def toRaw: WakeupResult.Raw[Event] = this match {
-    case WakeupResult.Noop              => None
-    case WakeupResult.Processed(result) => Some(result.map(_.toRaw))
-  }
-
-  def hasEffect: Boolean = this match {
-    case WakeupResult.Noop         => false
-    case WakeupResult.Processed(_) => true
-  }
+sealed trait WakeupResult[F[_], Event] {
+  def toRaw(using E: Effect[F]): WakeupResult.Raw[F, Event]
+  def hasEffect: Boolean
 }
 
 object WakeupResult {
 
-  type Raw[Event] = Option[IO[Either[Instant, Event]]]
+  type Raw[F[_], Event] = Option[F[Either[Instant, Event]]]
 
-  case object Noop                                                  extends WakeupResult[Nothing]
-  case class Processed[+Event](result: IO[ProcessingResult[Event]]) extends WakeupResult[Event]
+  case class Noop[F[_]]() extends WakeupResult[F, Nothing] {
+    override def toRaw(using E: Effect[F]): Raw[F, Nothing] = None
+    override def hasEffect: Boolean                         = false
+  }
 
-  sealed trait ProcessingResult[+Event] {
-    def toRaw: Either[Instant, Event] = this match {
-      case ProcessingResult.Proceeded(event) => event.asRight
-      case ProcessingResult.Failed(retry)    => retry.asLeft
+  case class Processed[F[_], Event](result: F[ProcessingResult[Event]]) extends WakeupResult[F, Event] {
+    override def toRaw(using E: Effect[F]): Raw[F, Event] = Some(E.map(result)(_.toRaw))
+    override def hasEffect: Boolean                       = true
+  }
+
+  sealed trait ProcessingResult[Event] {
+    def toRaw: Either[Instant, Event]
+  }
+  object ProcessingResult              {
+    case class Proceeded[Event](event: Event) extends ProcessingResult[Event]   {
+      override def toRaw: Either[Instant, Event] = Right(event)
+    }
+    case class Failed(retry: Instant)         extends ProcessingResult[Nothing] {
+      override def toRaw: Either[Instant, Nothing] = Left(retry)
     }
   }
-  object ProcessingResult               {
-    case class Proceeded[+Event](event: Event) extends ProcessingResult[Event]
-    case class Failed(retry: Instant)          extends ProcessingResult[Nothing]
-  }
 
-  def fromRaw[Event](raw: Raw[Event]): WakeupResult[Event] = raw match {
+  def fromRaw[F[_]: Effect, Event](raw: Raw[F, Event]): WakeupResult[F, Event] = raw match {
     case Some(value) =>
-      Processed(value.map({
-        case Left(value)  => ProcessingResult.Failed(value)
-        case Right(value) => ProcessingResult.Proceeded(value)
-      }))
-    case None        => Noop
+      Processed[F, Event](Effect[F].map(value) {
+        case Left(value)  => ProcessingResult.Failed(value).asInstanceOf[ProcessingResult[Event]]
+        case Right(value) => ProcessingResult.Proceeded[Event](value)
+      })
+    case None        => Noop[F]().asInstanceOf[WakeupResult[F, Event]]
   }
 
 }

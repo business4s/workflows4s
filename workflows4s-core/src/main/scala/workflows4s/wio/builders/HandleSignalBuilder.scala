@@ -2,7 +2,6 @@ package workflows4s.wio.builders
 
 import scala.reflect.ClassTag
 
-import cats.effect.IO
 import workflows4s.wio.*
 import workflows4s.wio.WIO.HandleSignal
 import workflows4s.wio.internal.{EventHandler, SignalHandler}
@@ -20,12 +19,20 @@ object HandleSignalBuilder {
 
       class Step1[Input] {
 
-        def withSideEffects[Evt <: WCEvent[Ctx]](f: (Input, Req) => IO[Evt])(using evtCt: ClassTag[Evt]): Step2[Evt] = Step2(f, evtCt)
+        /** Handle signal with side effects. The F parameter should match the workflow context's effect type. The function should return F[Evt] where
+          * F is the effect type defined in the WorkflowContext.
+          */
+        def withSideEffects[F[_], Evt <: WCEvent[Ctx]](f: (Input, Req) => F[Evt])(using evtCt: ClassTag[Evt]): Step2[Evt] =
+          Step2(f.asInstanceOf[(Input, Req) => Any], evtCt)
 
-        def purely[Evt <: WCEvent[Ctx]](f: (Input, Req) => Evt)(using evtCt: ClassTag[Evt]): Step2[Evt] =
-          Step2((x, y) => IO.pure(f(x, y)), evtCt)
+        /** Handle signal purely (no side effects). */
+        def purely[Evt <: WCEvent[Ctx]](f: (Input, Req) => Evt)(using evtCt: ClassTag[Evt]): Step2[Evt] = {
+          // Store as pure function, evaluator wraps in effect
+          val wrapped: (Input, Req) => Any = (x, y) => f(x, y)
+          Step2(wrapped, evtCt)
+        }
 
-        class Step2[Evt <: WCEvent[Ctx]](signalHandler: (Input, Req) => IO[Evt], evtCt: ClassTag[Evt]) {
+        class Step2[Evt <: WCEvent[Ctx]](signalHandler: (Input, Req) => Any, evtCt: ClassTag[Evt]) {
 
           def handleEvent[Out <: WCState[Ctx]](f: (Input, Evt) => Out): Step3[Nothing, Out] =
             Step3({ (x, y) => Right(f(x, y)) }, ErrorMeta.noError)

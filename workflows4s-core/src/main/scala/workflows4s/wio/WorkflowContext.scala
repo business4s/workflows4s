@@ -5,7 +5,11 @@ import workflows4s.wio.builders.{AllBuilders, InterruptionBuilder}
 trait WorkflowContext { ctx: WorkflowContext =>
   type Event
   type State
-  type Ctx = WorkflowContext.AUX[State, Event]
+  type F[_]
+  type Ctx = WorkflowContext.AUX[State, Event, F]
+
+  // HasEffect[Ctx] is derived via macro from HasEffect.derived
+  // Don't provide a manual given here - it shadows the macro and loses type refinement
 
   type WIO[-In, +Err, +Out <: State] = workflows4s.wio.WIO[In, Err, Out, Ctx]
   object WIO extends AllBuilders[Ctx] {
@@ -27,6 +31,8 @@ object WorkflowContext {
   type Event[T <: WorkflowContext] = T match {
     case AuxE[s] => s
   }
+  // Note: Effect/F cannot be extracted via match types (HKT limitation).
+  // Use HasEffect[Ctx] macro instead for type-safe effect access.
 
-  type AUX[St, Evt] = WorkflowContext { type State = St; type Event = Evt }
+  type AUX[St, Evt, F0[_]] = WorkflowContext { type State = St; type Event = Evt; type F[A] = F0[A] }
 }

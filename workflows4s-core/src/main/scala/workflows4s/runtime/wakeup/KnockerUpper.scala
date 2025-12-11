@@ -1,10 +1,8 @@
 package workflows4s.runtime.wakeup
 
-import cats.MonadError
+import workflows4s.effect.Effect
 
 import java.time.Instant
-import cats.effect.IO
-import cats.syntax.all.*
 import workflows4s.runtime.{WorkflowInstanceId, WorkflowRuntime}
 
 // https://en.wikipedia.org/wiki/Knocker-up
@@ -13,19 +11,19 @@ object KnockerUpper {
   trait Process[F[_], +Result] {
     def initialize(wakeUp: WorkflowInstanceId => F[Unit]): Result
 
-    def initialize(runtimes: Seq[WorkflowRuntime[F, ?]])(using me: MonadError[F, Throwable]): Result = {
+    def initialize(runtimes: Seq[WorkflowRuntime[F, ?]])(using E: Effect[F]): Result = {
       val asMap = runtimes.map(r => r.templateId -> r).toMap
       this.initialize(id => {
         asMap
           .get(id.templateId)
-          .map(_.createInstance(id.instanceId).flatMap(_.wakeup()))
-          .getOrElse(me.raiseError(new RuntimeException(s"Runtime ${id.templateId} not found")))
+          .map(r => E.flatMap(r.createInstance(id.instanceId))(_.wakeup()))
+          .getOrElse(E.raiseError(new RuntimeException(s"Runtime ${id.templateId} not found")))
       })
     }
   }
 
-  trait Agent {
-    def updateWakeup(id: WorkflowInstanceId, at: Option[Instant]): IO[Unit]
+  trait Agent[F[_]] {
+    def updateWakeup(id: WorkflowInstanceId, at: Option[Instant]): F[Unit]
   }
 
 }

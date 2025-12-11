@@ -2,11 +2,10 @@ package workflows4s.wio.builders
 
 import scala.reflect.ClassTag
 
-import cats.effect.IO
 import cats.implicits.catsSyntaxEitherId
 import workflows4s.wio.internal.EventHandler
 import workflows4s.wio.model.ModelUtils
-import workflows4s.wio.{ErrorMeta, WCEvent, WCState, WIO, WorkflowContext}
+import workflows4s.wio.{ErrorMeta, HasEffect, WCEvent, WCState, WIO, WorkflowContext}
 
 object RunIOBuilder {
 
@@ -15,11 +14,20 @@ object RunIOBuilder {
     def runIO[Input] = new RunIOBuilderStep1[Input]
 
     class RunIOBuilderStep1[Input] {
-      def apply[Evt <: WCEvent[Ctx]: ClassTag](f: Input => IO[Evt]): Step2[Input, Evt] = {
-        new Step2[Input, Evt](f)
+
+      /** Build a RunIO step with effect type from WorkflowContext.
+        *
+        * Uses transparent inline + HasEffect to ensure type safety: the function must return `F[Evt]` where F is the context's effect type. The
+        * effect function is stored type-erased and cast back at runtime by the evaluator.
+        */
+      transparent inline def apply[Evt <: WCEvent[Ctx]: ClassTag](using
+          he: HasEffect[Ctx],
+      )(f: Input => he.F[Evt]): Step2[Input, Evt] = {
+        // Cast to Any for type-erased storage
+        new Step2[Input, Evt](f.asInstanceOf[Input => Any])
       }
 
-      class Step2[In, Evt <: WCEvent[Ctx]: ClassTag](getIO: In => IO[Evt]) {
+      class Step2[In, Evt <: WCEvent[Ctx]: ClassTag](getEffect: In => Any) {
         def handleEvent[Out <: WCState[Ctx]](f: (In, Evt) => Out): Step3[Out, Nothing] =
           Step3((s, e: Evt) => f(s, e).asRight, ErrorMeta.noError)
 
@@ -36,7 +44,7 @@ object RunIOBuilder {
 
           private def build(name: Option[String], description: Option[String]): WIO[In, Err, Out, Ctx] =
             WIO.RunIO[Ctx, In, Err, Out, Evt](
-              getIO,
+              getEffect,
               EventHandler(summon[ClassTag[Evt]].unapply, identity, evtHandler),
               WIO.RunIO.Meta(errorMeta, name, description),
             )

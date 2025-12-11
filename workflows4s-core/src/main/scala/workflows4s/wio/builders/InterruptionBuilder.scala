@@ -1,6 +1,5 @@
 package workflows4s.wio.builders
 
-import cats.effect.IO
 import cats.implicits.catsSyntaxOptionId
 import workflows4s.wio.*
 import workflows4s.wio.WIO.HandleInterruption.InterruptionType
@@ -24,12 +23,21 @@ object InterruptionBuilder {
 
     class SignalInterruptionStep1[Req, Resp](signalDef: SignalDef[Req, Resp]) {
 
-      def handleAsync[Evt <: WCEvent[Ctx]](f: (Input, Req) => IO[Evt])(using evtCt: ClassTag[Evt]): Step2[Evt] = Step2(f, evtCt)
+      /** Handle interruption signal with async side effects. */
+      transparent inline def handleAsync[Evt <: WCEvent[Ctx]](using
+          he: HasEffect[Ctx],
+      )(
+          f: (Input, Req) => he.F[Evt],
+      )(using evtCt: ClassTag[Evt]): Step2[Evt] =
+        Step2(f.asInstanceOf[(Input, Req) => Any], evtCt)
 
-      def handleSync[Evt <: WCEvent[Ctx]](f: (Input, Req) => Evt)(using evtCt: ClassTag[Evt]): Step2[Evt] =
-        Step2((x, y) => IO.pure(f(x, y)), evtCt)
+      /** Handle interruption signal synchronously (no side effects). */
+      def handleSync[Evt <: WCEvent[Ctx]](f: (Input, Req) => Evt)(using evtCt: ClassTag[Evt]): Step2[Evt] = {
+        val wrapped: (Input, Req) => Any = (x, y) => f(x, y)
+        Step2(wrapped, evtCt)
+      }
 
-      class Step2[Evt <: WCEvent[Ctx]](signalHandler: (Input, Req) => IO[Evt], evtCt: ClassTag[Evt]) {
+      class Step2[Evt <: WCEvent[Ctx]](signalHandler: (Input, Req) => Any, evtCt: ClassTag[Evt]) {
 
         def handleEvent[Out <: WCState[Ctx]](f: (Input, Evt) => Out): Step3[Nothing, Out] =
           Step3({ (x, y) => Right(f(x, y)) }, ErrorMeta.noError)

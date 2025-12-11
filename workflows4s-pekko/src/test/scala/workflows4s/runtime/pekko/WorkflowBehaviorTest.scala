@@ -91,6 +91,7 @@ object WorkflowBehaviorTest {
   object DummyCtx extends WorkflowContext {
     type Event = DummyEvent
     type State = DummyState
+    type F[A]  = cats.effect.IO[A]
   }
   case class DummyEvent()
   case class DummyState()

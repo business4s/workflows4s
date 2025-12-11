@@ -1,7 +1,5 @@
 package workflows4s.wio.internal
 
-import cats.effect.IO
-
 import scala.util.chaining.scalaUtilChainingOps
 
 trait EventHandler[-In, +Out, EventBase, Evt] { parent =>
@@ -31,6 +29,10 @@ object EventHandler {
   }
 }
 
-case class SignalHandler[-Sig, +Evt, -In](handle: (In, Sig) => IO[Evt]) {
-  def map[E1](f: Evt => E1): SignalHandler[Sig, E1, In] = SignalHandler((in, sig) => handle(in, sig).map(f))
+/** SignalHandler stores the effect function type-erased to avoid coupling to a specific effect type.
+  *
+  * The actual type is `(In, Sig) => F[Evt]` where F is the context's effect type.
+  */
+case class SignalHandler[-Sig, +Evt, -In](handle: (In, Sig) => Any) {
+  // Note: map requires knowledge of the effect type, so it's moved to the evaluator
 }

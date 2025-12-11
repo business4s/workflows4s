@@ -1,6 +1,5 @@
 package workflows4s.wio
 
-import cats.effect.IO
 import cats.implicits.catsSyntaxOptionId
 import workflows4s.wio.WIO.HandleInterruption.InterruptionType
 import workflows4s.wio.WIO.Timer.DurationSource
@@ -38,8 +37,12 @@ object WIO {
     case class Meta(error: ErrorMeta[?], signalName: String, operationName: Option[String])
   }
 
+  /** RunIO stores the effect function as type-erased `Any` to avoid coupling WIO to a specific effect type.
+    *
+    * Type safety is enforced at the builder level via HasEffect. The evaluator casts back to the concrete effect type at runtime.
+    */
   case class RunIO[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx], Evt](
-      buildIO: In => IO[Evt],
+      buildIO: In => Any, // Type-erased: actually In => F[Evt] where F is the context's effect type
       evtHandler: EventHandler[In, Either[Err, Out], WCEvent[Ctx], Evt],
       meta: RunIO.Meta,
   ) extends WIO[In, Err, Out, Ctx]
@@ -201,9 +204,13 @@ object WIO {
     )
   }
 
+  /** Retry stores the error handler as type-erased `Any` to avoid coupling WIO to a specific effect type.
+    *
+    * Type safety is enforced at the builder level via HasEffect.
+    */
   case class Retry[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]](
       base: WIO[In, Err, Out, Ctx],
-      onError: (Throwable, WCState[Ctx], Instant) => IO[Option[Instant]],
+      onError: (Throwable, WCState[Ctx], Instant) => Any, // Type-erased: actually => F[Option[Instant]]
   ) extends WIO[In, Err, Out, Ctx]
 
   case class Executed[Ctx <: WorkflowContext, +Err, +Out <: WCState[Ctx], In](
@@ -231,10 +238,13 @@ object WIO {
     }
   }
 
-  // This could also allow for raising errors.
+  /** Checkpoint persists an event after the base workflow completes successfully.
+    *
+    * The event generator is a pure function - the evaluator wraps it in the runtime effect type.
+    */
   case class Checkpoint[Ctx <: WorkflowContext, -In, +Err, Out <: WCState[Ctx], Evt](
       base: WIO[In, Err, Out, Ctx],
-      genEvent: (In, Out) => IO[Evt],
+      genEvent: (In, Out) => Evt, // Pure function, evaluator lifts to effect
       eventHandler: EventHandler[In, Out, WCEvent[Ctx], Evt],
   ) extends WIO[In, Err, Out, Ctx]
 

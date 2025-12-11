@@ -14,8 +14,8 @@ trait Concurrent[F[_]] extends Effect[F] {
   /** Executes `fa` with a finalizer that runs based on the outcome. */
   def guaranteeCase[A](fa: F[A])(finalizer: Outcome[F, A] => F[Unit]): F[A]
 
-  /** Executes `fa` with a finalizer that always runs. */
-  def guarantee[A](fa: F[A])(finalizer: F[Unit]): F[A] =
+  /** Executes `fa` with a finalizer that always runs. Overrides Effect.guarantee with outcome-aware implementation. */
+  override def guarantee[A](fa: F[A], finalizer: F[Unit]): F[A] =
     guaranteeCase(fa)(_ => finalizer)
 
   /** Executes `fa` and `fb` concurrently, returning both results. */

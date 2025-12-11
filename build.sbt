@@ -5,6 +5,7 @@ lazy val `workflows4s` = (project in file("."))
   .aggregate(
     `workflows4s-macros`,
     `workflows4s-core`,
+    `workflows4s-cats-effect`,
     `workflows4s-bpmn`,
     `workflows4s-pekko`,
     `workflows4s-example`,
@@ -31,8 +32,7 @@ lazy val `workflows4s-core` = (project in file("workflows4s-core"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel"              %% "cats-effect"     % "3.6.3",
-      "co.fs2"                     %% "fs2-core"        % "3.12.2",
+      "org.typelevel"              %% "cats-core"       % "2.13.0", // for cats.Id and basic type classes
       "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.6",
       "io.circe"                   %% "circe-core"      % circeVersion, // for model serialization
       "io.circe"                   %% "circe-generic"   % circeVersion, // for model serialization
@@ -41,6 +41,17 @@ lazy val `workflows4s-core` = (project in file("workflows4s-core"))
     ),
     Test / parallelExecution := false,
   )
+  .dependsOn(`workflows4s-macros`)
+
+// Cats-effect integration module
+lazy val `workflows4s-cats-effect` = (project in file("workflows4s-cats-effect"))
+  .settings(commonSettings)
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.typelevel" %% "cats-effect" % "3.6.3",
+    ),
+  )
+  .dependsOn(`workflows4s-core`)
 
 lazy val `workflows4s-bpmn` = (project in file("workflows4s-bpmn"))
   .settings(commonSettings)
@@ -200,10 +211,11 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
     publish / skip           := true,
   )
   .dependsOn(
-    `workflows4s-core`   % "compile->compile;test->test",
+    `workflows4s-core`        % "compile->compile;test->test",
+    `workflows4s-cats-effect`,
     `workflows4s-bpmn`,
-    `workflows4s-pekko`  % "compile->compile;test->test",
-    `workflows4s-doobie` % "compile->compile;test->test",
+    `workflows4s-pekko`       % "compile->compile;test->test",
+    `workflows4s-doobie`      % "compile->compile;test->test",
     `workflows4s-filesystem`,
     `workflows4s-quartz`,
     `workflows4s-web-api-server`,

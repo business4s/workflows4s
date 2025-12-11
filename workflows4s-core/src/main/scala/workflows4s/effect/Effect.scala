@@ -1,16 +1,14 @@
 package workflows4s.effect
 
-import cats.effect.IO
 import java.time.Instant
 import scala.concurrent.duration.FiniteDuration
 
 /** Core effect type class for workflows4s.
   *
-  * Provides the minimal set of operations needed to execute workflows in an effect-polymorphic way. Implementations
-  * exist for ZIO, Cats Effect, OX, and other effect systems.
+  * Provides the minimal set of operations needed to execute workflows in an effect-polymorphic way. Implementations exist for Cats Effect, ZIO, and
+  * other effect systems in their respective modules.
   *
-  * The key feature is `liftIO` which allows converting the internal IO-based operations to the target effect type.
-  * This enables workflows4s-core to use IO internally while runtimes work with any effect type.
+  * This type class is effect-system agnostic - it doesn't depend on any specific effect library.
   */
 trait Effect[F[_]] {
 
@@ -30,20 +28,13 @@ trait Effect[F[_]] {
   // Suspension of side effects
   def delay[A](a: => A): F[A]
 
-  /** Convert a cats.effect.IO to this effect type.
-    *
-    * This is the key operation that allows workflows4s-core to use IO internally
-    * while runtimes can work with any effect type (ZIO, Monix, etc.)
-    */
-  def liftIO[A](io: IO[A]): F[A]
-
   // Derived operations with default implementations
   def void[A](fa: F[A]): F[Unit] = map(fa)(_ => ())
 
   def as[A, B](fa: F[A], b: B): F[B] = map(fa)(_ => b)
 
   def whenA(cond: Boolean)(fa: => F[Unit]): F[Unit] =
-    if (cond) fa else unit
+    if cond then fa else unit
 
   def unit: F[Unit] = pure(())
 
@@ -79,22 +70,49 @@ trait Effect[F[_]] {
 
   def productL[A, B](fa: F[A], fb: F[B]): F[A] =
     flatMap(fa)(a => map(fb)(_ => a))
+
+  def onError[A](fa: F[A])(f: Throwable => F[Unit]): F[A] =
+    handleErrorWith(fa) { e =>
+      flatMap(f(e))(_ => raiseError(e))
+    }
+
+  def guarantee[A](fa: F[A], finalizer: F[Unit]): F[A] =
+    flatMap(attempt(fa)) {
+      case Right(a) => map(finalizer)(_ => a)
+      case Left(e)  => flatMap(finalizer)(_ => raiseError(e))
+    }
 }
 
 object Effect {
 
   def apply[F[_]](using e: Effect[F]): Effect[F] = e
 
+  /** Effect instance for cats.Id (synchronous, blocking execution). Errors are thrown as exceptions.
+    */
+  given idEffect: Effect[cats.Id] = new Effect[cats.Id] {
+    def pure[A](a: A): cats.Id[A]                                                  = a
+    def flatMap[A, B](fa: cats.Id[A])(f: A => cats.Id[B]): cats.Id[B]              = f(fa)
+    def map[A, B](fa: cats.Id[A])(f: A => B): cats.Id[B]                           = f(fa)
+    def raiseError[A](e: Throwable): cats.Id[A]                                    = throw e
+    def handleErrorWith[A](fa: cats.Id[A])(f: Throwable => cats.Id[A]): cats.Id[A] =
+      try fa
+      catch { case e: Throwable => f(e) }
+    def sleep(duration: scala.concurrent.duration.FiniteDuration): cats.Id[Unit]   =
+      Thread.sleep(duration.toMillis)
+    def realTimeInstant: cats.Id[java.time.Instant]                                = java.time.Instant.now()
+    def delay[A](a: => A): cats.Id[A]                                              = a
+  }
+
   // Syntax extensions
   extension [F[_], A](fa: F[A])(using E: Effect[F]) {
-    def map[B](f: A => B): F[B]                      = E.map(fa)(f)
-    def flatMap[B](f: A => F[B]): F[B]               = E.flatMap(fa)(f)
-    def handleErrorWith(f: Throwable => F[A]): F[A]  = E.handleErrorWith(fa)(f)
-    def void: F[Unit]                                = E.void(fa)
-    def as[B](b: B): F[B]                            = E.as(fa, b)
-    def attempt: F[Either[Throwable, A]]             = E.attempt(fa)
-    def *>[B](fb: F[B]): F[B]                        = E.productR(fa, fb)
-    def <*[B](fb: F[B]): F[A]                        = E.productL(fa, fb)
+    def map[B](f: A => B): F[B]                     = E.map(fa)(f)
+    def flatMap[B](f: A => F[B]): F[B]              = E.flatMap(fa)(f)
+    def handleErrorWith(f: Throwable => F[A]): F[A] = E.handleErrorWith(fa)(f)
+    def void: F[Unit]                               = E.void(fa)
+    def as[B](b: B): F[B]                           = E.as(fa, b)
+    def attempt: F[Either[Throwable, A]]            = E.attempt(fa)
+    def *>[B](fb: F[B]): F[B]                       = E.productR(fa, fb)
+    def <*[B](fb: F[B]): F[A]                       = E.productL(fa, fb)
   }
 
   extension [A](a: A) {
@@ -109,10 +127,5 @@ object Effect {
   extension [A](either: Either[Throwable, A]) {
     def liftTo[F[_]](using E: Effect[F]): F[A] =
       E.fromEither(either)
-  }
-
-  extension [A](io: IO[A]) {
-    def liftTo[F[_]](using E: Effect[F]): F[A] =
-      E.liftIO(io)
   }
 }

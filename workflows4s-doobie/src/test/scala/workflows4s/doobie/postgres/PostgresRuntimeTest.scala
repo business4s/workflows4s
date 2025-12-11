@@ -40,6 +40,7 @@ class PostgresRuntimeTest extends AnyFreeSpec with PostgresSuite with WorkflowRu
   object TestCtx extends WorkflowContext {
     case class State()
     case class Event()
+    type F[A] = IO[A]
   }
 
   def noopCodec[E](evt: E) = new workflows4s.doobie.ByteCodec[E] {

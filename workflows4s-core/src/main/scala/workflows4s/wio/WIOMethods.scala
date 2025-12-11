@@ -1,6 +1,5 @@
 package workflows4s.wio
 
-import cats.effect.IO
 import cats.syntax.all.*
 import workflows4s.wio.internal.{EventHandler, ExecutionProgressEvaluator}
 import workflows4s.wio.model.WIOExecutionProgress
@@ -45,13 +44,15 @@ trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self
   ): WIO.HandleInterruption[Ctx, In1, Err1, Out1] =
     WIO.HandleInterruption(this, interruption.handler, WIO.HandleInterruption.InterruptionStatus.Pending, interruption.tpe)
 
+  /** Create a checkpoint that persists an event after the base workflow completes.
+    */
   def checkpointed[Evt <: WCEvent[Ctx], In1 <: In, Out1 >: Out <: WCState[Ctx]](
       genEvent: (In1, Out1) => Evt,
       handleEvent: (In1, Evt) => Out1,
   )(using evtCt: ClassTag[Evt]): WIO[In1, Err, Out1, Ctx] = {
     WIO.Checkpoint(
       this,
-      (a: In1, b: Out1) => genEvent(a, b).pure[IO],
+      genEvent,
       EventHandler[WCEvent[Ctx], In1, Out1, Evt](evtCt.unapply, identity, handleEvent),
     )
   }
@@ -64,10 +65,30 @@ trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self
   }
 
   type Now = Instant
-  def retry(onError: (Throwable, WCState[Ctx], Now) => IO[Option[Instant]]): WIO[In, Err, Out, Ctx] = WIO.Retry(this, onError)
-  def retryIn(onError: PartialFunction[Throwable, Duration]): WIO[In, Err, Out, Ctx]                = {
-    val adapted: (Throwable, WCState[Ctx], Now) => IO[Option[Instant]] = (err, _, now) => {
-      onError.lift(err).map(d => now.plus(d)).pure[IO]
+
+  /** Retry the workflow on error with a custom retry strategy.
+    *
+    * Uses HasEffect for type-safe effect handling. The onError function returns F[Option[Instant]] where F is the context's effect type.
+    */
+  transparent inline def retry(using
+      he: HasEffect[Ctx],
+  )(
+      onError: (Throwable, WCState[Ctx], Now) => he.F[Option[Instant]],
+  ): WIO[In, Err, Out, Ctx] =
+    WIO.Retry(this, onError.asInstanceOf[(Throwable, WCState[Ctx], Instant) => Any])
+
+  /** Retry the workflow with a simple duration-based strategy.
+    *
+    * Uses HasEffect for type-safe effect handling. The onError function is a pure function that computes the retry duration without side effects.
+    */
+  transparent inline def retryIn(using
+      he: HasEffect[Ctx],
+  )(
+      onError: PartialFunction[Throwable, Duration],
+  ): WIO[In, Err, Out, Ctx] = {
+    // Pure function that computes retry time - will be lifted into Effect by the evaluator
+    val adapted: (Throwable, WCState[Ctx], Now) => Any = (err, _, now) => {
+      onError.lift(err).map(d => now.plus(d))
     }
     WIO.Retry(this, adapted)
   }

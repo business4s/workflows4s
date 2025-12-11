@@ -1,24 +1,24 @@
 package workflows4s.wio.internal
 
-import cats.effect.IO
 import cats.implicits.toFoldableOps
 import com.typesafe.scalalogging.StrictLogging
+import workflows4s.effect.Effect
 import workflows4s.wio.*
 import workflows4s.wio.WIO.HandleInterruption.InterruptionStatus
 
 object SignalEvaluator {
 
-  def handleSignal[Ctx <: WorkflowContext, Req, Resp, In <: WCState[Ctx], Out <: WCState[Ctx]](
+  def handleSignal[F[_]: Effect, Ctx <: WorkflowContext, Req, Resp, In <: WCState[Ctx], Out <: WCState[Ctx]](
       signalDef: SignalDef[Req, Resp],
       req: Req,
       wio: WIO[In, Nothing, Out, Ctx],
       state: In,
-  ): SignalResult[WCEvent[Ctx], Resp] = {
-    val visitor = new SignalVisitor(wio, signalDef, req, state, state)
+  ): SignalResult[F, WCEvent[Ctx], Resp] = {
+    val visitor = new SignalVisitor[F, Ctx, Resp, Nothing, Out, In, Req](wio, signalDef, req, state, state)
     SignalResult.fromRaw(visitor.run)
   }
 
-  private class SignalVisitor[Ctx <: WorkflowContext, Resp, Err, Out <: WCState[Ctx], In, Req](
+  private class SignalVisitor[F[_]: Effect, Ctx <: WorkflowContext, Resp, Err, Out <: WCState[Ctx], In, Req](
       wio: WIO[In, Err, Out, Ctx],
       signalDef: SignalDef[Req, Resp],
       req: Req,
@@ -26,7 +26,8 @@ object SignalEvaluator {
       lastSeenState: WCState[Ctx],
   ) extends Visitor[Ctx, In, Err, Out](wio)
       with StrictLogging {
-    override type Result = Option[IO[(WCEvent[Ctx], Resp)]]
+    private val E = Effect[F]
+    override type Result = Option[F[(WCEvent[Ctx], Resp)]]
 
     def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result = {
       if signalDef.id == wio.sigDef.id then {
@@ -41,20 +42,25 @@ object SignalEvaluator {
         }
         val responseOpt    = expectedReqOpt
           .map(wio.sigHandler.handle(input, _))
-          .map(evtIo =>
-            for {
-              evt   <- evtIo
-              result = wio.evtHandler.handle(input, evt)
-            } yield wio.evtHandler.convert(evt) -> signalDef.respCt
-              .unapply(result._2)
-              .getOrElse(
-                throw new Exception(
-                  s"""The signal response type was different from the one expected based on SignalDef. This is probably a bug, please report it.
-                     |Response: ${result._2}
-                     |Expected: ${signalDef.respCt}""".stripMargin,
-                ),
-              ),
-          )
+          .map { handlerResult =>
+            // The handler result can be either:
+            // 1. A pure value (Evt) from purely() - wrap in effect
+            // 2. An F[Evt] from withSideEffects() - cast back from Any
+            // We detect this by checking if it's already wrapped (has flatMap method via Effect)
+            val evtF: F[Evt] = handlerResult.asInstanceOf[F[Evt]]
+            E.map(evtF) { evt =>
+              val result = wio.evtHandler.handle(input, evt)
+              wio.evtHandler.convert(evt) -> signalDef.respCt
+                .unapply(result._2)
+                .getOrElse(
+                  throw new Exception(
+                    s"""The signal response type was different from the one expected based on SignalDef. This is probably a bug, please report it.
+                       |Response: ${result._2}
+                       |Expected: ${signalDef.respCt}""".stripMargin,
+                  ),
+                )
+            }
+          }
         responseOpt
       } else None
     }
@@ -114,8 +120,8 @@ object SignalEvaluator {
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
     ): Result = {
       val newState = wio.embedding.unconvertStateUnsafe(lastSeenState)
-      new SignalVisitor(wio.inner, signalDef, req, input, newState).run
-        .map(_.map((event, resp) => wio.embedding.convertEvent(event) -> resp))
+      new SignalVisitor[F, InnerCtx, Resp, Err, InnerOut, In, Req](wio.inner, signalDef, req, input, newState).run
+        .map(x => E.map(x)((event, resp) => wio.embedding.convertEvent(event) -> resp))
     }
     def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result       = {
       wio.status match {
@@ -143,22 +149,28 @@ object SignalEvaluator {
 
     override def onForEach[ElemId, InnerCtx <: WorkflowContext, ElemOut <: WCState[InnerCtx], InterimState <: WCState[Ctx]](
         wio: WIO.ForEach[Ctx, In, Err, Out, ElemId, InnerCtx, ElemOut, InterimState],
-    ): Option[IO[(WCEvent[Ctx], Resp)]] = {
+    ): Option[F[(WCEvent[Ctx], Resp)]] = {
       for {
         unwrapped <- wio.signalRouter.unwrap(signalDef, req, wio.interimState(input))
         elemWioOpt = wio.state(input).get(unwrapped.elem)
         _          = if elemWioOpt.isEmpty then logger.warn(s"Tried to deliver a signal to an unrecognized element ${unwrapped.elem}")
         elemWio   <- elemWioOpt
-        result    <- SignalVisitor(elemWio, unwrapped.sigDef, unwrapped.req, (), wio.initialElemState()).run
-      } yield result.map(x => wio.eventEmbedding.convertEvent(unwrapped.elem, x._1) -> x._2)
+        result    <- new SignalVisitor[F, InnerCtx, Resp, Any, ElemOut, Any, Any](
+                       elemWio.asInstanceOf[WIO[Any, Any, ElemOut, InnerCtx]],
+                       unwrapped.sigDef,
+                       unwrapped.req,
+                       (),
+                       wio.initialElemState(),
+                     ).run
+      } yield E.map(result)(x => wio.eventEmbedding.convertEvent(unwrapped.elem, x._1) -> x._2)
     }
 
     def recurse[I1, E1, O1 <: WCState[Ctx]](
         wio: WIO[I1, E1, O1, Ctx],
         in: I1,
         state: WCState[Ctx] = lastSeenState,
-    ): SignalVisitor[Ctx, Resp, E1, O1, I1, Req]#Result =
-      new SignalVisitor(wio, signalDef, req, in, state).run
+    ): SignalVisitor[F, Ctx, Resp, E1, O1, I1, Req]#Result =
+      new SignalVisitor[F, Ctx, Resp, E1, O1, I1, Req](wio, signalDef, req, in, state).run
 
   }
 

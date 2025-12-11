@@ -1,19 +1,17 @@
 package workflows4s.wio
 
-import cats.effect.IO
-
-trait JournalPersistance[Event] extends JournalPersistance.Read[Event] with JournalPersistance.Write[Event]
+trait JournalPersistance[F[_], Event] extends JournalPersistance.Read[F, Event] with JournalPersistance.Write[F, Event]
 
 object JournalPersistance {
 
-  trait Read[+Event] {
-    def readEvents(): IO[List[Event]]
+  trait Read[F[_], Event] {
+    def readEvents(): F[List[Event]]
   }
 
-  trait Write[-Event] { self =>
-    def save(evt: Event): IO[Unit]
+  trait Write[F[_], Event] { self =>
+    def save(evt: Event): F[Unit]
 
-    def contraMap[E1](f: E1 => Event): Write[E1] = (evt: E1) => self.save(f(evt))
+    def contraMap[E1](f: E1 => Event): Write[F, E1] = (evt: E1) => self.save(f(evt))
   }
 
 }

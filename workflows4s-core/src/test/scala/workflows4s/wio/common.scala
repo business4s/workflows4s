@@ -1,11 +1,13 @@
 package workflows4s.wio
 
+import cats.Id
 import workflows4s.runtime.WorkflowInstanceId
 
 object TestCtx extends WorkflowContext {
   trait Event
   case class SimpleEvent(value: String) extends Event
   type State = String
+  type F[A]  = Id[A]
 
   extension [In, Out <: WCState[Ctx]](wio: WIO[In, Nothing, Out]) {
     def toWorkflow[In1 <: In & WCState[Ctx]](state: In1): ActiveWorkflow[Ctx] =
@@ -43,4 +45,5 @@ object TestCtx2 extends WorkflowContext {
   trait Event
   case class SimpleEvent(value: String) extends Event
   type State = TestState
+  type F[A]  = Id[A]
 }

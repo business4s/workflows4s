@@ -1,8 +1,9 @@
 package workflows4s.testing
 
-import cats.effect.IO
-import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
-import workflows4s.runtime.{InMemorySyncRuntime, InMemorySyncWorkflowInstance, WorkflowInstanceId}
+import cats.Id
+import workflows4s.effect.Effect
+import workflows4s.runtime.instanceengine.{BasicJavaTimeEngine, WorkflowInstanceEngine}
+import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.wio.*
 
 import java.time.Instant
@@ -12,29 +13,11 @@ import scala.util.Random
 
 class TestRuntime {
   val clock        = TestClock()
-  val knockerUpper = RecordingKnockerUpper()
+  val knockerUpper = new RecordingKnockerUpper[Id](using Effect.idEffect)
 
-  val engine: WorkflowInstanceEngine =
-    WorkflowInstanceEngine.builder
-      .withJavaTime(clock)
-      .withWakeUps(knockerUpper)
-      .withoutRegistering
-      .withGreedyEvaluation
-      .withLogging
-      .get
+  val engine: WorkflowInstanceEngine[Id] =
+    new BasicJavaTimeEngine[Id](clock)(using Effect.idEffect)
 
-  def createInstance(wio: WIO[TestState, Nothing, TestState, TestCtx2.Ctx]): InMemorySyncWorkflowInstance[TestCtx2.Ctx] = {
-    import cats.effect.unsafe.implicits.global
-    val instance: InMemorySyncWorkflowInstance[TestCtx2.Ctx] =
-      new InMemorySyncRuntime[TestCtx2.Ctx](
-        wio.provideInput(TestState.empty),
-        TestState.empty,
-        engine,
-        "test",
-      )
-        .createInstance(UUID.randomUUID().toString)
-    instance
-  }
 }
 
 object TestUtils {
@@ -43,18 +26,10 @@ object TestUtils {
 
   type Error = String
 
-  def createInstance2(wio: WIO[TestState, Nothing, TestState, TestCtx2.Ctx]): (TestClock, InMemorySyncWorkflowInstance[TestCtx2.Ctx]) = {
-    val clock                                                = new TestClock()
-    import cats.effect.unsafe.implicits.global
-    val instance: InMemorySyncWorkflowInstance[TestCtx2.Ctx] =
-      new InMemorySyncRuntime[TestCtx2.Ctx](
-        wio.provideInput(TestState.empty),
-        TestState.empty,
-        WorkflowInstanceEngine.basic(clock),
-        "test",
-      )
-        .createInstance(UUID.randomUUID().toString)
-    (clock, instance)
+  def createInstance2(wio: WIO[TestState, Nothing, TestState, TestCtx2.Ctx]): (TestClock, TestRuntimeAdapter.InMemorySync[TestCtx2.Ctx]#Actor) = {
+    val adapter = TestRuntimeAdapter.InMemorySync[TestCtx2.Ctx]()
+    val actor   = adapter.runWorkflow(wio.asInstanceOf[WIO.Initial[TestCtx2.Ctx]], TestState.empty)
+    (adapter.clock, actor)
   }
 
   def pure: (StepId, WIO[TestState, Nothing, TestState, TestCtx2.Ctx]) = {
@@ -69,7 +44,7 @@ object TestUtils {
   }
 
   def runIO: (StepId, WIO[TestState, Nothing, TestState, TestCtx2.Ctx]) = {
-    runIOCustom(IO.unit)
+    runIOCustom(())
   }
 
   def errorIO: (Error, WIO[Any, String, Nothing, TestCtx2.Ctx]) = {
@@ -77,18 +52,18 @@ object TestUtils {
     val error = s"error-${UUID.randomUUID()}"
     case class RunIOErrored(error: String) extends TestCtx2.Event
     val wio = WIO
-      .runIO[Any](_ => IO.pure(RunIOErrored(error)))
+      .runIO[Any](_ => RunIOErrored(error))
       .handleEventWithError((_, evt) => Left(evt.error))
       .done
     (error, wio)
   }
 
-  def runIOCustom(logic: IO[Unit]): (StepId, WIO[TestState, Nothing, TestState, TestCtx2.Ctx]) = {
+  def runIOCustom(logic: => Unit): (StepId, WIO[TestState, Nothing, TestState, TestCtx2.Ctx]) = {
     import TestCtx2.*
     case class RunIODone(stepId: StepId) extends TestCtx2.Event
     val stepId = StepId.random
     val wio    = WIO
-      .runIO[TestState](_ => logic.as(RunIODone(stepId)))
+      .runIO[TestState](_ => { logic; RunIODone(stepId) })
       .handleEvent((st, evt) => st.addExecuted(evt.stepId))
       .done
     (stepId, wio)
@@ -100,10 +75,10 @@ object TestUtils {
   }
 
   // inline assures two calls get different events
-  inline def signal: (SignalDef[Int, Int], StepId, WIO.IHandleSignal[TestState, Nothing, TestState, TestCtx2.Ctx]) = signalCustom(IO.unit)
+  inline def signal: (SignalDef[Int, Int], StepId, WIO.IHandleSignal[TestState, Nothing, TestState, TestCtx2.Ctx]) = signalCustom(())
 
   // inline assures two calls get different events
-  inline def signalCustom(logic: IO[Unit]): (SignalDef[Int, Int], StepId, WIO.IHandleSignal[TestState, Nothing, TestState, TestCtx2.Ctx]) = {
+  inline def signalCustom(logic: => Unit): (SignalDef[Int, Int], StepId, WIO.IHandleSignal[TestState, Nothing, TestState, TestCtx2.Ctx]) = {
     import TestCtx2.*
     val signalDef = SignalDef[Int, Int](id = UUID.randomUUID().toString)
     class SigEvent(val req: Int) extends TestCtx2.Event with Serializable {
@@ -113,7 +88,7 @@ object TestUtils {
     val wio = WIO
       .handleSignal(signalDef)
       .using[TestState]
-      .withSideEffects((_, req) => logic.as(SigEvent(req)))
+      .purely((_, req) => { logic; SigEvent(req) })
       .handleEvent((st, _) => st.addExecuted(stepId))
       .produceResponse((_, evt) => evt.req)
       .done
