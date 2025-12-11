@@ -58,6 +58,7 @@ object PullRequestWorkflow {
   object Context extends WorkflowContext {
     override type Event = PREvent
     override type State = PRState
+    override type F[A]  = cats.effect.IO[A]
   }
   import Context.*
   // end_context

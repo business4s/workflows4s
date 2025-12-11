@@ -22,6 +22,7 @@ object ForEachExample {
     object SubWorkflowContext extends WorkflowContext {
       override type State = SubWorkflowState
       override type Event = SubWorkflowEvent
+      override type F[A]  = cats.effect.IO[A]
     }
 
     // real_start

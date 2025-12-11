@@ -76,7 +76,7 @@ lazy val `workflows4s-pekko` = (project in file("workflows4s-pekko"))
       "io.altoo"         %% "pekko-kryo-serialization"     % "1.3.0",
     ),
   )
-  .dependsOn(`workflows4s-core` % "compile->compile;test->test")
+  .dependsOn(`workflows4s-core` % "compile->compile;test->test", `workflows4s-cats-effect`)
 
 lazy val `workflows4s-doobie` = (project in file("workflows4s-doobie"))
   .settings(commonSettings)
@@ -89,7 +89,7 @@ lazy val `workflows4s-doobie` = (project in file("workflows4s-doobie"))
       "org.xerial"     % "sqlite-jdbc"                     % "3.50.3.0"                 % Test,
     ),
   )
-  .dependsOn(`workflows4s-core` % "compile->compile;test->test")
+  .dependsOn(`workflows4s-core` % "compile->compile;test->test", `workflows4s-cats-effect`)
 
 lazy val `workflows4s-filesystem` = (project in file("workflows4s-filesystem"))
   .settings(commonSettings)

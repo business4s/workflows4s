@@ -18,6 +18,7 @@ object ChecksEngine extends ChecksEngine with StrictLogging {
   object Context extends WorkflowContext {
     override type Event = ChecksEvent
     override type State = ChecksState
+    override type F[A]  = cats.effect.IO[A]
   }
   object Signals {
     val review: SignalDef[ReviewDecision, Unit] = SignalDef()

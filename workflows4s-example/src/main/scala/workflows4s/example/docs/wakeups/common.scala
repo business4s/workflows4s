@@ -10,6 +10,7 @@ object common {
   trait MyWorkflowId
   trait MyWorkflowCtx extends WorkflowContext {
     type State = String
+    type F[A]  = cats.effect.IO[A]
   }
 
   // docs_start

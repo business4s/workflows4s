@@ -1,5 +1,6 @@
 package workflows4s.runtime.pekko
 
+import cats.effect.IO
 import org.apache.pekko.actor.typed.ActorSystem
 import org.apache.pekko.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity, EntityTypeKey}
 import org.apache.pekko.persistence.typed.PersistenceId
@@ -19,7 +20,7 @@ class PekkoRuntimeImpl[Ctx <: WorkflowContext](
     val workflow: Initial[Ctx],
     initialState: WCState[Ctx],
     entityName: String,
-    engine: WorkflowInstanceEngine,
+    engine: WorkflowInstanceEngine[IO],
     val templateId: String,
 )(using system: ActorSystem[?])
     extends PekkoRuntime[Ctx] {
@@ -56,7 +57,7 @@ object PekkoRuntime {
       entityName: String,
       workflow: Initial[Ctx],
       initialState: WCState[Ctx],
-      engine: WorkflowInstanceEngine,
+      engine: WorkflowInstanceEngine[IO],
   )(using
       system: ActorSystem[?],
   ): PekkoRuntime[Ctx] = {

@@ -12,7 +12,7 @@ import workflows4s.wio.{ActiveWorkflow, WCEvent, WCState, WorkflowContext}
 class DatabaseRuntime[Ctx <: WorkflowContext](
     val workflow: Initial[Ctx],
     initialState: WCState[Ctx],
-    engine: WorkflowInstanceEngine,
+    engine: WorkflowInstanceEngine[IO],
     xa: Transactor[IO],
     storage: WorkflowStorage[WCEvent[Ctx]],
     val templateId: String,
@@ -42,7 +42,7 @@ object DatabaseRuntime {
       workflow: Initial[Ctx],
       initialState: WCState[Ctx],
       transactor: Transactor[IO],
-      engine: WorkflowInstanceEngine,
+      engine: WorkflowInstanceEngine[IO],
       storage: WorkflowStorage[WCEvent[Ctx]],
       templateId: String, // this has to be explicit, as it will be saved in the database and has to be consistent across runtimes
   ): DatabaseRuntime[Ctx] = {

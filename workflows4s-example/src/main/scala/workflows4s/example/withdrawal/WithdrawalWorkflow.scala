@@ -12,13 +12,26 @@ import workflows4s.wio.internal.WorkflowEmbedding
 import workflows4s.wio.{SignalDef, WorkflowContext}
 
 import java.time.Duration
+
+/** Example withdrawal workflow demonstrating effect-polymorphic workflow definitions.
+  *
+  * The workflow uses cats-effect IO as its effect type (defined in Context.F). The `HasEffect` macro extracts this type at compile time, enabling
+  * builders like `runIO` and `retry` to work with the correct effect type.
+  *
+  * The Effect[IO] type class instance is provided by the workflows4s-cats-effect module.
+  */
 object WithdrawalWorkflow {
 
   val executionRetryDelay = Duration.ofMinutes(2)
 
+  /** WorkflowContext with cats-effect IO as the effect type.
+    *
+    * The `type F[A] = cats.effect.IO[A]` declaration makes this workflow use cats-effect for all effectful operations.
+    */
   object Context extends WorkflowContext {
     override type Event = WithdrawalEvent
     override type State = WithdrawalData
+    override type F[A]  = cats.effect.IO[A]
   }
 
   object Signals {

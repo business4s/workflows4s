@@ -57,6 +57,7 @@ object CourseRegistrationWorkflow {
   object Context extends WorkflowContext {
     override type Event = RegistrationEvent
     override type State = CourseRegistrationState
+    override type F[A]  = cats.effect.IO[A]
   }
   import Context.*
   // end_context

@@ -10,6 +10,7 @@ object MinimalWorkflow {
   def main(args: Array[String]): Unit = {
     object Context extends WorkflowContext {
       override type State = String
+      override type F[A]  = cats.effect.IO[A]
     }
     import Context.*
 

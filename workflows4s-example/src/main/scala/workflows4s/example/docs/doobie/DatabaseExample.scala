@@ -17,6 +17,7 @@ object DatabaseExample {
     sealed trait State
     case class InitialState() extends State
     sealed trait Event
+    type F[A] = cats.effect.IO[A]
   }
 
   import MyWorkflowCtx.*

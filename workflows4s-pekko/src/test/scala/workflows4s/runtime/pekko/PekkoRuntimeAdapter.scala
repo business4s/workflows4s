@@ -1,6 +1,7 @@
 package workflows4s.runtime.pekko
 
 import cats.Id
+import cats.effect.IO
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.pekko.actor.typed.*
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
@@ -8,6 +9,8 @@ import org.apache.pekko.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity
 import org.apache.pekko.persistence.typed.PersistenceId
 import org.apache.pekko.util.Timeout
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
+import workflows4s.catseffect.CatsEffect.given
+import workflows4s.runtime.instanceengine.{BasicJavaTimeEngine, GreedyWorkflowInstanceEngine, LoggingWorkflowInstanceEngine, WorkflowInstanceEngine}
 import workflows4s.runtime.{DelegateWorkflowInstance, MappedWorkflowInstance, WorkflowInstance, WorkflowInstanceId}
 import workflows4s.testing.TestRuntimeAdapter
 import workflows4s.wio.*
@@ -21,6 +24,13 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(impli
     with StrictLogging {
 
   val sharding = ClusterSharding(actorSystem)
+
+  // IO-based engine for pekko (different from TestRuntimeAdapter's Id-based engine)
+  private val ioEngine: WorkflowInstanceEngine[IO] = {
+    val base   = new BasicJavaTimeEngine[IO](clock)
+    val greedy = GreedyWorkflowInstanceEngine[IO](base)
+    new LoggingWorkflowInstanceEngine[IO](greedy)
+  }
 
   case class Stop(replyTo: ActorRef[Unit])
 
@@ -40,7 +50,7 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(impli
       Entity(typeKey)(createBehavior = entityContext => {
         val persistenceId = PersistenceId(entityContext.entityTypeKey.name, entityContext.entityId)
         val instanceId    = WorkflowInstanceId(persistenceId.entityTypeHint, persistenceId.entityId)
-        val base          = WorkflowBehavior(instanceId, persistenceId, workflow, state, engine)
+        val base          = WorkflowBehavior(instanceId, persistenceId, workflow, state, ioEngine)
         Behaviors.intercept[Cmd, RawCmd](() =>
           new BehaviorInterceptor[Cmd, RawCmd]() {
             override def aroundReceive(

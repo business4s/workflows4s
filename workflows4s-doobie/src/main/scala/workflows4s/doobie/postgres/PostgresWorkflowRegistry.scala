@@ -14,7 +14,7 @@ import java.time.{Clock, Instant}
 import java.sql.Timestamp
 import scala.concurrent.duration.FiniteDuration
 
-trait PostgresWorkflowRegistry extends WorkflowRegistry.Agent {
+trait PostgresWorkflowRegistry extends WorkflowRegistry.Agent[IO] {
 
   // returns all the workflows that were last seen as running and were not updated for at least `notUpdatedFor`
   def getExecutingWorkflows(notUpdatedFor: FiniteDuration): fs2.Stream[ConnectionIO, WorkflowInstanceId]

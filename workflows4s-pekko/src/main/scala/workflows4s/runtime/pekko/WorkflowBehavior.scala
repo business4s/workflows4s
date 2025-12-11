@@ -1,7 +1,9 @@
 package workflows4s.runtime.pekko
 
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxOptionId
+import workflows4s.catseffect.CatsEffect.given
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.pekko.actor.typed.scaladsl.{ActorContext, Behaviors}
 import org.apache.pekko.actor.typed.{ActorRef, Behavior}
@@ -33,7 +35,7 @@ object WorkflowBehavior {
       id: PersistenceId,
       workflow: WIO.Initial[Ctx],
       initialState: WCState[Ctx],
-      engine: WorkflowInstanceEngine,
+      engine: WorkflowInstanceEngine[IO],
   ): Behavior[Command[Ctx]] =
     new WorkflowBehavior(instanceId, id, workflow, initialState, engine).behavior
 
@@ -72,7 +74,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
     id: PersistenceId,
     workflow: WIO.Initial[Ctx],
     initialState: WCState[Ctx],
-    engine: WorkflowInstanceEngine,
+    engine: WorkflowInstanceEngine[IO],
 ) extends StrictLogging {
   import WorkflowBehavior.*
 
