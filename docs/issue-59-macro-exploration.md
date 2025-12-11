@@ -4,96 +4,81 @@ Following up on the effect abstraction discussion - I explored whether macros co
 
 ## TL;DR
 
-**Update**: Using `transparent inline`, the macro successfully extracts `F[_]` AND preserves type refinement - no casts needed!
+Found a working solution: `transparent inline` + non-inline `using` parameter enables **type-safe** effect extraction without explicit F parameters.
 
 ---
 
-## The Problem with Regular Inline Macros
+## The Problem
 
-With regular `inline given`, the extracted type is existential:
+With regular `inline given`, the extracted type is existential - the compiler doesn't unify `he.F` with `IO`:
+
+```scala
+val he = summon[HasEffect[IOCtx.type]]
+val value: he.F[Int] = IO.pure(42)  // Error: Found IO[Int], Required: he.F[Int]
+```
+
+---
+
+## Solution: Transparent Inline + Using Parameter
+
+The key is combining:
+1. `transparent inline` on the method (preserves type refinement)
+2. Non-inline `using he: HasEffect[Ctx]` (allows path-dependent type `he.F`)
 
 ```scala
 trait HasEffect[Ctx] { type F[_] }
 
 object HasEffect {
-  inline given derived[Ctx]: HasEffect[Ctx] = ${ derivedImpl[Ctx] }
-  // ...
-}
-
-val he = summon[HasEffect[IOCtx.type]]
-val value: he.F[Int] = IO.pure(42)  // Error: Found IO[Int], Required: he.F[Int]
-```
-
-The compiler doesn't unify `he.F` with `IO`.
-
----
-
-## Solution: Transparent Inline
-
-Using `transparent inline`, the compiler preserves type refinement:
-
-```scala
-trait HasEffect[Ctx] {
-  type F[_]
-}
-
-object HasEffect {
-  // Key: transparent inline preserves the refined return type
   transparent inline given derived[Ctx]: HasEffect[Ctx] = ${ derivedImpl[Ctx] }
+  // macro extracts F from Ctx.F
+}
 
-  private def derivedImpl[Ctx: Type](using Quotes): Expr[HasEffect[Ctx]] = {
-    import quotes.reflect.*
-
-    val ctxRepr = TypeRepr.of[Ctx]
-    val fSymbol = ctxRepr.typeSymbol.typeMember("F")
-    val fType = ctxRepr.memberType(fSymbol)
-
-    // Handle TypeBounds wrapping (common for nested objects)
-    val actualType = fType match {
-      case TypeBounds(lo, hi) if lo =:= hi => lo
-      case other => other
-    }
-
-    actualType match {
-      case tl: TypeLambda if tl.paramNames.size == 1 =>
-        tl.asType match {
-          case '[type f[a]; f] =>
-            '{ new HasEffect[Ctx] { type F[A] = f[A] } }
-          case _ =>
-            report.errorAndAbort(s"Could not capture HKT: ${tl.show}")
-        }
-      case _ =>
-        report.errorAndAbort(s"F must be [_] =>> ..., got: ${actualType.show}")
-    }
-  }
+object WIO {
+  transparent inline def runIO[Ctx <: WorkflowContext, In, Out](using
+      he: HasEffect[Ctx]  // NOT inline - needed for path-dependent type
+  )(f: In => he.F[Out]): RunIO[Ctx, In, Out] =
+    RunIO(f.asInstanceOf[In => Any])
 }
 ```
 
-Now this compiles:
+Usage:
 
 ```scala
-object IOCtx { type F[A] = IO[A] }
-object OptionCtx { type F[A] = Option[A] }
+object TestCtx extends WorkflowContext {
+  type F[A] = IO[A]
+}
 
-val heIO = summon[HasEffect[IOCtx.type]]
-val heOpt = summon[HasEffect[OptionCtx.type]]
+// This compiles - type safety preserved!
+val wio = WIO.runIO[TestCtx.type, String, Int](s => IO.pure(s.length))
 
-// These compile WITHOUT casts!
-val ioValue: heIO.F[Int] = IO.pure(42)
-val optValue: heOpt.F[Int] = Some(42)
+// This fails to compile - wrong effect type!
+val bad = WIO.runIO[TestCtx.type, String, Int](s => Option(s.length))
+// Error: Found Option[Int], Required: cats.effect.IO[Int]
 ```
 
 ---
 
-## Remaining Challenge: Type Projection
+## Why It Works
 
-For builder signatures like:
+- `transparent inline` is Scala 3's equivalent of whitebox macros
+- When `HasEffect[Ctx]` is summoned at the call site, the refined type (with `F = IO`) is preserved
+- The non-inline `he` parameter can be used as a stable path for the dependent type `he.F[Out]`
+- Inline parameters cannot be type prefixes (compiler error), so `he` must be non-inline
+
+---
+
+## What This Enables
+
+Effect-polymorphic WIO nodes without explicit F type parameters:
 
 ```scala
-def runIO[In, Out](f: In => HasEffect[Ctx]#F[Out])
-```
+// Current (explicit F):
+case class RunIO[Ctx, F[_], In, Out](buildIO: In => F[Out])
 
-Type projection on abstract types (`Ctx#F` where `Ctx` is a type parameter) is unsound and removed in Scala 3. Need to explore if transparent inline can help here too.
+// New (F derived from Ctx):
+case class RunIO[Ctx, In, Out](buildIO: In => Any)  // F erased internally
+// Builder enforces type safety via HasEffect
+```
 
 ---
 
@@ -102,10 +87,10 @@ Type projection on abstract types (`Ctx#F` where `Ctx` is a type parameter) is u
 On `prototype/macro-effect-extraction` branch in `workflows4s-macros` module:
 
 ```bash
-# Regular inline (existential types)
-sbt "workflows4s-macros/runMain workflows4s.macros.demo"
+# Type-safe builder demo
+sbt "workflows4s-macros/runMain workflows4s.macros.contextFunctionDemo"
 
-# Transparent inline (preserves refinement!)
+# Transparent inline basics
 sbt "workflows4s-macros/runMain workflows4s.macros.transparentDemo"
 ```
 
