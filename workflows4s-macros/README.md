@@ -1,6 +1,6 @@
 # workflows4s-macros
 
-Macro utilities for effect type extraction experiments.
+Macro utilities for effect type extraction.
 
 ## Goal
 
@@ -17,28 +17,22 @@ case class RunIO[Ctx, In, Out](buildIO: In => ???)
 // where ??? somehow derives F from Ctx
 ```
 
-## What the Macro Does
+## Solution: Transparent Inline
 
-The `HasEffect` macro extracts `F[_]` from any context type:
+Using `transparent inline`, the macro extracts AND preserves type refinement:
 
 ```scala
 trait TestContext { type F[_] }
 object MyCtx extends TestContext { type F[A] = IO[A] }
 
-// Macro extracts F = IO at compile time
+// Macro extracts F = IO at compile time with transparent inline
 val he = summon[HasEffect[MyCtx.type]]
-// he.F is now IO
+
+// This compiles WITHOUT casts!
+val value: he.F[Int] = IO.pure(42)
 ```
 
-## The Fundamental Limitation
-
-The macro **works** - it correctly extracts `F[_]` from `Ctx`. However:
-
-1. **Existential Types**: The extracted `he.F` is treated as existential by the compiler
-2. **No Unification**: `he.F[Int]` is NOT unified with `IO[Int]`
-3. **Aux Pattern Required**: To unify them, you need `HasEffect.Aux[Ctx, IO]` which brings back explicit `F`
-
-This is a Scala type system limitation, not a macro limitation.
+The key is `transparent inline given` instead of regular `inline given` - it preserves the refined return type.
 
 ## Approaches Explored
 
@@ -46,16 +40,22 @@ This is a Scala type system limitation, not a macro limitation.
 |----------|-------|------------|
 | Type Projection (`Ctx#F`) | ❌ | Unsound, dropped in Scala 3 |
 | Match Types + HKT | ❌ | Can't extract HKT params |
-| Macros + HasEffect | ✅ | F is existential, not unified |
-| Macros + Casts | ✅ | Unsafe, needs evidence at every use |
+| Regular Inline Macros | ⚠️ | F is existential, not unified |
+| Transparent Inline Macros | ✅ | Preserves type refinement! |
 | Explicit F Parameter | ✅ | Verbose but type-safe |
 
-## Running the Demo
+## Running the Demos
 
 ```bash
+# Regular inline (existential types - doesn't unify)
 sbt "workflows4s-macros/runMain workflows4s.macros.demo"
+
+# Transparent inline (preserves refinement - works!)
+sbt "workflows4s-macros/runMain workflows4s.macros.transparentDemo"
 ```
 
-## Conclusion
+## Files
 
-The explicit `F[_]` type parameter approach remains the cleanest solution. Macros can extract the type but can't make Scala's type system treat the extracted type as equal to the concrete type without unsafe casts.
+- `EffectExtraction.scala` - Regular inline macro (existential types)
+- `TransparentApproach.scala` - Transparent inline macro (preserves refinement)
+- `UsabilityComparison.scala` - API comparison across approaches
