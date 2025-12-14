@@ -76,13 +76,13 @@ object EventEvaluator {
 
     override def onRetry(wio: WIO.Retry[Ctx, In, Err, Out]): Option[NewWf] = {
       wio.mode match {
-        case Mode.Stateless(_)              => super.onRetry(wio)
+        case Mode.Stateless(_)                                 => super.onRetry(wio)
         case mode @ Mode.Stateful(_, eventHandler, retryState) =>
           eventHandler
             .detect(event)
             .map(x => {
-              eventHandler.handle((input,lastSeenState, retryState), x) match {
-                case Left(value) => WFExecution.Partial(wio.copy(mode = mode.copy(state = Some(value))))
+              eventHandler.handle((input, lastSeenState, retryState), x) match {
+                case Left(value)  => WFExecution.Partial(wio.copy(mode = mode.copy(state = Some(value))))
                 case Right(value) => WFExecution.complete(wio, value, input, index)
               }
             })

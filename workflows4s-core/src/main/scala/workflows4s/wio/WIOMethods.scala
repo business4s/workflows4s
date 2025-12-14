@@ -64,5 +64,6 @@ trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self
   }
 
   type Now = Instant
-  def retry[In1 <: In, Err1 >: Err, Out1 >: Out <: WCState[Ctx]]: RetryBuilder.Step0[In1, Err1, Out1, Ctx] = new RetryBuilder.Step0[In1, Err1, Out1, Ctx](this)
+  def retry[In1 <: In, Err1 >: Err, Out1 >: Out <: WCState[Ctx]]: RetryBuilder.Step0[In1, Err1, Out1, Ctx] =
+    new RetryBuilder.Step0[In1, Err1, Out1, Ctx](this)
 }

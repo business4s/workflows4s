@@ -83,19 +83,19 @@ class WIORetryTest extends AnyFreeSpec with Matchers with OptionValues with Eith
     "stateful" - {
       "should keep state between executions" in new Fixture {
         case class RetryEvent(inc: Int) extends TestCtx2.Event
-        val retryTime     = Instant.now().plus(Duration.ofSeconds(123))
-        val retryingWIO   = failingWIO.retry
+        val retryTime   = Instant.now().plus(Duration.ofSeconds(123))
+        val retryingWIO = failingWIO.retry
           .usingState[Int]
           .onError[RetryEvent, Nothing]((_, _, _, _) => IO(WIO.Retry.StatefulResult.ScheduleWakeup(retryTime, RetryEvent(1).some)))
           .handleEventsTogetherWith((_, event, _, retryState) => {
             val newState = retryState.getOrElse(0) + event.inc
             if newState < 3 then Left(newState)
-            else Right(Right(TestState.empty.addError(s"Recovered after ${newState}")))
+            else Right(Right(TestState.empty.addError(s"Recovered after $newState")))
           })
 
         val instance = runtime.createInstance(retryingWIO)
 
-        // wakeup didnt throw but wakeup
+        // wakeup didnt throw but woke up
         instance.wakeup()
         assert(runtime.knockerUpper.lastRegisteredWakeup(instance.id) == Some(retryTime))
         assert(instance.queryState() == TestState.empty.addError(s"Recovered after 3"))

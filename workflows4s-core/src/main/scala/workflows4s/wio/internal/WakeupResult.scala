@@ -43,8 +43,8 @@ object WakeupResult {
   def fromRaw[Event](raw: Raw[Event]): WakeupResult[Event] = raw match {
     case Some(value) =>
       Processed(value.map({
-        case Ior.Left(a) => ProcessingResult.Failed(a, None)
-        case Ior.Right(b) => ProcessingResult.Proceeded(b)
+        case Ior.Left(a)    => ProcessingResult.Failed(a, None)
+        case Ior.Right(b)   => ProcessingResult.Proceeded(b)
         case Ior.Both(a, b) => ProcessingResult.Failed(a, Some(b))
       }))
     case None        => Noop

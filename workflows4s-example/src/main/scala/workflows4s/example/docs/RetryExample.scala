@@ -39,8 +39,7 @@ object RetryExample {
     val doSomething: WIO[Any, Nothing, MyState] = WIO.pure(MyState(1)).autoNamed
     type RetryCounter = Int
 
-    val withRetry: WIO[Any, Nothing, MyState] = doSomething
-      .retry
+    val withRetry: WIO[Any, Nothing, MyState] = doSomething.retry
       .usingState[RetryCounter]
       .onError((in, err, wfState, retryState) => {
         err match {
