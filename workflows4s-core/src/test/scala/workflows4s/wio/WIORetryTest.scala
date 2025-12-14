@@ -87,7 +87,7 @@ class WIORetryTest extends AnyFreeSpec with Matchers with OptionValues with Eith
         val retryingWIO = failingWIO.retry
           .usingState[Int]
           .onError[RetryEvent, Nothing]((_, _, _, _) => IO(WIO.Retry.StatefulResult.ScheduleWakeup(retryTime, RetryEvent(1).some)))
-          .handleEventsTogetherWith((_, event, _, retryState) => {
+          .handleEventsWithTogether((_, event, _, retryState) => {
             val newState = retryState.getOrElse(0) + event.inc
             if newState < 3 then Left(newState)
             else Right(Right(TestState.empty.addError(s"Recovered after $newState")))

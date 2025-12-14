@@ -39,27 +39,28 @@ object RetryExample {
     val doSomething: WIO[Any, Nothing, MyState] = WIO.pure(MyState(1)).autoNamed
     type RetryCounter = Int
 
-    val withRetry: WIO[Any, Nothing, MyState] = doSomething.retry
-      .usingState[RetryCounter]
-      .onError((in, err, wfState, retryState) => {
-        err match {
-          case _: TimeoutException         =>
-            IO(
-              workflows4s.wio.WIO.Retry.StatefulResult.ScheduleWakeup(
-                at = Instant.now().plus(Duration.ofMinutes(30)),
-                event = Some(MyRetryEvent),
-              ),
-            )
-          case _: IllegalArgumentException =>
-            IO(workflows4s.wio.WIO.Retry.StatefulResult.Recover(MyEvent()))
-          case _                           =>
-            IO(workflows4s.wio.WIO.Retry.StatefulResult.Ignore)
-        }
-      })
-      .handleEventsWith(
-        onRetry = (in, retryEvent, retryStateOpt) => retryStateOpt.getOrElse(0) + 1,
-        onRecover = (in, recoverEvent, retryStateOpt) => Right(MyState(1)),
-      )
+    val withRetry: WIO[Any, Nothing, MyState] =
+      doSomething.retry
+        .usingState[RetryCounter]
+        .onError((in, err, wfState, retryState) => {
+          err match {
+            case _: TimeoutException         =>
+              IO(
+                WIO.Retry.StatefulResult.ScheduleWakeup(
+                  at = Instant.now().plus(Duration.ofMinutes(30)),
+                  event = Some(MyRetryEvent),
+                ),
+              )
+            case _: IllegalArgumentException =>
+              IO(WIO.Retry.StatefulResult.Recover(MyEvent()))
+            case _                           =>
+              IO(WIO.Retry.StatefulResult.Ignore)
+          }
+        })
+        .handleEventsWith(
+          onRetry = (in, retryEvent, retryStateOpt) => retryStateOpt.getOrElse(0) + 1,
+          onRecover = (in, recoverEvent, retryStateOpt) => Right(MyState(1)),
+        )
     // end_doc_stateful_full
   }
 }

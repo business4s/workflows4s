@@ -73,7 +73,7 @@ object RetryBuilder {
             recoverEvtCt: ClassTag[RecoverEvent],
             @unused n1: NotGiven[RetryEvent <:< RecoverEvent],
             @unused n2: NotGiven[RecoverEvent <:< RetryEvent],
-        ) = {
+        ): WIO.Retry[Ctx, In, Err, Out] = {
           val evtHandler =
             EventHandler[WCEvent[Ctx], (In, WCState[Ctx], Option[RetryState]), Either[RetryState, Either[Err, Out]], RetryEvent | RecoverEvent](
               x => retryEvtCt.unapply(x).orElse(recoverEvtCt.unapply(x)),
@@ -88,9 +88,9 @@ object RetryBuilder {
           WIO.Retry(base, mode)
         }
 
-        def handleEventsTogetherWith(
+        def handleEventsWithTogether(
             onEvent: (In, RetryEvent | RecoverEvent, WCState[Ctx], Option[RetryState]) => Either[RetryState, Either[Err, Out]],
-        )(using ct: ClassTag[RetryEvent | RecoverEvent]) = {
+        )(using ct: ClassTag[RetryEvent | RecoverEvent]): WIO.Retry[Ctx, In, Err, Out] = {
           val evtHandler =
             EventHandler[WCEvent[Ctx], (In, WCState[Ctx], Option[RetryState]), Either[RetryState, Either[Err, Out]], RetryEvent | RecoverEvent](
               x => ct.unapply(x),
