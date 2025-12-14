@@ -4,7 +4,6 @@ import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 import workflows4s.testing.TestUtils
 import workflows4s.wio.{TestCtx2, TestState, WIO}
-import cats.effect.IO
 import java.time.Duration
 
 class GetSignalDefsEvaluatorTest extends AnyFreeSpec with Matchers {
