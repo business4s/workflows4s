@@ -1,15 +1,11 @@
 package workflows4s.wio.builders
 
 import cats.effect.IO
-import cats.implicits.catsSyntaxEitherId
 import workflows4s.wio.internal.EventHandler
 import workflows4s.wio.{WCEvent, WCState, WIO, WorkflowContext}
 
 import java.time.{Duration, Instant}
-import scala.annotation.unused
 import scala.reflect.ClassTag
-import scala.util.NotGiven
-import scala.util.chaining.scalaUtilChainingOps
 
 object RetryBuilder {
 
@@ -20,8 +16,8 @@ object RetryBuilder {
       def wakeupAt(onError: (In, Throwable, WCState[Ctx]) => IO[Option[Instant]]): WIO[In, Err, Out, Ctx] = {
         val strategy = WIO.Retry.Mode.Stateless[Ctx, In]((in, err, state, _) =>
           onError(in, err, state).map({
-            case Some(value) => WIO.Retry.StatelessResult.ScheduleWakeup(value)
-            case None        => WIO.Retry.StatelessResult.Ignore
+            case Some(value) => WIO.Retry.Stateless.Result.ScheduleWakeup(value)
+            case None        => WIO.Retry.Stateless.Result.Ignore
           }),
         )
         WIO.Retry(base, strategy)
@@ -30,8 +26,8 @@ object RetryBuilder {
       def wakeupIn(onError: PartialFunction[Throwable, Duration]): WIO[In, Err, Out, Ctx] = {
         val strategy = WIO.Retry.Mode.Stateless[Ctx, In]((_, err, _, now) => {
           IO.pure(onError.lift(err) match {
-            case Some(backoff) => WIO.Retry.StatelessResult.ScheduleWakeup(now.plus(backoff))
-            case None          => WIO.Retry.StatelessResult.Ignore
+            case Some(backoff) => WIO.Retry.Stateless.Result.ScheduleWakeup(now.plus(backoff))
+            case None          => WIO.Retry.Stateless.Result.Ignore
           })
         })
         WIO.Retry(base, strategy)
@@ -39,61 +35,29 @@ object RetryBuilder {
 
     }
 
-    def usingState[T]: StatefulBuilder[T] = new StatefulBuilder[T]
+    def usingState[RetryState]: StatefulBuilder[RetryState] = new StatefulBuilder[RetryState]
 
     class StatefulBuilder[RetryState] {
 
-      def onError[RetryEvent, RecoverEvent](
-          onError: (In, Throwable, WCState[Ctx], Option[RetryState]) => IO[WIO.Retry.StatefulResult[RetryEvent, RecoverEvent]],
-      )(using
-          retBound: RetryEvent <:< (RetryEvent & WCEvent[Ctx]),
-          recBound: RecoverEvent <:< (RecoverEvent & WCEvent[Ctx]),
-      ): Step1[RetryEvent & WCEvent[Ctx], RecoverEvent & WCEvent[Ctx]] = {
-        // we could just cast here and gain negligible performance at the cost of typesafety
-        val widened: (In, Throwable, WCState[Ctx], Option[RetryState]) => IO[
-          WIO.Retry.StatefulResult[RetryEvent & WCEvent[Ctx], RecoverEvent & WCEvent[Ctx]],
-        ] = (a, b, c, d) =>
-          onError(a, b, c, d).map(
-            _.pipe(retBound.substituteCo[[t] =>> WIO.Retry.StatefulResult[t, RecoverEvent]])
-              .pipe(recBound.substituteCo[[t] =>> WIO.Retry.StatefulResult[RetryEvent & WCEvent[Ctx], t]]),
-          )
-        new Step1[RetryEvent & WCEvent[Ctx], RecoverEvent & WCEvent[Ctx]](widened)
+      type OnErrorInput = (input: In, error: Throwable, workflowState: WCState[Ctx], retryState: Option[RetryState])
+
+      def onError[Event <: WCEvent[Ctx]](
+          onError: OnErrorInput => IO[WIO.Retry.Stateful.Result[Event]],
+      ): Step1[Event] = {
+        new Step1[Event](onError)
       }
 
-      class Step1[RetryEvent <: WCEvent[Ctx], RecoverEvent <: WCEvent[Ctx]](
-          onError: (In, Throwable, WCState[Ctx], Option[RetryState]) => IO[WIO.Retry.StatefulResult[RetryEvent, RecoverEvent]],
+      class Step1[Event <: WCEvent[Ctx]](
+          onError: OnErrorInput => IO[WIO.Retry.Stateful.Result[Event]],
       ) {
 
         /** This variant can be used only if the RetryEvent and RecoverEvent types are different. */
         def handleEventsWith(
-            onRetry: (In, RetryEvent, Option[RetryState]) => RetryState,
-            onRecover: (In, RecoverEvent, WCState[Ctx]) => Either[Err, Out],
-        )(using
-            retryEvtCt: ClassTag[RetryEvent],
-            recoverEvtCt: ClassTag[RecoverEvent],
-            @unused n1: NotGiven[RetryEvent <:< RecoverEvent],
-            @unused n2: NotGiven[RecoverEvent <:< RetryEvent],
-        ): WIO.Retry[Ctx, In, Err, Out] = {
+            onEvent: ((input: In, event: Event, workflowState: WCState[Ctx], retryState: Option[RetryState])) => Either[RetryState, Either[Err, Out]],
+        )(using evtCt: ClassTag[Event]): WIO.Retry[Ctx, In, Err, Out] = {
           val evtHandler =
-            EventHandler[WCEvent[Ctx], (In, WCState[Ctx], Option[RetryState]), Either[RetryState, Either[Err, Out]], RetryEvent | RecoverEvent](
-              x => retryEvtCt.unapply(x).orElse(recoverEvtCt.unapply(x)),
-              identity,
-              (in, evt) =>
-                evt match {
-                  case retryEvtCt(value)   => onRetry(in._1, value, in._3).asLeft
-                  case recoverEvtCt(value) => onRecover(in._1, value, in._2).asRight
-                },
-            )
-          val mode       = WIO.Retry.Mode.Stateful(onError, evtHandler, None)
-          WIO.Retry(base, mode)
-        }
-
-        def handleEventsWithTogether(
-            onEvent: (In, RetryEvent | RecoverEvent, WCState[Ctx], Option[RetryState]) => Either[RetryState, Either[Err, Out]],
-        )(using ct: ClassTag[RetryEvent | RecoverEvent]): WIO.Retry[Ctx, In, Err, Out] = {
-          val evtHandler =
-            EventHandler[WCEvent[Ctx], (In, WCState[Ctx], Option[RetryState]), Either[RetryState, Either[Err, Out]], RetryEvent | RecoverEvent](
-              x => ct.unapply(x),
+            EventHandler[WCEvent[Ctx], (In, WCState[Ctx], Option[RetryState]), Either[RetryState, Either[Err, Out]], Event](
+              evtCt.unapply,
               identity,
               (in, evt) => onEvent(in._1, evt, in._2, in._3),
             )

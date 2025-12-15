@@ -208,23 +208,31 @@ object WIO {
 
   object Retry {
 
-    enum StatelessResult {
-      case Ignore
-      case ScheduleWakeup(at: Instant)
+    object Stateful {
+      type ErrorHandlerInput[+In, Ctx <: WorkflowContext, +RetryState] =
+        (input: In, error: Throwable, workflowState: WCState[Ctx], retryState: Option[RetryState])
+
+      enum Result[+Event] {
+        case Ignore
+        case ScheduleWakeup(at: Instant, event: Option[Event])
+        case Recover(event: Event)
+      }
     }
 
-    enum StatefulResult[+RetryEvent, +SuccessEvent] {
-      case Ignore
-      case ScheduleWakeup(at: Instant, event: Option[RetryEvent])
-      case Recover(event: SuccessEvent)
+    object Stateless {
+      enum Result {
+        case Ignore
+        case ScheduleWakeup(at: Instant)
+      }
     }
 
     sealed trait Mode[Ctx <: WorkflowContext, -In, +Err, +Out]
     object Mode {
-      case class Stateless[Ctx <: WorkflowContext, -In](errorHandler: (In, Throwable, WCState[Ctx], Instant) => IO[StatelessResult])
+      case class Stateless[Ctx <: WorkflowContext, -In](errorHandler: (In, Throwable, WCState[Ctx], Instant) => IO[Retry.Stateless.Result])
           extends Mode[Ctx, In, Nothing, Nothing]
+
       case class Stateful[Ctx <: WorkflowContext, Evt <: WCEvent[Ctx], -In, Err, +Out <: WCState[Ctx], RetryState](
-          errorHandler: (In, Throwable, WCState[Ctx], Option[RetryState]) => IO[StatefulResult[WCEvent[Ctx], WCEvent[Ctx]]],
+          errorHandler: Retry.Stateful.ErrorHandlerInput[In, Ctx, RetryState] => IO[Retry.Stateful.Result[WCEvent[Ctx]]],
           eventHandler: EventHandler[(In, WCState[Ctx], Option[RetryState]), Either[RetryState, Either[Err, Out]], WCEvent[Ctx], Evt],
           state: Option[RetryState],
       ) extends Mode[Ctx, In, Err, Out]

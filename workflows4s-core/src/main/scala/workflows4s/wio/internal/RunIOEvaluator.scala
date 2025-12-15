@@ -1,14 +1,14 @@
 package workflows4s.wio.internal
 
 import cats.data.Ior
-
-import java.time.Instant
 import cats.effect.IO
 import cats.syntax.all.*
 import workflows4s.wio.*
 import workflows4s.wio.WIO.HandleInterruption.InterruptionStatus
-import workflows4s.wio.WIO.Retry.{Mode, StatefulResult, StatelessResult}
+import workflows4s.wio.WIO.Retry.Mode
 import workflows4s.wio.WIO.Timer
+
+import java.time.Instant
 
 object RunIOEvaluator {
   def proceed[Ctx <: WorkflowContext, StIn <: WCState[Ctx]](
@@ -130,18 +130,18 @@ object RunIOEvaluator {
             case Mode.Stateless(errorHandler)               =>
               errorHandler(input, err, lastSeenState, now)
                 .flatMap({
-                  case StatelessResult.Ignore             => IO.raiseError(err)
-                  case StatelessResult.ScheduleWakeup(at) => IO.pure(at.leftIor)
+                  case WIO.Retry.Stateless.Result.Ignore             => IO.raiseError(err)
+                  case WIO.Retry.Stateless.Result.ScheduleWakeup(at) => IO.pure(at.leftIor)
                 })
             case Mode.Stateful(errorHandler, _, retryState) =>
               errorHandler(input, err, lastSeenState, retryState).flatMap({
-                case StatefulResult.Ignore                    => IO.raiseError(err)
-                case StatefulResult.ScheduleWakeup(at, event) =>
+                case WIO.Retry.Stateful.Result.Ignore                    => IO.raiseError(err)
+                case WIO.Retry.Stateful.Result.ScheduleWakeup(at, event) =>
                   IO.pure(event match {
                     case Some(value) => Ior.both(at, value)
                     case None        => Ior.left(at)
                   })
-                case StatefulResult.Recover(event)            => event.rightIor.pure[IO]
+                case WIO.Retry.Stateful.Result.Recover(event)            => event.rightIor.pure[IO]
               })
           },
         ),

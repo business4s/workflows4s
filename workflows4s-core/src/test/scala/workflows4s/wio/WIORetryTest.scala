@@ -86,8 +86,8 @@ class WIORetryTest extends AnyFreeSpec with Matchers with OptionValues with Eith
         val retryTime   = Instant.now().plus(Duration.ofSeconds(123))
         val retryingWIO = failingWIO.retry
           .usingState[Int]
-          .onError[RetryEvent, Nothing]((_, _, _, _) => IO(WIO.Retry.StatefulResult.ScheduleWakeup(retryTime, RetryEvent(1).some)))
-          .handleEventsWithTogether((_, event, _, retryState) => {
+          .onError[RetryEvent](_ => IO(WIO.Retry.Stateful.Result.ScheduleWakeup(retryTime, RetryEvent(1).some)))
+          .handleEventsWith((_, event, _, retryState) => {
             val newState = retryState.getOrElse(0) + event.inc
             if newState < 3 then Left(newState)
             else Right(Right(TestState.empty.addError(s"Recovered after $newState")))
@@ -99,6 +99,22 @@ class WIORetryTest extends AnyFreeSpec with Matchers with OptionValues with Eith
         instance.wakeup()
         assert(runtime.knockerUpper.lastRegisteredWakeup(instance.id) == Some(retryTime))
         assert(instance.queryState() == TestState.empty.addError(s"Recovered after 3"))
+      }
+
+      "should allow to recover" in new Fixture {
+        val stepId = StepId.random("confirmation-")
+        case class RecoverEvent() extends TestCtx2.Event
+
+        val retryingWIO = failingWIO.retry
+          .usingState[Int]
+          .onError(_ => IO(WIO.Retry.Stateful.Result.Recover(RecoverEvent())))
+          .handleEventsWith(in => Right(Right(in.workflowState.addExecuted(stepId))))
+
+        val instance = runtime.createInstance(retryingWIO)
+
+        // wakeup didnt throw but woke up
+        instance.wakeup()
+        assert(instance.queryState() == TestState(List(stepId)))
       }
     }
   }
