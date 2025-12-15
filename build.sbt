@@ -83,7 +83,7 @@ lazy val `workflows4s-quartz` = (project in file("workflows4s-quartz"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.quartz-scheduler" % "quartz" % "2.5.1",
+      "org.quartz-scheduler" % "quartz" % "2.5.2",
     ),
   )
   .dependsOn(`workflows4s-core` % "compile->compile;test->test")
