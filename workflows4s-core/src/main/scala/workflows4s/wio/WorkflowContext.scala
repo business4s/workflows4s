@@ -16,9 +16,9 @@ trait WorkflowContext { ctx: WorkflowContext =>
     */
   type Eff[_]
 
-  /** Implicit Effect instance for Eff. Must be provided by implementing context.
+  /** Given Effect instance for Eff. Must be provided by implementing context.
     */
-  implicit def effect: Effect[Eff]
+  given effect: Effect[Eff]
 
   type Ctx = WorkflowContext.AUX[State, Event, Eff]
 
@@ -57,12 +57,12 @@ object WorkflowContext {
   */
 trait IOWorkflowContext extends WorkflowContext {
   type Eff[A] = cats.effect.IO[A]
-  implicit def effect: Effect[Eff] = Effect.ioEffect
+  given effect: Effect[Eff] = Effect.ioEffect
 }
 
 /** Helper trait for synchronous (Id-based) workflow contexts. Extend this for workflows that run synchronously without an effect wrapper.
   */
 trait SyncWorkflowContext extends WorkflowContext {
   type Eff[A] = cats.Id[A]
-  implicit def effect: Effect[Eff] = Effect.idEffect
+  given effect: Effect[Eff] = Effect.idEffect
 }

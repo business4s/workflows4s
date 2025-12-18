@@ -71,7 +71,7 @@ class InMemoryWorkflowRegistryTest extends AnyFreeSpec with Matchers {
     type Event  = Nothing
     type State  = Null
     type Eff[A] = IO[A]
-    implicit val effect: Effect[Eff] = Effect.ioEffect
+    given effect: Effect[Eff] = Effect.ioEffect
   }
 
   def dummyAW(id: WorkflowInstanceId): ActiveWorkflow[IO, DummyCtx.Ctx] = ActiveWorkflow(id, WIO.End[IO, DummyCtx.Ctx](), null)

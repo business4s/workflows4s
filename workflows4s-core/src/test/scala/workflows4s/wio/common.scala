@@ -12,7 +12,7 @@ object TestCtx extends WorkflowContext {
 
   // Use Id as the effect type for tests
   type Eff[A] = Id[A]
-  implicit val effect: Effect[Eff] = Effect.idEffect
+  given effect: Effect[Eff] = Effect.idEffect
 
   extension [In, Out <: WCState[Ctx]](wio: WIO[In, Nothing, Out]) {
     def toWorkflow[In1 <: In & WCState[Ctx]](state: In1): ActiveWorkflow[Eff, Ctx] =
@@ -53,7 +53,7 @@ object TestCtx2 extends WorkflowContext {
 
   // Use Id as the effect type for tests
   type Eff[A] = Id[A]
-  implicit val effect: Effect[Eff] = Effect.idEffect
+  given effect: Effect[Eff] = Effect.idEffect
 }
 
 // IO-based version of TestCtx2 for InMemoryRuntime tests
@@ -63,7 +63,7 @@ object IOTestCtx2 extends WorkflowContext {
   type State = TestState
 
   type Eff[A] = IO[A]
-  implicit val effect: Effect[Eff] = Effect.ioEffect
+  given effect: Effect[Eff] = Effect.ioEffect
 }
 
 // IO-based context for InMemoryRuntime tests
@@ -73,7 +73,7 @@ object IOTestCtx extends WorkflowContext {
   type State = String
 
   type Eff[A] = IO[A]
-  implicit val effect: Effect[Eff] = Effect.ioEffect
+  given effect: Effect[Eff] = Effect.ioEffect
 
   extension [In, Out <: WCState[Ctx]](wio: WIO[In, Nothing, Out]) {
     def toWorkflow[In1 <: In & WCState[Ctx]](state: In1): ActiveWorkflow[Eff, Ctx] =
