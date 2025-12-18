@@ -229,7 +229,7 @@ class WIOLoopTest extends AnyFreeSpec with Matchers with OptionValues with Eithe
       bodyId: StepId,
       onReturn: Option[TestCtx2.WIO[TestState, Err, TestState]],
       maxIterations: Int,
-  ): (StepId, WIO[TestState, Err, TestState, TestCtx2.Ctx]) = {
+  ): (StepId, TestCtx2.WIO[TestState, Err, TestState]) = {
     val (finishedStepId, finishedStep) = TestUtils.pure
 
     val loop = TestCtx2.WIO

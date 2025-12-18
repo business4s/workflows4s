@@ -1,6 +1,5 @@
 package workflows4s.runtime.registry
 
-import cats.effect.IO
 import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.wio.ActiveWorkflow
 
@@ -10,9 +9,9 @@ object WorkflowRegistry {
     case Running, Awaiting, Finished
   }
 
-  trait Agent {
+  trait Agent[F[_]] {
 
-    def upsertInstance(inst: ActiveWorkflow[?], executionStatus: ExecutionStatus): IO[Unit]
+    def upsertInstance(inst: ActiveWorkflow[?, ?], executionStatus: ExecutionStatus): F[Unit]
 
   }
 

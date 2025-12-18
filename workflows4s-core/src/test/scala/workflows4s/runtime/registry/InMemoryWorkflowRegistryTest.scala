@@ -1,9 +1,11 @@
 package workflows4s.runtime.registry
 
+import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 import workflows4s.runtime.WorkflowInstanceId
+import workflows4s.runtime.instanceengine.Effect
 import workflows4s.runtime.registry.WorkflowRegistry.ExecutionStatus
 import workflows4s.testing.{TestClock, TestUtils}
 import workflows4s.wio.{ActiveWorkflow, WIO, WorkflowContext}
@@ -64,5 +66,13 @@ class InMemoryWorkflowRegistryTest extends AnyFreeSpec with Matchers {
     }
   }
 
-  def dummyAW(id: WorkflowInstanceId): ActiveWorkflow[WorkflowContext { type State = Null }] = ActiveWorkflow(id, WIO.End(), null)
+  // Define a minimal test context for dummy workflows with IO effect
+  object DummyCtx extends WorkflowContext {
+    type Event  = Nothing
+    type State  = Null
+    type Eff[A] = IO[A]
+    implicit val effect: Effect[Eff] = Effect.ioEffect
+  }
+
+  def dummyAW(id: WorkflowInstanceId): ActiveWorkflow[IO, DummyCtx.Ctx] = ActiveWorkflow(id, WIO.End[IO, DummyCtx.Ctx](), null)
 }

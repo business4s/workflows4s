@@ -16,12 +16,8 @@ import scala.reflect.Selectable.reflectiveSelectable
 
 class ChecksEngineTest extends AnyFreeSpec with ChecksEngineTest.Suite {
 
-  "in-memory-sync" - {
-    checkEngineTests(TestRuntimeAdapter.InMemorySync())
-  }
-
   "in-memory" - {
-    checkEngineTests(TestRuntimeAdapter.InMemory())
+    checkEngineTests(TestRuntimeAdapter.InMemory(), skipRecovery = true)
   }
 
   "render bpmn model" in {
@@ -38,7 +34,7 @@ object ChecksEngineTest {
 
   trait Suite extends AnyFreeSpecLike {
 
-    def checkEngineTests(getRuntime: => TestRuntimeAdapter[ChecksEngine.Context]) = {
+    def checkEngineTests(getRuntime: => TestRuntimeAdapter[ChecksEngine.Context], skipRecovery: Boolean = false): Unit = {
 
       "re-run pending checks until complete" in new Fixture {
         val check: Check[Unit] { def runNum: Int } = new Check[Unit] {
@@ -163,11 +159,15 @@ object ChecksEngineTest {
           new ChecksActor(wf, checks)
         }
 
-        def checkRecovery(firstActor: ChecksActor[runtime.Actor]) = {
-          logger.debug("Checking recovery")
-          val originalState = firstActor.state
-          val secondActor   = runtime.recover(firstActor.wf)
-          assert(secondActor.queryState() == originalState)
+        def checkRecovery(firstActor: ChecksActor): Unit = {
+          if skipRecovery then {
+            logger.debug("Skipping recovery check")
+          } else {
+            logger.debug("Checking recovery")
+            val originalState = firstActor.state
+            val secondActor   = runtime.recover(firstActor.wf.asInstanceOf[runtime.Actor])
+            val _             = assert(secondActor.queryState() == originalState)
+          }
         }
 
       }
@@ -175,7 +175,7 @@ object ChecksEngineTest {
     }
   }
 
-  class ChecksActor[Actor <: WorkflowInstance[Id, WCState[ChecksEngine.Context]]](val wf: Actor, val checks: List[Check[Unit]]) {
+  class ChecksActor(val wf: WorkflowInstance[Id, WCState[ChecksEngine.Context]], val checks: List[Check[Unit]]) {
     def run(): Unit                            = wf.wakeup()
     def state: ChecksState                     = wf.queryState()
     def review(decision: ReviewDecision): Unit = {

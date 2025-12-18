@@ -7,7 +7,7 @@ import doobie.implicits.*
 import doobie.util.fragment.Fragment
 import doobie.util.transactor.Transactor
 import doobie.{ConnectionIO, WeakAsync}
-import workflows4s.doobie.{ByteCodec, DbWorkflowInstance}
+import workflows4s.doobie.{ByteCodec, DbWorkflowInstance, Result, resultEffect}
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.{MappedWorkflowInstance, WorkflowInstance, WorkflowInstanceId, WorkflowRuntime}
 import workflows4s.wio.WIO.Initial
@@ -18,9 +18,9 @@ import java.nio.file.{Files, Path}
 import java.util.Properties
 
 class SqliteRuntime[Ctx <: WorkflowContext](
-    val workflow: Initial[Ctx],
+    private val internalWorkflow: Initial[Result, Ctx],
     initialState: WCState[Ctx],
-    engine: WorkflowInstanceEngine,
+    engine: WorkflowInstanceEngine[Result],
     eventCodec: ByteCodec[WCEvent[Ctx]],
     workdir: Path,
     val templateId: String,
@@ -28,6 +28,9 @@ class SqliteRuntime[Ctx <: WorkflowContext](
     with StrictLogging {
 
   private val storage = SqliteWorkflowStorage[WCEvent[Ctx]](eventCodec)
+
+  // For rendering purposes (diagrams), effect type doesn't matter - only structure
+  override def workflow: Initial[IO, Ctx] = internalWorkflow.asInstanceOf[Initial[IO, Ctx]]
 
   override def createInstance(id: String): IO[WorkflowInstance[IO, State[Ctx]]] = {
     val dbPath = getDatabasePath(id)
@@ -38,7 +41,7 @@ class SqliteRuntime[Ctx <: WorkflowContext](
       val instanceId = WorkflowInstanceId(templateId, id)
       val base       = new DbWorkflowInstance(
         instanceId,
-        ActiveWorkflow(instanceId, workflow, initialState),
+        ActiveWorkflow(instanceId, internalWorkflow, initialState),
         storage,
         engine,
       )
@@ -90,10 +93,10 @@ class SqliteRuntime[Ctx <: WorkflowContext](
 
 object SqliteRuntime {
   def create[Ctx <: WorkflowContext](
-      workflow: Initial[Ctx],
+      workflow: Initial[Result, Ctx],
       initialState: WCState[Ctx],
       eventCodec: ByteCodec[WCEvent[Ctx]],
-      engine: WorkflowInstanceEngine,
+      engine: WorkflowInstanceEngine[Result],
       workdir: Path,
       templateId: String = s"sqlite-runtime-${java.util.UUID.randomUUID().toString.take(8)}",
   ): IO[SqliteRuntime[Ctx]] = {
@@ -101,7 +104,7 @@ object SqliteRuntime {
     for {
       _ <- IO(Files.createDirectories(workdir))
     } yield new SqliteRuntime[Ctx](
-      workflow = workflow,
+      internalWorkflow = workflow,
       initialState = initialState,
       eventCodec = eventCodec,
       engine = engine,

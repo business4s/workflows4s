@@ -3,51 +3,53 @@ package workflows4s.wio
 import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.wio.internal.*
 import workflows4s.wio.model.WIOExecutionProgress
-
+import workflows4s.runtime.instanceengine.Effect
 import java.time.Instant
 
-case class ActiveWorkflow[Ctx <: WorkflowContext](id: WorkflowInstanceId, wio: WIO.Initial[Ctx], initialState: WCState[Ctx]) {
-  lazy val wakeupAt: Option[Instant] = GetWakeupEvaluator.extractNearestWakeup(wio)
+case class ActiveWorkflow[F[_], Ctx <: WorkflowContext](
+    id: WorkflowInstanceId,
+    wio: WIO.Initial[F, Ctx],
+    initialState: WCState[Ctx],
+)(using E: Effect[F]) { // Added Effect here
 
-  lazy val staticState: WCState[Ctx] = GetStateEvaluator.extractLastState(wio, (), initialState).getOrElse(initialState)
+  lazy val wakeupAt: Option[Instant] =
+    GetWakeupEvaluator.extractNearestWakeup[F, Ctx, Any, Nothing, WCState[Ctx]](wio)
 
-  def liveState: WCState[Ctx] = {
+  lazy val staticState: WCState[Ctx] =
+    GetStateEvaluator.extractLastState[F, Ctx, Any, Nothing, WCState[Ctx]](wio, (), initialState).getOrElse(initialState)
+
+  def liveState: WCState[Ctx] = effectlessProceed.staticState
+
+  def expectedSignals: List[SignalDef[?, ?]] =
+    GetSignalDefsEvaluator.run[F, Ctx, Any, Nothing, WCState[Ctx]](effectlessProceed.wio)
+
+  def handleSignal[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req): SignalResult[WCEvent[Ctx], Resp, F] = {
     val wf = effectlessProceed
-    wf.staticState
+    SignalEvaluator.handleSignal[Ctx, Req, Resp, F, Any, WCState[Ctx]](signalDef, req, wf.wio, (), wf.staticState)
   }
 
-  def expectedSignals: List[SignalDef[?, ?]] = {
-    val wf = effectlessProceed
-    GetSignalDefsEvaluator.run(wf.wio)
-  }
-
-  def handleSignal[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req): SignalResult[WCEvent[Ctx], Resp] = {
-    val wf = effectlessProceed
-    SignalEvaluator.handleSignal(signalDef, req, wf.wio, wf.staticState)
-  }
-
-  def handleEvent(event: WCEvent[Ctx]): Option[ActiveWorkflow[Ctx]] = {
+  def handleEvent(event: WCEvent[Ctx]): Option[ActiveWorkflow[F, Ctx]] = {
     val wf = effectlessProceed
     EventEvaluator
-      .handleEvent(event, wf.wio, initialState)
+      .handleEvent[F, Ctx, Any, Nothing, WCState[Ctx]](event, wf.wio, initialState)
       .newWorkflow
       .map(newWio => this.copy(wio = newWio))
-      .map(x => x.effectlessProceed)
+      .map(_.effectlessProceed)
   }
 
-  def proceed(now: Instant): WakeupResult[WCEvent[Ctx]] = {
+  def proceed(now: Instant): WakeupResult[WCEvent[Ctx], F] = {
     val wf = effectlessProceed
-    RunIOEvaluator.proceed(wf.wio, wf.staticState, now)
+    RunIOEvaluator.proceed[Ctx, F, WCState[Ctx]](wf.wio, wf.staticState, now)
   }
 
-  def progress: WIOExecutionProgress[WCState[Ctx]] = effectlessProceed.wio.toProgress
+  def progress: WIOExecutionProgress[WCState[Ctx]] =
+    effectlessProceed.wio.toProgress
 
-  // moves forward as far as possible
-  private def effectlessProceed: ActiveWorkflow[Ctx] =
+  private def effectlessProceed: ActiveWorkflow[F, Ctx] =
     ProceedEvaluator
-      .proceed(wio, initialState)
+      .proceed[F, Ctx, Any, Nothing, WCState[Ctx]](wio, initialState)
       .newFlow
       .map(newWio => this.copy(wio = newWio))
-      .map(x => x.effectlessProceed)
+      .map(_.effectlessProceed)
       .getOrElse(this)
 }

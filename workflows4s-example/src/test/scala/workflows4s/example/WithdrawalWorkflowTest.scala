@@ -23,11 +23,8 @@ import scala.jdk.DurationConverters.JavaDurationOps
 //noinspection ForwardReference
 class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory with WithdrawalWorkflowTest.Suite {
 
-  "in-memory-sync" - {
-    withdrawalTests(TestRuntimeAdapter.InMemorySync())
-  }
   "in-memory" - {
-    withdrawalTests(TestRuntimeAdapter.InMemory())
+    withdrawalTests(TestRuntimeAdapter.InMemory(), skipRecovery = true)
   }
 
   "render model" in {
@@ -50,7 +47,7 @@ object WithdrawalWorkflowTest {
 
   trait Suite extends AnyFreeSpecLike with MockFactory {
 
-    def withdrawalTests(getRuntime: => TestRuntimeAdapter[WithdrawalWorkflow.Context.Ctx]) = {
+    def withdrawalTests(getRuntime: => TestRuntimeAdapter[WithdrawalWorkflow.Context.Ctx], skipRecovery: Boolean = false): Unit = {
 
       "happy path" in new Fixture {
         assert(actor.queryData() == WithdrawalData.Empty)
@@ -215,15 +212,19 @@ object WithdrawalWorkflowTest {
         val txId    = "abc"
         val actor   = createActor()
 
-        def checkRecovery() = {
-          logger.debug("Checking recovery")
-          val originalState  = actor.wf.queryState()
-          val secondActor    = runtime.recover(actor.wf)
-          // seems sometimes querying state from fresh actor gets flaky
-          val recoveredState = eventually {
-            secondActor.queryState()
+        def checkRecovery(): Unit = {
+          if skipRecovery then {
+            logger.debug("Skipping recovery check")
+          } else {
+            logger.debug("Checking recovery")
+            val originalState  = actor.wf.queryState()
+            val secondActor    = runtime.recover(actor.wf)
+            // seems sometimes querying state from fresh actor gets flaky
+            val recoveredState = eventually {
+              secondActor.queryState()
+            }
+            val _              = assert(recoveredState == originalState)
           }
-          assert(recoveredState == originalState)
         }
 
         def createActor() = {

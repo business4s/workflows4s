@@ -6,7 +6,7 @@ import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 
 class InMemoryRuntimeTest extends AnyFreeSpec {
 
-  import workflows4s.wio.TestCtx.*
+  import workflows4s.wio.IOTestCtx.*
 
   "InMemoryRuntime" - {
 

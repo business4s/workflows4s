@@ -6,8 +6,8 @@ import workflows4s.wio.ActiveWorkflow
 
 object NoOpWorkflowRegistry {
 
-  object Agent extends WorkflowRegistry.Agent {
-    override def upsertInstance(inst: ActiveWorkflow[?], executionStatus: ExecutionStatus): IO[Unit] = IO.unit
+  object Agent extends WorkflowRegistry.Agent[IO] {
+    override def upsertInstance(inst: ActiveWorkflow[?, ?], executionStatus: ExecutionStatus): IO[Unit] = IO.unit
   }
 
 }

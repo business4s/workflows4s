@@ -10,19 +10,22 @@ import workflows4s.wio.WIO.Initial
 import workflows4s.wio.{ActiveWorkflow, WCEvent, WCState, WorkflowContext}
 
 class DatabaseRuntime[Ctx <: WorkflowContext](
-    val workflow: Initial[Ctx],
+    private val internalWorkflow: Initial[Result, Ctx],
     initialState: WCState[Ctx],
-    engine: WorkflowInstanceEngine,
+    engine: WorkflowInstanceEngine[Result],
     xa: Transactor[IO],
     storage: WorkflowStorage[WCEvent[Ctx]],
     val templateId: String,
 ) extends WorkflowRuntime[IO, Ctx] {
 
+  // For rendering purposes (diagrams), effect type doesn't matter - only structure
+  override def workflow: Initial[IO, Ctx] = internalWorkflow.asInstanceOf[Initial[IO, Ctx]]
+
   override def createInstance(id: String): IO[WorkflowInstance[IO, WCState[Ctx]]] = {
     val instanceId = WorkflowInstanceId(templateId, id)
     val base       = new DbWorkflowInstance(
       instanceId,
-      ActiveWorkflow(instanceId, workflow, initialState),
+      ActiveWorkflow(instanceId, internalWorkflow, initialState),
       storage,
       engine,
     )
@@ -39,10 +42,10 @@ class DatabaseRuntime[Ctx <: WorkflowContext](
 object DatabaseRuntime {
   // TODO seems redundant, to be removed if its still the case after few months
   def create[Ctx <: WorkflowContext](
-      workflow: Initial[Ctx],
+      workflow: Initial[Result, Ctx],
       initialState: WCState[Ctx],
       transactor: Transactor[IO],
-      engine: WorkflowInstanceEngine,
+      engine: WorkflowInstanceEngine[Result],
       storage: WorkflowStorage[WCEvent[Ctx]],
       templateId: String, // this has to be explicit, as it will be saved in the database and has to be consistent across runtimes
   ): DatabaseRuntime[Ctx] = {

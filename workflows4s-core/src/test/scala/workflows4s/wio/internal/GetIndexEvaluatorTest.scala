@@ -2,8 +2,9 @@ package workflows4s.wio.internal
 
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
+import cats.Id
 import workflows4s.testing.TestUtils
-import workflows4s.wio.TestState
+import workflows4s.wio.{TestCtx2, TestState}
 import workflows4s.wio.WIO
 import scala.util.Random
 
@@ -19,7 +20,7 @@ class GetIndexEvaluatorTest extends AnyFreeSpec with Matchers {
     "for a leaf WIO node" - {
       "should return None if the node is not executed" in {
         val (_, wio) = TestUtils.pure
-        GetIndexEvaluator.findMaxIndex(wio) shouldBe None
+        GetIndexEvaluator.findMaxIndex[Id, TestCtx2.Ctx, TestState, Nothing, TestState](wio) shouldBe None
       }
 
       "should return the index if the node is Executed" in {
@@ -27,7 +28,7 @@ class GetIndexEvaluatorTest extends AnyFreeSpec with Matchers {
         val state = TestState(Nil, Nil)
         val pure  = TWIO.pure(state).done
         val wio   = WIO.Executed(pure, Right(state), state, index)
-        GetIndexEvaluator.findMaxIndex(wio) shouldBe Some(index)
+        GetIndexEvaluator.findMaxIndex[Id, TestCtx2.Ctx, TestState, Nothing, TestState](wio) shouldBe Some(index)
       }
     }
 
@@ -42,7 +43,7 @@ class GetIndexEvaluatorTest extends AnyFreeSpec with Matchers {
 
         val wio = step1 >>> step2
 
-        GetIndexEvaluator.findMaxIndex(wio) shouldBe Some(index)
+        GetIndexEvaluator.findMaxIndex[Id, TestCtx2.Ctx, TestState, Nothing, TestState](wio) shouldBe Some(index)
       }
     }
   }

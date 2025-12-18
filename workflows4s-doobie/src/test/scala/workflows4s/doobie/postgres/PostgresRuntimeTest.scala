@@ -1,31 +1,30 @@
 package workflows4s.doobie.postgres
 
-import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import cats.syntax.all.*
 import org.scalatest.freespec.AnyFreeSpec
-import workflows4s.doobie.DatabaseRuntime
+import workflows4s.doobie.{DatabaseRuntime, Result, ResultWorkflowContext, resultEffect}
 import workflows4s.doobie.postgres.testing.{JavaSerdeEventCodec, PostgresRuntimeAdapter, PostgresSuite}
+import workflows4s.doobie.testing.{ResultTestCtx2, ResultWorkflowRuntimeTest}
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
-import workflows4s.testing.WorkflowRuntimeTest
-import workflows4s.wio.{TestCtx2, WorkflowContext}
 
-import scala.concurrent.duration.DurationInt
 import scala.util.Try
 
-class PostgresRuntimeTest extends AnyFreeSpec with PostgresSuite with WorkflowRuntimeTest.Suite {
+class PostgresRuntimeTest extends AnyFreeSpec with PostgresSuite with ResultWorkflowRuntimeTest.Suite {
 
   "DbWorkflowInstance" - {
     "should work for long-running IO" in {
       import TestCtx.*
 
+      // Use Result effect type for doobie internal operations
       val wio: WIO.Initial = WIO
-        .runIO[Any](_ => IO.sleep(1.second) *> IO(Event()))
+        .runIO[Any](_ => resultEffect.delay(Thread.sleep(100)) *> resultEffect.pure(Event()))
         .handleEvent((_, _) => State())
         .done
 
       val storage          = PostgresWorkflowStorage()(using noopCodec(Event()))
-      val engine           = WorkflowInstanceEngine.basic()
-      val runtime          = DatabaseRuntime.create(wio, State(), xa, engine, storage, "workflow")
+      val engine           = WorkflowInstanceEngine.basic[Result]()
+      val runtime          = DatabaseRuntime.create[TestCtx.Ctx](wio, State(), xa, engine, storage, "workflow")
       val workflowInstance = runtime.createInstance("1").unsafeRunSync()
 
       // this used to throw due to leaked LiftIO
@@ -34,10 +33,10 @@ class PostgresRuntimeTest extends AnyFreeSpec with PostgresSuite with WorkflowRu
   }
 
   "generic tests" - {
-    workflowTests(new PostgresRuntimeAdapter[TestCtx2.Ctx](xa, JavaSerdeEventCodec.get))
+    resultWorkflowTests(new PostgresRuntimeAdapter[ResultTestCtx2.Ctx](xa, JavaSerdeEventCodec.get))
   }
 
-  object TestCtx extends WorkflowContext {
+  object TestCtx extends ResultWorkflowContext {
     case class State()
     case class Event()
   }

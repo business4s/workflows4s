@@ -1,6 +1,6 @@
 package workflows4s.runtime.pekko
 
-import cats.Id
+import cats.effect.IO
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.pekko.actor.typed.*
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
@@ -8,16 +8,16 @@ import org.apache.pekko.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity
 import org.apache.pekko.persistence.typed.PersistenceId
 import org.apache.pekko.util.Timeout
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
-import workflows4s.runtime.{DelegateWorkflowInstance, MappedWorkflowInstance, WorkflowInstance, WorkflowInstanceId}
-import workflows4s.testing.TestRuntimeAdapter
+import workflows4s.runtime.{WorkflowInstance, WorkflowInstanceId}
+import workflows4s.testing.IOTestRuntimeAdapter
 import workflows4s.wio.*
 
 import java.time.Clock
 import java.util.UUID
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Await
 
 class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(implicit actorSystem: ActorSystem[?])
-    extends TestRuntimeAdapter[Ctx]
+    extends IOTestRuntimeAdapter[Ctx]
     with StrictLogging {
 
   val sharding = ClusterSharding(actorSystem)
@@ -28,7 +28,7 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(impli
   type Cmd    = WorkflowBehavior.Command[Ctx] | Stop
 
   override def runWorkflow(
-      workflow: WIO.Initial[Ctx],
+      workflow: WIO.Initial[IO, Ctx],
       state: WCState[Ctx],
   ): Actor = {
     // we create unique type key per workflow, so we can ensure we get right actor/behavior/input
@@ -66,16 +66,21 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(impli
     Actor(entityRef, clock)
   }
 
-  case class Actor(entityRef: EntityRef[Cmd], clock: Clock) extends DelegateWorkflowInstance[Id, WCState[Ctx]] {
-    val base =
+  case class Actor(entityRef: EntityRef[Cmd], testClock: Clock) extends WorkflowInstance[IO, WCState[Ctx]] {
+    private val base =
       PekkoWorkflowInstance(
         WorkflowInstanceId(entityRef.typeKey.name, entityRef.entityId),
         entityRef,
         queryTimeout = Timeout(3.seconds),
       )
 
-    val delegate: WorkflowInstance[Id, WCState[Ctx]]           = MappedWorkflowInstance(base, [t] => (x: Future[t]) => Await.result(x, 3.seconds))
-    override def getExpectedSignals: Id[List[SignalDef[?, ?]]] = delegate.getExpectedSignals
+    override def id: WorkflowInstanceId                                                                                                   = base.id
+    override def queryState(): IO[WCState[Ctx]]                                                                                           = base.queryState()
+    override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): IO[Either[WorkflowInstance.UnexpectedSignal, Resp]] =
+      base.deliverSignal(signalDef, req)
+    override def wakeup(): IO[Unit]                                                                                                       = base.wakeup()
+    override def getProgress: IO[model.WIOExecutionProgress[WCState[Ctx]]]                                                                = base.getProgress
+    override def getExpectedSignals: IO[List[SignalDef[?, ?]]]                                                                            = base.getExpectedSignals
   }
 
   override def recover(first: Actor): Actor = {
@@ -87,6 +92,6 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(impli
     val entityRef = sharding.entityRefFor(first.entityRef.typeKey, first.entityRef.entityId)
     logger.debug(s"""Original Actor: ${first.entityRef}
                     |New Actor     : ${entityRef}""".stripMargin)
-    Actor(entityRef, first.clock)
+    Actor(entityRef, first.testClock)
   }
 }

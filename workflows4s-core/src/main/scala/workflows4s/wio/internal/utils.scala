@@ -1,14 +1,10 @@
 package workflows4s.wio.internal
 
-import cats.effect.IO
-
 import scala.util.chaining.scalaUtilChainingOps
 
 trait EventHandler[-In, +Out, EventBase, Evt] { parent =>
-
   def detect: EventBase => Option[Evt]
   def convert: Evt => EventBase
-
   def handle: (In, Evt) => Out
 
   def map[O1](f: Out => O1): EventHandler[In, O1, EventBase, Evt] =
@@ -31,6 +27,9 @@ object EventHandler {
   }
 }
 
-case class SignalHandler[-Sig, +Evt, -In](handle: (In, Sig) => IO[Evt]) {
-  def map[E1](f: Evt => E1): SignalHandler[Sig, E1, In] = SignalHandler((in, sig) => handle(in, sig).map(f))
+// Added F[_] parameter here
+case class SignalHandler[F[_], -Sig, Evt, -In](handle: (In, Sig) => F[Evt]) {
+  // Use the local map if available, or ensure the DSL builders provide an Effect instance
+  def map[E1](f: Evt => E1)(using E: workflows4s.runtime.instanceengine.Effect[F]): SignalHandler[F, Sig, E1, In] =
+    SignalHandler((in, sig) => E.map(handle(in, sig))(f))
 }

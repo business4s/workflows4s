@@ -11,8 +11,8 @@ import scala.annotation.nowarn
 object MermaidExample {
 
   // start_doc
-  val wio: WIO[?, ?, ?, ?] = PullRequestWorkflow.workflow
-  val mermaidString        = MermaidRenderer.renderWorkflow(wio.toProgress)
+  val wio: WIO[?, ?, ?, ?, ?] = PullRequestWorkflow.workflow
+  val mermaidString           = MermaidRenderer.renderWorkflow(wio.toProgress)
   // end_doc
 
   {

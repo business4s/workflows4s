@@ -10,7 +10,7 @@ class WIOTransformTest extends AnyFreeSpec with Matchers {
   "WIO.Transform" - {
 
     "map" in {
-      val wf: ActiveWorkflow[TestCtx.Ctx] = WIO
+      val wf: ActiveWorkflow[Eff, Ctx] = WIO
         .pure("myValue")
         .done
         .map(_.toUpperCase)
@@ -21,7 +21,7 @@ class WIOTransformTest extends AnyFreeSpec with Matchers {
     }
 
     "transformInput" in {
-      val wf: ActiveWorkflow[TestCtx.Ctx] = WIO.pure
+      val wf: ActiveWorkflow[Eff, Ctx] = WIO.pure
         .makeFrom[String]
         .value(identity)
         .done

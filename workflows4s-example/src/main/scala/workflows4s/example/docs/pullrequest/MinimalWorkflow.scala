@@ -1,14 +1,16 @@
 package workflows4s.example.docs.pullrequest
 
+import cats.effect.IO
 import workflows4s.mermaid.MermaidRenderer
-import workflows4s.runtime.InMemorySyncRuntime
+import workflows4s.runtime.{InMemoryRuntime, InMemoryWorkflowInstance}
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
-import workflows4s.wio.WorkflowContext
+import workflows4s.wio.IOWorkflowContext
+import cats.effect.unsafe.implicits.global
 
 object MinimalWorkflow {
 
   def main(args: Array[String]): Unit = {
-    object Context extends WorkflowContext {
+    object Context extends IOWorkflowContext {
       override type State = String
     }
     import Context.*
@@ -19,17 +21,17 @@ object MinimalWorkflow {
 
     println(MermaidRenderer.renderWorkflow(workflow.toProgress).toViewUrl)
 
-    val engine     = WorkflowInstanceEngine.basic()
-    val runtime    = InMemorySyncRuntime.create[Context.Ctx](workflow, "", engine)
-    val wfInstance = runtime.createInstance("id")
+    val engine     = WorkflowInstanceEngine.basic[IO]()
+    val runtime    = InMemoryRuntime.create[IO, Context.Ctx](workflow, "", engine)
+    val wfInstance = runtime.createInstance("id").unsafeRunSync().asInstanceOf[InMemoryWorkflowInstance[IO, Context.Ctx]]
 
-    wfInstance.wakeup()
+    wfInstance.wakeup().unsafeRunSync()
 
-    println(wfInstance.queryState())
+    println(wfInstance.queryState().unsafeRunSync())
     // Hello World!
 
     // render workflow definition
-    println(MermaidRenderer.renderWorkflow(wfInstance.getProgress).toViewUrl)
+    println(MermaidRenderer.renderWorkflow(wfInstance.getProgress.unsafeRunSync()).toViewUrl)
 
   }
 

@@ -27,9 +27,9 @@ trait BaseServer {
     for {
       knockerUpper     <- SleepingKnockerUpper.create()
       registry         <- InMemoryWorkflowRegistry().toResource
-      engine            = WorkflowInstanceEngine.default(knockerUpper, registry)
+      engine            = WorkflowInstanceEngine.default[IO](knockerUpper, registry)
       courseRegRuntime <- InMemoryRuntime
-                            .default[CourseRegistrationWorkflow.Context.Ctx](
+                            .default(
                               workflow = CourseRegistrationWorkflow.workflow,
                               initialState = CourseRegistrationWorkflow.RegistrationState.Empty,
                               engine = engine,
@@ -37,7 +37,7 @@ trait BaseServer {
                             .toResource
 
       pullReqRuntime <- InMemoryRuntime
-                          .default[PullRequestWorkflow.Context.Ctx](
+                          .default(
                             workflow = PullRequestWorkflow.workflow,
                             initialState = PullRequestWorkflow.PRState.Empty,
                             engine = engine,
@@ -46,7 +46,7 @@ trait BaseServer {
 
       withdrawalWf       = WithdrawalWorkflow(DummyWithdrawalService, ChecksEngine)
       withdrawalRuntime <- InMemoryRuntime
-                             .default[WithdrawalWorkflow.Context.Ctx](
+                             .default(
                                workflow = withdrawalWf.workflowDeclarative,
                                initialState = WithdrawalData.Empty,
                                engine = engine,

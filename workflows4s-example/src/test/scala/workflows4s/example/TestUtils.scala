@@ -22,15 +22,15 @@ object TestUtils {
     .getParent // workflows4s-example
     .resolve("src/test/resources")
 
-  val jsonPrinter                                           = Printer.spaces2
-  def renderModelToFile(wio: WIO[?, ?, ?, ?], path: String) = {
+  val jsonPrinter                                              = Printer.spaces2
+  def renderModelToFile(wio: WIO[?, ?, ?, ?, ?], path: String) = {
     val model           = wio.toProgress.toModel
     val modelJson: Json = model.asJson
     val outputPath      = basePath.resolve(path)
     ensureFileContentMatchesOrUpdate(jsonPrinter.print(modelJson), outputPath)
   }
 
-  def renderBpmnToFile(wio: WIO[?, ?, ?, ?], path: String) = {
+  def renderBpmnToFile(wio: WIO[?, ?, ?, ?, ?], path: String) = {
     val model       = wio.toProgress.toModel
     val bpmnModel   = BpmnRenderer.renderWorkflow(model, "process")
     val outputPath  = basePath.resolve(path)
@@ -53,15 +53,16 @@ object TestUtils {
     ensureFileContentMatchesOrUpdate(debugString, outputPath)
   }
 
-  def renderDocsExample(wio: WIO[?, ?, ?, ?], name: String, technical: Boolean = false) = {
+  def renderDocsExample(wio: WIO[?, ?, ?, ?, ?], name: String, technical: Boolean = false) = {
     renderModelToFile(wio, s"docs/${name}.json")
     renderBpmnToFile(wio, s"docs/${name}.bpmn")
     renderMermaidToFile(wio.toProgress, s"docs/${name}.mermaid", technical)
   }
 
-  def renderDocsProgressExample(wio: WorkflowInstance[cats.Id, ?], name: String, technical: Boolean = false) = {
-    renderMermaidToFile(wio.getProgress, s"docs/${name}.mermaid", technical)
-    renderDebugToFile(wio.getProgress, s"docs/${name}.debug.txt")
+  def renderDocsProgressExample(wio: WorkflowInstance[cats.effect.IO, ?], name: String, technical: Boolean = false) = {
+    import cats.effect.unsafe.implicits.global
+    renderMermaidToFile(wio.getProgress.unsafeRunSync(), s"docs/${name}.mermaid", technical)
+    renderDebugToFile(wio.getProgress.unsafeRunSync(), s"docs/${name}.debug.txt")
   }
 
   private def ensureFileContentMatchesOrUpdate(content: String, path: Path): Unit = {

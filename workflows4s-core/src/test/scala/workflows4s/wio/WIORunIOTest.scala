@@ -6,12 +6,14 @@ import org.scalatest.EitherValues
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 import workflows4s.wio.WIO.RunIO
+import workflows4s.wio.internal.WakeupResult
 
 import java.time.Instant
 
 class WIORunIOTest extends AnyFreeSpec with Matchers with EitherValues {
 
-  import TestCtx.*
+  // Use IO-based context for these tests since they test IO behavior
+  import IOTestCtx.*
 
   "WIO.RunIO" - {
 
@@ -25,8 +27,12 @@ class WIORunIOTest extends AnyFreeSpec with Matchers with EitherValues {
       val resultOpt = wf.proceed(Instant.now)
 
       assert(resultOpt.toRaw.isDefined)
-      val newEvent = resultOpt.toRaw.get.unsafeRunSync().value
-      assert(newEvent == SimpleEvent("ProcessedEvent(initialState)"))
+      val processingResult = resultOpt.toRaw.get.unsafeRunSync()
+      processingResult match {
+        case WakeupResult.ProcessingResult.Proceeded(event) =>
+          assert(event == SimpleEvent("ProcessedEvent(initialState)"))
+        case _                                              => fail("Expected Proceeded result")
+      }
     }
 
     "error in IO" in {
@@ -38,8 +44,12 @@ class WIORunIOTest extends AnyFreeSpec with Matchers with EitherValues {
 
       val Some(result) = wf.proceed(Instant.now).toRaw: @unchecked
 
-      val Left(ex) = result.attempt.unsafeRunSync(): @unchecked
-      assert(ex.getMessage == "IO failed")
+      val processingResult = result.unsafeRunSync()
+      processingResult match {
+        case WakeupResult.ProcessingResult.Failed(ex) =>
+          assert(ex.getMessage == "IO failed")
+        case _                                        => fail("Expected Failed result")
+      }
     }
 
     "event handling" in {
@@ -71,7 +81,7 @@ class WIORunIOTest extends AnyFreeSpec with Matchers with EitherValues {
         .handleEvent(ignore)
 
       extension (x: WIO[?, ?, ?]) {
-        def extractMeta: RunIO.Meta = x.asInstanceOf[workflows4s.wio.WIO.RunIO[?, ?, ?, ?, ?]].meta
+        def extractMeta: RunIO.Meta = x.asInstanceOf[workflows4s.wio.WIO.RunIO[?, ?, ?, ?, ?, ?]].meta
       }
 
       "defaults" in {

@@ -14,7 +14,7 @@ import java.time.{Clock, Instant}
 import java.sql.Timestamp
 import scala.concurrent.duration.FiniteDuration
 
-trait PostgresWorkflowRegistry extends WorkflowRegistry.Agent {
+trait PostgresWorkflowRegistry extends WorkflowRegistry.Agent[IO] {
 
   // returns all the workflows that were last seen as running and were not updated for at least `notUpdatedFor`
   def getExecutingWorkflows(notUpdatedFor: FiniteDuration): fs2.Stream[ConnectionIO, WorkflowInstanceId]
@@ -33,7 +33,7 @@ object PostgresWorkflowRegistry {
 
     val tableNameFr = Fragment.const(tableName)
 
-    override def upsertInstance(inst: ActiveWorkflow[?], executionStatus: ExecutionStatus): IO[Unit] = {
+    override def upsertInstance(inst: ActiveWorkflow[?, ?], executionStatus: ExecutionStatus): IO[Unit] = {
       val id    = inst.id
       val query = for {
         now <- Sync[ConnectionIO].delay(Instant.now(clock))

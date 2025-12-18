@@ -14,7 +14,7 @@ import workflows4s.runtime.WorkflowInstanceId
 class SleepingKnockerUpper(
     state: AtomicCell[IO, Map[WorkflowInstanceId, (Instant, FiberIO[Unit])]],
     wakeupLogicRef: AtomicCell[IO, Option[WorkflowInstanceId => IO[Unit]]],
-) extends KnockerUpper.Agent
+) extends KnockerUpper.Agent[IO]
     with KnockerUpper.Process[IO, IO[Unit]]
     with StrictLogging {
 

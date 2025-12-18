@@ -1,44 +1,39 @@
 package workflows4s.runtime.instanceengine
 
-import cats.effect.IO
 import workflows4s.runtime.registry.WorkflowRegistry
 import workflows4s.runtime.wakeup.KnockerUpper
-
 import java.time.Clock
 
-object WorkflowInstanceEngineBuilder {
+trait WorkflowInstanceEngineBuilder[F[_]](using E: Effect[F]) {
 
-  def withJavaTime(clock: Clock = Clock.systemUTC()) = Step1(new BasicJavaTimeEngine(clock))
-  def withCatsTime(clock: cats.effect.Clock[IO])     = Step1(new BasicCatsTimeEngine(clock))
+  // Methods to kick off the builder
+  def withJavaTime(clock: Clock = Clock.systemUTC()) = Step1(new BasicJavaTimeEngine[F](clock))
 
-  class Step1(val get: WorkflowInstanceEngine) {
+  // We use F throughout the internal steps
+  class Step1(val get: WorkflowInstanceEngine[F]) {
 
-    def withWakeUps(knockerUpper: KnockerUpper.Agent) = Step2(new WakingWorkflowInstanceEngine(get, knockerUpper))
-    def withoutWakeUps                                = Step2(get)
+    def withWakeUps(knockerUpper: KnockerUpper.Agent[F]) = Step2(new WakingWorkflowInstanceEngine[F](get, knockerUpper))
+    def withoutWakeUps                                   = Step2(get)
 
-    class Step2(val get: WorkflowInstanceEngine) {
+    class Step2(val get: WorkflowInstanceEngine[F]) {
 
-      def withRegistering(registry: WorkflowRegistry.Agent) = Step3(new RegisteringWorkflowInstanceEngine(get, registry))
-      def withoutRegistering                                = Step3(get)
+      def withRegistering(registry: WorkflowRegistry.Agent[F]) = Step3(new RegisteringWorkflowInstanceEngine[F](get, registry))
+      def withoutRegistering                                   = Step3(get)
 
-      class Step3(val get: WorkflowInstanceEngine) {
+      class Step3(val get: WorkflowInstanceEngine[F]) {
 
-        def withGreedyEvaluation     = Step4(GreedyWorkflowInstanceEngine(get))
+        def withGreedyEvaluation     = Step4(GreedyWorkflowInstanceEngine[F](get))
         def withSingleStepEvaluation = Step4(get)
 
-        class Step4(val get: WorkflowInstanceEngine) {
+        class Step4(val get: WorkflowInstanceEngine[F]) {
 
-          def withLogging    = Step5(new LoggingWorkflowInstanceEngine(get))
+          def withLogging    = Step5(new LoggingWorkflowInstanceEngine[F](get))
           def withoutLogging = Step5(get)
 
-          class Step5(val get: WorkflowInstanceEngine) {}
-
+          // Final step returns the engine wrapped in F
+          class Step5(val get: WorkflowInstanceEngine[F])
         }
-
       }
-
     }
-
   }
-
 }

@@ -95,6 +95,6 @@ class PostgresDatabaseWorkflowRegistryTest extends AnyFreeSpec with PostgresSuit
     def drainUnsafe: List[T] = v.compile.toList.transact(xa).unsafeRunSync()
   }
 
-  def dummyAW(id: WorkflowInstanceId): ActiveWorkflow[WorkflowContext { type State = Null }] = ActiveWorkflow(id, WIO.End(), null)
+  def dummyAW(id: WorkflowInstanceId): ActiveWorkflow[IO, WorkflowContext { type State = Null }] = ActiveWorkflow(id, WIO.End(), null)
 
 }

@@ -3,7 +3,6 @@ package workflows4s.runtime.wakeup
 import cats.MonadError
 
 import java.time.Instant
-import cats.effect.IO
 import cats.syntax.all.*
 import workflows4s.runtime.{WorkflowInstanceId, WorkflowRuntime}
 
@@ -24,8 +23,8 @@ object KnockerUpper {
     }
   }
 
-  trait Agent {
-    def updateWakeup(id: WorkflowInstanceId, at: Option[Instant]): IO[Unit]
+  trait Agent[F[_]] {
+    def updateWakeup(id: WorkflowInstanceId, at: Option[Instant]): F[Unit]
   }
 
 }

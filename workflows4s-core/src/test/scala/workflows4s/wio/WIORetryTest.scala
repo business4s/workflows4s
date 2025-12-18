@@ -40,7 +40,7 @@ class WIORetryTest extends AnyFreeSpec with Matchers with OptionValues with Eith
       val exception       = new RuntimeException("fail")
       val (_, failingWIO) = TestUtils.runIOCustom(IO.raiseError(exception))
 
-      val retryingWIO = failingWIO.retry((_, _, _) => IO(None))
+      val retryingWIO = failingWIO.retry((_, _, _) => None)
       val instance    = runtime.createInstance(retryingWIO)
 
       assert(runtime.knockerUpper.lastRegisteredWakeup(instance.id) == None)
