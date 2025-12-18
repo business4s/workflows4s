@@ -212,11 +212,6 @@ object WIO {
 
     def lastState(prevState: WCState[Ctx]): Option[WCState[Ctx]] = output match {
       case Left(_)      =>
-        // We explicitly tell the evaluator:
-        // 1. Use the effect F
-        // 2. Use the context Ctx
-        // 3. The input type is exactly In
-        // 4. We don't care about Err/Out of the original (using Any/WCState[Ctx])
         GetStateEvaluator.extractLastState[F, Ctx, In, Any, WCState[Ctx]](
           original,
           input,

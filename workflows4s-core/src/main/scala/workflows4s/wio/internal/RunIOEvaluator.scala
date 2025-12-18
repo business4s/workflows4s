@@ -38,7 +38,6 @@ object RunIOEvaluator {
     override def onRecovery[Evt](wio: WIO.Recovery[F, Ctx, In, Err, Out, Evt]): Result                = None
 
     def onRunIO[Evt](wio: WIO.RunIO[F, Ctx, In, Err, Out, Evt]): Result =
-      // FIX: Removed E.pure inside map to avoid F[F[...]]
       wio.buildIO(input).map(evt => Right(wio.evtHandler.convert(evt))).some
 
     def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[F, Ctx, Err1, Err, Out1, Out, In]): Result = recurse(wio.base, input)
@@ -111,7 +110,6 @@ object RunIOEvaluator {
       wio.base.asExecuted match {
         case Some(executedBase) =>
           executedBase.output match {
-            // FIX: Removed E.pure wrapper to keep it as F[...]
             case Right(baseOut) => wio.genEvent(input, baseOut).map(evt => Right(wio.eventHandler.convert(evt))).some
             case Left(_)        => None
           }

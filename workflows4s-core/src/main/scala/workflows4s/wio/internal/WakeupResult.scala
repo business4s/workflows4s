@@ -4,9 +4,7 @@ import workflows4s.runtime.instanceengine.Effect
 
 import java.time.Instant
 
-// 1. Add F[_] parameter to the trait
 sealed trait WakeupResult[Event, F[_]] {
-  // We remove toRaw from here or make it generic as well
   def hasEffect: Boolean = this match {
     case _: WakeupResult.Noop[?, ?]      => false
     case _: WakeupResult.Processed[?, ?] => true
@@ -15,10 +13,8 @@ sealed trait WakeupResult[Event, F[_]] {
 
 object WakeupResult {
 
-  // 2. Make the type alias generic
   type Raw[Event, F[_]] = Option[F[Either[Instant, Event]]]
 
-  // 3. Update the case classes
   case class Noop[Event, F[_]]() extends WakeupResult[Event, F]
   // Helper for easier access to Noop without parentheses
   def noop[E, F[_]]: WakeupResult[E, F] = Noop[E, F]()
@@ -32,12 +28,7 @@ object WakeupResult {
     }
   }
 
-  sealed trait ProcessingResult[+Event] {
-//    def toRaw: Either[Instant, Event] = this match {
-//      case ProcessingResult.Proceeded(event) => Right(event)
-//      case ProcessingResult.Failed(retry)    => Left(retry)
-//    }
-  }
+  sealed trait ProcessingResult[+Event]
 
   object ProcessingResult {
     // We successfully got an event

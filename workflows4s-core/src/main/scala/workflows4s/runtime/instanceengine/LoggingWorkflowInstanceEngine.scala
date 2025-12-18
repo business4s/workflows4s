@@ -52,7 +52,6 @@ class LoggingWorkflowInstanceEngine[F[_]](
       delegate
         .triggerWakeup(workflow)
         .flatMap({
-          // 1. Don't capture 'noop' via @ or : Noop. Match broadly and use the helper.
           case _: WakeupResult.Noop[?, ?] =>
             E.delay(logger.trace("⤷ Nothing to execute")).as(WakeupResult.noop[WCEvent[Ctx], F])
 
@@ -71,7 +70,6 @@ class LoggingWorkflowInstanceEngine[F[_]](
                 )
                 .onError(e => E.delay(logger.error("wakeupEffect failed", e)))
 
-            // 2. Explicitly wrap in Processed[WCEvent[Ctx], F] to satisfy the compiler
             E.pure(WakeupResult.Processed[WCEvent[Ctx], F](loggedResult))
         })
         .onError(e => E.delay(logger.error(s"[${workflow.id}] triggerWakeup failed", e))))

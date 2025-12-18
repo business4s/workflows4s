@@ -29,7 +29,6 @@ class WakingWorkflowInstanceEngine[F[_]](
                           E.unit
 
                         case ProcessingResult.Delayed(retryTime) =>
-                          // FIX: Use the Instant from the Delayed case
                           if workflow.wakeupAt.forall(_.isAfter(retryTime)) then updateWakeup(workflow, Some(retryTime))
                           else E.unit
 
