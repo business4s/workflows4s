@@ -1,15 +1,13 @@
 package workflows4s.doobie.sqlite
 
-import cats.data.Kleisli
-import cats.effect.{IO, LiftIO}
+import cats.effect.IO
 import com.typesafe.scalalogging.StrictLogging
 import doobie.implicits.*
 import doobie.util.fragment.Fragment
 import doobie.util.transactor.Transactor
-import doobie.{ConnectionIO, WeakAsync}
-import workflows4s.doobie.{ByteCodec, DbWorkflowInstance, Result, resultEffect}
+import workflows4s.doobie.{ByteCodec, DbWorkflowInstance}
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
-import workflows4s.runtime.{MappedWorkflowInstance, WorkflowInstance, WorkflowInstanceId, WorkflowRuntime}
+import workflows4s.runtime.{WorkflowInstance, WorkflowInstanceId, WorkflowRuntime}
 import workflows4s.wio.WIO.Initial
 import workflows4s.wio.WorkflowContext.State
 import workflows4s.wio.{ActiveWorkflow, WCEvent, WCState, WorkflowContext}
@@ -18,41 +16,28 @@ import java.nio.file.{Files, Path}
 import java.util.Properties
 
 class SqliteRuntime[Ctx <: WorkflowContext](
-    private val internalWorkflow: Initial[Result, Ctx],
+    override val workflow: Initial[IO, Ctx],
     initialState: WCState[Ctx],
-    engine: WorkflowInstanceEngine[Result],
+    engine: WorkflowInstanceEngine[IO],
     eventCodec: ByteCodec[WCEvent[Ctx]],
     workdir: Path,
     val templateId: String,
 ) extends WorkflowRuntime[IO, Ctx]
     with StrictLogging {
 
-  private val storage = SqliteWorkflowStorage[WCEvent[Ctx]](eventCodec)
-
-  // For rendering purposes (diagrams), effect type doesn't matter - only structure
-  override def workflow: Initial[IO, Ctx] = internalWorkflow.asInstanceOf[Initial[IO, Ctx]]
-
   override def createInstance(id: String): IO[WorkflowInstance[IO, State[Ctx]]] = {
     val dbPath = getDatabasePath(id)
     val xa     = createTransactor(dbPath)
     for {
-      _ <- initSchema(xa, dbPath)
+      _       <- initSchema(xa, dbPath)
+      storage <- SqliteWorkflowStorage.create[WCEvent[Ctx]](xa, eventCodec)
     } yield {
       val instanceId = WorkflowInstanceId(templateId, id)
-      val base       = new DbWorkflowInstance(
+      new DbWorkflowInstance(
         instanceId,
-        ActiveWorkflow(instanceId, internalWorkflow, initialState),
+        ActiveWorkflow(instanceId, workflow, initialState),
         storage,
         engine,
-      )
-
-      new MappedWorkflowInstance(
-        base,
-        [t] =>
-          (connIo: Kleisli[ConnectionIO, LiftIO[ConnectionIO], t]) =>
-            // we use rawTrans because locking manages transactions itself.
-            // And querying events without locking doesn't require any kind of transaction.
-            WeakAsync.liftIO[ConnectionIO].use(liftIO => xa.rawTrans.apply(connIo.apply(liftIO))),
       )
     }
   }
@@ -93,10 +78,10 @@ class SqliteRuntime[Ctx <: WorkflowContext](
 
 object SqliteRuntime {
   def create[Ctx <: WorkflowContext](
-      workflow: Initial[Result, Ctx],
+      workflow: Initial[IO, Ctx],
       initialState: WCState[Ctx],
       eventCodec: ByteCodec[WCEvent[Ctx]],
-      engine: WorkflowInstanceEngine[Result],
+      engine: WorkflowInstanceEngine[IO],
       workdir: Path,
       templateId: String = s"sqlite-runtime-${java.util.UUID.randomUUID().toString.take(8)}",
   ): IO[SqliteRuntime[Ctx]] = {
@@ -104,7 +89,7 @@ object SqliteRuntime {
     for {
       _ <- IO(Files.createDirectories(workdir))
     } yield new SqliteRuntime[Ctx](
-      internalWorkflow = workflow,
+      workflow = workflow,
       initialState = initialState,
       eventCodec = eventCodec,
       engine = engine,

@@ -11,8 +11,7 @@ import scala.annotation.nowarn
 @nowarn
 object DatabaseExample {
 
-  // Database runtimes use an internal effect type (Result) for transactions
-  // The workflow and engine must use this internal type
+  // Database runtimes use IO effect type directly
   // Below shows the conceptual pattern - see full example in tests
 
   // doc_start
@@ -23,17 +22,17 @@ object DatabaseExample {
   }
   type Ctx = MyCtx
 
-  val transactor: Transactor[IO]       = ???
-  val storage: WorkflowStorage[String] = ???
-  val templateId                       = "my-workflow"
+  val transactor: Transactor[IO]           = ???
+  val storage: WorkflowStorage[IO, String] = ???
+  val templateId                           = "my-workflow"
 
   // For actual usage, see workflows4s-doobie tests
   // DatabaseRuntime.create takes:
-  // - workflow: WIO.Initial using the internal Result type
+  // - workflow: WIO.Initial[IO, Ctx]
   // - initialState: WCState[Ctx]
   // - transactor: Transactor[IO]
-  // - engine: WorkflowInstanceEngine using the internal Result type
-  // - storage: WorkflowStorage[WCEvent[Ctx]]
+  // - engine: WorkflowInstanceEngine[IO]
+  // - eventCodec: ByteCodec[WCEvent[Ctx]]
   // - templateId: String
 
   // After creation:
@@ -45,7 +44,7 @@ object DatabaseExample {
     // doc_postgres_start
     given eventCodec: ByteCodec[String] = ???
 
-    val postgresStorage: WorkflowStorage[String] = new PostgresWorkflowStorage[String]()
+    val postgresStorage: WorkflowStorage[IO, String] = new PostgresWorkflowStorage[String](transactor)
     // doc_postgres_end
   }
 
