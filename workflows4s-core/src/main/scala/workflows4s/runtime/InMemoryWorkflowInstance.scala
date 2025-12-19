@@ -9,7 +9,7 @@ import scala.collection.mutable.ListBuffer
 
 /** In-memory workflow instance that works with any effect type F[_].
   *
-  * Uses simple Java synchronization primitives for thread-safety.
+  * Uses effect-polymorphic mutex for thread-safety.
   */
 class InMemoryWorkflowInstance[F[_], Ctx <: WorkflowContext](
     val id: WorkflowInstanceId,
@@ -21,35 +21,32 @@ class InMemoryWorkflowInstance[F[_], Ctx <: WorkflowContext](
 
   private var wf: ActiveWorkflow[F, Ctx]           = initialState
   private val events: mutable.Buffer[WCEvent[Ctx]] = ListBuffer[WCEvent[Ctx]]()
-  private val lock                                 = new Object
+  private val mutex: E.Mutex                       = E.createMutex
 
-  def getEvents: Seq[WCEvent[Ctx]] = lock.synchronized { events.toList }
+  def getEvents: F[Seq[WCEvent[Ctx]]] = E.withLock(mutex)(E.delay(events.toList))
 
   def recover(events: Seq[WCEvent[Ctx]]): F[Unit] = {
-    E.map(super.recover(wf, events)) { newState =>
-      lock.synchronized {
+    E.withLock(mutex) {
+      E.map(super.recover(wf, events)) { newState =>
         this.events ++= events
         wf = newState
       }
     }
   }
 
-  override protected def getWorkflow: F[ActiveWorkflow[F, Ctx]] = E.delay {
-    lock.synchronized { wf }
-  }
+  // Note: getWorkflow, persistEvent, updateState are only called from within lockState,
+  // so they should NOT acquire the mutex (non-reentrant semaphores would deadlock).
+  override protected def getWorkflow: F[ActiveWorkflow[F, Ctx]] =
+    E.delay(wf)
 
-  override protected def persistEvent(event: WCEvent[Ctx]): F[Unit] = E.delay {
-    lock.synchronized { events += event; () }
-  }
+  override protected def persistEvent(event: WCEvent[Ctx]): F[Unit] =
+    E.delay { events += event; () }
 
-  override protected def updateState(newState: ActiveWorkflow[F, Ctx]): F[Unit] = E.delay {
-    lock.synchronized { wf = newState }
-  }
+  override protected def updateState(newState: ActiveWorkflow[F, Ctx]): F[Unit] =
+    E.delay { wf = newState }
 
   override protected def lockState[T](update: ActiveWorkflow[F, Ctx] => F[T]): F[T] = {
-    // For synchronous effects (like Id), we need the lock to be held during the entire update
-    // For async effects (like IO), the lock protects getting the current state
-    lock.synchronized {
+    E.withLock(mutex) {
       E.flatMap(E.delay(wf))(update)
     }
   }

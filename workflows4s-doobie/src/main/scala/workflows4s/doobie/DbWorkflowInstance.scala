@@ -3,6 +3,7 @@ package workflows4s.doobie
 import cats.arrow.FunctionK
 import cats.data.Kleisli
 import cats.effect.{IO, LiftIO}
+import cats.effect.syntax.monadCancel.*
 import cats.syntax.all.*
 import cats.{Monad, ~>}
 import com.typesafe.scalalogging.StrictLogging
@@ -16,6 +17,16 @@ private[doobie] type Result[T] = Kleisli[ConnectionIO, LiftIO[ConnectionIO], T]
 
 private[doobie] given resultEffect: Effect[Result] = new Effect[Result] {
   private val M: Monad[Result] = summon
+
+  type Mutex = java.util.concurrent.Semaphore
+
+  def createMutex: Mutex = new java.util.concurrent.Semaphore(1)
+
+  def withLock[A](m: Mutex)(fa: Result[A]): Result[A] = {
+    Kleisli { liftIO =>
+      doobie.FC.delay(m.acquire()) *> fa.run(liftIO).guarantee(doobie.FC.delay(m.release()))
+    }
+  }
 
   def pure[A](a: A): Result[A]                                                   = M.pure(a)
   def flatMap[A, B](fa: Result[A])(f: A => Result[B]): Result[B]                 = M.flatMap(fa)(f)

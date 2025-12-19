@@ -137,7 +137,7 @@ object CourseRegistrationWorkflow {
 
     // start_recovery
     val recoveredInstance = runtime.createInstance("student-123").unsafeRunSync().asInstanceOf[InMemoryWorkflowInstance[IO, Context.Ctx]]
-    recoveredInstance.recover(wfInstance.getEvents).unsafeRunSync()
+    recoveredInstance.recover(wfInstance.getEvents.unsafeRunSync()).unsafeRunSync()
     assert(wfInstance.queryState().unsafeRunSync() == recoveredInstance.queryState().unsafeRunSync())
     // end_recovery
 

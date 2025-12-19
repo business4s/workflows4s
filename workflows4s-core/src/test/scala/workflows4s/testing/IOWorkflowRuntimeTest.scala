@@ -8,6 +8,8 @@ import cats.syntax.all.*
 import org.scalatest.freespec.AnyFreeSpecLike
 import workflows4s.wio.{IOTestCtx2, TestState}
 
+import scala.concurrent.duration.*
+
 /** IO-based workflow runtime test suite for runtimes that use IO effect type (Pekko, Doobie).
   */
 object IOWorkflowRuntimeTest {
@@ -15,9 +17,7 @@ object IOWorkflowRuntimeTest {
 
     def ioWorkflowTests(getRuntime: => IOTestRuntimeAdapter[IOTestCtx2.Ctx]): Unit = {
 
-      // TODO: InMemoryWorkflowInstance uses Java synchronized which doesn't work with IO fibers.
-      // Need to use effect-polymorphic locking (e.g., Semaphore[F]) for proper concurrency.
-      "runtime should not allow interrupting a process while another step is running" ignore new IOFixture {
+      "runtime should not allow interrupting a process while another step is running" in new IOFixture {
         def singleRun(i: Int): IO[Unit] = {
           IO(println(s"Running $i iteration")) *> {
             import IOTestCtx2.*
@@ -58,7 +58,7 @@ object IOWorkflowRuntimeTest {
           }
         }
 
-        (1 to 50).toList.traverse_(singleRun).unsafeRunSync()
+        (1 to 50).toList.traverse_(singleRun).timeout(10.seconds).unsafeRunSync()
       }
 
       trait IOFixture {

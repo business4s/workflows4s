@@ -58,8 +58,9 @@ object IOTestRuntimeAdapter {
 
     override def recover(first: Actor): Actor = {
       val recovered = first.runtime.createInstance("").unsafeRunSync().asInstanceOf[InMemoryWorkflowInstance[IO, Ctx]]
-      recovered.recover(first.getEvents).unsafeRunSync()
-      Actor(first.getEvents, recovered, first.runtime)
+      val events    = first.getEvents
+      recovered.recover(events).unsafeRunSync()
+      Actor(events, recovered, first.runtime)
     }
 
     case class Actor(events: Seq[WCEvent[Ctx]], instance: InMemoryWorkflowInstance[IO, Ctx], runtime: InMemoryRuntime[IO, Ctx])
@@ -67,7 +68,7 @@ object IOTestRuntimeAdapter {
         with EventIntrospection[WCEvent[Ctx]] {
       val delegate: WorkflowInstance[IO, WCState[Ctx]] = instance
 
-      override def getEvents: Seq[WCEvent[Ctx]]                  = instance.getEvents
+      override def getEvents: Seq[WCEvent[Ctx]]                  = instance.getEvents.unsafeRunSync()
       override def getExpectedSignals: IO[List[SignalDef[?, ?]]] = instance.getExpectedSignals
     }
   }

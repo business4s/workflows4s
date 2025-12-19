@@ -139,7 +139,7 @@ object PullRequestWorkflow {
 
     // start_recovery
     val recoveredInstance = runtime.createInstance("id").unsafeRunSync().asInstanceOf[InMemoryWorkflowInstance[IO, Context.Ctx]]
-    recoveredInstance.recover(wfInstance.getEvents).unsafeRunSync()
+    recoveredInstance.recover(wfInstance.getEvents.unsafeRunSync()).unsafeRunSync()
     assert(wfInstance.queryState().unsafeRunSync() == recoveredInstance.queryState().unsafeRunSync())
     // end_recovery
 

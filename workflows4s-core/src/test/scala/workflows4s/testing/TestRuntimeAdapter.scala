@@ -106,7 +106,7 @@ object TestRuntimeAdapter {
       }
       val delegate: WorkflowInstance[Id, WCState[Ctx]] = MappedWorkflowInstance(base, [t] => (x: IO[t]) => x.unsafeRunSync())
 
-      override def getEvents: Seq[WCEvent[Ctx]]                  = base.getEvents
+      override def getEvents: Seq[WCEvent[Ctx]]                  = base.getEvents.unsafeRunSync()
       override def getExpectedSignals: Id[List[SignalDef[?, ?]]] = delegate.getExpectedSignals
     }
 

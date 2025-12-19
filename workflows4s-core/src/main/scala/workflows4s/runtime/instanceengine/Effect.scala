@@ -7,6 +7,15 @@ import scala.concurrent.duration.FiniteDuration
 
 trait Effect[F[_]] {
 
+  // Mutex type for effect-polymorphic locking
+  type Mutex
+
+  /** Create a new mutex */
+  def createMutex: Mutex
+
+  /** Run an effect while holding the mutex, ensuring release on completion/error */
+  def withLock[A](m: Mutex)(fa: F[A]): F[A]
+
   // Core monadic operations
   def pure[A](a: A): F[A]
   def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B]
@@ -105,6 +114,16 @@ object Effect {
   /** Effect instance for cats.Id (synchronous, blocking execution). Errors are thrown as exceptions.
     */
   given idEffect: Effect[cats.Id] = new Effect[cats.Id] {
+    type Mutex = java.util.concurrent.Semaphore
+
+    def createMutex: Mutex = new java.util.concurrent.Semaphore(1)
+
+    def withLock[A](m: Mutex)(fa: cats.Id[A]): cats.Id[A] = {
+      m.acquire()
+      try fa
+      finally m.release()
+    }
+
     def pure[A](a: A): cats.Id[A]                                                     = a
     def flatMap[A, B](fa: cats.Id[A])(f: A => cats.Id[B]): cats.Id[B]                 = f(fa)
     def map[A, B](fa: cats.Id[A])(f: A => B): cats.Id[B]                              = f(fa)
@@ -124,6 +143,15 @@ object Effect {
     new Effect[scala.concurrent.Future] {
       import scala.concurrent.{Future, blocking}
 
+      type Mutex = java.util.concurrent.Semaphore
+
+      def createMutex: Mutex = new java.util.concurrent.Semaphore(1)
+
+      def withLock[A](m: Mutex)(fa: Future[A]): Future[A] = {
+        m.acquire()
+        fa.andThen { case _ => m.release() }
+      }
+
       def pure[A](a: A): Future[A]                                                   = Future.successful(a)
       def flatMap[A, B](fa: Future[A])(f: A => Future[B]): Future[B]                 = fa.flatMap(f)
       def map[A, B](fa: Future[A])(f: A => B): Future[B]                             = fa.map(f)
@@ -140,6 +168,14 @@ object Effect {
     */
   given ioEffect: Effect[cats.effect.IO] = new Effect[cats.effect.IO] {
     import cats.effect.IO
+    import cats.effect.std.Semaphore
+    import cats.effect.unsafe.implicits.global
+
+    type Mutex = Semaphore[IO]
+
+    def createMutex: Mutex = Semaphore[IO](1).unsafeRunSync()
+
+    def withLock[A](m: Mutex)(fa: IO[A]): IO[A] = m.permit.use(_ => fa)
 
     def pure[A](a: A): IO[A]                                                = IO.pure(a)
     def flatMap[A, B](fa: IO[A])(f: A => IO[B]): IO[B]                      = fa.flatMap(f)
