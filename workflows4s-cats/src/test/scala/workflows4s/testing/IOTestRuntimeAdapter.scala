@@ -3,6 +3,7 @@ package workflows4s.testing
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.typesafe.scalalogging.StrictLogging
+import workflows4s.cats.CatsEffect.given
 import workflows4s.runtime.*
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.registry.InMemoryWorkflowRegistry
@@ -15,9 +16,9 @@ import scala.concurrent.duration.*
   */
 trait IOTestRuntimeAdapter[Ctx <: WorkflowContext] extends StrictLogging {
 
-  protected val knockerUpper             = RecordingKnockerUpper()
-  val clock: TestClock                   = TestClock()
-  val registry: InMemoryWorkflowRegistry = InMemoryWorkflowRegistry(clock).unsafeRunSync()
+  protected val knockerUpper                 = RecordingKnockerUpper()
+  val clock: TestClock                       = TestClock()
+  val registry: InMemoryWorkflowRegistry[IO] = InMemoryWorkflowRegistry[IO](clock).unsafeRunSync()
 
   val engine: WorkflowInstanceEngine[IO] = WorkflowInstanceEngine.default(knockerUpper, registry, clock)
 

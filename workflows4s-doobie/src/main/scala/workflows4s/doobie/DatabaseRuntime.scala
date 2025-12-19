@@ -2,6 +2,7 @@ package workflows4s.doobie
 
 import cats.effect.IO
 import doobie.util.transactor.Transactor
+import workflows4s.cats.CatsEffect.given
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.{WorkflowInstance, WorkflowInstanceId, WorkflowRuntime}
 import workflows4s.wio.WIO.Initial

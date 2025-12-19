@@ -2,6 +2,7 @@ package workflows4s.doobie
 
 import cats.effect.IO
 import com.typesafe.scalalogging.StrictLogging
+import workflows4s.cats.CatsEffect.given
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.{WorkflowInstanceBase, WorkflowInstanceId}
 import workflows4s.wio.*

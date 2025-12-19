@@ -2,7 +2,9 @@ package workflows4s.example.withdrawal.checks
 
 import cats.syntax.all.*
 import com.typesafe.scalalogging.StrictLogging
-import workflows4s.wio.{IOWorkflowContext, SignalDef}
+import workflows4s.cats.IOWorkflowContext
+import workflows4s.cats.CatsEffect.given
+import workflows4s.wio.SignalDef
 
 import scala.concurrent.duration.DurationInt
 

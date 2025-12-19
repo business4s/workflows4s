@@ -8,7 +8,9 @@ import sttp.tapir.Schema
 import workflows4s.bpmn.BpmnRenderer
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.{InMemoryRuntime, InMemoryWorkflowInstance}
-import workflows4s.wio.{IOWorkflowContext, SignalDef}
+import workflows4s.cats.CatsEffect.given
+import workflows4s.cats.IOWorkflowContext
+import workflows4s.wio.SignalDef
 import cats.effect.unsafe.implicits.global
 
 import scala.annotation.nowarn

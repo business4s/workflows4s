@@ -1,16 +1,17 @@
 package workflows4s.runtime.registry
 
-import cats.effect.{IO, Ref}
 import com.typesafe.scalalogging.StrictLogging
 import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.runtime.registry.WorkflowRegistry.ExecutionStatus
+import workflows4s.runtime.instanceengine.{Effect, Ref}
+import workflows4s.runtime.instanceengine.Effect.*
 import workflows4s.wio.ActiveWorkflow
 
 import java.time.{Clock, Instant}
 
-trait InMemoryWorkflowRegistry extends WorkflowRegistry.Agent[IO] with WorkflowSearch[IO] {
+trait InMemoryWorkflowRegistry[F[_]] extends WorkflowRegistry.Agent[F] with WorkflowSearch[F] {
 
-  def getWorkflows(): IO[List[InMemoryWorkflowRegistry.Data]]
+  def getWorkflows(): F[List[InMemoryWorkflowRegistry.Data]]
 
 }
 
@@ -25,23 +26,24 @@ object InMemoryWorkflowRegistry {
       tags: Map[String, String],
   )
 
-  def apply(clock: Clock = Clock.systemUTC()): IO[InMemoryWorkflowRegistry] = {
-    Ref[IO].of(Map.empty[WorkflowInstanceId, Data]).map { stateRef =>
+  def apply[F[_]](clock: Clock = Clock.systemUTC())(using E: Effect[F]): F[InMemoryWorkflowRegistry[F]] = {
+    E.ref(Map.empty[WorkflowInstanceId, Data]).map { stateRef =>
       new Impl(stateRef, clock, Map())
     }
   }
 
-  private class Impl(
-      stateRef: Ref[IO, Map[WorkflowInstanceId, Data]],
+  private class Impl[F[_]](
+      stateRef: Ref[F, Map[WorkflowInstanceId, Data]],
       clock: Clock,
       taggers: Map[String, WorkflowRegistry.Tagger[?]],
-  ) extends InMemoryWorkflowRegistry
+  )(using E: Effect[F])
+      extends InMemoryWorkflowRegistry[F]
       with StrictLogging {
 
-    override def upsertInstance(inst: ActiveWorkflow[?, ?], executionStatus: ExecutionStatus): IO[Unit] = {
+    override def upsertInstance(inst: ActiveWorkflow[?, ?], executionStatus: ExecutionStatus): F[Unit] = {
       val id = inst.id
       for {
-        now <- IO(Instant.now(clock))
+        now <- E.delay(Instant.now(clock))
         _    = logger.info(s"Updating workflow registry for ${id} to status $executionStatus at $now")
         _   <- stateRef.update { state =>
                  state.get(id) match {
@@ -62,9 +64,9 @@ object InMemoryWorkflowRegistry {
         .getOrElse(Map())
     }
 
-    override def getWorkflows(): IO[List[Data]] = stateRef.get.map(_.values.toList)
+    override def getWorkflows(): F[List[Data]] = stateRef.get.map(_.values.toList)
 
-    override def search(templateId: String, query: WorkflowSearch.Query): IO[List[WorkflowSearch.Result]] = {
+    override def search(templateId: String, query: WorkflowSearch.Query): F[List[WorkflowSearch.Result]] = {
       val filters = buildFilters(templateId, query)
       for {
         state <- stateRef.get

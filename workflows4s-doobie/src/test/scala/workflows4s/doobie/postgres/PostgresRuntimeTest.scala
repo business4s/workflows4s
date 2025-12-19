@@ -3,10 +3,12 @@ package workflows4s.doobie.postgres
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import org.scalatest.freespec.AnyFreeSpec
+import workflows4s.cats.CatsEffect.given
+import workflows4s.cats.IOWorkflowContext
 import workflows4s.doobie.DatabaseRuntime
 import workflows4s.doobie.postgres.testing.{JavaSerdeEventCodec, PostgresRuntimeAdapter, PostgresSuite}
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
-import workflows4s.wio.{IOTestCtx, IOWorkflowContext}
+import workflows4s.wio.IOTestCtx
 
 import scala.util.Try
 

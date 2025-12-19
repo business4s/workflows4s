@@ -6,7 +6,7 @@ import org.apache.pekko.actor.typed.ActorSystem
 import workflows4s.runtime.WorkflowInstance
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.pekko.PekkoRuntime
-import workflows4s.wio.IOWorkflowContext
+import workflows4s.cats.IOWorkflowContext
 
 object PekkoExample {
 

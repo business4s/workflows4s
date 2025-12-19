@@ -4,7 +4,8 @@ import cats.effect.IO
 import workflows4s.mermaid.MermaidRenderer
 import workflows4s.runtime.{InMemoryRuntime, InMemoryWorkflowInstance}
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
-import workflows4s.wio.IOWorkflowContext
+import workflows4s.cats.CatsEffect.given
+import workflows4s.cats.IOWorkflowContext
 import cats.effect.unsafe.implicits.global
 
 object MinimalWorkflow {

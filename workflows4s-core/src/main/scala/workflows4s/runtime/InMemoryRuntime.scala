@@ -47,13 +47,4 @@ object InMemoryRuntime {
       templateId: String = s"in-memory-runtime-${UUID.randomUUID().toString.take(8)}",
   ): InMemoryRuntime[F, Ctx] =
     new InMemoryRuntime[F, Ctx](workflow, initialState, engine, templateId)
-
-  /** Convenience method for IO-based workflows */
-  def default[Ctx <: WorkflowContext](
-      workflow: Initial[cats.effect.IO, Ctx],
-      initialState: WCState[Ctx],
-      engine: WorkflowInstanceEngine[cats.effect.IO],
-      templateId: String = s"in-memory-runtime-${UUID.randomUUID().toString.take(8)}",
-  ): cats.effect.IO[InMemoryRuntime[cats.effect.IO, Ctx]] =
-    cats.effect.IO.pure(create[cats.effect.IO, Ctx](workflow, initialState, engine, templateId))
 }

@@ -13,7 +13,7 @@ import java.time.Instant
 class WIORunIOTest extends AnyFreeSpec with Matchers with EitherValues {
 
   // Use IO-based context for these tests since they test IO behavior
-  import IOTestCtx.*
+  import IOTestCtx.{*, given}
 
   "WIO.RunIO" - {
 

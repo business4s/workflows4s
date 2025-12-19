@@ -9,7 +9,9 @@ import workflows4s.example.withdrawal.WithdrawalWorkflow.{Signals, checksEmbeddi
 import workflows4s.example.withdrawal.checks.*
 import workflows4s.wio
 import workflows4s.wio.internal.WorkflowEmbedding
-import workflows4s.wio.{IOWorkflowContext, SignalDef}
+import workflows4s.cats.IOWorkflowContext
+import workflows4s.cats.CatsEffect.given
+import workflows4s.wio.SignalDef
 
 import java.time.Duration
 object WithdrawalWorkflow {

@@ -8,6 +8,7 @@ import org.apache.pekko.actor.typed.{ActorRef, Behavior}
 import org.apache.pekko.pattern.StatusReply
 import org.apache.pekko.persistence.typed.PersistenceId
 import org.apache.pekko.persistence.typed.scaladsl.{Effect, EventSourcedBehavior}
+import workflows4s.cats.CatsEffect.given
 import workflows4s.runtime.WorkflowInstance.UnexpectedSignal
 import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine

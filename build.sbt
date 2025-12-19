@@ -4,6 +4,7 @@ lazy val `workflows4s` = (project in file("."))
   .settings(commonSettings)
   .aggregate(
     `workflows4s-core`,
+    `workflows4s-cats`,
     `workflows4s-bpmn`,
     `workflows4s-pekko`,
     `workflows4s-example`,
@@ -21,7 +22,7 @@ lazy val `workflows4s-core` = (project in file("workflows4s-core"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel"              %% "cats-effect"     % "3.6.3",
+      "org.typelevel"              %% "cats-core"       % "2.13.0",
       "co.fs2"                     %% "fs2-core"        % "3.12.2",
       "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.6",
       "io.circe"                   %% "circe-core"      % circeVersion, // for model serialization
@@ -31,6 +32,15 @@ lazy val `workflows4s-core` = (project in file("workflows4s-core"))
     ),
     Test / parallelExecution := false,
   )
+
+lazy val `workflows4s-cats` = (project in file("workflows4s-cats"))
+  .settings(commonSettings)
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.typelevel" %% "cats-effect" % "3.6.3",
+    ),
+  )
+  .dependsOn(`workflows4s-core` % "compile->compile;test->test")
 
 lazy val `workflows4s-bpmn` = (project in file("workflows4s-bpmn"))
   .settings(commonSettings)
@@ -55,7 +65,7 @@ lazy val `workflows4s-pekko` = (project in file("workflows4s-pekko"))
       "io.altoo"         %% "pekko-kryo-serialization"     % "1.3.0",
     ),
   )
-  .dependsOn(`workflows4s-core` % "compile->compile;test->test")
+  .dependsOn(`workflows4s-cats` % "compile->compile;test->test")
 
 lazy val `workflows4s-doobie` = (project in file("workflows4s-doobie"))
   .settings(commonSettings)
@@ -68,7 +78,7 @@ lazy val `workflows4s-doobie` = (project in file("workflows4s-doobie"))
       "org.xerial"     % "sqlite-jdbc"                     % "3.51.0.0"                 % Test,
     ),
   )
-  .dependsOn(`workflows4s-core` % "compile->compile;test->test")
+  .dependsOn(`workflows4s-cats` % "compile->compile;test->test")
 
 lazy val `workflows4s-filesystem` = (project in file("workflows4s-filesystem"))
   .settings(commonSettings)
@@ -77,7 +87,7 @@ lazy val `workflows4s-filesystem` = (project in file("workflows4s-filesystem"))
       "co.fs2" %% "fs2-io" % "3.12.2",
     ),
   )
-  .dependsOn(`workflows4s-core` % "compile->compile;test->test")
+  .dependsOn(`workflows4s-cats` % "compile->compile;test->test")
 
 lazy val `workflows4s-quartz` = (project in file("workflows4s-quartz"))
   .settings(commonSettings)
@@ -86,7 +96,7 @@ lazy val `workflows4s-quartz` = (project in file("workflows4s-quartz"))
       "org.quartz-scheduler" % "quartz" % "2.5.1",
     ),
   )
-  .dependsOn(`workflows4s-core` % "compile->compile;test->test")
+  .dependsOn(`workflows4s-cats` % "compile->compile;test->test")
 
 lazy val `workflows4s-web-api-shared` = crossProject(JSPlatform, JVMPlatform)
   .crossType(CrossType.Pure)
@@ -190,7 +200,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
     publish / skip           := true,
   )
   .dependsOn(
-    `workflows4s-core`   % "compile->compile;test->test",
+    `workflows4s-cats`   % "compile->compile;test->test",
     `workflows4s-bpmn`,
     `workflows4s-pekko`  % "compile->compile;test->test",
     `workflows4s-doobie` % "compile->compile;test->test",

@@ -1,6 +1,7 @@
 package workflows4s.example.docs
 
 import cats.effect.IO
+import workflows4s.cats.CatsEffect.given
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.registry.WorkflowRegistry
 import workflows4s.runtime.wakeup.KnockerUpper

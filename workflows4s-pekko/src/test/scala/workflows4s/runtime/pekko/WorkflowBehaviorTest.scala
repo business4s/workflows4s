@@ -13,7 +13,7 @@ import org.scalatest.matchers.should.Matchers
 import workflows4s.runtime.WorkflowInstance.UnexpectedSignal
 import workflows4s.runtime.pekko.WorkflowBehavior.Command
 import workflows4s.runtime.pekko.WorkflowBehaviorTest.*
-import workflows4s.wio.IOWorkflowContext
+import workflows4s.cats.IOWorkflowContext
 import workflows4s.wio.model.WIOExecutionProgress
 import workflows4s.wio.SignalDef
 

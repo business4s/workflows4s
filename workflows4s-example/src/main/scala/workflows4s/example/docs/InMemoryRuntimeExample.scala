@@ -3,8 +3,9 @@ package workflows4s.example.docs
 import cats.Id
 import cats.effect.IO
 import workflows4s.runtime.{InMemoryRuntime, WorkflowInstance}
-import workflows4s.wio.{IOWorkflowContext, SyncWorkflowContext, WCState}
-import cats.effect.unsafe.implicits.global
+import workflows4s.cats.CatsEffect.given
+import workflows4s.cats.IOWorkflowContext
+import workflows4s.wio.{SyncWorkflowContext, WCState}
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 
 object InMemoryRuntimeExample {
@@ -28,9 +29,8 @@ object InMemoryRuntimeExample {
     import MyWorkflowCtx.*
     val workflow: WIO.Initial                              = ???
     val engine: WorkflowInstanceEngine[IO]                 = ???
-    val runtime: InMemoryRuntime[IO, Ctx]                  = InMemoryRuntime
-      .default(workflow, InitialState(), engine)
-      .unsafeRunSync()
+    val runtime: InMemoryRuntime[IO, Ctx]                  =
+      InMemoryRuntime.create[IO, Ctx](workflow, InitialState(), engine)
     val wfInstance: IO[WorkflowInstance[IO, WCState[Ctx]]] = runtime.createInstance("my-workflow-1")
     // async_doc_end
   }

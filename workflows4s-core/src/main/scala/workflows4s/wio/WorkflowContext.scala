@@ -26,6 +26,9 @@ trait WorkflowContext { ctx: WorkflowContext =>
   type WIO[-In, +Err, +Out <: State] = workflows4s.wio.WIO[Eff, In, Err, Out, Ctx]
 
   object WIO extends AllBuilders[Eff, Ctx] {
+    // Export the effect instance for use by WIO builders
+    export ctx.effect
+
     type Branch[-In, +Err, +Out <: State]  = workflows4s.wio.WIO.Branch[Eff, In, Err, Out, Ctx, ?]
     type Interruption[+Err, +Out <: State] = workflows4s.wio.WIO.Interruption[Eff, Ctx, Err, Out]
     type Draft                             = WIO[Any, Nothing, Nothing]
@@ -51,13 +54,6 @@ object WorkflowContext {
 
   /** Simplified AUX without effect - for backwards compatibility during migration */
   type AUX2[St, Evt] = WorkflowContext { type State = St; type Event = Evt }
-}
-
-/** Helper trait for IO-based workflow contexts. Extend this for workflows that use cats.effect.IO.
-  */
-trait IOWorkflowContext extends WorkflowContext {
-  type Eff[A] = cats.effect.IO[A]
-  given effect: Effect[Eff] = Effect.ioEffect
 }
 
 /** Helper trait for synchronous (Id-based) workflow contexts. Extend this for workflows that run synchronously without an effect wrapper.

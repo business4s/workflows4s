@@ -5,6 +5,28 @@ import workflows4s.wio.{WorkflowRef, WorkflowResult}
 import java.time.Instant
 import scala.concurrent.duration.FiniteDuration
 
+/** Outcome of an effect execution, used for guaranteeCase */
+enum Outcome[+A] {
+  case Succeeded(value: A)
+  case Errored(error: Throwable)
+  case Canceled
+}
+
+/** A mutable reference that can be atomically updated */
+trait Ref[F[_], A] {
+  def get: F[A]
+  def set(a: A): F[Unit]
+  def update(f: A => A): F[Unit]
+  def modify[B](f: A => (A, B)): F[B]
+  def getAndUpdate(f: A => A): F[A]
+}
+
+/** A fiber/background computation that can be canceled */
+trait Fiber[F[_], A] {
+  def cancel: F[Unit]
+  def join: F[Outcome[A]]
+}
+
 trait Effect[F[_]] {
 
   // Mutex type for effect-polymorphic locking
@@ -32,6 +54,16 @@ trait Effect[F[_]] {
 
   // Suspension of side effects
   def delay[A](a: => A): F[A]
+
+  // Concurrency primitives
+  /** Create a new mutable reference */
+  def ref[A](initial: A): F[Ref[F, A]]
+
+  /** Start an effect in the background, returning a fiber that can be canceled */
+  def start[A](fa: F[A]): F[Fiber[F, A]]
+
+  /** Run an effect with a finalizer that depends on the outcome */
+  def guaranteeCase[A](fa: F[A])(finalizer: Outcome[A] => F[Unit]): F[A]
 
   // Derived operations with default implementations
   def void[A](fa: F[A]): F[Unit] = map(fa)(_ => ())
@@ -135,13 +167,54 @@ object Effect {
       Thread.sleep(duration.toMillis)
     def realTimeInstant: cats.Id[java.time.Instant]                                   = java.time.Instant.now()
     def delay[A](a: => A): cats.Id[A]                                                 = a
+
+    def ref[A](initial: A): cats.Id[Ref[cats.Id, A]] = new Ref[cats.Id, A] {
+      @volatile private var value: A            = initial
+      def get: cats.Id[A]                       = value
+      def set(a: A): cats.Id[Unit]              = { value = a }
+      def update(f: A => A): cats.Id[Unit]      = { value = f(value) }
+      def modify[B](f: A => (A, B)): cats.Id[B] = {
+        val (newA, b) = f(value)
+        value = newA
+        b
+      }
+      def getAndUpdate(f: A => A): cats.Id[A]   = {
+        val old = value
+        value = f(value)
+        old
+      }
+    }
+
+    def start[A](fa: cats.Id[A]): cats.Id[Fiber[cats.Id, A]] = {
+      // For Id, we execute immediately and return a completed fiber
+      val result =
+        try Outcome.Succeeded(fa)
+        catch { case e: Throwable => Outcome.Errored(e) }
+      new Fiber[cats.Id, A] {
+        def cancel: cats.Id[Unit]     = ()
+        def join: cats.Id[Outcome[A]] = result
+      }
+    }
+
+    def guaranteeCase[A](fa: cats.Id[A])(finalizer: Outcome[A] => cats.Id[Unit]): cats.Id[A] = {
+      val outcome =
+        try Outcome.Succeeded(fa)
+        catch { case e: Throwable => Outcome.Errored(e) }
+      finalizer(outcome)
+      outcome match {
+        case Outcome.Succeeded(a) => a
+        case Outcome.Errored(e)   => throw e
+        case Outcome.Canceled     => throw new InterruptedException("Canceled")
+      }
+    }
   }
 
   /** Effect instance for scala.concurrent.Future (asynchronous execution).
     */
   def futureEffect(using ec: scala.concurrent.ExecutionContext): Effect[scala.concurrent.Future] =
     new Effect[scala.concurrent.Future] {
-      import scala.concurrent.{Future, blocking}
+      import scala.concurrent.{Future, Promise, blocking}
+      import java.util.concurrent.atomic.AtomicReference
 
       type Mutex = java.util.concurrent.Semaphore
 
@@ -162,30 +235,69 @@ object Effect {
         Future(blocking(Thread.sleep(duration.toMillis)))
       def realTimeInstant: Future[java.time.Instant]                                 = Future.successful(java.time.Instant.now())
       def delay[A](a: => A): Future[A]                                               = Future(a)
+
+      def ref[A](initial: A): Future[Ref[Future, A]] = Future.successful(new Ref[Future, A] {
+        private val underlying                   = new AtomicReference[A](initial)
+        def get: Future[A]                       = Future.successful(underlying.get())
+        def set(a: A): Future[Unit]              = Future.successful(underlying.set(a))
+        def update(f: A => A): Future[Unit]      = Future.successful {
+          var updated = false
+          while !updated do {
+            val current = underlying.get()
+            updated = underlying.compareAndSet(current, f(current))
+          }
+        }
+        def modify[B](f: A => (A, B)): Future[B] = Future.successful {
+          var result: B = null.asInstanceOf[B]
+          var updated   = false
+          while !updated do {
+            val current   = underlying.get()
+            val (newA, b) = f(current)
+            if underlying.compareAndSet(current, newA) then {
+              result = b
+              updated = true
+            }
+          }
+          result
+        }
+        def getAndUpdate(f: A => A): Future[A]   = Future.successful {
+          var old: A  = null.asInstanceOf[A]
+          var updated = false
+          while !updated do {
+            old = underlying.get()
+            updated = underlying.compareAndSet(old, f(old))
+          }
+          old
+        }
+      })
+
+      def start[A](fa: Future[A]): Future[Fiber[Future, A]] = {
+        val promise = Promise[Outcome[A]]()
+        fa.onComplete {
+          case scala.util.Success(a) => promise.success(Outcome.Succeeded(a))
+          case scala.util.Failure(e) => promise.success(Outcome.Errored(e))
+        }
+        Future.successful(new Fiber[Future, A] {
+          def cancel: Future[Unit]     = Future.successful(()) // Future can't be truly canceled
+          def join: Future[Outcome[A]] = promise.future
+        })
+      }
+
+      def guaranteeCase[A](fa: Future[A])(finalizer: Outcome[A] => Future[Unit]): Future[A] = {
+        fa.transformWith { result =>
+          val outcome = result match {
+            case scala.util.Success(a) => Outcome.Succeeded(a)
+            case scala.util.Failure(e) => Outcome.Errored(e)
+          }
+          finalizer(outcome).flatMap { _ =>
+            result match {
+              case scala.util.Success(a) => Future.successful(a)
+              case scala.util.Failure(e) => Future.failed(e)
+            }
+          }
+        }
+      }
     }
-
-  /** Effect instance for cats.effect.IO (asynchronous, non-blocking execution). TODO: Move to workflows4s-cats module
-    */
-  given ioEffect: Effect[cats.effect.IO] = new Effect[cats.effect.IO] {
-    import cats.effect.IO
-    import cats.effect.std.Semaphore
-    import cats.effect.unsafe.implicits.global
-
-    type Mutex = Semaphore[IO]
-
-    def createMutex: Mutex = Semaphore[IO](1).unsafeRunSync()
-
-    def withLock[A](m: Mutex)(fa: IO[A]): IO[A] = m.permit.use(_ => fa)
-
-    def pure[A](a: A): IO[A]                                                = IO.pure(a)
-    def flatMap[A, B](fa: IO[A])(f: A => IO[B]): IO[B]                      = fa.flatMap(f)
-    def map[A, B](fa: IO[A])(f: A => B): IO[B]                              = fa.map(f)
-    def raiseError[A](e: Throwable): IO[A]                                  = IO.raiseError(e)
-    def handleErrorWith[A](fa: => IO[A])(f: Throwable => IO[A]): IO[A]      = fa.handleErrorWith(f)
-    def sleep(duration: scala.concurrent.duration.FiniteDuration): IO[Unit] = IO.sleep(duration)
-    def realTimeInstant: IO[java.time.Instant]                              = IO.realTimeInstant
-    def delay[A](a: => A): IO[A]                                            = IO.delay(a)
-  }
 
   // Syntax extensions
   // Note: Using by-name fa for handleErrorWith to match the trait signature

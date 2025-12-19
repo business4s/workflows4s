@@ -79,7 +79,7 @@ object IOTestUtils {
   }
 
   def signalError: (SignalDef[Int, Int], Error, WIO.IHandleSignal[IO, TestState, Error, TestState, IOTestCtx2.Ctx]) = {
-    import IOTestCtx2.*
+    import IOTestCtx2.{*, given}
     val signalDef = SignalDef[Int, Int](id = UUID.randomUUID().toString)
     case class SignalErrored(req: Int, error: String) extends IOTestCtx2.Event
     val error = s"error-${UUID.randomUUID()}"

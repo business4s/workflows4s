@@ -1,6 +1,6 @@
 package workflows4s.example
 
-import workflows4s.wio.IOWorkflowContext
+import workflows4s.cats.IOWorkflowContext
 
 import java.time.Instant
 

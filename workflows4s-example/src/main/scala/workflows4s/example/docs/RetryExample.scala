@@ -1,6 +1,7 @@
 package workflows4s.example.docs
 
 import cats.effect.IO
+import workflows4s.cats.CatsEffect.given
 import workflows4s.example.docs.Context.WIO
 
 import java.net.UnknownHostException

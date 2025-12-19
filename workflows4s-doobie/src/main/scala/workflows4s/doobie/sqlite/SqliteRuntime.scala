@@ -5,6 +5,7 @@ import com.typesafe.scalalogging.StrictLogging
 import doobie.implicits.*
 import doobie.util.fragment.Fragment
 import doobie.util.transactor.Transactor
+import workflows4s.cats.CatsEffect.given
 import workflows4s.doobie.{ByteCodec, DbWorkflowInstance}
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.{WorkflowInstance, WorkflowInstanceId, WorkflowRuntime}

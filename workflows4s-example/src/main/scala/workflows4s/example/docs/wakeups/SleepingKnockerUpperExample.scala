@@ -1,6 +1,7 @@
 package workflows4s.example.docs.wakeups
 
-import cats.effect.{IO, ResourceIO}
+import cats.effect.IO
+import workflows4s.cats.CatsEffect.given
 import workflows4s.example.docs.wakeups.common.*
 import workflows4s.runtime.WorkflowRuntime
 
@@ -12,14 +13,13 @@ object SleepingKnockerUpperExample {
   // docs_start
   import workflows4s.runtime.wakeup.SleepingKnockerUpper
 
-  // all sleeps will be canceled on release
-  val knockerUpperResource: ResourceIO[SleepingKnockerUpper] = SleepingKnockerUpper.create()
+  val knockerUpperIO: IO[SleepingKnockerUpper[IO]] = SleepingKnockerUpper.create[IO]
 
-  knockerUpperResource.use(knockerUpper => {
+  knockerUpperIO.flatMap { knockerUpper =>
     val runtime: WorkflowRuntime[IO, MyWorkflowCtx] = createRuntime(knockerUpper)
     val init: IO[Unit]                              = knockerUpper.initialize(Seq(runtime))
     ???
-  })
+  }
   // docs_end
 
 }

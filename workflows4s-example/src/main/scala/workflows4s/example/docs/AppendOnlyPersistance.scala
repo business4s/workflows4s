@@ -1,6 +1,6 @@
 package workflows4s.example.docs
 
-import workflows4s.wio.IOWorkflowContext
+import workflows4s.cats.IOWorkflowContext
 
 object AppendOnlyPersistance {
 

@@ -13,14 +13,14 @@ import scala.util.Random
 
 class TestRuntime {
   val clock        = TestClock()
-  val knockerUpper = RecordingKnockerUpper()
   given Effect[Id] = Effect.idEffect
+  val knockerUpper = IdRecordingKnockerUpper()
 
   val engine: WorkflowInstanceEngine[Id] =
     WorkflowInstanceEngine
       .builder[Id]
       .withJavaTime(clock)
-      .withWakeUps(knockerUpper.asId)
+      .withWakeUps(knockerUpper)
       .withoutRegistering
       .withGreedyEvaluation
       .withLogging

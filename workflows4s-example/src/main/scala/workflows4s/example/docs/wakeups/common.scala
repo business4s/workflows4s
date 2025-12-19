@@ -3,7 +3,7 @@ package workflows4s.example.docs.wakeups
 import cats.effect.IO
 import workflows4s.runtime.WorkflowRuntime
 import workflows4s.runtime.wakeup.KnockerUpper
-import workflows4s.wio.IOWorkflowContext
+import workflows4s.cats.IOWorkflowContext
 
 object common {
 

@@ -5,6 +5,7 @@ import cats.effect.unsafe.implicits.global
 import doobie.ConnectionIO
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
+import workflows4s.cats.CatsEffect.given
 import workflows4s.runtime.registry.WorkflowRegistry.ExecutionStatus
 import workflows4s.testing.TestClock
 import doobie.implicits.given
