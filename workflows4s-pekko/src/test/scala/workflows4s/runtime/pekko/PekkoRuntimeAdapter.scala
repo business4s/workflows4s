@@ -9,7 +9,6 @@ import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity, EntityRef, EntityTypeKey}
 import org.apache.pekko.persistence.typed.PersistenceId
 import org.apache.pekko.util.Timeout
-import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import workflows4s.runtime.{MappedWorkflowInstance, WorkflowInstance, WorkflowInstanceId}
 import workflows4s.testing.{IOTestRuntimeAdapter, TestRuntimeAdapter}
 import workflows4s.wio.*
