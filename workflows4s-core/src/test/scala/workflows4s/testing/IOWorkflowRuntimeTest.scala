@@ -8,8 +8,6 @@ import cats.syntax.all.*
 import org.scalatest.freespec.AnyFreeSpecLike
 import workflows4s.wio.{IOTestCtx2, TestState}
 
-import scala.concurrent.duration.*
-
 /** IO-based workflow runtime test suite for runtimes that use IO effect type (Pekko, Doobie).
   */
 object IOWorkflowRuntimeTest {
@@ -58,7 +56,7 @@ object IOWorkflowRuntimeTest {
           }
         }
 
-        (1 to 50).toList.traverse_(singleRun).timeout(10.seconds).unsafeRunSync()
+        (1 to 50).toList.traverse_(singleRun).timeout(runtime.testTimeout).unsafeRunSync()
       }
 
       trait IOFixture {

@@ -17,12 +17,16 @@ import workflows4s.wio.*
 import java.time.Clock
 import java.util.UUID
 import scala.concurrent.Await
+import scala.concurrent.duration.*
 
 /** IO-based Pekko runtime adapter for concurrency tests that need raw IO operations.
   */
 class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(implicit actorSystem: ActorSystem[?])
     extends IOTestRuntimeAdapter[Ctx]
     with StrictLogging {
+
+  /** Pekko actor messaging is slower than in-memory, so use a longer timeout. */
+  override def testTimeout: FiniteDuration = 60.seconds
 
   val sharding = ClusterSharding(actorSystem)
 

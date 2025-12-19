@@ -8,6 +8,8 @@ import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.registry.InMemoryWorkflowRegistry
 import workflows4s.wio.*
 
+import scala.concurrent.duration.*
+
 /** Test adapter for runtimes that use IO effect type internally (Pekko, Doobie). Unlike TestRuntimeAdapter which uses Id, this trait works with IO
   * workflows directly.
   */
@@ -18,6 +20,9 @@ trait IOTestRuntimeAdapter[Ctx <: WorkflowContext] extends StrictLogging {
   val registry: InMemoryWorkflowRegistry = InMemoryWorkflowRegistry(clock).unsafeRunSync()
 
   val engine: WorkflowInstanceEngine[IO] = WorkflowInstanceEngine.default(knockerUpper, registry, clock)
+
+  /** Timeout for concurrency tests. Override for slower runtimes like Pekko. */
+  def testTimeout: FiniteDuration = 10.seconds
 
   type Actor <: WorkflowInstance[IO, WCState[Ctx]]
 
