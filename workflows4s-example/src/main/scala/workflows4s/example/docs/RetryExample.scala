@@ -58,10 +58,12 @@ object RetryExample {
               IO(WIO.Retry.Stateful.Result.Ignore)
           }
         })
-        .handleEventsWith(in => in.event match {
-          case MyRetryEvent => (in.retryState.getOrElse(0) + 1).asLeft
-          case e: MyEvent => Right(Right(MyState(1)))
-        })
+        .handleEventsWith(in =>
+          in.event match {
+            case MyRetryEvent => (in.retryState.getOrElse(0) + 1).asLeft
+            case e: MyEvent   => Right(Right(MyState(1)))
+          },
+        )
     // end_doc_stateful_full
   }
 }

@@ -27,7 +27,7 @@ Workflows4s supports two types of retries: stateless and stateful.
 
 ### Stateless Retry
 
-Stateless retries are simple and easy to use. They allow rescheduling the wakeup but without any state tracking like attempt counts,
+Stateless retries are simple and easy to use. They allow rescheduling the wakeup but without tracking any state like attempt count,
 elapsed time or any other information about previous executions.
 
 This means you can't directly express strategies such as exponential retries.
@@ -54,7 +54,7 @@ For more complex retry logic, you can use stateful retries,
 where the state is persisted through events, same as workflow state.
 
 Moreover,
-this approach allows you to recover from errors because it produces events and events can affect the workflow state.
+this approach allows you to recover from errors because it produces events and events can modify the workflow state.
 
 ```scala file=./main/scala/workflows4s/example/docs/RetryExample.scala start=start_doc_stateful_full end=end_doc_stateful_full
 ```

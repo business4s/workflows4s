@@ -209,9 +209,6 @@ object WIO {
   object Retry {
 
     object Stateful {
-      type ErrorHandlerInput[+In, Ctx <: WorkflowContext, +RetryState] =
-        (input: In, error: Throwable, workflowState: WCState[Ctx], retryState: Option[RetryState])
-
       enum Result[+Event] {
         case Ignore
         case ScheduleWakeup(at: Instant, event: Option[Event])
@@ -232,7 +229,9 @@ object WIO {
           extends Mode[Ctx, In, Nothing, Nothing]
 
       case class Stateful[Ctx <: WorkflowContext, Evt <: WCEvent[Ctx], -In, Err, +Out <: WCState[Ctx], RetryState](
-          errorHandler: Retry.Stateful.ErrorHandlerInput[In, Ctx, RetryState] => IO[Retry.Stateful.Result[WCEvent[Ctx]]],
+          errorHandler: ((stepInput: In, error: Throwable, workflowState: WCState[Ctx], retryState: Option[RetryState])) => IO[
+            Retry.Stateful.Result[Evt],
+          ],
           eventHandler: EventHandler[(In, WCState[Ctx], Option[RetryState]), Either[RetryState, Either[Err, Out]], WCEvent[Ctx], Evt],
           state: Option[RetryState],
       ) extends Mode[Ctx, In, Err, Out]
