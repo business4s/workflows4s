@@ -112,12 +112,12 @@ object SignalEvaluator {
 
     def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_ <: WCState[InnerCtx]] <: WCState[Ctx]](
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
-    ): Result = {
+    ): Result                                                                        = {
       val newState = wio.embedding.unconvertStateUnsafe(lastSeenState)
       new SignalVisitor(wio.inner, signalDef, req, input, newState).run
         .map(_.map((event, resp) => wio.embedding.convertEvent(event) -> resp))
     }
-    def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result       = {
+    def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result = {
       wio.status match {
         case InterruptionStatus.Interrupted                               =>
           recurse(wio.interruption, lastSeenState)

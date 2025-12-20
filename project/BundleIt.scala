@@ -10,7 +10,7 @@ object BundleIt {
     val viteBuild =
       os.proc("npm", "run", "build").call(distDir, stdin = os.Inherit, stdout = os.Inherit, stderr = os.Inherit)
 
-    if (viteBuild.exitCode != 0) sys.error("Vite build failed")
+    if (viteBuild.exitCode!= 0)  sys.error("Vite build failed")
 
     val sourceDir = distDir / "dist"
     val targetDir = os.Path(to) / "workflows4s-web-ui-bundle"

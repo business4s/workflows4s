@@ -65,7 +65,7 @@ lazy val `workflows4s-doobie` = (project in file("workflows4s-doobie"))
       "com.dimafeng"  %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
       "com.dimafeng"  %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
       "org.postgresql" % "postgresql"                      % "42.7.8"                   % Test,
-      "org.xerial"     % "sqlite-jdbc"                     % "3.51.0.0"                 % Test,
+      "org.xerial"     % "sqlite-jdbc"                     % "3.51.1.0"                 % Test,
     ),
   )
   .dependsOn(`workflows4s-core` % "compile->compile;test->test")
@@ -83,7 +83,7 @@ lazy val `workflows4s-quartz` = (project in file("workflows4s-quartz"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.quartz-scheduler" % "quartz" % "2.5.1",
+      "org.quartz-scheduler" % "quartz" % "2.5.2",
     ),
   )
   .dependsOn(`workflows4s-core` % "compile->compile;test->test")
@@ -127,7 +127,7 @@ lazy val `workflows4s-web-ui` = (project in file("workflows4s-web-ui"))
       "io.circe"                      %%% "circe-core"         % circeVersion,
       "io.circe"                      %%% "circe-generic"      % circeVersion,
       "io.circe"                      %%% "circe-parser"       % circeVersion,
-      "com.softwaremill.sttp.tapir"   %%% "tapir-sttp-client4" % "1.12.3",
+      "com.softwaremill.sttp.tapir"   %%% "tapir-sttp-client4" % "1.12.6",
       "com.softwaremill.sttp.client4" %%% "cats"               % "4.0.13",
       "org.business4s"                %%% "forms4s-jsonschema" % "0.1.0",
       "org.business4s"                %%% "forms4s-tyrian"     % "0.1.0",
@@ -174,17 +174,17 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "org.apache.pekko"     %% "pekko-http"                      % pekkoHttpVersion, // for interacting with the app
       "org.apache.pekko"     %% "pekko-cluster-sharding-typed"    % pekkoVersion, // for realistic example and spawning actors
       "org.apache.pekko"     %% "pekko-persistence-jdbc"          % "1.1.1", // published locally until the release is there
-      "org.apache.pekko"     %% "pekko-serialization-jackson"     % "1.2.1",
+      "org.apache.pekko"     %% "pekko-serialization-jackson"     % "1.4.0",
       "com.h2database"        % "h2"                              % "2.4.240",
       "io.r2dbc"              % "r2dbc-h2"                        % "1.1.0.RELEASE",
-      "com.github.pjfanning" %% "pekko-http-circe"                % "3.6.0",
-      "ch.qos.logback"        % "logback-classic"                 % "1.5.21",
+      "com.github.pjfanning" %% "pekko-http-circe"                % "3.7.0",
+      "ch.qos.logback"        % "logback-classic"                 % "1.5.22",
       "org.scalamock"        %% "scalamock"                       % "7.5.2"                    % Test,
       "org.apache.pekko"     %% "pekko-actor-testkit-typed"       % pekkoVersion               % Test,
       "com.dimafeng"         %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
       "com.dimafeng"         %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
       "org.postgresql"        % "postgresql"                      % "42.7.8"                   % Test,
-      "org.xerial"            % "sqlite-jdbc"                     % "3.51.0.0"                 % Test,
+      "org.xerial"            % "sqlite-jdbc"                     % "3.51.1.0"                 % Test,
     ),
     Test / parallelExecution := false, // otherwise akka clusters clash
     publish / skip           := true,
@@ -217,7 +217,7 @@ lazy val commonSettings = Seq(
   scalacOptions ++= Seq("-no-indent", "-Xmax-inlines", "64", "-explain-cyclic", "-Ydebug-cyclic"),
   libraryDependencies ++= Seq(
     "org.scalatest" %% "scalatest"       % "3.2.19" % Test,
-    "ch.qos.logback" % "logback-classic" % "1.5.21" % Test,
+    "ch.qos.logback" % "logback-classic" % "1.5.22" % Test,
   ),
   // scalafix settings
   semanticdbEnabled := true, // enable SemanticDB
@@ -236,10 +236,10 @@ lazy val commonSettings = Seq(
   Test / tpolecatExcludeOptions += ScalacOptions.warnNonUnitStatement,
 )
 
-lazy val pekkoVersion               = "1.2.1"
+lazy val pekkoVersion               = "1.4.0"
 lazy val pekkoHttpVersion           = "1.3.0"
-lazy val testcontainersScalaVersion = "0.43.6"
-lazy val tapirVersion               = "1.12.3"
+lazy val testcontainersScalaVersion = "0.44.0"
+lazy val tapirVersion               = "1.12.6"
 lazy val circeVersion               = "0.14.15"
 
 addCommandAlias("prePR", List("compile", "Test / compile", "test", "scalafmtCheckAll").mkString(";", ";", ""))
