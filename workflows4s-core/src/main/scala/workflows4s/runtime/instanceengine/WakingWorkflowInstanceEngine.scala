@@ -32,7 +32,7 @@ class WakingWorkflowInstanceEngine(protected val delegate: WorkflowInstanceEngin
   override def onStateChange[Ctx <: WorkflowContext](
       oldState: ActiveWorkflow[Ctx],
       newState: ActiveWorkflow[Ctx],
-  ): IO[Set[WorkflowInstanceEngine.PostExecCommand]] = {
+  ): IO[Set[WorkflowInstanceEngine.PostExecCommand]]                                                                = {
     super.onStateChange(oldState, newState) <*
       IO.whenA(newState.wakeupAt != oldState.wakeupAt)(updateWakeup(newState, newState.wakeupAt))
   }
