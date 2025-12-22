@@ -124,7 +124,7 @@ object CourseRegistrationWorkflow {
 
     // start_execution
     val engine     = WorkflowInstanceEngine.basic[IO]()
-    val runtime    = InMemoryRuntime.create[IO, Context.Ctx](workflow, RegistrationState.Empty, engine)
+    val runtime    = InMemoryRuntime.create[IO, Context.Ctx](workflow, RegistrationState.Empty, engine).unsafeRunSync()
     val wfInstance = runtime.createInstance("student-123").unsafeRunSync().asInstanceOf[InMemoryWorkflowInstance[IO, Context.Ctx]]
 
     println("=== Course Registration Workflow ===")

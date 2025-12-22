@@ -91,7 +91,7 @@ object TestRuntimeAdapter {
         workflow: WIO.Initial[IO, Ctx],
         state: WCState[Ctx],
     ): Actor = {
-      val runtime = InMemoryRuntime.create[IO, Ctx](workflow, state, engine)
+      val runtime = InMemoryRuntime.create[IO, Ctx](workflow, state, engine).unsafeRunSync()
       Actor(List(), runtime)
     }
 

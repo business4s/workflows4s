@@ -127,7 +127,7 @@ object PullRequestWorkflow {
 
     // start_execution
     val engine     = WorkflowInstanceEngine.basic[IO]()
-    val runtime    = InMemoryRuntime.create[IO, Context.Ctx](workflow, PRState.Empty, engine)
+    val runtime    = InMemoryRuntime.create[IO, Context.Ctx](workflow, PRState.Empty, engine).unsafeRunSync()
     val wfInstance = runtime.createInstance("id").unsafeRunSync().asInstanceOf[InMemoryWorkflowInstance[IO, Context.Ctx]]
 
     wfInstance.deliverSignal(Signals.createPR, Signals.CreateRequest("some-sha")).unsafeRunSync()

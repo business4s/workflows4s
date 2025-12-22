@@ -26,31 +26,34 @@ trait BaseServer {
     */
   protected def apiRoutes: Resource[IO, HttpRoutes[IO]] = {
     for {
-      knockerUpper    <- SleepingKnockerUpper.create[IO].toResource
-      registry        <- InMemoryWorkflowRegistry[IO]().toResource
-      engine           = WorkflowInstanceEngine.default[IO](knockerUpper, registry)
-      courseRegRuntime = InMemoryRuntime
-                           .create[IO, CourseRegistrationWorkflow.Context.Ctx](
-                             workflow = CourseRegistrationWorkflow.workflow,
-                             initialState = CourseRegistrationWorkflow.RegistrationState.Empty,
-                             engine = engine,
-                           )
-
-      pullReqRuntime = InMemoryRuntime
-                         .create[IO, PullRequestWorkflow.Context.Ctx](
-                           workflow = PullRequestWorkflow.workflow,
-                           initialState = PullRequestWorkflow.PRState.Empty,
-                           engine = engine,
-                         )
-
-      withdrawalWf      = WithdrawalWorkflow(DummyWithdrawalService, ChecksEngine)
-      withdrawalRuntime = InMemoryRuntime
-                            .create[IO, WithdrawalWorkflow.Context.Ctx](
-                              workflow = withdrawalWf.workflowDeclarative,
-                              initialState = WithdrawalData.Empty,
+      knockerUpper     <- SleepingKnockerUpper.create[IO].toResource
+      registry         <- InMemoryWorkflowRegistry[IO]().toResource
+      engine            = WorkflowInstanceEngine.default[IO](knockerUpper, registry)
+      courseRegRuntime <- InMemoryRuntime
+                            .create[IO, CourseRegistrationWorkflow.Context.Ctx](
+                              workflow = CourseRegistrationWorkflow.workflow,
+                              initialState = CourseRegistrationWorkflow.RegistrationState.Empty,
                               engine = engine,
                             )
-      workflowEntries   = List[WorkflowEntry[IO, ?]](
+                            .toResource
+
+      pullReqRuntime <- InMemoryRuntime
+                          .create[IO, PullRequestWorkflow.Context.Ctx](
+                            workflow = PullRequestWorkflow.workflow,
+                            initialState = PullRequestWorkflow.PRState.Empty,
+                            engine = engine,
+                          )
+                          .toResource
+
+      withdrawalWf       = WithdrawalWorkflow(DummyWithdrawalService, ChecksEngine)
+      withdrawalRuntime <- InMemoryRuntime
+                             .create[IO, WithdrawalWorkflow.Context.Ctx](
+                               workflow = withdrawalWf.workflowDeclarative,
+                               initialState = WithdrawalData.Empty,
+                               engine = engine,
+                             )
+                             .toResource
+      workflowEntries    = List[WorkflowEntry[IO, ?]](
                             WorkflowEntry(
                               name = "Course Registration",
                               description =

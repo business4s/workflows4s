@@ -17,7 +17,7 @@ class InMemoryRuntimeTest extends AnyFreeSpec {
         workflow = workflow,
         initialState = "initialState",
         engine = WorkflowInstanceEngine.basic[IO](),
-      )
+      ).unsafeRunSync()
 
       val instance1 = runtime.createInstance("id1").unsafeRunSync()
       val instance2 = runtime.createInstance("id1").unsafeRunSync()

@@ -53,7 +53,6 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext](using E: Effect[F]) ext
       case Some(newState) =>
         for {
           cmds <- engine.onStateChange(oldState, newState)
-          // Use E.traverse_ instead of cats .traverse
           _    <- E.traverse_(cmds.toList) { case PostExecCommand.WakeUp =>
                     processWakeup(newState)
                   }
