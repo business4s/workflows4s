@@ -49,7 +49,7 @@ lazy val `workflows4s-pekko` = (project in file("workflows4s-pekko"))
       "org.apache.pekko" %% "pekko-cluster-typed"          % pekkoVersion,
       "org.apache.pekko" %% "pekko-cluster-sharding-typed" % pekkoVersion,
       "org.apache.pekko" %% "pekko-persistence-testkit"    % pekkoVersion    % Test,
-      "org.apache.pekko" %% "pekko-persistence-jdbc"       % "1.1.0"         % Test,
+      "org.apache.pekko" %% "pekko-persistence-jdbc"       % "1.1.1"         % Test,
       "com.h2database"    % "h2"                           % "2.4.240"       % Test,
       "io.r2dbc"          % "r2dbc-h2"                     % "1.1.0.RELEASE" % Test,
       "io.altoo"         %% "pekko-kryo-serialization"     % "1.3.2",
