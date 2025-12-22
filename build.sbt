@@ -52,7 +52,7 @@ lazy val `workflows4s-pekko` = (project in file("workflows4s-pekko"))
       "org.apache.pekko" %% "pekko-persistence-jdbc"       % "1.1.0"         % Test,
       "com.h2database"    % "h2"                           % "2.4.240"       % Test,
       "io.r2dbc"          % "r2dbc-h2"                     % "1.1.0.RELEASE" % Test,
-      "io.altoo"         %% "pekko-kryo-serialization"     % "1.3.0",
+      "io.altoo"         %% "pekko-kryo-serialization"     % "1.3.2",
     ),
   )
   .dependsOn(`workflows4s-core` % "compile->compile;test->test")
