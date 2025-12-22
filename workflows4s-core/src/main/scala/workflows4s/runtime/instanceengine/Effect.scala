@@ -1,8 +1,7 @@
 package workflows4s.runtime.instanceengine
 
-import workflows4s.wio.{WorkflowRef, WorkflowResult}
+import workflows4s.wio.WorkflowRef
 
-import java.time.Instant
 import scala.concurrent.duration.FiniteDuration
 
 /** Outcome of an effect execution, used for guaranteeCase */
@@ -50,7 +49,6 @@ trait Effect[F[_]] {
 
   // Time operations
   def sleep(duration: FiniteDuration): F[Unit]
-  def realTimeInstant: F[Instant]
 
   // Suspension of side effects
   def delay[A](a: => A): F[A]
@@ -122,21 +120,6 @@ trait Effect[F[_]] {
   /** Optional factory for creating WorkflowRef instances. Override in effect-specific implementations.
     */
   def refFactory: Option[WorkflowRef.Factory[F]] = None
-
-  /** Interpret a WorkflowResult into this effect type.
-    */
-  def interpret[A](result: WorkflowResult[A]): F[A] = {
-    result match {
-      case WorkflowResult.Pure(value)                      => pure(value.asInstanceOf[A])
-      case WorkflowResult.Fail(error)                      => raiseError(error)
-      case WorkflowResult.Defer(thunk)                     => delay(thunk().asInstanceOf[A])
-      case fm: WorkflowResult.FlatMap[b, A] @unchecked     =>
-        flatMap(interpret(fm.base))(a => interpret(fm.f(a)))
-      case he: WorkflowResult.HandleError[b, A] @unchecked =>
-        handleErrorWith(interpret(he.base).asInstanceOf[F[A]])(e => interpret(he.handler(e))).asInstanceOf[F[A]]
-      case WorkflowResult.RealTime                         => realTimeInstant.asInstanceOf[F[A]]
-    }
-  }
 }
 
 object Effect {
@@ -165,7 +148,6 @@ object Effect {
       catch { case e: Throwable => f(e) }
     def sleep(duration: scala.concurrent.duration.FiniteDuration): cats.Id[Unit]      =
       Thread.sleep(duration.toMillis)
-    def realTimeInstant: cats.Id[java.time.Instant]                                   = java.time.Instant.now()
     def delay[A](a: => A): cats.Id[A]                                                 = a
 
     def ref[A](initial: A): cats.Id[Ref[cats.Id, A]] = new Ref[cats.Id, A] {
@@ -233,7 +215,6 @@ object Effect {
         fa.recoverWith { case e => f(e) }
       def sleep(duration: scala.concurrent.duration.FiniteDuration): Future[Unit]    =
         Future(blocking(Thread.sleep(duration.toMillis)))
-      def realTimeInstant: Future[java.time.Instant]                                 = Future.successful(java.time.Instant.now())
       def delay[A](a: => A): Future[A]                                               = Future(a)
 
       def ref[A](initial: A): Future[Ref[Future, A]] = Future.successful(new Ref[Future, A] {

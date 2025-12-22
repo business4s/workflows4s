@@ -23,7 +23,6 @@ object CatsEffect {
     def raiseError[A](e: Throwable): IO[A]                                  = IO.raiseError(e)
     def handleErrorWith[A](fa: => IO[A])(f: Throwable => IO[A]): IO[A]      = fa.handleErrorWith(f)
     def sleep(duration: scala.concurrent.duration.FiniteDuration): IO[Unit] = IO.sleep(duration)
-    def realTimeInstant: IO[java.time.Instant]                              = IO.realTimeInstant
     def delay[A](a: => A): IO[A]                                            = IO.delay(a)
 
     def ref[A](initial: A): IO[Ref[IO, A]] = cats.effect.Ref[IO].of(initial).map { catsRef =>
