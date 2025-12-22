@@ -18,11 +18,14 @@ object WIO {
 
   type IHandleSignal[F[_], -In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext] = HandleSignal[F, Ctx, In, Out, Err, ?, ?, ?]
 
+  // Experimental approach to exposing concrete subtypes.
+  // We don't want to expose concrete impls because they have way too many type params.
+  // Alternatively, this could be a sealed trait extending WIO
   case class HandleSignal[F[_], Ctx <: WorkflowContext, -In, +Out <: WCState[Ctx], +Err, Sig, Resp, Evt](
       sigDef: SignalDef[Sig, Resp],
       sigHandler: SignalHandler[F, Sig, Evt, In],
       evtHandler: EventHandler[In, (Either[Err, Out], Resp), WCEvent[Ctx], Evt],
-      meta: HandleSignal.Meta,
+      meta: HandleSignal.Meta, // TODO here and everywhere else, we could use WIOMeta directly
   ) extends WIO[F, In, Err, Out, Ctx] {
 
     def toInterruption(using ev: WCState[Ctx] <:< In): Interruption[F, Ctx, Err, Out] =
