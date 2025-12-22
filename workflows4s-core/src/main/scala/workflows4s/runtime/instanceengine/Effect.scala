@@ -1,7 +1,5 @@
 package workflows4s.runtime.instanceengine
 
-import workflows4s.wio.WorkflowRef
-
 import scala.concurrent.duration.FiniteDuration
 
 /** Outcome of an effect execution, used for guaranteeCase */
@@ -116,10 +114,6 @@ trait Effect[F[_]] {
       case Right(a) => map(finalizer)(_ => a)
       case Left(e)  => flatMap(finalizer)(_ => raiseError(e))
     }
-
-  /** Optional factory for creating WorkflowRef instances. Override in effect-specific implementations.
-    */
-  def refFactory: Option[WorkflowRef.Factory[F]] = None
 }
 
 object Effect {
