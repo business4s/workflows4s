@@ -8,29 +8,18 @@ import workflows4s.runtime.instanceengine.Effect
 // This is most common in presence of `Pure` or timers awaiting the threshold.
 object ProceedEvaluator {
 
-  /** Now takes all 5 type arguments to match ActiveWorkflow calls.
+  /** Proceed with a workflow, attempting to advance it without side effects.
+    * Specialized for Initial workflows where input is the workflow state.
     */
-  def proceed[F[_], Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](
-      wio: WIO[F, In, Err, Out, Ctx],
-      state: In,
+  def proceed[F[_], Ctx <: WorkflowContext](
+      wio: WIO.Initial[F, Ctx],
+      state: WCState[Ctx],
   )(using E: Effect[F]): Response[F, Ctx] = {
-    // We use the last static state as the context for the visit
-    val staticState = GetStateEvaluator.extractLastState(wio, state, state.asInstanceOf[WCState[Ctx]]).getOrElse(state.asInstanceOf[WCState[Ctx]])
-    Response(runVisitor(wio, state, staticState, 0).map(_.wio.asInstanceOf[WIO.Initial[F, Ctx]]))
+    val staticState = GetStateEvaluator.extractLastState[F, Ctx, Any, Nothing, WCState[Ctx]](wio, (), state).getOrElse(state)
+    Response(runVisitor[F, Ctx, Any, Nothing, WCState[Ctx]](wio, (), staticState, 0).map(_.wio))
   }
 
   case class Response[F[_], Ctx <: WorkflowContext](newFlow: Option[WIO.Initial[F, Ctx]])
-
-  /** Helper to capture existential types and avoid "Type argument must be fully defined" errors.
-    */
-  private def runVisitor[F[_], C <: WorkflowContext, I, E, O <: WCState[C]](
-      wio: WIO[F, I, E, O, C],
-      input: I,
-      state: WCState[C],
-      index: Int,
-  )(using Effect[F]): Option[WFExecution[F, C, I, E, O]] = {
-    new ProceedVisitor[F, C, I, E, O](wio, input, state, index).run
-  }
 
   private class ProceedVisitor[F[_], Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](
       wio: WIO[F, In, Err, Out, Ctx],
@@ -53,7 +42,6 @@ object ProceedEvaluator {
         wio: WIO.Embedded[F, Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
     ): Result = {
       val newState: WCState[InnerCtx] = wio.embedding.unconvertStateUnsafe(lastSeenState)
-      // Use runVisitor to handle InnerCtx context crossing
       runVisitor(wio.inner, input, newState, index)
         .map(convertEmbeddingResult2(wio, _, input))
     }
@@ -80,8 +68,6 @@ object ProceedEvaluator {
       else updateChild.orElse(updateEmptyState)
     }
 
-    /** Helper to correctly recurse within the same context (Ctx).
-      */
     def recurse[I1, E1, O1 <: WCState[Ctx]](
         wio: WIO[F, I1, E1, O1, Ctx],
         in: I1,
@@ -91,5 +77,14 @@ object ProceedEvaluator {
       val nextIndex = Math.max(index, this.index)
       runVisitor(wio, in, state, nextIndex)
     }
+  }
+
+  private def runVisitor[F[_], C <: WorkflowContext, I, E, O <: WCState[C]](
+      wio: WIO[F, I, E, O, C],
+      input: I,
+      state: WCState[C],
+      index: Int,
+  )(using Effect[F]): Option[WFExecution[F, C, I, E, O]] = {
+    new ProceedVisitor[F, C, I, E, O](wio, input, state, index).run
   }
 }

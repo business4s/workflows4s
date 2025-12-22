@@ -47,7 +47,7 @@ case class ActiveWorkflow[F[_], Ctx <: WorkflowContext](
 
   private def effectlessProceed: ActiveWorkflow[F, Ctx] =
     ProceedEvaluator
-      .proceed[F, Ctx, Any, Nothing, WCState[Ctx]](wio, initialState)
+      .proceed[F, Ctx](wio, initialState)
       .newFlow
       .map(newWio => this.copy(wio = newWio))
       .map(_.effectlessProceed)
