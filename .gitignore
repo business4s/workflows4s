@@ -13,5 +13,8 @@ target
 # JS
 dist
 node_modules
-package-lock.json
 .vite
+
+# Ignore package-lock.json except for workflows4s-web-ui (needed for npm ci)
+package-lock.json
+!workflows4s-web-ui/package-lock.json
