@@ -20,13 +20,13 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext](using E: Effect[F]) ext
   protected def engine: WorkflowInstanceEngine[F]
 
   override def queryState(): F[WCState[Ctx]] =
-    getWorkflow.flatMap(engine.queryState)
+    getWorkflow.map(engine.queryState)
 
   override def getProgress: F[WIOExecutionProgress[WCState[Ctx]]] =
-    getWorkflow.flatMap(engine.getProgress)
+    getWorkflow.map(engine.getProgress)
 
   override def getExpectedSignals: F[List[SignalDef[?, ?]]] =
-    getWorkflow.flatMap(engine.getExpectedSignals)
+    getWorkflow.map(engine.getExpectedSignals)
 
   override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): F[Either[WorkflowInstance.UnexpectedSignal, Resp]] = {
     def processSignal(state: ActiveWorkflow[F, Ctx]): F[Either[WorkflowInstance.UnexpectedSignal, Resp]] = {

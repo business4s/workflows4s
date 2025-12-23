@@ -8,6 +8,8 @@ import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.pekko.PekkoRuntime
 import workflows4s.cats.IOWorkflowContext
 
+import scala.concurrent.Future
+
 object PekkoExample {
 
   object MyWorkflowCtx extends IOWorkflowContext {
@@ -27,7 +29,8 @@ object PekkoExample {
 
   runtime.initializeShard()
 
-  val instance: WorkflowInstance[IO, State] = runtime.createInstance_("my-workflow-id")
+  // Pekko runtime returns Future-based instances
+  val instance: WorkflowInstance[Future, State] = runtime.createInstance_("my-workflow-id")
   // doc_end
 
 }

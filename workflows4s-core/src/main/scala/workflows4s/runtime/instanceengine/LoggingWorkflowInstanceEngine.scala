@@ -16,33 +16,27 @@ class LoggingWorkflowInstanceEngine[F[_]](
 
   import Effect.*
 
-  override def queryState[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx]): F[WCState[Ctx]] = {
-    (E.delay(logger.trace(s"[${workflow.id}] queryState()")) *>
-      delegate
-        .queryState(workflow)
-        .flatMap(state => E.delay(logger.trace(s"[${workflow.id}] queryState → $state")).as(state))
-        .onError(e => E.delay(logger.error(s"[${workflow.id}] queryState failed", e))))
-      .withMDC(workflow)
+  override def queryState[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx]): WCState[Ctx] = {
+    logger.trace(s"[${workflow.id}] queryState()")
+    val state = delegate.queryState(workflow)
+    logger.trace(s"[${workflow.id}] queryState → $state")
+    state
   }
 
   override def getProgress[Ctx <: WorkflowContext](
       workflow: ActiveWorkflow[F, Ctx],
-  ): F[WIOExecutionProgress[WCState[Ctx]]] = {
-    (E.delay(logger.trace(s"[${workflow.id}] getProgress()")) *>
-      delegate
-        .getProgress(workflow)
-        .flatMap(prog => E.delay(logger.trace(s"[${workflow.id}] getProgress → $prog")).as(prog))
-        .onError(e => E.delay(logger.error(s"[${workflow.id}] getProgress failed", e))))
-      .withMDC(workflow)
+  ): WIOExecutionProgress[WCState[Ctx]] = {
+    logger.trace(s"[${workflow.id}] getProgress()")
+    val progress = delegate.getProgress(workflow)
+    logger.trace(s"[${workflow.id}] getProgress → $progress")
+    progress
   }
 
-  override def getExpectedSignals[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx]): F[List[SignalDef[?, ?]]] = {
-    (E.delay(logger.trace(s"[${workflow.id}] getExpectedSignals()")) *>
-      delegate
-        .getExpectedSignals(workflow)
-        .flatMap(signals => E.delay(logger.trace(s"[${workflow.id}] getExpectedSignals → [${signals.map(_.name).mkString(", ")}]")).as(signals))
-        .onError(e => E.delay(logger.error(s"[${workflow.id}] getExpectedSignals failed", e))))
-      .withMDC(workflow)
+  override def getExpectedSignals[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx]): List[SignalDef[?, ?]] = {
+    logger.trace(s"[${workflow.id}] getExpectedSignals()")
+    val signals = delegate.getExpectedSignals(workflow)
+    logger.trace(s"[${workflow.id}] getExpectedSignals → [${signals.map(_.name).mkString(", ")}]")
+    signals
   }
 
   override def triggerWakeup[Ctx <: WorkflowContext](

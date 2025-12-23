@@ -7,9 +7,9 @@ import workflows4s.wio.internal.{SignalResult, WakeupResult}
 trait DelegatingWorkflowInstanceEngine[F[_]] extends WorkflowInstanceEngine[F] {
   protected def delegate: WorkflowInstanceEngine[F]
 
-  def queryState[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx]): F[WCState[Ctx]]                        = delegate.queryState(workflow)
-  def getProgress[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx]): F[WIOExecutionProgress[WCState[Ctx]]] = delegate.getProgress(workflow)
-  def getExpectedSignals[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx]): F[List[SignalDef[?, ?]]]       = delegate.getExpectedSignals(workflow)
+  def queryState[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx]): WCState[Ctx]                        = delegate.queryState(workflow)
+  def getProgress[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx]): WIOExecutionProgress[WCState[Ctx]] = delegate.getProgress(workflow)
+  def getExpectedSignals[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx]): List[SignalDef[?, ?]]       = delegate.getExpectedSignals(workflow)
 
   override def triggerWakeup[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx]): F[WakeupResult[WCEvent[Ctx], F]] =
     delegate.triggerWakeup(workflow)

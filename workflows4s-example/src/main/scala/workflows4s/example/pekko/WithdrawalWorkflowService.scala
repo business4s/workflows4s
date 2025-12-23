@@ -31,8 +31,7 @@ object WithdrawalWorkflowService {
 
     override def startWorkflow(id: String, input: CreateWithdrawal): IO[Unit] = {
       val workflow = wdRuntime.createInstance_(id)
-      workflow
-        .deliverSignal(WithdrawalWorkflow.Signals.createWithdrawal, input)
+      IO.fromFuture(IO(workflow.deliverSignal(WithdrawalWorkflow.Signals.createWithdrawal, input)))
         .map({
           case Right(response)             => response
           case Left(UnexpectedSignal(sig)) => throw new Exception(s"Unexpected creation signal $sig for instance ${id}")
@@ -43,7 +42,7 @@ object WithdrawalWorkflowService {
 
     override def getState(id: String): IO[WithdrawalData] = {
       val workflow = wdRuntime.createInstance_(id)
-      workflow.queryState()
+      IO.fromFuture(IO(workflow.queryState()))
     }
 
     override def cancelWithdrawal(id: String, request: WithdrawalSignal.CancelWithdrawal): Unit = ???

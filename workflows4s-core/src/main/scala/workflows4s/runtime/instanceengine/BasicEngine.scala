@@ -23,12 +23,12 @@ trait BasicEngine[F[_]](using Effect[F]) extends WorkflowInstanceEngine[F] {
   override def handleEvent[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx], event: WCEvent[Ctx]): F[Option[ActiveWorkflow[F, Ctx]]] =
     workflow.handleEvent(event).pure
 
-  override def queryState[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx]): F[WCState[Ctx]] = workflow.liveState.pure
+  override def queryState[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx]): WCState[Ctx] = workflow.liveState
 
-  override def getProgress[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx]): F[WIOExecutionProgress[WCState[Ctx]]] = workflow.progress.pure
+  override def getProgress[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx]): WIOExecutionProgress[WCState[Ctx]] = workflow.progress
 
-  override def getExpectedSignals[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx]): F[List[SignalDef[?, ?]]] =
-    workflow.expectedSignals.pure
+  override def getExpectedSignals[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx]): List[SignalDef[?, ?]] =
+    workflow.expectedSignals
 
   override def onStateChange[Ctx <: WorkflowContext](
       oldState: ActiveWorkflow[F, Ctx],

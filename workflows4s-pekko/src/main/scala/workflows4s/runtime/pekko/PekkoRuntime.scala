@@ -5,12 +5,20 @@ import org.apache.pekko.actor.typed.ActorSystem
 import org.apache.pekko.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity, EntityTypeKey}
 import org.apache.pekko.persistence.typed.PersistenceId
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
-import workflows4s.runtime.{WorkflowInstance, WorkflowInstanceId, WorkflowRuntime}
+import workflows4s.runtime.{WorkflowInstance, WorkflowInstanceId}
 import workflows4s.wio.WIO.Initial
 import workflows4s.wio.{WCState, WorkflowContext}
 
-trait PekkoRuntime[Ctx <: WorkflowContext] extends WorkflowRuntime[IO, Ctx] {
-  def createInstance_(id: String): WorkflowInstance[IO, WCState[Ctx]]
+import scala.concurrent.Future
+
+/** Pekko runtime for workflows. Uses IO internally for workflow processing, but exposes a Future-based API for external interaction since Pekko
+  * naturally uses Futures.
+  */
+trait PekkoRuntime[Ctx <: WorkflowContext] {
+  def templateId: String
+  def workflow: Initial[IO, Ctx]
+  def createInstance(id: String): Future[WorkflowInstance[Future, WCState[Ctx]]]
+  def createInstance_(id: String): WorkflowInstance[Future, WCState[Ctx]]
   def initializeShard(): Unit
 }
 
@@ -26,10 +34,10 @@ class PekkoRuntimeImpl[Ctx <: WorkflowContext](
   private type Command = WorkflowBehavior.Command[Ctx]
   private val typeKey = EntityTypeKey[Command](entityName)
 
-  override def createInstance(id: String): IO[WorkflowInstance[IO, WCState[Ctx]]] = {
-    IO.pure(createInstance_(id))
+  override def createInstance(id: String): Future[WorkflowInstance[Future, WCState[Ctx]]] = {
+    Future.successful(createInstance_(id))
   }
-  override def createInstance_(id: String): WorkflowInstance[IO, WCState[Ctx]]    = {
+  override def createInstance_(id: String): WorkflowInstance[Future, WCState[Ctx]]        = {
     val instanceId = WorkflowInstanceId(templateId, id)
     PekkoWorkflowInstance(instanceId, sharding.entityRefFor(typeKey, id))
   }

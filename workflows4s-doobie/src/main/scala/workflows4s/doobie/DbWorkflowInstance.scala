@@ -39,13 +39,13 @@ class DbWorkflowInstance[Ctx <: WorkflowContext](
   }
 
   override def queryState(): DoobieEffect[WCState[Ctx]] =
-    getWorkflow.flatMap(wf => liftIO(engine.queryState(wf)))
+    getWorkflow.map(engine.queryState)
 
   override def getProgress: DoobieEffect[WIOExecutionProgress[WCState[Ctx]]] =
-    getWorkflow.flatMap(wf => liftIO(engine.getProgress(wf)))
+    getWorkflow.map(engine.getProgress)
 
   override def getExpectedSignals: DoobieEffect[List[SignalDef[?, ?]]] =
-    getWorkflow.flatMap(wf => liftIO(engine.getExpectedSignals(wf)))
+    getWorkflow.map(engine.getExpectedSignals)
 
   override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): DoobieEffect[Either[UnexpectedSignal, Resp]] = {
     def processSignal(state: ActiveWorkflow[IO, Ctx]): DoobieEffect[Either[UnexpectedSignal, Resp]] = {

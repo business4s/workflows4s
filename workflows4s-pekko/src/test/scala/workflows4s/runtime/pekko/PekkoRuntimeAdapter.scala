@@ -99,12 +99,12 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(impli
       )
 
     override def id: WorkflowInstanceId                                                                                                   = base.id
-    override def queryState(): IO[WCState[Ctx]]                                                                                           = base.queryState()
+    override def queryState(): IO[WCState[Ctx]]                                                                                           = IO.fromFuture(IO(base.queryState()))
     override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): IO[Either[WorkflowInstance.UnexpectedSignal, Resp]] =
-      base.deliverSignal(signalDef, req)
-    override def wakeup(): IO[Unit]                                                                                                       = base.wakeup()
-    override def getProgress: IO[model.WIOExecutionProgress[WCState[Ctx]]]                                                                = base.getProgress
-    override def getExpectedSignals: IO[List[SignalDef[?, ?]]]                                                                            = base.getExpectedSignals
+      IO.fromFuture(IO(base.deliverSignal(signalDef, req)))
+    override def wakeup(): IO[Unit]                                                                                                       = IO.fromFuture(IO(base.wakeup()))
+    override def getProgress: IO[model.WIOExecutionProgress[WCState[Ctx]]]                                                                = IO.fromFuture(IO(base.getProgress))
+    override def getExpectedSignals: IO[List[SignalDef[?, ?]]]                                                                            = IO.fromFuture(IO(base.getExpectedSignals))
 
     def toIdActor: WorkflowInstance[Id, WCState[Ctx]] = MappedWorkflowInstance(this, [t] => (x: IO[t]) => x.unsafeRunSync())
   }
@@ -194,12 +194,12 @@ class PekkoTestRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(i
       )
 
     override def id: WorkflowInstanceId                                                                                                   = base.id
-    override def queryState(): IO[WCState[Ctx]]                                                                                           = base.queryState()
+    override def queryState(): IO[WCState[Ctx]]                                                                                           = IO.fromFuture(IO(base.queryState()))
     override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): IO[Either[WorkflowInstance.UnexpectedSignal, Resp]] =
-      base.deliverSignal(signalDef, req)
-    override def wakeup(): IO[Unit]                                                                                                       = base.wakeup()
-    override def getProgress: IO[model.WIOExecutionProgress[WCState[Ctx]]]                                                                = base.getProgress
-    override def getExpectedSignals: IO[List[SignalDef[?, ?]]]                                                                            = base.getExpectedSignals
+      IO.fromFuture(IO(base.deliverSignal(signalDef, req)))
+    override def wakeup(): IO[Unit]                                                                                                       = IO.fromFuture(IO(base.wakeup()))
+    override def getProgress: IO[model.WIOExecutionProgress[WCState[Ctx]]]                                                                = IO.fromFuture(IO(base.getProgress))
+    override def getExpectedSignals: IO[List[SignalDef[?, ?]]]                                                                            = IO.fromFuture(IO(base.getExpectedSignals))
 
     def toIdActor: WorkflowInstance[Id, WCState[Ctx]] = MappedWorkflowInstance(this, [t] => (x: IO[t]) => x.unsafeRunSync())
   }

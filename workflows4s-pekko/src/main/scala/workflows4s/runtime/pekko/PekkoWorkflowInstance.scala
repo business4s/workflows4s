@@ -1,6 +1,5 @@
 package workflows4s.runtime.pekko
 
-import cats.effect.IO
 import org.apache.pekko.actor.typed.scaladsl.AskPattern.*
 import org.apache.pekko.actor.typed.{ActorSystem, RecipientRef}
 import org.apache.pekko.util.Timeout
@@ -9,6 +8,7 @@ import workflows4s.runtime.{WorkflowInstance, WorkflowInstanceId}
 import workflows4s.wio.model.WIOExecutionProgress
 import workflows4s.wio.{SignalDef, WCState, WorkflowContext}
 
+import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
 class PekkoWorkflowInstance[Ctx <: WorkflowContext](
@@ -17,30 +17,30 @@ class PekkoWorkflowInstance[Ctx <: WorkflowContext](
     queryTimeout: Timeout = Timeout(100.millis),
     processingTimeout: Timeout = Timeout(5.seconds),
 )(using system: ActorSystem[?])
-    extends WorkflowInstance[IO, WCState[Ctx]] {
+    extends WorkflowInstance[Future, WCState[Ctx]] {
 
-  override def queryState(): IO[WCState[Ctx]] = {
+  override def queryState(): Future[WCState[Ctx]] = {
     given Timeout = queryTimeout
-    IO.fromFuture(IO(actorRef.ask(replyTo => Command.QueryState(replyTo))))
+    actorRef.ask(replyTo => Command.QueryState(replyTo))
   }
 
-  override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): IO[Either[WorkflowInstance.UnexpectedSignal, Resp]] = {
+  override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): Future[Either[WorkflowInstance.UnexpectedSignal, Resp]] = {
     given Timeout = processingTimeout
-    IO.fromFuture(IO(actorRef.askWithStatus(replyTo => Command.DeliverSignal(signalDef, req, replyTo))))
+    actorRef.askWithStatus(replyTo => Command.DeliverSignal(signalDef, req, replyTo))
   }
 
-  override def wakeup(): IO[Unit] = {
+  override def wakeup(): Future[Unit] = {
     given Timeout = processingTimeout
-    IO.fromFuture(IO(actorRef.askWithStatus(replyTo => Command.Wakeup(replyTo))))
+    actorRef.askWithStatus(replyTo => Command.Wakeup(replyTo))
   }
 
-  override def getProgress: IO[WIOExecutionProgress[WCState[Ctx]]] = {
+  override def getProgress: Future[WIOExecutionProgress[WCState[Ctx]]] = {
     given Timeout = queryTimeout
-    IO.fromFuture(IO(actorRef.ask(replyTo => Command.GetProgress(replyTo))))
+    actorRef.ask(replyTo => Command.GetProgress(replyTo))
   }
 
-  override def getExpectedSignals: IO[List[SignalDef[?, ?]]] = {
+  override def getExpectedSignals: Future[List[SignalDef[?, ?]]] = {
     given Timeout = queryTimeout
-    IO.fromFuture(IO(actorRef.ask(replyTo => Command.GetExpectedSignals(replyTo))))
+    actorRef.ask(replyTo => Command.GetExpectedSignals(replyTo))
   }
 }
