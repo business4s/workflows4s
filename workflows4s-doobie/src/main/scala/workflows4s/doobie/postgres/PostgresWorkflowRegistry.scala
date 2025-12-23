@@ -33,7 +33,7 @@ object PostgresWorkflowRegistry {
 
     val tableNameFr = Fragment.const(tableName)
 
-    override def upsertInstance(inst: ActiveWorkflow[?, ?], executionStatus: ExecutionStatus): IO[Unit] = {
+    override def upsertInstance(inst: ActiveWorkflow[IO, ?], executionStatus: ExecutionStatus): IO[Unit] = {
       val id    = inst.id
       val query = for {
         now <- Sync[ConnectionIO].delay(Instant.now(clock))

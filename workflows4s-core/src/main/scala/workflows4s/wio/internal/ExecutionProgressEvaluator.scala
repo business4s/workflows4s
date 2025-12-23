@@ -8,8 +8,6 @@ import workflows4s.wio.model.{WIOExecutionProgress, WIOMeta}
 
 object ExecutionProgressEvaluator {
 
-  /** Now generic over F to match the WIO signature.
-    */
   def run[F[_], Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](
       wio: WIO[F, In, Err, Out, Ctx],
       input: Option[In],
@@ -98,13 +96,16 @@ object ExecutionProgressEvaluator {
     def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_ <: WCState[InnerCtx]] <: WCState[Ctx]](
         wio: WIO.Embedded[F, Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
     ): Result = {
+      // We could express embedding in model but need a use case for it.
       val visitor = new ExecProgressVisitor(
         wio.inner,
         this.result.flatMap(_.mapValue(wio.embedding.unconvertState)),
         lastSeenState.flatMap(wio.embedding.unconvertState),
         input,
       )
-      visitor.run.map(x => input.map(wio.embedding.convertState(x, _)))
+      visitor.run.map(x => input.map(wio.embedding.convertState(x, _))) // get is unsafe
+      // but it should always be present.
+      // if we got state inside, also the last seen state should be correct
     }
 
     def onHandleInterruption(wio: WIO.HandleInterruption[F, Ctx, In, Err, Out]): Result = {
@@ -160,8 +161,16 @@ object ExecutionProgressEvaluator {
       val elemModel     = new ExecProgressVisitor(wio.elemWorkflow, None, None, None).run.toModel
       val subProgresses = input
         .map(wio.state)
+        .map(_.map { case (elemId, state) => elemId -> ExecutionProgressEvaluator.run(state, None, None) })
         .getOrElse(Map.empty)
-        .map { case (elemId, state) => elemId -> ExecutionProgressEvaluator.run(state, None, None) }
+      // We could tuple-in the interim state, but the ordering is hard to keep - if the incorporating logic is order-dependent,
+      // and if we do it naively here, we will have discrepancy between execution and collected progress.
+      // We could also expose only the last interim state, which is slightly simpler but comes with the same problem.
+      // So for now we don't expose interim states at all.
+      // Proper implementation could be:
+      //  1. Convert subProgresses into ExecutionProgress[(Option[InterimState], InnerState)] (all interim empty)
+      //  2. Traverse them, setting interim state for the one with the next index value (kept in ExecutedResult)
+      //  3. Repeat until nothing can be set anymore.
 
       WIOExecutionProgress.ForEach(result, elemModel, subProgresses, wio.meta)
     }

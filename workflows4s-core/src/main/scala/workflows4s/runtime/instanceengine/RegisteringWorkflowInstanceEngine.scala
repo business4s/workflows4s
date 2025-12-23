@@ -5,6 +5,8 @@ import workflows4s.runtime.registry.WorkflowRegistry.ExecutionStatus
 import workflows4s.wio.*
 import workflows4s.wio.internal.{SignalResult, WakeupResult}
 
+// TODO check how this engine interacts with non-greedy mode.
+//  What happens when there is more to execute? What is unexpected signal appears between wakeups?
 class RegisteringWorkflowInstanceEngine[F[_]](
     protected val delegate: WorkflowInstanceEngine[F],
     registry: WorkflowRegistry.Agent[F],

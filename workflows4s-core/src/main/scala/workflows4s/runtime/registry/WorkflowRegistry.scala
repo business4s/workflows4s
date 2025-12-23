@@ -11,7 +11,7 @@ object WorkflowRegistry {
 
   trait Agent[F[_]] {
 
-    def upsertInstance(inst: ActiveWorkflow[?, ?], executionStatus: ExecutionStatus): F[Unit]
+    def upsertInstance(inst: ActiveWorkflow[F, ?], executionStatus: ExecutionStatus): F[Unit]
 
   }
 

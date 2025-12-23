@@ -4,8 +4,6 @@ import workflows4s.wio.*
 
 private[workflows4s] object GetSignalDefsEvaluator {
 
-  /** Now takes all 5 type parameters to match the call site in ActiveWorkflow.
-    */
   def run[F[_], Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](
       wio: WIO[F, In, Err, Out, Ctx],
   ): List[SignalDef[?, ?]] = {

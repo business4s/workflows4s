@@ -8,7 +8,7 @@ object NoOpWorkflowRegistry {
 
   def agent[F[_]](using E: Effect[F]): WorkflowRegistry.Agent[F] =
     new WorkflowRegistry.Agent[F] {
-      override def upsertInstance(inst: ActiveWorkflow[?, ?], executionStatus: ExecutionStatus): F[Unit] = E.unit
+      override def upsertInstance(inst: ActiveWorkflow[F, ?], executionStatus: ExecutionStatus): F[Unit] = E.unit
     }
 
 }

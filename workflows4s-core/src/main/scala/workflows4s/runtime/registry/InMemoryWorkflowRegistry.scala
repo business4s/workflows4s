@@ -40,7 +40,7 @@ object InMemoryWorkflowRegistry {
       extends InMemoryWorkflowRegistry[F]
       with StrictLogging {
 
-    override def upsertInstance(inst: ActiveWorkflow[?, ?], executionStatus: ExecutionStatus): F[Unit] = {
+    override def upsertInstance(inst: ActiveWorkflow[F, ?], executionStatus: ExecutionStatus): F[Unit] = {
       val id = inst.id
       for {
         now <- E.delay(Instant.now(clock))

@@ -34,6 +34,8 @@ trait WorkflowInstanceEngine[F[_]](using Effect[F]) {
       @unused newState: ActiveWorkflow[F, Ctx],
   ): F[Set[PostExecCommand]]
 
+  // Process event synchronously and return the new state
+  // This ensures event handling is atomic and deterministic
   def processEvent[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx], event: WCEvent[Ctx]): F[ActiveWorkflow[F, Ctx]] = this
     .handleEvent(workflow, event)
     .map(_.getOrElse(workflow))

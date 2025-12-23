@@ -5,8 +5,6 @@ import workflows4s.wio.*
 
 object GetStateEvaluator {
 
-  /** Added F[_] and explicit type parameters to help the compiler reduce match types.
-    */
   def extractLastState[F[_], Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](
       wio: WIO[F, In, Err, Out, Ctx],
       input: In,
