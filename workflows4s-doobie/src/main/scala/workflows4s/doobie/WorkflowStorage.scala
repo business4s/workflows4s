@@ -1,16 +1,15 @@
 package workflows4s.doobie
 
 import cats.effect.kernel.Resource
+import doobie.*
 import workflows4s.runtime.WorkflowInstanceId
 
-/** Effect-polymorphic workflow storage. The F[_] effect type is typically IO.
-  */
-trait WorkflowStorage[F[_], Event] {
+trait WorkflowStorage[Event] {
 
-  def getEvents(id: WorkflowInstanceId): fs2.Stream[F, Event]
-  def saveEvent(id: WorkflowInstanceId, event: Event): F[Unit]
+  def getEvents(id: WorkflowInstanceId): fs2.Stream[ConnectionIO, Event]
+  def saveEvent(id: WorkflowInstanceId, event: Event): ConnectionIO[Unit]
 
   // Resource because some locking mechanisms might require an explicit release
-  def lockWorkflow(id: WorkflowInstanceId): Resource[F, Unit]
+  def lockWorkflow(id: WorkflowInstanceId): Resource[ConnectionIO, Unit]
 
 }

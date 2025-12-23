@@ -1,14 +1,15 @@
 package workflows4s.doobie.sqlite
 
-import cats.effect.IO
 import com.typesafe.scalalogging.StrictLogging
+import cats.effect.IO
 import doobie.implicits.*
 import doobie.util.fragment.Fragment
 import doobie.util.transactor.Transactor
+import doobie.WeakAsync
 import workflows4s.cats.CatsEffect.given
-import workflows4s.doobie.{ByteCodec, DbWorkflowInstance}
+import workflows4s.doobie.{ByteCodec, DbWorkflowInstance, DoobieEffect}
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
-import workflows4s.runtime.{WorkflowInstance, WorkflowInstanceId, WorkflowRuntime}
+import workflows4s.runtime.{MappedWorkflowInstance, WorkflowInstance, WorkflowInstanceId, WorkflowRuntime}
 import workflows4s.wio.WIO.Initial
 import workflows4s.wio.WorkflowContext.State
 import workflows4s.wio.{ActiveWorkflow, WCEvent, WCState, WorkflowContext}
@@ -17,7 +18,7 @@ import java.nio.file.{Files, Path}
 import java.util.Properties
 
 class SqliteRuntime[Ctx <: WorkflowContext](
-    override val workflow: Initial[IO, Ctx],
+    val workflow: Initial[IO, Ctx],
     initialState: WCState[Ctx],
     engine: WorkflowInstanceEngine[IO],
     eventCodec: ByteCodec[WCEvent[Ctx]],
@@ -26,19 +27,29 @@ class SqliteRuntime[Ctx <: WorkflowContext](
 ) extends WorkflowRuntime[IO, Ctx]
     with StrictLogging {
 
+  private val storage = SqliteWorkflowStorage[WCEvent[Ctx]](eventCodec)
+
   override def createInstance(id: String): IO[WorkflowInstance[IO, State[Ctx]]] = {
     val dbPath = getDatabasePath(id)
     val xa     = createTransactor(dbPath)
     for {
-      _       <- initSchema(xa, dbPath)
-      storage <- SqliteWorkflowStorage.create[WCEvent[Ctx]](xa, eventCodec)
+      _ <- initSchema(xa, dbPath)
     } yield {
       val instanceId = WorkflowInstanceId(templateId, id)
-      new DbWorkflowInstance(
+      val base       = new DbWorkflowInstance(
         instanceId,
         ActiveWorkflow(instanceId, workflow, initialState),
         storage,
         engine,
+      )
+
+      new MappedWorkflowInstance[DoobieEffect, IO, State[Ctx]](
+        base,
+        [t] =>
+          (doobieEffect: DoobieEffect[t]) =>
+            // we use rawTrans because locking manages transactions itself.
+            // And querying events without locking doesn't require any kind of transaction.
+            WeakAsync.liftIO[doobie.ConnectionIO].use(liftIO => xa.rawTrans.apply(doobieEffect.run(liftIO))),
       )
     }
   }

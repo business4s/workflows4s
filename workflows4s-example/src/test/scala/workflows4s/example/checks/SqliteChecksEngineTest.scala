@@ -9,6 +9,8 @@ import workflows4s.example.withdrawal.checks.{ChecksEngine, ChecksEvent}
 class SqliteChecksEngineTest extends AnyFreeSpec with SqliteWorkdirSuite with ChecksEngineTest.Suite {
 
   "sqlite" - {
+    // skipRecovery=true: DatabaseRuntime handles recovery internally via event replay from DB.
+    // The test's recovery mechanism (getEvents + replay) doesn't apply to database-backed runtimes.
     checkEngineTests(new SqliteRuntimeAdapter[ChecksEngine.Context](workdir, eventCodec), skipRecovery = true)
   }
 

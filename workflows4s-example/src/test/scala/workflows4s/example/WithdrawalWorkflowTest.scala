@@ -24,9 +24,7 @@ import scala.jdk.DurationConverters.JavaDurationOps
 class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory with WithdrawalWorkflowTest.Suite {
 
   "in-memory" - {
-    // skipRecovery=true: InMemory adapter uses MappedWorkflowInstance which doesn't preserve
-    // the concrete instance type needed for recovery test's getEvents introspection
-    withdrawalTests(TestRuntimeAdapter.InMemory(), skipRecovery = true)
+    withdrawalTests(TestRuntimeAdapter.InMemory())
   }
 
   "render model" in {

@@ -10,6 +10,8 @@ import workflows4s.example.withdrawal.*
 class SqliteWithdrawalWorkflowTest extends AnyFreeSpec with SqliteWorkdirSuite with MockFactory with WithdrawalWorkflowTest.Suite {
 
   "sqlite" - {
+    // skipRecovery=true: DatabaseRuntime handles recovery internally via event replay from DB.
+    // The test's recovery mechanism (getEvents + replay) doesn't apply to database-backed runtimes.
     withdrawalTests(new SqliteRuntimeAdapter[WithdrawalWorkflow.Context.Ctx](workdir, eventCodec), skipRecovery = true)
   }
 

@@ -17,7 +17,7 @@ import scala.reflect.Selectable.reflectiveSelectable
 class ChecksEngineTest extends AnyFreeSpec with ChecksEngineTest.Suite {
 
   "in-memory" - {
-    checkEngineTests(TestRuntimeAdapter.InMemory(), skipRecovery = true)
+    checkEngineTests(TestRuntimeAdapter.InMemory())
   }
 
   "render bpmn model" in {

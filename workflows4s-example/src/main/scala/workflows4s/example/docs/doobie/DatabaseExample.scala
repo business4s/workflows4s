@@ -22,9 +22,9 @@ object DatabaseExample {
   }
   type Ctx = MyCtx
 
-  val transactor: Transactor[IO]           = ???
-  val storage: WorkflowStorage[IO, String] = ???
-  val templateId                           = "my-workflow"
+  val transactor: Transactor[IO]       = ???
+  val storage: WorkflowStorage[String] = ???
+  val templateId                       = "my-workflow"
 
   // For actual usage, see workflows4s-doobie tests
   // DatabaseRuntime.create takes:
@@ -44,7 +44,9 @@ object DatabaseExample {
     // doc_postgres_start
     given eventCodec: ByteCodec[String] = ???
 
-    val postgresStorage: WorkflowStorage[IO, String] = new PostgresWorkflowStorage[String](transactor)
+    // PostgresWorkflowStorage uses ConnectionIO internally
+    // The transactor is provided at the DatabaseRuntime level
+    val postgresStorage: WorkflowStorage[String] = new PostgresWorkflowStorage[String]()
     // doc_postgres_end
   }
 
