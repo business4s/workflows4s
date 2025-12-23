@@ -125,7 +125,9 @@ object WIO {
       branches: Vector[Branch[F, In, Err, Out, Ctx, ?]],
       name: Option[String],
       selected: Option[Int],
-  ) extends WIO[F, In, Err, Out, Ctx]
+  ) extends WIO[F, In, Err, Out, Ctx] {
+    require(selected.forall(branches.indices.contains))
+  }
 
   case class Embedded[F[_], Ctx <: WorkflowContext, -In, +Err, InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_ <: WCState[
     InnerCtx,
