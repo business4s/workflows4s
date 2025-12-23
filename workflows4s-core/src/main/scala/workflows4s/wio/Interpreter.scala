@@ -56,24 +56,20 @@ abstract class Visitor[F[_], Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx
 
   @nowarn("msg=the type test for workflows4s.wio.WIO.Embedded")
   def run: Result = {
+    // Pattern match with wildcards requires casts to restore the Visitor's type parameters
+    // SAFETY: The visitor is constructed with specific [F, Ctx, In, Err, Out] types,
+    // and all matched WIO subtypes extend WIO[F, In, Err, Out, Ctx] by construction.
+    // Compiler can't infer this from the wildcard pattern match, hence the casts.
     wio match {
-      // HandleSignal[F, Ctx, In, Out, Err, Sig, Resp, Evt] -> 8 params
       case x: WIO.HandleSignal[?, ?, ?, ?, ?, ?, ?, ?] => onSignal(x.asInstanceOf)
-      // RunIO[F, Ctx, In, Err, Out, Evt] -> 6 params
       case x: WIO.RunIO[?, ?, ?, ?, ?, ?]              => onRunIO(x.asInstanceOf)
-      // FlatMap[F, Ctx, Err1, Err2, Out1, Out2, In] -> 7 params
       case x: WIO.FlatMap[?, ?, ?, ?, ?, ?, ?]         => onFlatMap(x.asInstanceOf)
-      // Transform[F, Ctx, In1, Err1, Out1, In2, Out2, Err2] -> 8 params
       case x: WIO.Transform[?, ?, ?, ?, ?, ?, ?, ?]    => onTransform(x.asInstanceOf)
       case x: WIO.End[?, ?]                            => onNoop(x.asInstanceOf)
-      // HandleError[F, Ctx, In, Err, Out, ErrIn, TempOut] -> 7 params
       case x: WIO.HandleError[?, ?, ?, ?, ?, ?, ?]     => onHandleError(x.asInstanceOf)
-      // AndThen[F, Ctx, In, Err, Out1, Out2] -> 6 params
       case x: WIO.AndThen[?, ?, ?, ?, ?, ?]            => onAndThen(x.asInstanceOf)
       case x: WIO.Pure[?, ?, ?, ?, ?]                  => onPure(x.asInstanceOf)
-      // HandleErrorWith[F, Ctx, In, Err, Out, ErrOut] -> 6 params
       case x: WIO.HandleErrorWith[?, ?, ?, ?, ?, ?]    => onHandleErrorWith(x.asInstanceOf)
-      // Loop[F, Ctx, In, Err, Out, BodyIn, BodyOut, ReturnIn] -> 8 params
       case x: WIO.Loop[?, ?, ?, ?, ?, ?, ?, ?]         => onLoop(x.asInstanceOf)
       case x: WIO.Fork[?, ?, ?, ?, ?]                  => onFork(x.asInstanceOf)
       case x: WIO.Embedded[?, ?, ?, ?, ?, ?, ?]        => onEmbedded(x.asInstanceOf)
@@ -83,12 +79,9 @@ abstract class Visitor[F[_], Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx
       case x: WIO.Executed[?, ?, ?, ?, ?]              => onExecuted(x.asInstanceOf)
       case x: WIO.Discarded[?, ?, ?]                   => onDiscarded(x.asInstanceOf)
       case x: WIO.Parallel[?, ?, ?, ?, ?, ?]           => onParallel(x.asInstanceOf)
-      // Checkpoint[F, Ctx, In, Err, Out, Evt] -> 6 params
       case x: WIO.Checkpoint[?, ?, ?, ?, ?, ?]         => onCheckpoint(x.asInstanceOf)
-      // Recovery[F, Ctx, In, Err, Out, Evt] -> 6 params
       case x: WIO.Recovery[?, ?, ?, ?, ?, ?]           => onRecovery(x.asInstanceOf)
       case x: WIO.Retry[?, ?, ?, ?, ?]                 => onRetry(x.asInstanceOf)
-      // ForEach[F, Ctx, In, Err, Out, Elem, InnerCtx, ElemOut, Interim] -> 9 params
       case x: WIO.ForEach[?, ?, ?, ?, ?, ?, ?, ?, ?]   => onForEach(x.asInstanceOf)
     }
   }
@@ -104,7 +97,9 @@ abstract class Visitor[F[_], Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx
       newWf: WFExecution[F, InnerCtx, In, Err, InnerOut],
       input: In,
   ): WFExecution[F, Ctx, In, Err, Out] = {
-    def convert(x: WFExecution[F, Ctx, In, Err, O1[InnerOut]]): WFExecution[F, Ctx, In, Err, Out] = x.asInstanceOf
+    // Cast needed: O1[InnerOut] <: WCState[Ctx] and Out <: WCState[Ctx], but compiler can't prove O1[InnerOut] =:= Out
+    def convert(x: WFExecution[F, Ctx, In, Err, O1[InnerOut]]): WFExecution[F, Ctx, In, Err, Out] =
+      x.asInstanceOf[WFExecution[F, Ctx, In, Err, Out]]
     newWf match {
       case WFExecution.Complete(newWio) =>
         convert(
