@@ -23,35 +23,43 @@ When the `WorkflowInstance#wakeup` is called and the underlying operation fails:
 
 ## Retry Strategies
 
-### 1. Simple Retry with Fixed Delay
+Workflows4s supports two types of retries: stateless and stateful.
+
+### Stateless Retry
+
+Stateless retries are simple and easy to use. They allow rescheduling the wakeup but without tracking any state like attempt count,
+elapsed time or any other information about previous executions.
+
+This means you can't directly express strategies such as exponential retries.
+
+To support such logic, you can:
+- Use custom persistent state to track retry metadata and query it in the retry handler (outside workflows4s).
+- Use stateful retries described below.
+
+#### Simple Retry with Fixed Delay
 
 ```scala file=./main/scala/workflows4s/example/docs/RetryExample.scala start=start_doc_simple end=end_doc_simple
 ```
 
 <OperationOutputs name="retry"/>
 
-### 2. Advanced Retry with Custom Logic
+#### Advanced Retry with Custom Logic
 
 ```scala file=./main/scala/workflows4s/example/docs/RetryExample.scala start=start_doc_full end=end_doc_full
 ```
 
+### Stateful Retry
+
+For more complex retry logic, you can use stateful retries,
+where the state is persisted through events, same as workflow state.
+
+Moreover,
+this approach allows you to recover from errors because it produces events and events can modify the workflow state.
+
+```scala file=./main/scala/workflows4s/example/docs/RetryExample.scala start=start_doc_stateful_full end=end_doc_stateful_full
+```
+
 ## Caveats
-
-### Retries Are Stateless
-
-Currently, Workflow-level retries are **stateless**—they don’t track attempt counts,
-elapsed time or any other information about executed retries.
-This means you can't directly express rules like:
-
-- "Retry at most 5 times"
-- "Stop after 1 day"
-- "Increase backoff time exponentially"
-
-To support such logic, you can:
-- Use custom persistent state to track retry metadata and query it in the retry handler.
-- Manually clear the scheduled wakeup time via the `KnockerUpper` to stop future retries.
-
-If you see it as a major limitation, please reach out.
 
 ### Choose the Right Layer
 
