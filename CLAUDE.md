@@ -89,14 +89,21 @@ yarn start  # Local development server
 
 **WIO (Workflow IO)** - The central abstraction representing workflow operations:
 - **Location**: `workflows4s-core/src/main/scala/workflows4s/wio/WIO.scala`
-- Sealed trait with type parameters: `In`, `Err`, `Out`, `Ctx`
+- Sealed trait with type parameters: `F[_]` (effect type), `In`, `Err`, `Out`, `Ctx`
 - Key variants: `HandleSignal`, `RunIO`, `Pure`, `Timer`, `Loop`, `Fork`, `Parallel`, `ForEach`, `Embedded`, `HandleError`, `Checkpoint`, `Recovery`
 - Compose operations with `>>>`, `handleErrorWith`, etc.
+- Effect-polymorphic: works with `IO`, `Future`, `Id`, or custom effect types
 
 **WorkflowContext** - Defines the workflow's type universe:
 - **Location**: `workflows4s-core/src/main/scala/workflows4s/wio/WorkflowContext.scala`
 - Contains `State` and `Event` types
 - Users extend this trait to define their domain types
+- For cats-effect IO workflows, extend `IOWorkflowContext` from `workflows4s-cats`
+
+**Effect** - Typeclass abstracting over effect types:
+- **Location**: `workflows4s-core/src/main/scala/workflows4s/runtime/instanceengine/Effect.scala`
+- Provides `pure`, `map`, `flatMap`, `ref` (mutable reference) operations
+- Implementations: `CatsEffect` (for cats-effect IO), `FutureEffect`, `IdEffect`
 
 **ActiveWorkflow** - Running workflow instance:
 - **Location**: `workflows4s-core/src/main/scala/workflows4s/wio/ActiveWorkflow.scala`
@@ -128,11 +135,19 @@ All state changes are events. State is reconstructed by replaying events through
   - `LoggingWorkflowInstanceEngine`: Adds logging
   - `WakingWorkflowInstanceEngine`: Time-based wakeups
   - `RegisteringWorkflowInstanceEngine`: Instance tracking
+- `Effect` typeclass for effect abstraction
+
+**workflows4s-cats** - Cats-effect integration
+- `IOWorkflowContext`: Standard context for IO-based workflows
+- `CatsEffect`: Effect instance for cats-effect IO
+- `SleepingKnockerUpper`: Cats-effect based wakeup scheduler using fibers
+- **Location**: `workflows4s-cats/src/main/scala/workflows4s/cats/`
 
 **workflows4s-pekko** - Apache Pekko (Akka) integration
 - Event-sourced actors via Pekko Persistence
 - Cluster sharding for distributed workflows
 - Each workflow instance = persistent actor
+- External API uses `Future`, internal processing uses `IO`
 - **Location**: `workflows4s-pekko/src/main/scala/workflows4s/runtime/pekko/`
 
 **workflows4s-doobie** - Database-backed persistence
@@ -216,9 +231,10 @@ TestUtils.renderMermaidToFile(workflow, "workflow.mermaid")
 ```
 
 ### Key Test Utilities
-- `TestRuntimeAdapter`: Provides different runtime implementations for testing
+- `TestRuntimeAdapter`: Id-based adapter for synchronous testing
+- `IOTestRuntimeAdapter`: IO-based adapter for async/concurrent testing
 - `workflows4s.testing` package: Testing utilities
-- **Location**: `workflows4s-core/src/test/scala/workflows4s/testing/`
+- **Location**: `workflows4s-cats/src/test/scala/workflows4s/testing/`
 
 ## Code Style
 
@@ -262,7 +278,8 @@ Extensive use of match types and dependent types for type-safe state transitions
 
 ```
 workflows4s/
-├── workflows4s-core/         # Core abstractions
+├── workflows4s-core/         # Core abstractions, effect typeclass
+├── workflows4s-cats/         # Cats-effect integration (IOWorkflowContext)
 ├── workflows4s-bpmn/         # BPMN rendering
 ├── workflows4s-pekko/        # Pekko integration
 ├── workflows4s-doobie/       # Database persistence

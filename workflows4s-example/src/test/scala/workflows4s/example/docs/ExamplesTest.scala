@@ -65,7 +65,7 @@ class ExamplesTest extends AnyFreeSpec {
     }
   }
 
-  "render progress" ignore {
+  "render progress" in {
     val instance = PullRequestWorkflow.run
     TestUtils.renderDocsProgressExample(instance, "pull-request-completed")
   }

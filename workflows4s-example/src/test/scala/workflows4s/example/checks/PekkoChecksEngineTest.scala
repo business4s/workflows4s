@@ -5,7 +5,7 @@ import org.apache.pekko.persistence.jdbc.testkit.scaladsl.SchemaUtils
 import org.scalatest.freespec.AnyFreeSpecLike
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import workflows4s.example.withdrawal.checks.ChecksEngine
-import workflows4s.runtime.pekko.PekkoTestRuntimeAdapter
+import workflows4s.runtime.pekko.PekkoRuntimeAdapter
 
 import scala.concurrent.Await
 
@@ -18,7 +18,7 @@ class PekkoChecksEngineTest extends ScalaTestWithActorTestKit(ActorTestKit("MyCl
   }
 
   "pekko" - {
-    checkEngineTests(new PekkoTestRuntimeAdapter[ChecksEngine.Context]("pekko-checks")(using testKit.system))
+    checkEngineTests(new PekkoRuntimeAdapter[ChecksEngine.Context]("pekko-checks")(using testKit.system))
   }
 
 }

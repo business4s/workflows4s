@@ -128,7 +128,7 @@ object PullRequestWorkflow {
     // start_execution
     val engine     = WorkflowInstanceEngine.basic[IO]()
     val runtime    = InMemoryRuntime.create[IO, Context.Ctx](workflow, PRState.Empty, engine).unsafeRunSync()
-    val wfInstance = runtime.createInstance("id").unsafeRunSync().asInstanceOf[InMemoryWorkflowInstance[IO, Context.Ctx]]
+    val wfInstance = runtime.createInMemoryInstance("id").unsafeRunSync()
 
     wfInstance.deliverSignal(Signals.createPR, Signals.CreateRequest("some-sha")).unsafeRunSync()
     println(wfInstance.queryState().unsafeRunSync())
@@ -140,7 +140,7 @@ object PullRequestWorkflow {
     // end_execution
 
     // start_recovery
-    val recoveredInstance = runtime.createInstance("id").unsafeRunSync().asInstanceOf[InMemoryWorkflowInstance[IO, Context.Ctx]]
+    val recoveredInstance = runtime.createInMemoryInstance("id").unsafeRunSync()
     recoveredInstance.recover(wfInstance.getEvents.unsafeRunSync()).unsafeRunSync()
     assert(wfInstance.queryState().unsafeRunSync() == recoveredInstance.queryState().unsafeRunSync())
     // end_recovery

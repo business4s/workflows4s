@@ -125,7 +125,7 @@ object CourseRegistrationWorkflow {
     // start_execution
     val engine     = WorkflowInstanceEngine.basic[IO]()
     val runtime    = InMemoryRuntime.create[IO, Context.Ctx](workflow, RegistrationState.Empty, engine).unsafeRunSync()
-    val wfInstance = runtime.createInstance("student-123").unsafeRunSync().asInstanceOf[InMemoryWorkflowInstance[IO, Context.Ctx]]
+    val wfInstance = runtime.createInMemoryInstance("student-123").unsafeRunSync()
 
     println("=== Course Registration Workflow ===")
     wfInstance.deliverSignal(Signals.startBrowsing, Signals.BrowsingRequest("student-123", "spring-2024")).unsafeRunSync()
@@ -138,7 +138,7 @@ object CourseRegistrationWorkflow {
     // end_execution
 
     // start_recovery
-    val recoveredInstance = runtime.createInstance("student-123").unsafeRunSync().asInstanceOf[InMemoryWorkflowInstance[IO, Context.Ctx]]
+    val recoveredInstance = runtime.createInMemoryInstance("student-123").unsafeRunSync()
     recoveredInstance.recover(wfInstance.getEvents.unsafeRunSync()).unsafeRunSync()
     assert(wfInstance.queryState().unsafeRunSync() == recoveredInstance.queryState().unsafeRunSync())
     // end_recovery

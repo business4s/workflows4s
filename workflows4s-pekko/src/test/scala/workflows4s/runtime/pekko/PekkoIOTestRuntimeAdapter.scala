@@ -1,8 +1,6 @@
 package workflows4s.runtime.pekko
 
-import cats.Id
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.pekko.actor.typed.*
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
@@ -10,7 +8,7 @@ import org.apache.pekko.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity
 import org.apache.pekko.persistence.typed.PersistenceId
 import org.apache.pekko.util.Timeout
 import workflows4s.runtime.{MappedWorkflowInstance, WorkflowInstance, WorkflowInstanceId}
-import workflows4s.testing.TestRuntimeAdapter
+import workflows4s.testing.IOTestRuntimeAdapter
 import workflows4s.wio.*
 
 import java.time.Clock
@@ -18,11 +16,14 @@ import java.util.UUID
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.*
 
-/** Pekko runtime adapter for tests. Uses Future-based PekkoWorkflowInstance internally and converts to Id for test compatibility.
+/** Pekko runtime adapter for IO-based tests. Uses Future-based PekkoWorkflowInstance internally and converts to IO for test compatibility.
   */
-class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(implicit actorSystem: ActorSystem[?])
-    extends TestRuntimeAdapter[Ctx]
+class PekkoIOTestRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(implicit actorSystem: ActorSystem[?])
+    extends IOTestRuntimeAdapter[Ctx]
     with StrictLogging {
+
+  /** Pekko actor messaging is slower than in-memory, so use a longer timeout. */
+  override def testTimeout: FiniteDuration = 60.seconds
 
   val sharding = ClusterSharding(actorSystem)
 
@@ -31,14 +32,14 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(impli
   type RawCmd = WorkflowBehavior.Command[Ctx]
   type Cmd    = WorkflowBehavior.Command[Ctx] | Stop
 
-  override type Actor = IdActor
+  override type Actor = IOActor
 
   override def runWorkflow(
       workflow: WIO.Initial[IO, Ctx],
       state: WCState[Ctx],
   ): Actor = {
     val (entityRef, typeKey) = createEntityRef(workflow, state)
-    IdActor(entityRef, typeKey, clock)
+    IOActor(entityRef, typeKey, clock)
   }
 
   override def recover(first: Actor): Actor = {
@@ -50,7 +51,7 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(impli
     val entityRef = sharding.entityRefFor(first.typeKey, first.entityRef.entityId)
     logger.debug(s"""Original Actor: ${first.entityRef}
                     |New Actor     : ${entityRef}""".stripMargin)
-    IdActor(entityRef, first.typeKey, first.actorClock)
+    IOActor(entityRef, first.typeKey, first.actorClock)
   }
 
   protected def createEntityRef(
@@ -92,10 +93,10 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(impli
     (entityRef, typeKey)
   }
 
-  /** Id-based actor wrapper that delegates to PekkoWorkflowInstance (Future) and converts to Id for test compatibility.
+  /** IO-based actor wrapper that delegates to PekkoWorkflowInstance (Future) and converts to IO for test compatibility.
     */
-  case class IdActor(entityRef: EntityRef[Cmd], typeKey: EntityTypeKey[Cmd], actorClock: Clock) extends WorkflowInstance[Id, WCState[Ctx]] {
-    private val ioBase: WorkflowInstance[IO, WCState[Ctx]] = {
+  case class IOActor(entityRef: EntityRef[Cmd], typeKey: EntityTypeKey[Cmd], actorClock: Clock) extends WorkflowInstance[IO, WCState[Ctx]] {
+    private val delegate: WorkflowInstance[IO, WCState[Ctx]] = {
       val futureBase: WorkflowInstance[Future, WCState[Ctx]] =
         PekkoWorkflowInstance(
           WorkflowInstanceId(entityRef.typeKey.name, entityRef.entityId),
@@ -106,21 +107,17 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(impli
       MappedWorkflowInstance(futureBase, [t] => (x: Future[t]) => IO.fromFuture(IO(x)))
     }
 
-    // Convert IO to Id by running synchronously
-    private val delegate: WorkflowInstance[Id, WCState[Ctx]] =
-      MappedWorkflowInstance(ioBase, [t] => (x: IO[t]) => x.unsafeRunSync())
-
     override def id: WorkflowInstanceId = delegate.id
 
-    override def queryState(): Id[WCState[Ctx]] = delegate.queryState()
+    override def queryState(): IO[WCState[Ctx]] = delegate.queryState()
 
-    override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): Id[Either[WorkflowInstance.UnexpectedSignal, Resp]] =
+    override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): IO[Either[WorkflowInstance.UnexpectedSignal, Resp]] =
       delegate.deliverSignal(signalDef, req)
 
-    override def wakeup(): Id[Unit] = delegate.wakeup()
+    override def wakeup(): IO[Unit] = delegate.wakeup()
 
-    override def getProgress: Id[model.WIOExecutionProgress[WCState[Ctx]]] = delegate.getProgress
+    override def getProgress: IO[model.WIOExecutionProgress[WCState[Ctx]]] = delegate.getProgress
 
-    override def getExpectedSignals: Id[List[SignalDef[?, ?]]] = delegate.getExpectedSignals
+    override def getExpectedSignals: IO[List[SignalDef[?, ?]]] = delegate.getExpectedSignals
   }
 }

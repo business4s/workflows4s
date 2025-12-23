@@ -5,7 +5,7 @@ import org.apache.pekko.persistence.jdbc.testkit.scaladsl.SchemaUtils
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.freespec.AnyFreeSpecLike
-import workflows4s.runtime.pekko.PekkoTestRuntimeAdapter
+import workflows4s.runtime.pekko.PekkoRuntimeAdapter
 
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
@@ -24,7 +24,7 @@ class PekkoWithdrawalWorkflowTest
   }
 
   "pekko" - {
-    withdrawalTests(new PekkoTestRuntimeAdapter[withdrawal.WithdrawalWorkflow.Context.Ctx]("pekko-withdrawal")(using testKit.system))
+    withdrawalTests(new PekkoRuntimeAdapter[withdrawal.WithdrawalWorkflow.Context.Ctx]("pekko-withdrawal")(using testKit.system))
   }
 
 }

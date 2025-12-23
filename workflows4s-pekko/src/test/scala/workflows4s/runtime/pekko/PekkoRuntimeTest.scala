@@ -18,7 +18,7 @@ class PekkoRuntimeTest extends ScalaTestWithActorTestKit(ActorTestKit("MyCluster
   }
 
   "generic tests" - {
-    ioWorkflowTests(new PekkoRuntimeAdapter[IOTestCtx2.Ctx]("generic-test-workflow"))
+    ioWorkflowTests(new PekkoIOTestRuntimeAdapter[IOTestCtx2.Ctx]("generic-test-workflow"))
   }
 
 }
