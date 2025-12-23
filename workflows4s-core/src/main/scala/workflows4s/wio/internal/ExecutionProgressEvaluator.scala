@@ -132,7 +132,7 @@ object ExecutionProgressEvaluator {
     )
 
     def onAwaitingTime(wio: WIO.AwaitingTime[F, Ctx, In, Err, Out]): Result =
-      WIOExecutionProgress.Timer(WIOMeta.Timer(None, wio.resumeAt.some, None), result)
+      WIOExecutionProgress.Timer(WIOMeta.Timer(None, wio.resumeAt.some, None), result) // TODO persist duration and name
 
     def onExecuted[In1](wio: WIO.Executed[F, Ctx, Err, Out, In1]): Result = {
       val res = ExecutedResult(wio.output, wio.index).some

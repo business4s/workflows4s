@@ -16,7 +16,7 @@ object DraftInterruptionExample {
     WIO.draft.step("Validate Document") >>>
       WIO.draft
         .step("Extract Content")
-        .interruptWith(urgentProcessing) // Can be interrupted for urgent processing
+        .interruptWith(urgentProcessing)  // Can be interrupted for urgent processing
         .interruptWith(processingTimeout) // Must complete within 2 hours
   // end_draft
 

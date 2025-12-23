@@ -17,9 +17,9 @@ object TestUtils {
 
   val basePath = Paths
     .get(getClass.getResource("/").toURI) // workflows4s-example/target/scala-3.4.2/test-classes
-    .getParent // workflows4s-example/target/scala-3.4.2
-    .getParent // workflows4s-example/target
-    .getParent // workflows4s-example
+    .getParent                            // workflows4s-example/target/scala-3.4.2
+    .getParent                            // workflows4s-example/target
+    .getParent                            // workflows4s-example
     .resolve("src/test/resources")
 
   val jsonPrinter                                              = Printer.spaces2

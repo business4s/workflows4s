@@ -123,8 +123,8 @@ abstract class ProceedingVisitor[F[_], Ctx <: WorkflowContext, In, Err, Out <: W
     val lastHistoryState = wio.history.flatMap(_.lastState(lastSeenState)).lastOption.getOrElse(lastSeenState)
     val nextIndex        = wio.history.lastOption.map(result => result.index + 1).getOrElse(index)
     wio.current match {
-      case State.Finished(_)          =>
-        None
+      case State.Finished(_) =>
+        None // TODO better error, this should never happen
       case State.Forward(currentWio)  =>
         recurse(currentWio, input, lastHistoryState, nextIndex).map({
           case WFExecution.Complete(newWio) =>
