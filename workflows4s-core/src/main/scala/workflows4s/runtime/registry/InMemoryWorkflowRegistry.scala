@@ -65,12 +65,16 @@ object InMemoryWorkflowRegistry {
     override def getWorkflows(): IO[List[Data]] = stateRef.get.map(_.values.toList)
 
     override def search(templateId: String, query: WorkflowSearch.Query): IO[List[WorkflowSearch.Result]] = {
+      searchWithCount(templateId, query).map(_._1)
+    }
+
+    override def searchWithCount(templateId: String, query: WorkflowSearch.Query): IO[(List[WorkflowSearch.Result], Int)] = {
       val filters = buildFilters(templateId, query)
       for {
         state <- stateRef.get
       } yield {
-        val filtered = state.values.toList.filter(x => filters.forall(_.apply(x)))
-        val sorted   = query.sort match {
+        val filtered   = state.values.toList.filter(x => filters.forall(_.apply(x)))
+        val sorted     = query.sort match {
           case Some(WorkflowSearch.SortBy.CreatedAsc)  => filtered.sortBy(_.createdAt)
           case Some(WorkflowSearch.SortBy.CreatedDesc) => filtered.sortBy(_.createdAt)(using Ordering[Instant].reverse)
           case Some(WorkflowSearch.SortBy.UpdatedAsc)  => filtered.sortBy(_.updatedAt)
@@ -79,11 +83,13 @@ object InMemoryWorkflowRegistry {
           case Some(WorkflowSearch.SortBy.WakeupDesc)  => filtered.sortBy(_.wakeupAt)(using Ordering.Option(using Ordering[Instant]).reverse)
           case None                                    => filtered
         }
-        val paged    = sorted
+        val totalCount = sorted.size
+        val paged      = sorted
           .drop(query.offset.getOrElse(0))
           .take(query.limit.getOrElse(sorted.size))
 
-        paged.map(d => WorkflowSearch.Result(d.id, d.status, d.createdAt, d.updatedAt, d.tags, d.wakeupAt))
+        val results = paged.map(d => WorkflowSearch.Result(d.id, d.status, d.createdAt, d.updatedAt, d.tags, d.wakeupAt))
+        (results, totalCount)
       }
     }
 
