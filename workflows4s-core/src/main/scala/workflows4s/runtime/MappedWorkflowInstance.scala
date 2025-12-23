@@ -4,7 +4,7 @@ import workflows4s.runtime.WorkflowInstance.UnexpectedSignal
 import workflows4s.wio.SignalDef
 import workflows4s.wio.model.WIOExecutionProgress
 
-class MappedWorkflowInstance[F[_], G[_], State](base: WorkflowInstance[F, State], map: [t] => F[t] => G[t]) extends WorkflowInstance[G, State] {
+class MappedWorkflowInstance[F[_], G[_], State](val base: WorkflowInstance[F, State], map: [t] => F[t] => G[t]) extends WorkflowInstance[G, State] {
 
   override def id: WorkflowInstanceId = base.id
 

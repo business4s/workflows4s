@@ -7,6 +7,7 @@ import io.circe.Encoder
 import org.http4s.HttpRoutes
 import org.http4s.server.middleware.CORS
 import sttp.tapir.server.http4s.Http4sServerInterpreter
+import workflows4s.cats.CatsEffect.given
 import workflows4s.example.courseregistration.CourseRegistrationWorkflow
 import workflows4s.example.docs.pullrequest.PullRequestWorkflow
 import workflows4s.example.docs.pullrequest.PullRequestWorkflow.PRState
@@ -25,11 +26,11 @@ trait BaseServer {
     */
   protected def apiRoutes: Resource[IO, HttpRoutes[IO]] = {
     for {
-      knockerUpper     <- SleepingKnockerUpper.create()
-      registry         <- InMemoryWorkflowRegistry().toResource
-      engine            = WorkflowInstanceEngine.default(knockerUpper, registry)
+      knockerUpper     <- SleepingKnockerUpper.create[IO].toResource
+      registry         <- InMemoryWorkflowRegistry[IO]().toResource
+      engine            = WorkflowInstanceEngine.default[IO](knockerUpper, registry)
       courseRegRuntime <- InMemoryRuntime
-                            .default[CourseRegistrationWorkflow.Context.Ctx](
+                            .create[IO, CourseRegistrationWorkflow.Context.Ctx](
                               workflow = CourseRegistrationWorkflow.workflow,
                               initialState = CourseRegistrationWorkflow.RegistrationState.Empty,
                               engine = engine,
@@ -37,7 +38,7 @@ trait BaseServer {
                             .toResource
 
       pullReqRuntime <- InMemoryRuntime
-                          .default[PullRequestWorkflow.Context.Ctx](
+                          .create[IO, PullRequestWorkflow.Context.Ctx](
                             workflow = PullRequestWorkflow.workflow,
                             initialState = PullRequestWorkflow.PRState.Empty,
                             engine = engine,
@@ -46,7 +47,7 @@ trait BaseServer {
 
       withdrawalWf       = WithdrawalWorkflow(DummyWithdrawalService, ChecksEngine)
       withdrawalRuntime <- InMemoryRuntime
-                             .default[WithdrawalWorkflow.Context.Ctx](
+                             .create[IO, WithdrawalWorkflow.Context.Ctx](
                                workflow = withdrawalWf.workflowDeclarative,
                                initialState = WithdrawalData.Empty,
                                engine = engine,

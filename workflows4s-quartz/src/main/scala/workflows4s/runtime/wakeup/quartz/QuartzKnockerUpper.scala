@@ -9,7 +9,7 @@ import workflows4s.runtime.wakeup.KnockerUpper
 import java.time.Instant
 import java.util.Date
 
-class QuartzKnockerUpper(scheduler: Scheduler, dispatcher: Dispatcher[IO]) extends KnockerUpper.Agent with KnockerUpper.Process[IO, IO[Unit]] {
+class QuartzKnockerUpper(scheduler: Scheduler, dispatcher: Dispatcher[IO]) extends KnockerUpper.Agent[IO] with KnockerUpper.Process[IO, IO[Unit]] {
   override def updateWakeup(id: WorkflowInstanceId, at: Option[Instant]): IO[Unit] = IO {
     val jobKey = new JobKey(id.instanceId)
     at match {

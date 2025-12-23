@@ -8,9 +8,9 @@ import workflows4s.wio.WIO
 object BPMNExample {
 
   // start_doc
-  val wio: WIO[?, ?, ?, ?] = PullRequestWorkflow.workflow
-  val bpmnModel            = BpmnRenderer.renderWorkflow(wio.toProgress.toModel, "process")
-  val bpmnXml              = Bpmn.convertToString(bpmnModel)
+  val wio: WIO[?, ?, ?, ?, ?] = PullRequestWorkflow.workflow
+  val bpmnModel               = BpmnRenderer.renderWorkflow(wio.toProgress.toModel, "process")
+  val bpmnXml                 = Bpmn.convertToString(bpmnModel)
   // end_doc
 
 }

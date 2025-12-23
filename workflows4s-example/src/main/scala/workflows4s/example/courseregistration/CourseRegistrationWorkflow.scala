@@ -7,8 +7,11 @@ import org.camunda.bpm.model.bpmn.Bpmn
 import sttp.tapir.Schema
 import workflows4s.bpmn.BpmnRenderer
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
-import workflows4s.runtime.{InMemorySyncRuntime, InMemorySyncWorkflowInstance}
-import workflows4s.wio.{SignalDef, WorkflowContext}
+import workflows4s.runtime.{InMemoryRuntime, InMemoryWorkflowInstance}
+import workflows4s.cats.CatsEffect.given
+import workflows4s.cats.IOWorkflowContext
+import workflows4s.wio.SignalDef
+import cats.effect.unsafe.implicits.global
 
 import scala.annotation.nowarn
 
@@ -54,7 +57,7 @@ object CourseRegistrationWorkflow {
   // end_error
 
   // start_context
-  object Context extends WorkflowContext {
+  object Context extends IOWorkflowContext {
     override type Event = RegistrationEvent
     override type State = CourseRegistrationState
   }
@@ -113,29 +116,31 @@ object CourseRegistrationWorkflow {
   // end_steps_3
 
   @nowarn("msg=unused value")
-  def run: InMemorySyncWorkflowInstance[Context.Ctx] = {
+  def run: InMemoryWorkflowInstance[IO, Context.Ctx] = {
     // start_render
     val bpmnModel = BpmnRenderer.renderWorkflow(workflow.toProgress.toModel, "course-registration")
     Bpmn.writeModelToFile(new File("course-registration.bpmn").getAbsoluteFile, bpmnModel)
     // end_render
 
     // start_execution
-    val engine     = WorkflowInstanceEngine.basic()
-    val runtime    = InMemorySyncRuntime.create[Context.Ctx](workflow, RegistrationState.Empty, engine)
-    val wfInstance = runtime.createInstance("student-123")
+    val engine     = WorkflowInstanceEngine.basic[IO]()
+    val runtime    = InMemoryRuntime.create[IO, Context.Ctx](workflow, RegistrationState.Empty, engine).unsafeRunSync()
+    val wfInstance = runtime.createInMemoryInstance("student-123").unsafeRunSync()
 
     println("=== Course Registration Workflow ===")
-    wfInstance.deliverSignal(Signals.startBrowsing, Signals.BrowsingRequest("student-123", "spring-2024"))
-    println(wfInstance.queryState())
+    wfInstance.deliverSignal(Signals.startBrowsing, Signals.BrowsingRequest("student-123", "spring-2024")).unsafeRunSync()
+    println(wfInstance.queryState().unsafeRunSync())
 
-    wfInstance.deliverSignal(Signals.setPriorities, Signals.PriorityRequest("CR1", List("CS101-Smith", "CS101-Johnson", "CS101-Davis")))
-    println(wfInstance.queryState())
+    wfInstance
+      .deliverSignal(Signals.setPriorities, Signals.PriorityRequest("CR1", List("CS101-Smith", "CS101-Johnson", "CS101-Davis")))
+      .unsafeRunSync()
+    println(wfInstance.queryState().unsafeRunSync())
     // end_execution
 
     // start_recovery
-    val recoveredInstance = runtime.createInstance("student-123")
-    recoveredInstance.recover(wfInstance.getEvents)
-    assert(wfInstance.queryState() == recoveredInstance.queryState())
+    val recoveredInstance = runtime.createInMemoryInstance("student-123").unsafeRunSync()
+    recoveredInstance.recover(wfInstance.getEvents.unsafeRunSync()).unsafeRunSync()
+    assert(wfInstance.queryState().unsafeRunSync() == recoveredInstance.queryState().unsafeRunSync())
     // end_recovery
 
     wfInstance

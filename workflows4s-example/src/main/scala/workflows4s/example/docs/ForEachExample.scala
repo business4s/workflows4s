@@ -3,7 +3,8 @@ package workflows4s.example.docs
 import cats.Id
 import workflows4s.example.docs.Context.WIO
 import workflows4s.runtime.WorkflowInstance
-import workflows4s.wio.{BasicSignalRouter, SignalDef, SignalRouter, SimpleSignalRouter, WorkflowContext}
+import workflows4s.cats.IOWorkflowContext
+import workflows4s.wio.{BasicSignalRouter, SignalDef, SignalRouter, SimpleSignalRouter}
 import workflows4s.wio.internal.WorkflowEmbedding
 
 import scala.annotation.nowarn
@@ -19,7 +20,7 @@ object ForEachExample {
   object real  {
     case class SubWorkflowState()
     case class SubWorkflowEvent()
-    object SubWorkflowContext extends WorkflowContext {
+    object SubWorkflowContext extends IOWorkflowContext {
       override type State = SubWorkflowState
       override type Event = SubWorkflowEvent
     }

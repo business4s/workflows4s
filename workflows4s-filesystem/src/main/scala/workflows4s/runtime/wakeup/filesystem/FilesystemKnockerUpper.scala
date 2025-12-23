@@ -13,7 +13,10 @@ import workflows4s.runtime.wakeup.filesystem.FsScheduler.TaskId
 import java.util.Base64
 import scala.util.Try
 
-class FilesystemKnockerUpper(scheduler: FsScheduler) extends KnockerUpper.Process[IO, ResourceIO[Unit]] with KnockerUpper.Agent with StrictLogging {
+class FilesystemKnockerUpper(scheduler: FsScheduler)
+    extends KnockerUpper.Process[IO, ResourceIO[Unit]]
+    with KnockerUpper.Agent[IO]
+    with StrictLogging {
 
   override def updateWakeup(id: WorkflowInstanceId, at: Option[Instant]): IO[Unit] = {
     val taskId = TaskId(WorkflowInstanceIdConverter.toString(id))

@@ -2,7 +2,9 @@ package workflows4s.example.withdrawal.checks
 
 import cats.syntax.all.*
 import com.typesafe.scalalogging.StrictLogging
-import workflows4s.wio.{SignalDef, WorkflowContext}
+import workflows4s.cats.IOWorkflowContext
+import workflows4s.cats.CatsEffect.given
+import workflows4s.wio.SignalDef
 
 import scala.concurrent.duration.DurationInt
 
@@ -15,7 +17,7 @@ object ChecksEngine extends ChecksEngine with StrictLogging {
   val timeoutThreshold = 2.minutes
 
   type Context = Context.Ctx
-  object Context extends WorkflowContext {
+  object Context extends IOWorkflowContext {
     override type Event = ChecksEvent
     override type State = ChecksState
   }
@@ -108,7 +110,7 @@ object ChecksEngine extends ChecksEngine with StrictLogging {
     .voidResponse
     .done
 
-  private def executionTimeout =
+  private def executionTimeout: WIO.Interruption[Nothing, ChecksState.Executed] =
     WIO.interruption
       .throughTimeout(timeoutThreshold)
       .persistStartThrough(started => ChecksEvent.AwaitingTimeout(started.at))(_.started)
