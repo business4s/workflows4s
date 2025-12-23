@@ -7,17 +7,18 @@ import workflows4s.runtime.instanceengine.Effect
 
 object EventEvaluator {
 
-  /** Entry point updated to support F[_] and the full type stack.
-    */
   def handleEvent[F[_], Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](
       event: WCEvent[Ctx],
       wio: WIO[F, In, Err, Out, Ctx],
       state: In,
   )(using E: Effect[F]): EventResponse[F, Ctx] = {
-    // Infer the static state to pass to the visitor
+    // Cast needed: In is generic but extractLastState requires WCState[Ctx]
+    // Safe because this is called from Interpreter with Initial workflows where In =:= WCState[Ctx]
     val lastSeen = GetStateEvaluator.extractLastState(wio, state, state.asInstanceOf[WCState[Ctx]]).getOrElse(state.asInstanceOf[WCState[Ctx]])
 
     runVisitor(wio, event, state, lastSeen, 0)
+      // Cast needed: execution.wio is WIO[F, I, E, O, Ctx] but EventResponse expects WIO.Initial[F, Ctx]
+      // Safe because event handling always produces Initial workflows (In=Any, Err=Nothing, Out=WCState[Ctx])
       .map(execution => EventResponse.Ok(execution.wio.asInstanceOf[WIO.Initial[F, Ctx]]))
       .getOrElse(EventResponse.UnexpectedEvent())
   }
@@ -61,6 +62,7 @@ object EventEvaluator {
           val releaseTime = wio.getReleaseTime(started, input)
           WIO.AwaitingTime(releaseTime, wio.releasedEventHandler)
         })
+        // Cast needed: WIO.AwaitingTime extends WIO but Scala can't infer the F[_] parameter
         .map(x => WFExecution.Partial(x.asInstanceOf[WIO[F, In, Err, Out, Ctx]]))
     }
 
