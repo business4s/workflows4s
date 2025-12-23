@@ -8,8 +8,7 @@ import workflows4s.runtime.instanceengine.Effect
 // This is most common in presence of `Pure` or timers awaiting the threshold.
 object ProceedEvaluator {
 
-  /** Proceed with a workflow, attempting to advance it without side effects.
-    * Specialized for Initial workflows where input is the workflow state.
+  /** Proceed with a workflow, attempting to advance it without side effects. Specialized for Initial workflows where input is the workflow state.
     */
   def proceed[F[_], Ctx <: WorkflowContext](
       wio: WIO.Initial[F, Ctx],

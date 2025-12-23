@@ -6,10 +6,9 @@ import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 import workflows4s.cats.CatsEffect.given
 import workflows4s.runtime.WorkflowInstanceId
-import workflows4s.runtime.instanceengine.Effect
 import workflows4s.runtime.registry.WorkflowRegistry.ExecutionStatus
 import workflows4s.testing.{TestClock, TestUtils}
-import workflows4s.wio.{ActiveWorkflow, WIO, WorkflowContext}
+import workflows4s.wio.{ActiveWorkflow, WIO}
 
 import scala.concurrent.duration.DurationInt
 
@@ -68,11 +67,9 @@ class InMemoryWorkflowRegistryTest extends AnyFreeSpec with Matchers {
   }
 
   // Define a minimal test context for dummy workflows with IO effect
-  object DummyCtx extends WorkflowContext {
-    type Event  = Nothing
-    type State  = Null
-    type Eff[A] = IO[A]
-    given effect: Effect[Eff] = workflows4s.cats.CatsEffect.ioEffect
+  object DummyCtx extends workflows4s.cats.IOWorkflowContext {
+    type Event = Nothing
+    type State = Null
   }
 
   def dummyAW(id: WorkflowInstanceId): ActiveWorkflow[IO, DummyCtx.Ctx] = ActiveWorkflow(id, WIO.End[IO, DummyCtx.Ctx](), null)

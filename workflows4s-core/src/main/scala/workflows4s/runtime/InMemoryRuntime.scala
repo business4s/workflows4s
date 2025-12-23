@@ -23,6 +23,13 @@ class InMemoryRuntime[F[_], Ctx <: WorkflowContext] private (
     extends WorkflowRuntime[F, Ctx] {
 
   override def createInstance(id: String): F[WorkflowInstance[F, WCState[Ctx]]] = {
+    E.map(createInMemoryInstance(id))(identity)
+  }
+
+  /** Create an instance with the concrete InMemoryWorkflowInstance type exposed. Useful for tests that need access to implementation-specific methods
+    * like getEvents.
+    */
+  def createInMemoryInstance(id: String): F[InMemoryWorkflowInstance[F, Ctx]] = {
     E.flatMap(instances.modify { currentInstances =>
       currentInstances.get(id) match {
         case Some(existing) => (currentInstances, existing)

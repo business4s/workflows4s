@@ -8,6 +8,11 @@ import workflows4s.runtime.instanceengine.{Effect, Fiber, Outcome, Ref}
 import workflows4s.runtime.instanceengine.Effect.*
 
 /** Simple implementation for KnockerUpper that relies on Effect.sleep.
+  *
+  * Fiber lifecycle: This implementation manages background fibers that sleep until a workflow's wakeup time. When a wakeup is updated or cancelled,
+  * the old fiber is cancelled via the state management in updateWakeup. The guaranteeCase in sleepAndWakeup ensures cleanup happens regardless of how
+  * the fiber completes (success, error, or cancellation). Unlike the previous Resource-based approach, explicit cleanup on shutdown is not needed
+  * since fibers are cancelled individually through state updates.
   */
 class SleepingKnockerUpper[F[_]](
     state: Ref[F, Map[WorkflowInstanceId, (Instant, Fiber[F, Unit])]],

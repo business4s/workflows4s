@@ -9,6 +9,10 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.util.Random
 
 /** IO-based test utilities for runtimes that use IO effect type (Pekko, Doobie).
+  *
+  * Note: These utilities are intentionally IO-specific (not effect-polymorphic) because they're used by IOTestRuntimeAdapter which tests concrete
+  * IO-based runtime implementations. If similar utilities are needed for other effect types, consider creating effect-polymorphic versions in
+  * workflows4s-core/test.
   */
 object IOTestUtils {
 

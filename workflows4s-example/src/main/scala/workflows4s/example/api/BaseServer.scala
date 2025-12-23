@@ -54,41 +54,41 @@ trait BaseServer {
                              )
                              .toResource
       workflowEntries    = List[WorkflowEntry[IO, ?]](
-                            WorkflowEntry(
-                              name = "Course Registration",
-                              description =
-                                Some("Example workflow demonstrating a simple course registration process with browsing and setting priorities."),
-                              runtime = courseRegRuntime,
-                              stateEncoder = summon[Encoder[CourseRegistrationWorkflow.CourseRegistrationState]],
-                              signalSupport = SignalSupport.builder
-                                .add(CourseRegistrationWorkflow.Signals.startBrowsing)
-                                .add(CourseRegistrationWorkflow.Signals.setPriorities)
-                                .build,
-                            ),
-                            WorkflowEntry(
-                              name = "Pull Request",
-                              description = Some("Example workflow showcasing a pull request lifecycle: creation and review."),
-                              runtime = pullReqRuntime,
-                              stateEncoder = summon[Encoder[PRState]],
-                              signalSupport = SignalSupport.builder
-                                .add(PullRequestWorkflow.Signals.createPR)
-                                .add(PullRequestWorkflow.Signals.reviewPR)
-                                .build,
-                            ),
-                            WorkflowEntry(
-                              name = "Withdrawal",
-                              description = Some("Example withdrawal workflow with a checks engine and cancellation path."),
-                              runtime = withdrawalRuntime,
-                              stateEncoder = summon[Encoder[WithdrawalData]],
-                              signalSupport = SignalSupport.builder
-                                .add(WithdrawalWorkflow.Signals.createWithdrawal)
-                                .add(WithdrawalWorkflow.Signals.executionCompleted)
-                                .add(WithdrawalWorkflow.Signals.cancel)
-                                .add(ChecksEngine.Signals.review)
-                                .build,
-                            ),
-                          )
-      routes            = Http4sServerInterpreter[IO]().toRoutes(WorkflowServerEndpoints.get[IO](workflowEntries, registry.some))
+                             WorkflowEntry(
+                               name = "Course Registration",
+                               description =
+                                 Some("Example workflow demonstrating a simple course registration process with browsing and setting priorities."),
+                               runtime = courseRegRuntime,
+                               stateEncoder = summon[Encoder[CourseRegistrationWorkflow.CourseRegistrationState]],
+                               signalSupport = SignalSupport.builder
+                                 .add(CourseRegistrationWorkflow.Signals.startBrowsing)
+                                 .add(CourseRegistrationWorkflow.Signals.setPriorities)
+                                 .build,
+                             ),
+                             WorkflowEntry(
+                               name = "Pull Request",
+                               description = Some("Example workflow showcasing a pull request lifecycle: creation and review."),
+                               runtime = pullReqRuntime,
+                               stateEncoder = summon[Encoder[PRState]],
+                               signalSupport = SignalSupport.builder
+                                 .add(PullRequestWorkflow.Signals.createPR)
+                                 .add(PullRequestWorkflow.Signals.reviewPR)
+                                 .build,
+                             ),
+                             WorkflowEntry(
+                               name = "Withdrawal",
+                               description = Some("Example withdrawal workflow with a checks engine and cancellation path."),
+                               runtime = withdrawalRuntime,
+                               stateEncoder = summon[Encoder[WithdrawalData]],
+                               signalSupport = SignalSupport.builder
+                                 .add(WithdrawalWorkflow.Signals.createWithdrawal)
+                                 .add(WithdrawalWorkflow.Signals.executionCompleted)
+                                 .add(WithdrawalWorkflow.Signals.cancel)
+                                 .add(ChecksEngine.Signals.review)
+                                 .build,
+                             ),
+                           )
+      routes             = Http4sServerInterpreter[IO]().toRoutes(WorkflowServerEndpoints.get[IO](workflowEntries, registry.some))
     } yield CORS.policy.withAllowOriginAll(routes)
   }
 }

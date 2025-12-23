@@ -33,7 +33,7 @@ class TestRuntime {
       engine,
       "test",
     )
-    runtime.createInstance(UUID.randomUUID().toString).asInstanceOf[InMemoryWorkflowInstance[Id, TestCtx2.Ctx]]
+    runtime.createInMemoryInstance(UUID.randomUUID().toString)
   }
 }
 
@@ -52,7 +52,7 @@ object TestUtils {
       WorkflowInstanceEngine.basic[Id](clock),
       "test",
     )
-    (clock, runtime.createInstance(UUID.randomUUID().toString).asInstanceOf[InMemoryWorkflowInstance[Id, TestCtx2.Ctx]])
+    (clock, runtime.createInMemoryInstance(UUID.randomUUID().toString))
   }
 
   def pure: (StepId, TestCtx2.WIO[TestState, Nothing, TestState]) = {

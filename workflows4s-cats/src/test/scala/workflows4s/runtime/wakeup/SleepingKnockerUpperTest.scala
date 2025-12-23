@@ -10,6 +10,11 @@ import workflows4s.testing.TestUtils
 import java.time.Instant
 import scala.concurrent.duration.*
 
+/** Tests for SleepingKnockerUpper using IO effect.
+  *
+  * Note: This test is in workflows4s-cats (not workflows4s-core) because it tests the effect-polymorphic SleepingKnockerUpper with a concrete effect
+  * type (IO), requiring the Effect[IO] instance from CatsEffect.
+  */
 class SleepingKnockerUpperTest extends AnyFreeSpec {
 
   "SleepingKnockerUpper" - {

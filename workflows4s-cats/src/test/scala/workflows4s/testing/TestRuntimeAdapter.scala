@@ -62,7 +62,11 @@ object TestRuntimeAdapter {
         workflow: WIO.Initial[IO, Ctx],
         state: WCState[Ctx],
     ): Actor = {
-      // Convert IO workflow to Id for sync execution
+      // SAFETY: This cast is safe because:
+      // 1. WIO structure is effect-polymorphic at runtime - only the type parameter differs
+      // 2. Test workflows use synchronous operations (e.g., IO.unit.unsafeRunSync() in TestUtils)
+      // 3. This adapter is specifically for testing synchronous execution of workflows
+      // 4. The Id effect executes operations synchronously, matching the test workflow behavior
       given Effect[Id] = Effect.idEffect
       val idWorkflow   = workflow.asInstanceOf[WIO.Initial[Id, Ctx]]
       val runtime      = InMemoryRuntime.create[Id, Ctx](idWorkflow, state, idEngine, "test")
@@ -75,7 +79,7 @@ object TestRuntimeAdapter {
         extends DelegateWorkflowInstance[Id, WCState[Ctx]]
         with EventIntrospection[WCEvent[Ctx]] {
       val delegate: InMemoryWorkflowInstance[Id, Ctx] = {
-        val inst = runtime.createInstance("").asInstanceOf[InMemoryWorkflowInstance[Id, Ctx]]
+        val inst = runtime.createInMemoryInstance("")
         inst.recover(events)
         inst
       }
@@ -101,7 +105,7 @@ object TestRuntimeAdapter {
         extends DelegateWorkflowInstance[Id, WCState[Ctx]]
         with EventIntrospection[WCEvent[Ctx]] {
       val base: InMemoryWorkflowInstance[IO, Ctx]      = {
-        val inst = runtime.createInstance("").unsafeRunSync().asInstanceOf[InMemoryWorkflowInstance[IO, Ctx]]
+        val inst = runtime.createInMemoryInstance("").unsafeRunSync()
         inst.recover(events).unsafeRunSync()
         inst
       }
