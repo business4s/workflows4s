@@ -12,14 +12,19 @@ object EventEvaluator {
       wio: WIO[F, In, Err, Out, Ctx],
       state: In,
   )(using E: Effect[F]): EventResponse[F, Ctx] = {
-    // Cast needed: In is generic but extractLastState requires WCState[Ctx]
-    // Safe because this is called from Interpreter with Initial workflows where In =:= WCState[Ctx]
-    val lastSeen = GetStateEvaluator.extractLastState(wio, state, state.asInstanceOf[WCState[Ctx]]).getOrElse(state.asInstanceOf[WCState[Ctx]])
+    // Cast In to WCState[Ctx] for state extraction
+    // SAFETY: Called from Interpreter with Initial workflows where In =:= WCState[Ctx]
+    val stateAsWCState: WCState[Ctx] = state.asInstanceOf[WCState[Ctx]]
+
+    val lastSeen = GetStateEvaluator.extractLastState(wio, state, stateAsWCState).getOrElse(stateAsWCState)
 
     runVisitor(wio, event, state, lastSeen, 0)
-      // Cast needed: execution.wio is WIO[F, I, E, O, Ctx] but EventResponse expects WIO.Initial[F, Ctx]
-      // Safe because event handling always produces Initial workflows (In=Any, Err=Nothing, Out=WCState[Ctx])
-      .map(execution => EventResponse.Ok(execution.wio.asInstanceOf[WIO.Initial[F, Ctx]]))
+      .map { execution =>
+        // Type narrowing to Initial workflow
+        // SAFETY: Event handling produces Initial workflows (In=Any, Err=Nothing, Out=WCState[Ctx])
+        val initialWio: WIO.Initial[F, Ctx] = execution.wio.asInstanceOf[WIO.Initial[F, Ctx]]
+        EventResponse.Ok(initialWio)
+      }
       .getOrElse(EventResponse.UnexpectedEvent())
   }
 
@@ -59,11 +64,10 @@ object EventEvaluator {
       wio.startedEventHandler
         .detect(event)
         .map(started => {
-          val releaseTime = wio.getReleaseTime(started, input)
-          WIO.AwaitingTime(releaseTime, wio.releasedEventHandler)
+          val releaseTime                         = wio.getReleaseTime(started, input)
+          val awaiting: WIO[F, In, Err, Out, Ctx] = WIO.AwaitingTime(releaseTime, wio.releasedEventHandler)
+          WFExecution.Partial(awaiting)
         })
-        // Cast needed: WIO.AwaitingTime extends WIO but Scala can't infer the F[_] parameter
-        .map(x => WFExecution.Partial(x.asInstanceOf[WIO[F, In, Err, Out, Ctx]]))
     }
 
     def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_ <: WCState[InnerCtx]] <: WCState[Ctx]](
