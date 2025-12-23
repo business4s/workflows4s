@@ -43,8 +43,6 @@ trait WIOMethods[F[_], Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] 
   ): WIO.HandleInterruption[F, Ctx, In1, Err1, Out1] =
     WIO.HandleInterruption(this, interruption.handler, WIO.HandleInterruption.InterruptionStatus.Pending, interruption.tpe)
 
-  /** checkpointed now uses F. Pure events are lifted into F using the Effect instance provided at the time of evaluation.
-    */
   def checkpointed[Evt <: WCEvent[Ctx], In1 <: In, Out1 >: Out <: WCState[Ctx]](
       genEvent: (In1, Out1) => Evt,
       handleEvent: (In1, Evt) => Out1,

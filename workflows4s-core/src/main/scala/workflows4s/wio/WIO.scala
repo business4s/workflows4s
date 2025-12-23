@@ -134,6 +134,7 @@ object WIO {
       embedding: WorkflowEmbedding.Aux[InnerCtx, Ctx, MappingOutput, In],
   ) extends WIO[F, In, Err, MappingOutput[InnerOut], Ctx]
 
+  // do we need imperative variant?
   case class HandleInterruption[F[_], Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]](
       base: WIO[F, In, Err, Out, Ctx],
       interruption: WIO[F, WCState[Ctx], Err, Out, Ctx],
@@ -182,8 +183,8 @@ object WIO {
     sealed trait DurationSource[-In]
 
     object DurationSource {
-      case class Static(duration: Duration) extends DurationSource[Any]
-
+      case class Static(duration: Duration)                extends DurationSource[Any]
+      // we could support IO[Duration] but then either the logic has to be more complicated or the event has to capture release time
       case class Dynamic[-In](getDuration: In => Duration) extends DurationSource[In]
     }
   }
@@ -236,12 +237,16 @@ object WIO {
       Interruption(f(handler), tpe)
   }
 
+  // This could also allow for raising errors.
   case class Checkpoint[F[_], Ctx <: WorkflowContext, -In, +Err, Out <: WCState[Ctx], Evt](
       base: WIO[F, In, Err, Out, Ctx],
       genEvent: (In, Out) => F[Evt],
       eventHandler: EventHandler[In, Out, WCEvent[Ctx], Evt],
   ) extends WIO[F, In, Err, Out, Ctx]
 
+  // This could also allow for optionality (do X if event is present,
+  // do Y otherwise), but the implementation might be a bit convoluted, hence left for later.
+  // This could also allow for raising errors.
   case class Recovery[F[_], Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx], Evt](
       eventHandler: EventHandler[In, Out, WCEvent[Ctx], Evt],
   ) extends WIO[F, In, Err, Out, Ctx]
