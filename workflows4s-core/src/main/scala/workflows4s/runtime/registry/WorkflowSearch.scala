@@ -8,7 +8,7 @@ import java.time.Instant
 
 trait WorkflowSearch[F[_]] {
   def search(templateId: String, query: Query): F[List[Result]]
-  def searchWithCount(templateId: String, query: Query): F[(List[Result], Int)]
+  def count(templateId: String, query: Query): F[Int]
 }
 
 object WorkflowSearch {

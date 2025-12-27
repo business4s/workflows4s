@@ -83,20 +83,5 @@ case class WorkflowSearchResult(
 case class WorkflowSearchResponse(
     results: List[WorkflowSearchResult],
     totalCount: Int,
-)
-
-object WorkflowSearchResponse {
-  given encoder: Encoder.AsObject[WorkflowSearchResponse] = Encoder.AsObject.instance { response =>
-    io.circe.JsonObject(
-      "results"    -> Json.fromValues(response.results.map(_.asJson)),
-      "totalCount" -> Json.fromInt(response.totalCount),
-    )
-  }
-  given decoder: Decoder[WorkflowSearchResponse]          = Decoder.instance { cursor =>
-    for {
-      results    <- cursor.get[List[WorkflowSearchResult]]("results")
-      totalCount <- cursor.get[Int]("totalCount")
-    } yield WorkflowSearchResponse(results, totalCount)
-  }
-  given tapir.Schema[WorkflowSearchResponse]              = tapir.Schema.derived[WorkflowSearchResponse]
-}
+) derives Codec.AsObject,
+      tapir.Schema
