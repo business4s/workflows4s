@@ -35,14 +35,14 @@ private[workflows4s] object GetSignalDefsEvaluator {
     override def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): Result = recurse(wio.base)
     override def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_ <: WCState[InnerCtx]] <: WCState[Ctx]](
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
-    ): Result = GetSignalDefsEvaluator.run(wio.inner)
+    ): Result                                                                                         = GetSignalDefsEvaluator.run(wio.inner)
     override def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result   =
       wio.first.asExecuted match {
         case Some(_) => recurse(wio.second)
         case None    => recurse(wio.first)
       }
 
-    override def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result                 =
+    override def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result =
       wio.base.asExecuted match {
         case Some(baseExecuted) =>
           baseExecuted.output match {
@@ -54,7 +54,7 @@ private[workflows4s] object GetSignalDefsEvaluator {
 
     override def onLoop[BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx], ReturnIn](
         wio: WIO.Loop[Ctx, In, Err, Out, BodyIn, BodyOut, ReturnIn],
-    ): Result = recurse(wio.current.wio)
+    ): Result                                                                                                         = recurse(wio.current.wio)
     override def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                                                     = wio.selected.map(idx => recurse(wio.branches(idx).wio)).getOrElse(Nil)
     override def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result                         = recurse(wio.base) ++ recurse(wio.interruption)
     override def onParallel[InterimState <: WCState[Ctx]](wio: WIO.Parallel[Ctx, In, Err, Out, InterimState]): Result =

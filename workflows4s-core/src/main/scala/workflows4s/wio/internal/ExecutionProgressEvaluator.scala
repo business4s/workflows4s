@@ -75,7 +75,7 @@ object ExecutionProgressEvaluator {
       )
     }
 
-    def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                             = {
+    def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result = {
       WIOExecutionProgress.Fork(
         wio.branches.map(x => recurse(x.wio, input.flatMap(x.condition), result = None)),
         WIOMeta.Fork(wio.name, wio.branches.map(x => WIOMeta.Branch(x.name))),
@@ -85,7 +85,7 @@ object ExecutionProgressEvaluator {
 
     def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_ <: WCState[InnerCtx]] <: WCState[Ctx]](
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
-    ): Result = {
+    ): Result                                                                        = {
       // We could express embedding in model but need a use case for it.
       val visitor = new ExecProgressVisitor(
         wio.inner,
@@ -124,11 +124,11 @@ object ExecutionProgressEvaluator {
 
     def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result =
       WIOExecutionProgress.Timer(WIOMeta.Timer(None, wio.resumeAt.some, None), result) // TODO persist duration and name
-    def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result   = {
+    def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result = {
       val result = ExecutedResult(wio.output, wio.index).some
       recurse(wio.original, wio.input.some, result)
     }
-    def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result             = recurse(wio.original, wio.input.some, None)
+    def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result           = recurse(wio.original, wio.input.some, None)
 
     override def onRetry(wio: WIO.Retry[Ctx, In, Err, Out]): WIOExecutionProgress[WCState[Ctx]] =
       WIOExecutionProgress.Retried(recurse(wio.base, input))

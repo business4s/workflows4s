@@ -61,6 +61,23 @@ class WIOForEachTest extends AnyFreeSpec with Matchers with OptionValues with Ei
       assert(resultState.executed.isEmpty)
     }
 
+    "should expose interim state when waiting for elements" in {
+      val (_, _, signalStep)        = TestUtils.signal
+      val (pureStepId, pureStep)    = TestUtils.pure
+      val (_, wf)                   = createForEach(pureStep >>> signalStep)
+      val elements @ List(el1, el2) = genElements(2)
+
+      val (_, instance) = TestUtils.createInstance2(wf.provideInput(elements.toSet))
+      assert(
+        instance.queryState().executed == List(
+          el1.prefixedWith(el1).prefixedWith("Interim"),
+          pureStepId.prefixedWith(el1).prefixedWith("Interim"),
+          el2.prefixedWith(el2).prefixedWith("Interim"),
+          pureStepId.prefixedWith(el2).prefixedWith("Interim"),
+        ),
+      )
+    }
+
     "should wait for all signals in forEach elements" in {
       val (signalDef, signalStepId, signalStep) = TestUtils.signal
       val (forEachStepId, wf)                   = createForEach(signalStep)
@@ -76,8 +93,8 @@ class WIOForEachTest extends AnyFreeSpec with Matchers with OptionValues with Ei
       assert(response1 == 1)
       assert(
         instance.queryState().executed == List(
-          el2.prefixedWith(el2),
-          signalStepId.prefixedWith(el2),
+          el2.prefixedWith(el2).prefixedWith("Interim"),
+          signalStepId.prefixedWith(el2).prefixedWith("Interim"),
         ),
       )
 
@@ -147,13 +164,12 @@ class WIOForEachTest extends AnyFreeSpec with Matchers with OptionValues with Ei
       elemFlow: TestCtx2.WIO[TestState, Err, TestState],
   ): (StepId, TestCtx2.WIO[Set[Elem], Err, TestState]) = {
     val elemFlowAdjusted = elemFlow.transformInput[Elem](elem => TestState.empty.addExecuted(elem))
-    val finishedStepId   = StepId.random
+    val finishedStepId   = StepId.random("forEach")
     val wf               = TestCtx2.WIO
       .forEach[Set[StepId]](identity)
       .execute[TestCtx2.Ctx](elemFlowAdjusted, TestState.empty)
       .withEventsEmbeddedThrough(evtEmbedding)
-      .withInterimState(_ => TestState.empty)
-      .incorporatingChangesThrough((elem, elemState, interimState) => elemState.prefixWith(elem) ++ interimState)
+      .withInterimState((_, states) => states.map((elem, elemState) => elemState.prefixWith(elem)).reduce(_ ++ _).prefixWith("Interim"))
       .withOutputBuiltWith((_, results) =>
         results.map((elem, state) => state.prefixWith(elem)).reduceOption(_ ++ _).getOrElse(TestState.empty).addExecuted(finishedStepId),
       )
@@ -173,6 +189,6 @@ class WIOForEachTest extends AnyFreeSpec with Matchers with OptionValues with Ei
 
   object SigRouter extends SimpleSignalRouter[Elem]
 
-  def genElements(n: Int): List[Elem] = List.fill(n)(StepId.random).zipWithIndex.map { case (id, i) => id.prefixedWith(s"elem$i") }
+  def genElements(n: Int): List[Elem] = (1 to n).map(i => StepId.random(s"elem$i")).toList
 
 }

@@ -47,7 +47,7 @@ object ProceedEvaluator {
     }
     override def onForEach[ElemId, InnerCtx <: WorkflowContext, ElemOut <: WCState[InnerCtx], InterimState <: WCState[Ctx]](
         wio: WIO.ForEach[Ctx, In, Err, Out, ElemId, InnerCtx, ElemOut, InterimState],
-    ): Option[NewWf] = {
+    ): Option[NewWf]                                                                                         = {
       val state            = wio.state(input)
       val maxIndex: Int    = GetIndexEvaluator.findMaxIndex(wio).getOrElse(index)
       def completeEmpty    = WFExecution.complete(wio, Right(wio.buildOutput(input, Map())), input, maxIndex + 1)
