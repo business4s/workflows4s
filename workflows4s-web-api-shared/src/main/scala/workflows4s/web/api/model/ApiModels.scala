@@ -1,11 +1,10 @@
 package workflows4s.web.api.model
 
-import io.circe.{Codec, Decoder, Encoder, Json}
 import io.circe.syntax.*
-import sttp.apispec
-import sttp.apispec.circe.*
-import sttp.tapir
-import sttp.tapir.json.circe.*
+import io.circe.{Codec, Json}
+import sttp.apispec.circe.{encoderSchema, schemaDecoder}
+import sttp.tapir.json.circe.schemaForCirceJson
+import sttp.{apispec, tapir}
 
 import java.time.Instant
 
