@@ -92,7 +92,7 @@ object InMemoryWorkflowRegistry {
       for {
         state <- stateRef.get
       } yield {
-        state.values.toList.filter(x => filters.forall(_.apply(x))).size
+        state.values.toList.count(x => filters.forall(_.apply(x)))
       }
     }
 

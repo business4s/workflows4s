@@ -38,12 +38,7 @@ final case class TemplateDetailsView(
       msg match {
         case AsyncView.Msg.Propagate(InstancesTableWithPagination.Msg.ForPagination(PaginationControls.Msg.GoToPage(page))) =>
           // Intercept pagination to reload with new page
-          val searchRequest        = TemplateDetailsView.buildSearchRequest(definition.id, filterBar, page)
-          val (newTable, tableCmd) = AsyncView.empty_(
-            Http.searchWorkflows(searchRequest),
-            response => InstancesTableWithPagination.fromResponse(response, filterBar.pageSize, page),
-          )
-          this.copy(currentPage = page, instancesTableView = newTable) -> tableCmd.map(Msg.ForInstTableView(_))
+          this.copy(currentPage = page) -> Cmd.emit(Msg.ReloadInstances)
         case AsyncView.Msg.Propagate(InstancesTableWithPagination.Msg.ForTable(SearchResultsTable.Msg.RowClicked(id)))      =>
           // Intercept row click to load instance
           this -> Cmd.emit(Msg.InstanceSelected(id))
@@ -59,15 +54,18 @@ final case class TemplateDetailsView(
     case TemplateDetailsView.Msg.RefreshInstances =>
       this -> instancesTableView.refresh.map(Msg.ForInstTableView(_))
 
-    case TemplateDetailsView.Msg.ForFilterBar(msg) =>
-      val (newFilterBar, cmd)  = filterBar.update(msg)
-      val searchRequest        = TemplateDetailsView.buildSearchRequest(definition.id, newFilterBar, 0)
+    case TemplateDetailsView.Msg.ReloadInstances =>
+      val searchRequest        = TemplateDetailsView.buildSearchRequest(definition.id, filterBar, this.currentPage)
       val (newTable, tableCmd) = AsyncView.empty_(
         Http.searchWorkflows(searchRequest),
-        response => InstancesTableWithPagination.fromResponse(response, newFilterBar.pageSize, 0),
+        response => InstancesTableWithPagination.fromResponse(response, filterBar.pageSize, this.currentPage),
       )
-      val updated              = this.copy(filterBar = newFilterBar, currentPage = 0, instancesTableView = newTable)
-      updated -> Cmd.merge(cmd.map(Msg.ForFilterBar(_)), tableCmd.map(Msg.ForInstTableView(_)))
+      this.copy(instancesTableView = newTable) -> tableCmd.map(Msg.ForInstTableView(_))
+
+    case TemplateDetailsView.Msg.ForFilterBar(msg) =>
+      val (newFilterBar, cmd)  = filterBar.update(msg)
+      val updated              = this.copy(filterBar = newFilterBar, currentPage = 0)
+      updated -> Cmd.merge(cmd.map(Msg.ForFilterBar(_)), Cmd.emit(TemplateDetailsView.Msg.ReloadInstances))
 
     case TemplateDetailsView.Msg.ForInstance(subMsg) =>
       instanceView match {
@@ -203,6 +201,7 @@ object TemplateDetailsView {
     case ForInstTableView(msg: AsyncView.Msg[InstancesTableWithPagination])
     case ForFilterBar(msg: InstancesFilterBar.Msg)
     case RefreshInstances
+    case ReloadInstances
     case TabSelected(tab: Tab)
     case InstanceSelected(instanceId: String)
   }

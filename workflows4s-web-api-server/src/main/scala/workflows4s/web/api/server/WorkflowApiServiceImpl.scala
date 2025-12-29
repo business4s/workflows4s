@@ -103,7 +103,7 @@ class WorkflowApiServiceImpl[F[_]](
 
         for {
           results    <- search.search(query.templateId, domainQuery)
-          totalCount <- search.count(query.templateId, domainQuery)
+          totalCount <- search.count(query.templateId, domainQuery.forTotalCount)
         } yield {
           val apiResults = results.map(r =>
             WorkflowSearchResult(

@@ -90,7 +90,7 @@ case class InstancesFilterBar(
     case "UpdatedDesc" => WorkflowSearchRequest.SortBy.UpdatedDesc
     case "WakeupAsc"   => WorkflowSearchRequest.SortBy.WakeupAsc
     case "WakeupDesc"  => WorkflowSearchRequest.SortBy.WakeupDesc
-    case _             => WorkflowSearchRequest.SortBy.UpdatedDesc // fallback
+    case _             => throw new IllegalArgumentException(s"Unknown sortBy value: $value")
   }
 }
 

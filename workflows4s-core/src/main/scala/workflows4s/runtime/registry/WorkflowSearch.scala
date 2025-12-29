@@ -24,7 +24,9 @@ object WorkflowSearch {
       sort: Option[SortBy] = None,
       limit: Option[Int] = None,
       offset: Option[Int] = None,
-  )
+  ) {
+    def forTotalCount: Query = this.copy(limit = None, offset = None, sort = None)
+  }
 
   sealed trait TagFilter
 
