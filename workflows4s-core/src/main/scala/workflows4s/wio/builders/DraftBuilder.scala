@@ -131,10 +131,8 @@ object DraftBuilder {
         WIO
           .Retry(
             base,
-            (_: Throwable, _: WCState[Ctx], _: java.time.Instant) => ???,
+            WIO.Retry.Mode.Stateless((_: Any, _: Throwable, _: WCState[Ctx], _: java.time.Instant) => ???),
           )
-          .transformInput((_: Any) => ???)
-          .map(_ => ???)
       }
       def checkpoint(base: WIO.Draft[Ctx]): WIO.Draft[Ctx] = WIO.Checkpoint(base, (_, _) => ???, dummyEventHandler)
 

@@ -1,5 +1,6 @@
 package workflows4s.runtime.pekko
 
+import cats.data.Ior
 import cats.effect.IO
 import cats.implicits.catsSyntaxOptionId
 import com.typesafe.scalalogging.StrictLogging
@@ -162,7 +163,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
       actorContext: ActorContext[Command[Ctx]],
       honorLock: Boolean,
   ): Effect[Event, St] = {
-    changeStateAsync[Either[Instant, WCEvent[Ctx]], Unit](
+    changeStateAsync[Ior[Instant, WCEvent[Ctx]], Unit](
       processingState,
       actorContext,
       state => engine.triggerWakeup(state.workflow).map(_.toRaw),

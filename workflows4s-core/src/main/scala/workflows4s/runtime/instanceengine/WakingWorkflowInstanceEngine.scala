@@ -22,8 +22,8 @@ class WakingWorkflowInstanceEngine(protected val delegate: WorkflowInstanceEngin
           WakeupResult.Processed(for {
             result <- eventIO
             _      <- result match {
-                        case ProcessingResult.Proceeded(event)  => IO.unit
-                        case ProcessingResult.Failed(retryTime) =>
+                        case ProcessingResult.Proceeded(_)         => IO.unit
+                        case ProcessingResult.Failed(retryTime, _) =>
                           if workflow.wakeupAt.forall(_.isAfter(retryTime)) then updateWakeup(workflow, Some(retryTime))
                           else IO.unit
                       }
