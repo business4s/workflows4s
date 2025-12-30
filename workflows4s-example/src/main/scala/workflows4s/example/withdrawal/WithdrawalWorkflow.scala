@@ -9,14 +9,16 @@ import workflows4s.example.withdrawal.WithdrawalWorkflow.{Signals, checksEmbeddi
 import workflows4s.example.withdrawal.checks.*
 import workflows4s.wio
 import workflows4s.wio.internal.WorkflowEmbedding
-import workflows4s.wio.{SignalDef, WorkflowContext}
+import workflows4s.cats.IOWorkflowContext
+import workflows4s.cats.CatsEffect.given
+import workflows4s.wio.SignalDef
 
 import java.time.Duration
 object WithdrawalWorkflow {
 
   val executionRetryDelay = Duration.ofMinutes(2)
 
-  object Context extends WorkflowContext {
+  object Context extends IOWorkflowContext {
     override type Event = WithdrawalEvent
     override type State = WithdrawalData
   }

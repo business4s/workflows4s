@@ -1,5 +1,6 @@
 package workflows4s.example.docs
 
+import workflows4s.cats.CatsEffect.given
 import workflows4s.example.docs.Context.WIO
 
 object CheckpointExample {

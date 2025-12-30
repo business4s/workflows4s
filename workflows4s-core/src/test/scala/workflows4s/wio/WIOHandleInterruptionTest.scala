@@ -18,7 +18,7 @@ class WIOHandleInterruptionTest extends AnyFreeSpec with Matchers with OptionVal
       val (timerDuration, timerInterruption, interruptionStepId) = {
         val (duration, timer) = TestUtils.timer()
         val (step1Id, step1)  = TestUtils.pure
-        (duration, timer.toInterruption.andThen(_ >>> step1), step1Id)
+        (duration, timer.toInterruption.andThen[Nothing, TestState](_ >>> step1), step1Id)
       }
 
       "trigger interruption" in {

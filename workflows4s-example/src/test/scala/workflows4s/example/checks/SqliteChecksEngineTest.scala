@@ -4,14 +4,16 @@ import org.scalatest.freespec.AnyFreeSpec
 import workflows4s.doobie.ByteCodec
 import workflows4s.doobie.sqlite.testing.{SqliteRuntimeAdapter, SqliteWorkdirSuite}
 import workflows4s.example.testuitls.CirceEventCodec
-import workflows4s.example.withdrawal.*
-import workflows4s.example.withdrawal.checks.ChecksEngine
+import workflows4s.example.withdrawal.checks.{ChecksEngine, ChecksEvent}
 
 class SqliteChecksEngineTest extends AnyFreeSpec with SqliteWorkdirSuite with ChecksEngineTest.Suite {
 
-  "postgres" - {
-    checkEngineTests(new SqliteRuntimeAdapter[ChecksEngine.Context](workdir, eventCodec))
+  "sqlite" - {
+    // skipRecovery=true: DatabaseRuntime handles recovery internally via event replay from DB.
+    // The test's recovery mechanism (getEvents + replay) doesn't apply to database-backed runtimes.
+    checkEngineTests(new SqliteRuntimeAdapter[ChecksEngine.Context](workdir, eventCodec), skipRecovery = true)
   }
 
-  lazy val eventCodec: ByteCodec[ChecksEngine.Context.Event] = CirceEventCodec.get()
+  lazy val eventCodec: ByteCodec[ChecksEvent] = CirceEventCodec.get()
+
 }

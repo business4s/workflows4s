@@ -1,6 +1,6 @@
 package workflows4s.example
 
-import workflows4s.wio.WorkflowContext
+import workflows4s.cats.IOWorkflowContext
 
 import java.time.Instant
 
@@ -15,7 +15,7 @@ package object docs {
   case class MyRequest()
   case class MyResponse()
 
-  object Context extends WorkflowContext {
+  object Context extends IOWorkflowContext {
     override type Event = MyEventBase
     override type State = MyState
   }

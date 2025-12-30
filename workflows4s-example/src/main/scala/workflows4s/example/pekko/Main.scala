@@ -2,13 +2,13 @@ package workflows4s.example.pekko
 
 import cats.effect.unsafe.implicits.global
 import cats.effect.{ExitCode, IO, IOApp, Resource}
-import cats.implicits.toFlatMapOps
 import org.apache.pekko.actor.typed.ActorSystem
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.http.scaladsl.Http
 import org.apache.pekko.persistence.jdbc.query.scaladsl.JdbcReadJournal
 import org.apache.pekko.persistence.jdbc.testkit.scaladsl.SchemaUtils
 import org.apache.pekko.persistence.query.PersistenceQuery
+import workflows4s.cats.CatsEffect.given
 import workflows4s.example.withdrawal.checks.ChecksEngine
 import workflows4s.example.withdrawal.{WithdrawalData, WithdrawalWorkflow}
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
@@ -18,11 +18,11 @@ import workflows4s.runtime.wakeup.SleepingKnockerUpper
 object Main extends IOApp {
   override def run(args: List[String]): IO[ExitCode] = {
     given system: ActorSystem[Any] = ActorSystem(Behaviors.empty, "MyCluster")
-    SleepingKnockerUpper
-      .create()
-      .flatTap(_ => Resource.make(IO.unit)(_ => IO(system.terminate())))
-      .use(knockerUpper =>
+    Resource
+      .make(IO.unit)(_ => IO(system.terminate()))
+      .use(_ =>
         for {
+          knockerUpper             <- SleepingKnockerUpper.create[IO]
           journal                  <- setupJournal()
           workflow                  = WithdrawalWorkflow(DummyWithdrawalService, ChecksEngine)
           runtime                   =

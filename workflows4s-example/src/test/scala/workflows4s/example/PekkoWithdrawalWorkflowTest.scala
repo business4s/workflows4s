@@ -10,12 +10,11 @@ import workflows4s.runtime.pekko.PekkoRuntimeAdapter
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 
-//noinspection ForwardReference
 class PekkoWithdrawalWorkflowTest
     extends ScalaTestWithActorTestKit(ActorTestKit("MyCluster"))
     with AnyFreeSpecLike
-    with MockFactory
     with BeforeAndAfterAll
+    with MockFactory
     with WithdrawalWorkflowTest.Suite {
 
   override def beforeAll(): Unit = {
@@ -25,7 +24,7 @@ class PekkoWithdrawalWorkflowTest
   }
 
   "pekko" - {
-    withdrawalTests(new PekkoRuntimeAdapter("withdrawal")(using testKit.system))
+    withdrawalTests(new PekkoRuntimeAdapter[withdrawal.WithdrawalWorkflow.Context.Ctx]("pekko-withdrawal")(using testKit.system))
   }
 
 }

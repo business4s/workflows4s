@@ -1,150 +1,157 @@
 package workflows4s.wio.internal
 
 import java.time.Instant
-import cats.effect.IO
-import cats.syntax.all.*
 import workflows4s.wio.*
 import workflows4s.wio.WIO.HandleInterruption.InterruptionStatus
 import workflows4s.wio.WIO.Timer
+import workflows4s.runtime.instanceengine.Effect
+// Added missing Cats syntax for .some
+import cats.syntax.option.*
 
 object RunIOEvaluator {
-  def proceed[Ctx <: WorkflowContext, StIn <: WCState[Ctx]](
-      wio: WIO[StIn, Nothing, WCState[Ctx], Ctx],
+  def proceed[Ctx <: WorkflowContext, F[_], StIn <: WCState[Ctx]](
+      wio: WIO[F, StIn, Nothing, WCState[Ctx], Ctx],
       state: StIn,
       now: Instant,
-  ): WakeupResult[WCEvent[Ctx]] = {
-    val visitor = new RunIOVisitor(wio, state, state, now)
-    WakeupResult.fromRaw(visitor.run)
+  )(using E: Effect[F]): WakeupResult[WCEvent[Ctx], F] = {
+    val visitor = new RunIOVisitor[Ctx, F, StIn, Nothing, WCState[Ctx]](wio, state, state, now)
+    WakeupResult.fromRaw[WCEvent[Ctx], F](visitor.run)
   }
 
-  private class RunIOVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](
-      wio: WIO[In, Err, Out, Ctx],
+  private class RunIOVisitor[Ctx <: WorkflowContext, F[_], In, Err, Out <: WCState[Ctx]](
+      wio: WIO[F, In, Err, Out, Ctx],
       input: In,
       lastSeenState: WCState[Ctx],
       now: Instant,
-  ) extends Visitor[Ctx, In, Err, Out](wio) {
-    override type Result = Option[IO[Either[Instant, WCEvent[Ctx]]]]
+  )(using E: Effect[F])
+      extends Visitor[F, Ctx, In, Err, Out](wio) {
 
-    def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result                             = None
-    def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result = None
-    def onNoop(wio: WIO.End[Ctx]): Result                                                          = None
-    def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                                           = None
-    def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result                                       = None
-    override def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): Result                = None
+    import Effect.*
 
-    def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result = wio.buildIO(input).map(wio.evtHandler.convert).map(_.asRight).some
+    override type Result = Option[F[Either[Instant, WCEvent[Ctx]]]]
 
-    def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result          = recurse(wio.base, input)
-    def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Result          =
+    def onExecuted[In1](wio: WIO.Executed[F, Ctx, Err, Out, In1]): Result                             = None
+    def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[F, Ctx, In, Out, Err, Sig, Resp, Evt]): Result = None
+    def onNoop(wio: WIO.End[F, Ctx]): Result                                                          = None
+    def onPure(wio: WIO.Pure[F, Ctx, In, Err, Out]): Result                                           = None
+    def onDiscarded[In1](wio: WIO.Discarded[F, Ctx, In1]): Result                                     = None
+    override def onRecovery[Evt](wio: WIO.Recovery[F, Ctx, In, Err, Out, Evt]): Result                = None
+
+    def onRunIO[Evt](wio: WIO.RunIO[F, Ctx, In, Err, Out, Evt]): Result =
+      wio.buildIO(input).map(evt => Right(wio.evtHandler.convert(evt))).some
+
+    def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[F, Ctx, Err1, Err, Out1, Out, In]): Result = recurse(wio.base, input)
+    def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[F, Ctx, In1, Err1, Out1, In, Out, Err]): Result =
       recurse(wio.base, wio.contramapInput(input))
-    def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result = recurse(wio.base, input)
-    def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result                           = {
+
+    def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[F, Ctx, In, Err, Out, ErrIn, TempOut]): Result = recurse(wio.base, input)
+
+    def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[F, Ctx, In, ErrIn, Out, Err]): Result = {
       wio.base.asExecuted match {
         case Some(baseExecuted) =>
           baseExecuted.output match {
             case Left(err) => recurse(wio.handleError, (lastSeenState, err))
-            case Right(_)  =>
-              throw new IllegalStateException(
-                "Base was executed but surrounding HandleError was still entered during evaluation. This is a bug in the library. Please report it to the maintainers.",
-              )
+            case Right(_)  => throw bug("HandleErrorWith entered but base succeeded")
           }
         case None               => recurse(wio.base, input)
       }
     }
-    def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result                             = {
+
+    def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[F, Ctx, In, Err, Out1, Out]): Result = {
       wio.first.asExecuted match {
         case Some(firstExecuted) =>
           firstExecuted.output match {
-            case Left(_)      =>
-              throw new IllegalStateException(
-                "First step of AndThen was executed with an error but surrounding AndThen was still entered during evaluation. This is a bug in the library. Please report it to the maintainers.",
-              )
+            case Left(_)      => throw bug("AndThen entered but first failed")
             case Right(value) => recurse(wio.second, value)
           }
         case None                => recurse(wio.first, input)
       }
     }
 
-    def onLoop[BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx], ReturnIn](wio: WIO.Loop[Ctx, In, Err, Out, BodyIn, BodyOut, ReturnIn]): Result =
+    def onLoop[BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx], ReturnIn](wio: WIO.Loop[F, Ctx, In, Err, Out, BodyIn, BodyOut, ReturnIn]): Result =
       recurse(wio.current.wio, input)
 
-    def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result =
+    def onFork(wio: WIO.Fork[F, Ctx, In, Err, Out]): Result =
       selectMatching(wio, input).flatMap(selected => recurse(selected.wio, selected.input))
 
     def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_ <: WCState[InnerCtx]] <: WCState[Ctx]](
-        wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
+        wio: WIO.Embedded[F, Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
     ): Result = {
       val newState: WCState[InnerCtx] = wio.embedding.unconvertStateUnsafe(lastSeenState)
       new RunIOVisitor(wio.inner, input, newState, now).run
         .map(_.map(_.map(wio.embedding.convertEvent)))
     }
 
-    // proceed on interruption will be needed for timeouts
-    def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result = {
+    def onHandleInterruption(wio: WIO.HandleInterruption[F, Ctx, In, Err, Out]): Result = {
       wio.status match {
-        case InterruptionStatus.Interrupted                               =>
-          recurse(wio.interruption, lastSeenState)
+        case InterruptionStatus.Interrupted                               => recurse(wio.interruption, lastSeenState)
         case InterruptionStatus.TimerStarted | InterruptionStatus.Pending =>
-          recurse(wio.interruption, lastSeenState)
-            .orElse(recurse(wio.base, input))
+          recurse(wio.interruption, lastSeenState).orElse(recurse(wio.base, input))
       }
     }
 
-    def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result = {
-      val started   = WIO.Timer.Started(now)
-      val converted = wio.startedEventHandler.convert(started)
-      Some(IO.pure(converted.asRight))
+    def onTimer(wio: WIO.Timer[F, Ctx, In, Err, Out]): Result = {
+      val event = wio.startedEventHandler.convert(WIO.Timer.Started(now))
+      Some(E.pure(Right(event)))
     }
 
-    def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result = {
+    def onAwaitingTime(wio: WIO.AwaitingTime[F, Ctx, In, Err, Out]): Result = {
       val timeCame = now.plusNanos(1).isAfter(wio.resumeAt)
       Option.when(timeCame)(
-        wio.releasedEventHandler.convert(Timer.Released(now)).asRight.pure[IO],
+        E.pure(Right(wio.releasedEventHandler.convert(Timer.Released(now)))),
       )
     }
 
-    def onParallel[InterimState <: workflows4s.wio.WorkflowContext.State[Ctx]](
-        wio: workflows4s.wio.WIO.Parallel[Ctx, In, Err, Out, InterimState],
-    ): Result = {
-      wio.elements.collectFirstSome(elem => recurse(elem.wio, input))
-    }
+    def onParallel[InterimState <: WCState[Ctx]](
+        wio: WIO.Parallel[F, Ctx, In, Err, Out, InterimState],
+    ): Result = wio.elements.iterator.map(elem => recurse(elem.wio, input)).find(_.isDefined).flatten
 
-    override def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): Result = {
+    override def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[F, Ctx, In, Err, Out1, Evt]): Result = {
       wio.base.asExecuted match {
         case Some(executedBase) =>
           executedBase.output match {
+            case Right(baseOut) => wio.genEvent(input, baseOut).map(evt => Right(wio.eventHandler.convert(evt))).some
             case Left(_)        => None
-            case Right(baseOut) => wio.genEvent(input, baseOut).map(wio.eventHandler.convert).map(_.asRight).some
           }
         case None               => recurse(wio.base, input)
       }
     }
 
-    override def onRetry(wio: WIO.Retry[Ctx, In, Err, Out]): Option[IO[Either[Instant, WCEvent[Ctx]]]] = {
-      recurse(wio.base, input).map(
-        _.handleErrorWith(err =>
-          wio
-            .onError(err, lastSeenState, now)
-            .flatMap({
-              case Some(retryTime) => retryTime.asLeft.pure[IO]
-              case None            => IO.raiseError(err)
-            }),
-        ),
-      )
+    override def onRetry(wio: WIO.Retry[F, Ctx, In, Err, Out]): Result = {
+      // For synchronous effects like Id, exceptions are thrown immediately during recurse.
+      // We need to catch them at this level to enable retry behavior.
+      def handleError(err: Throwable): F[Either[Instant, WCEvent[Ctx]]] =
+        E.flatMap(wio.onError(err, lastSeenState, now)) {
+          case Some(retryTime) => E.pure(Left(retryTime))
+          case None            => E.raiseError(err)
+        }
+
+      try {
+        recurse(wio.base, input).map(f => f.handleErrorWith(handleError))
+      } catch {
+        // Catch synchronous exceptions (for Id effect) and handle them as retryable errors
+        case err: Throwable =>
+          Some(handleError(err))
+      }
     }
 
     override def onForEach[ElemId, InnerCtx <: WorkflowContext, ElemOut <: WCState[InnerCtx], InterimState <: WCState[Ctx]](
-        wio: WIO.ForEach[Ctx, In, Err, Out, ElemId, InnerCtx, ElemOut, InterimState],
+        wio: WIO.ForEach[F, Ctx, In, Err, Out, ElemId, InnerCtx, ElemOut, InterimState],
     ): Result = {
-      val state = wio.state(input)
-      state.toList
-        .collectFirstSome((elemId, elemWio) => new RunIOVisitor(elemWio, input, wio.initialElemState(), now).run.tupleLeft(elemId))
-        .map { case (elemId, io) => io.map(_.map(wio.eventEmbedding.convertEvent(elemId, _))) }
+      wio
+        .state(input)
+        .iterator
+        .map { (elemId, elemWio) =>
+          new RunIOVisitor[InnerCtx, F, Any, Err, ElemOut](elemWio, (), wio.initialElemState(), now).run.map((elemId, _))
+        }
+        .find(_.isDefined)
+        .flatten
+        .map { case (elemId, f) => f.map(_.map(wio.eventEmbedding.convertEvent(elemId, _))) }
     }
 
-    private def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], s: I1): Option[IO[Either[Instant, WCEvent[Ctx]]]] =
+    private def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[F, I1, E1, O1, Ctx], s: I1): Result =
       new RunIOVisitor(wio, s, lastSeenState, now).run
 
+    private def bug(msg: String) = new IllegalStateException(s"$msg. This is a library bug.")
   }
-
 }
