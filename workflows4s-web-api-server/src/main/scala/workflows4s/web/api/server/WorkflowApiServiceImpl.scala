@@ -73,7 +73,7 @@ class WorkflowApiServiceImpl[F[_]](
     )
   }
 
-  override def searchWorkflows(query: WorkflowSearchRequest): F[List[WorkflowSearchResult]] = {
+  override def searchWorkflows(query: WorkflowSearchRequest): F[WorkflowSearchResponse] = {
     workflowSearch match {
       case Some(search) =>
         val domainQuery = WorkflowSearch.Query(
@@ -101,24 +101,29 @@ class WorkflowApiServiceImpl[F[_]](
           offset = query.offset,
         )
 
-        search
-          .search(query.templateId, domainQuery)
-          .map(
-            _.map(r =>
-              WorkflowSearchResult(
-                r.id.templateId,
-                r.id.instanceId,
-                r.status match {
-                  case WorkflowRegistry.ExecutionStatus.Running  => ExecutionStatus.Running
-                  case WorkflowRegistry.ExecutionStatus.Awaiting => ExecutionStatus.Awaiting
-                  case WorkflowRegistry.ExecutionStatus.Finished => ExecutionStatus.Finished
-                },
-                r.createdAt,
-                r.updatedAt,
-                r.wakeupAt,
-              ),
+        for {
+          results    <- search.search(query.templateId, domainQuery)
+          totalCount <- search.count(query.templateId, domainQuery.forTotalCount)
+        } yield {
+          val apiResults = results.map(r =>
+            WorkflowSearchResult(
+              r.id.templateId,
+              r.id.instanceId,
+              r.status match {
+                case WorkflowRegistry.ExecutionStatus.Running  => ExecutionStatus.Running
+                case WorkflowRegistry.ExecutionStatus.Awaiting => ExecutionStatus.Awaiting
+                case WorkflowRegistry.ExecutionStatus.Finished => ExecutionStatus.Finished
+              },
+              r.createdAt,
+              r.updatedAt,
+              r.wakeupAt,
             ),
           )
+          WorkflowSearchResponse(
+            results = apiResults,
+            totalCount = totalCount,
+          )
+        }
       case None         =>
         me.raiseError(new Exception("Search not configured")) // in the future we will expose this information and UI will handle it gracefully
     }
