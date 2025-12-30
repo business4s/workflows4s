@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.implicits.catsSyntaxOptionId
 import tyrian.*
 import tyrian.Html.*
-import workflows4s.web.api.model.WorkflowDefinition
+import workflows4s.web.api.model.{WorkflowDefinition, WorkflowSearchRequest}
 import workflows4s.web.ui.Http
 import workflows4s.web.ui.components.instance.InstanceView
 import workflows4s.web.ui.components.template.TemplateDetailsView.Msg
@@ -17,7 +17,9 @@ final case class TemplateDetailsView(
     instanceIdInput: String,
     instanceView: Option[InstanceView],
     definitionDetails: DefinitionView,
-    instancesTable: AsyncView.For[SearchResultsTable],
+    instancesTableView: AsyncView.For[InstancesTableWithPagination],
+    filterBar: InstancesFilterBar,
+    currentPage: Int,
     selectedTab: TemplateDetailsView.Tab,
 ) {
 
@@ -32,16 +34,38 @@ final case class TemplateDetailsView(
     case TemplateDetailsView.Msg.InstanceSelected(instanceId) =>
       this.copy(instanceIdInput = instanceId, selectedTab = TemplateDetailsView.Tab.InstanceDetails) -> Cmd.emit(Msg.LoadInstance(instanceId))
 
-    case TemplateDetailsView.Msg.ForInstTable(msg) =>
-      val (asyncView, asyncCmd) = instancesTable.update(msg)
-      this.copy(instancesTable = asyncView) -> asyncCmd.map(TemplateDetailsView.Msg.ForInstTable(_))
+    case TemplateDetailsView.Msg.ForInstTableView(msg) =>
+      msg match {
+        case AsyncView.Msg.Propagate(InstancesTableWithPagination.Msg.ForPagination(PaginationControls.Msg.GoToPage(page))) =>
+          // Intercept pagination to reload with new page
+          this.copy(currentPage = page) -> Cmd.emit(Msg.ReloadInstances)
+        case AsyncView.Msg.Propagate(InstancesTableWithPagination.Msg.ForTable(SearchResultsTable.Msg.RowClicked(id)))      =>
+          // Intercept row click to load instance
+          this -> Cmd.emit(Msg.InstanceSelected(id))
+        case _                                                                                                              =>
+          val (asyncView, asyncCmd) = instancesTableView.update(msg)
+          this.copy(instancesTableView = asyncView) -> asyncCmd.map(Msg.ForInstTableView(_))
+      }
 
     case TemplateDetailsView.Msg.ForDefinition(msg) =>
       val (newState, cmd) = definitionDetails.update(msg)
       this.copy(definitionDetails = newState) -> cmd.map(TemplateDetailsView.Msg.ForDefinition(_))
 
     case TemplateDetailsView.Msg.RefreshInstances =>
-      this -> instancesTable.refresh.map(TemplateDetailsView.Msg.ForInstTable(_))
+      this -> instancesTableView.refresh.map(Msg.ForInstTableView(_))
+
+    case TemplateDetailsView.Msg.ReloadInstances =>
+      val searchRequest        = TemplateDetailsView.buildSearchRequest(definition.id, filterBar, this.currentPage)
+      val (newTable, tableCmd) = AsyncView.empty_(
+        Http.searchWorkflows(searchRequest),
+        response => InstancesTableWithPagination.fromResponse(response, filterBar.pageSize, this.currentPage),
+      )
+      this.copy(instancesTableView = newTable) -> tableCmd.map(Msg.ForInstTableView(_))
+
+    case TemplateDetailsView.Msg.ForFilterBar(msg) =>
+      val (newFilterBar, cmd) = filterBar.update(msg)
+      val updated             = this.copy(filterBar = newFilterBar, currentPage = 0)
+      updated -> Cmd.merge(cmd.map(Msg.ForFilterBar(_)), Cmd.emit(TemplateDetailsView.Msg.ReloadInstances))
 
     case TemplateDetailsView.Msg.ForInstance(subMsg) =>
       instanceView match {
@@ -73,17 +97,18 @@ final case class TemplateDetailsView(
       selectedTab match {
         case TemplateDetailsView.Tab.Instances       =>
           div(
-            div(cls := "control is-flex is-justify-content-flex-end")(
-              button(
-                cls := s"button is-small is-info ${if instancesTable.isLoading then "is-loading" else ""}",
-                onClick(Msg.RefreshInstances),
-                disabled(instancesTable.isLoading),
-              )("Refresh"),
+            div(cls := "level mb-2")(
+              div(cls := "level-left")(),
+              div(cls := "level-right")(
+                button(
+                  cls := s"button is-small is-info ${if instancesTableView.isLoading then "is-loading" else ""}",
+                  onClick(Msg.RefreshInstances),
+                  disabled(instancesTableView.isLoading),
+                )("Refresh"),
+              ),
             ),
-            instancesTable.view.map({
-              case AsyncView.Msg.Propagate(SearchResultsTable.Msg.RowClicked(id)) => Msg.InstanceSelected(id)
-              case x                                                              => Msg.ForInstTable(x)
-            }),
+            filterBar.view.map(Msg.ForFilterBar(_)),
+            instancesTableView.view.map(Msg.ForInstTableView(_)),
           )
         case TemplateDetailsView.Tab.InstanceDetails =>
           div(
@@ -133,16 +158,39 @@ final case class TemplateDetailsView(
 
 object TemplateDetailsView {
   def initial(definition: WorkflowDefinition): (TemplateDetailsView, Cmd[IO, Msg]) = {
-    val (instancesTable, cmd1) = AsyncView.empty_(Http.searchWorkflows(definition.id), results => SearchResultsTable(results))
+    val filterBar              = InstancesFilterBar.default
+    val searchRequest          = buildSearchRequest(definition.id, filterBar, 0)
+    val (instancesTable, cmd1) = AsyncView.empty_(
+      Http.searchWorkflows(searchRequest),
+      response => InstancesTableWithPagination.fromResponse(response, filterBar.pageSize, 0),
+    )
     val (definitionView, cmd2) = DefinitionView.initial(definition)
     TemplateDetailsView(
       definition = definition,
       instanceIdInput = "",
       instanceView = None,
       definitionDetails = definitionView,
-      instancesTable = instancesTable,
+      instancesTableView = instancesTable,
+      filterBar = filterBar,
+      currentPage = 0,
       selectedTab = Tab.Definition,
-    ) -> Cmd.merge(cmd1.map(Msg.ForInstTable(_)), cmd2.map(Msg.ForDefinition(_)))
+    ) -> Cmd.merge(cmd1.map(Msg.ForInstTableView(_)), cmd2.map(Msg.ForDefinition(_)))
+  }
+
+  private def buildSearchRequest(templateId: String, filterBar: InstancesFilterBar, page: Int): WorkflowSearchRequest = {
+    WorkflowSearchRequest(
+      templateId = templateId,
+      status = filterBar.statusFilters,
+      createdAfter = None,
+      createdBefore = None,
+      updatedAfter = None,
+      updatedBefore = None,
+      wakeupBefore = None,
+      wakeupAfter = None,
+      sort = filterBar.sortBy,
+      limit = Some(filterBar.pageSize),
+      offset = Some(page * filterBar.pageSize),
+    )
   }
 
   enum Msg {
@@ -150,8 +198,10 @@ object TemplateDetailsView {
     case LoadInstance(instanceId: String)
     case ForInstance(msg: InstanceView.Msg)
     case ForDefinition(msg: DefinitionView.Msg)
-    case ForInstTable(msg: AsyncView.Msg[SearchResultsTable])
+    case ForInstTableView(msg: AsyncView.Msg[InstancesTableWithPagination])
+    case ForFilterBar(msg: InstancesFilterBar.Msg)
     case RefreshInstances
+    case ReloadInstances
     case TabSelected(tab: Tab)
     case InstanceSelected(instanceId: String)
   }

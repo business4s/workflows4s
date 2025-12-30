@@ -8,6 +8,7 @@ import java.time.Instant
 
 trait WorkflowSearch[F[_]] {
   def search(templateId: String, query: Query): F[List[Result]]
+  def count(templateId: String, query: Query): F[Int]
 }
 
 object WorkflowSearch {
@@ -23,7 +24,9 @@ object WorkflowSearch {
       sort: Option[SortBy] = None,
       limit: Option[Int] = None,
       offset: Option[Int] = None,
-  )
+  ) {
+    def forTotalCount: Query = this.copy(limit = None, offset = None, sort = None)
+  }
 
   sealed trait TagFilter
 
