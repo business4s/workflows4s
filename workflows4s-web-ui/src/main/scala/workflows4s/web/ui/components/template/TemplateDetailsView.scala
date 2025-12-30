@@ -63,8 +63,8 @@ final case class TemplateDetailsView(
       this.copy(instancesTableView = newTable) -> tableCmd.map(Msg.ForInstTableView(_))
 
     case TemplateDetailsView.Msg.ForFilterBar(msg) =>
-      val (newFilterBar, cmd)  = filterBar.update(msg)
-      val updated              = this.copy(filterBar = newFilterBar, currentPage = 0)
+      val (newFilterBar, cmd) = filterBar.update(msg)
+      val updated             = this.copy(filterBar = newFilterBar, currentPage = 0)
       updated -> Cmd.merge(cmd.map(Msg.ForFilterBar(_)), Cmd.emit(TemplateDetailsView.Msg.ReloadInstances))
 
     case TemplateDetailsView.Msg.ForInstance(subMsg) =>
