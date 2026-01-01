@@ -73,16 +73,19 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
                      case WakeupResult.Processed(resultIO) =>
                        for {
                          retryOrEvent <- resultIO.pipe(liftIO.liftIO)
-                         newStateOpt  <- retryOrEvent match {
-                                           case WakeupResult.ProcessingResult.Failed(_)        => None.pure[F]
-                                           case WakeupResult.ProcessingResult.Proceeded(event) =>
-                                             for {
-                                               _           <- persistEvent(event)
-                                               newStateOpt <- engine.handleEvent(state, event).to[IO].pipe(liftIO.liftIO)
-                                               _           <- newStateOpt.traverse_(updateState)
-                                               _           <- handleStateChange(state, newStateOpt)
-                                             } yield newStateOpt
+                         eventOpt      = retryOrEvent match {
+                                           case WakeupResult.ProcessingResult.Failed(_, event) => event
+                                           case WakeupResult.ProcessingResult.Proceeded(event) => event.some
                                          }
+                         newStateOpt  <- eventOpt.flatTraverse { event =>
+                                           for {
+                                             _           <- persistEvent(event)
+                                             newStateOpt <- engine.handleEvent(state, event).to[IO].pipe(liftIO.liftIO)
+                                             _           <- newStateOpt.traverse_(updateState)
+                                             _           <- handleStateChange(state, newStateOpt)
+                                           } yield newStateOpt
+                                         }
+
                        } yield newStateOpt
                      case WakeupResult.Noop                => None.pure[F]
                    }

@@ -32,7 +32,7 @@ private[workflows4s] object GetIndexEvaluator {
     def onRetry(wio: WIO.Retry[Ctx, In, Err, Out]): Option[Int]                                                        = recurse(wio.base)
     def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[
         _ <: WCState[InnerCtx],
-    ] <: WCState[Ctx]](wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput]): Result = GetIndexEvaluator.findMaxIndex(wio.inner)
+    ] <: WCState[Ctx]](wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput]): Result                     = GetIndexEvaluator.findMaxIndex(wio.inner)
 
     def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result =
       recurse(wio.second).orElse(recurse(wio.first))

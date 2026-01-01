@@ -4,7 +4,6 @@ import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 import workflows4s.testing.TestUtils
 import workflows4s.wio.{TestCtx2, TestState, WIO}
-import cats.effect.IO
 import java.time.Duration
 
 class GetSignalDefsEvaluatorTest extends AnyFreeSpec with Matchers {
@@ -59,7 +58,7 @@ class GetSignalDefsEvaluatorTest extends AnyFreeSpec with Matchers {
       "should return the signal from the base" in {
         val (signalDef, _, base) = TestUtils.signal
         val retryDelay           = Duration.ofSeconds(13)
-        val wio                  = base.retryIn { case _ => retryDelay }
+        val wio                  = base.retry.statelessly.wakeupIn { case _ => retryDelay }
         GetSignalDefsEvaluator.run(wio) should contain(signalDef)
       }
     }

@@ -122,7 +122,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
     val lastHistoryState = wio.history.flatMap(_.lastState(lastSeenState)).lastOption.getOrElse(lastSeenState)
     val nextIndex        = wio.history.lastOption.map(result => result.index + 1).getOrElse(index)
     wio.current match {
-      case State.Finished(_)          =>
+      case State.Finished(_) =>
         None // TODO better error, this should never happen
       case State.Forward(currentWio)  =>
         recurse(currentWio, input, lastHistoryState, nextIndex).map({
@@ -270,13 +270,13 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
     val maybeLastIndex                                      =
       branchHandled.flatMap(_._2.asExecuted.map(_.index)) // in case of completion, index for WIO.Parallel will be the index of last executed element
     maybeStates match {
-      case Left(err)   =>
+      case Left(err) =>
         Some(WFExecution.complete(newWio, Left(err), input, maybeLastIndex.get)) // is .get safe?
       case Right(opts) =>
         opts.sequence match {
           case Some(states) =>
             Some(WFExecution.complete(newWio, Right(wio.formResult(states)), input, maybeLastIndex.get)) // is .get safe?
-          case None         => Some(WFExecution.Partial(newWio))
+          case None => Some(WFExecution.Partial(newWio))
         }
     }
   }
@@ -295,7 +295,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
 
   override def onRetry(wio: WIO.Retry[Ctx, In, Err, Out]): Option[NewWf] =
     recurse(wio.base, input).map({
-      case WFExecution.Complete(newWio) => WFExecution.complete(wio.copy(base = newWio), newWio.output, newWio.input, newWio.index)
+      case WFExecution.Complete(newWio) => WFExecution.complete(wio.copy(base = newWio), newWio.output, input, newWio.index)
       case WFExecution.Partial(newWio)  => WFExecution.Partial(wio.copy(base = newWio))
     })
 

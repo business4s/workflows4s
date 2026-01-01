@@ -203,8 +203,40 @@ object WIO {
 
   case class Retry[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]](
       base: WIO[In, Err, Out, Ctx],
-      onError: (Throwable, WCState[Ctx], Instant) => IO[Option[Instant]],
+      mode: Retry.Mode[Ctx, In, Err, Out],
   ) extends WIO[In, Err, Out, Ctx]
+
+  object Retry {
+
+    object Stateful {
+      enum Result[+Event] {
+        case Ignore
+        case ScheduleWakeup(at: Instant, event: Option[Event])
+        case Recover(event: Event)
+      }
+    }
+
+    object Stateless {
+      enum Result {
+        case Ignore
+        case ScheduleWakeup(at: Instant)
+      }
+    }
+
+    sealed trait Mode[Ctx <: WorkflowContext, -In, +Err, +Out]
+    object Mode {
+      case class Stateless[Ctx <: WorkflowContext, -In](errorHandler: (In, Throwable, WCState[Ctx], Instant) => IO[Retry.Stateless.Result])
+          extends Mode[Ctx, In, Nothing, Nothing]
+
+      case class Stateful[Ctx <: WorkflowContext, Evt <: WCEvent[Ctx], -In, Err, +Out <: WCState[Ctx], RetryState](
+          errorHandler: ((stepInput: In, error: Throwable, workflowState: WCState[Ctx], retryState: Option[RetryState])) => IO[
+            Retry.Stateful.Result[Evt],
+          ],
+          eventHandler: EventHandler[(In, WCState[Ctx], Option[RetryState]), Either[RetryState, Either[Err, Out]], WCEvent[Ctx], Evt],
+          state: Option[RetryState],
+      ) extends Mode[Ctx, In, Err, Out]
+    }
+  }
 
   case class Executed[Ctx <: WorkflowContext, +Err, +Out <: WCState[Ctx], In](
       original: WIO[In, ?, ?, Ctx],

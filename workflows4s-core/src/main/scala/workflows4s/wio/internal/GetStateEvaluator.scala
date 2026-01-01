@@ -107,7 +107,7 @@ object GetStateEvaluator {
 
     override def onForEach[ElemId, InnerCtx <: WorkflowContext, ElemOut <: WCState[InnerCtx], InterimState <: WCState[Ctx]](
         wio: WIO.ForEach[Ctx, In, Err, Out, ElemId, InnerCtx, ElemOut, InterimState],
-    ): Result = {
+    ): Result                                  = {
       val state = wio.state(input).flatMap((elemId, elemWio) => new GetStateVisitor(elemWio, (), wio.initialElemState()).run.tupleLeft(elemId))
       if state.isEmpty then None
       else Some(wio.interimState(input))
