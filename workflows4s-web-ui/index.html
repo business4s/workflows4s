@@ -1,15 +1,132 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="UTF-8" />
-    <title>Workflows4s</title>
-  </head>
-  <body>
-    <div id="myapp"></div>
-    <script type="module">
-      import mermaid from './node_modules/mermaid/dist/mermaid.esm.mjs';
-      window.mermaid = mermaid;
-    </script>
-    <script type="module" src="/tyrianapp.js"></script>
-  </body>
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Workflows4s</title>
+  <!-- JSON Formatter -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/json-formatter-js@2.5.23/dist/json-formatter.css" />
+  <script type="module">
+    import JSONFormatter from 'https://cdn.jsdelivr.net/npm/json-formatter-js@2.5.23/dist/json-formatter.mjs';
+    window.JSONFormatter = JSONFormatter;
+  </script>
+  <!-- Highlight.js for syntax highlighting -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css"
+    media="(prefers-color-scheme: light)" />
+  <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/tokyo-night-dark.min.css"
+    media="(prefers-color-scheme: dark)" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/json.min.js"></script>
+  <!-- FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <style>
+    :root {
+      --json-bg: #ffffff;
+      --json-header-bg: #f8f9fa;
+      --json-border: #dee2e6;
+      --json-text: #212529;
+      --json-btn-bg: #e9ecef;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --json-bg: #1a1b26;
+        --json-header-bg: #24283b;
+        --json-border: #3e4451;
+        --json-text: #c0caf5;
+        --json-btn-bg: #2f334d;
+      }
+    }
+
+    .json-view-container {
+      position: relative;
+      border: 1px solid var(--json-border);
+      border-radius: 8px;
+      background: var(--json-bg);
+      color: var(--json-text);
+      overflow: hidden;
+      margin-top: 1rem;
+    }
+
+    .json-view-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 1rem;
+      background: var(--json-header-bg);
+      border-bottom: 1px solid var(--json-border);
+    }
+
+    .json-view-toggle {
+      margin-bottom: 0 !important;
+    }
+
+    .json-view-toggle .button {
+      background-color: var(--json-btn-bg) !important;
+      border-color: var(--json-border) !important;
+      color: var(--json-text) !important;
+    }
+
+    .json-view-toggle .button.is-info.is-selected {
+      background-color: #3273dc !important;
+      color: #fff !important;
+    }
+
+    pre code.hljs {
+      padding: 1rem !important;
+      background: transparent !important;
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: 0.9rem;
+    }
+
+    .json-formatter-row {
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: 0.85rem;
+    }
+
+    .copy-btn {
+      transition: all 0.2s;
+      background-color: var(--json-btn-bg) !important;
+      border-color: var(--json-border) !important;
+      color: var(--json-text) !important;
+    }
+
+    .copy-btn:hover {
+      filter: brightness(1.1);
+    }
+
+    .copy-btn:active {
+      transform: scale(0.9);
+    }
+  </style>
+  <script>
+    window.isDarkMode = () => window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+    window.copyToClipboard = (text) => {
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = document.activeElement;
+        if (btn && (btn.classList.contains('copy-btn') || btn.closest('.copy-btn'))) {
+          const target = btn.classList.contains('copy-btn') ? btn : btn.closest('.copy-btn');
+          const icon = target.querySelector('i');
+          const originalClass = icon.className;
+          icon.className = 'fas fa-check';
+          setTimeout(() => {
+            icon.className = originalClass;
+          }, 2000);
+        }
+      });
+    };
+  </script>
+</head>
+
+<body>
+  <div id="myapp"></div>
+  <script type="module">
+    import mermaid from './node_modules/mermaid/dist/mermaid.esm.mjs';
+    window.mermaid = mermaid;
+  </script>
+  <script type="module" src="/tyrianapp.js"></script>
+</body>
+
 </html>

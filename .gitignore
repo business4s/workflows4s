@@ -14,3 +14,10 @@ project/metals.sbt
 dist
 node_modules
 .vite
+
+#Ignore vscode AI rules
+.github/instructions/codacy.instructions.md
+
+
+#Ignore windsurf AI rules
+.windsurfrules
