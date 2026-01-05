@@ -52,11 +52,13 @@ trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self
     WIO.Checkpoint(
       this,
       (a: In1, b: Out1) => genEvent(a, b).pure[IO],
-      EventHandler[WCEvent[Ctx], In1, Out1, Evt](evtCt.unapply, identity, handleEvent),
+      EventHandler.partial[WCEvent[Ctx], In1, Out1, Evt](identity, handleEvent),
     )
   }
 
   def toProgress: WIOExecutionProgress[WCState[Ctx]] = ExecutionProgressEvaluator.run(this, None, None)
+
+  def lint: List[LinterIssue] = Linter.lint(this)
 
   def asExecuted: Option[WIO.Executed[Ctx, Err, Out, ?]] = this match {
     case x: WIO.Executed[Ctx, Err, Out, ?] => x.some

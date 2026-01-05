@@ -41,6 +41,8 @@ object TestState {
 
 object TestCtx2 extends WorkflowContext {
   trait Event
-  case class SimpleEvent(value: String) extends Event
+  case class TimerStarted(inner: WIO.Timer.Started)   extends Event
+  case class TimerReleased(inner: WIO.Timer.Released) extends Event
+  case class SimpleEvent(value: String)               extends Event
   type State = TestState
 }
