@@ -178,7 +178,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "com.h2database"        % "h2"                              % "2.4.240",
       "io.r2dbc"              % "r2dbc-h2"                        % "1.1.0.RELEASE",
       "com.github.pjfanning" %% "pekko-http-circe"                % "3.7.0",
-      "ch.qos.logback"        % "logback-classic"                 % "1.5.23",
+      "ch.qos.logback"        % "logback-classic"                 % "1.5.24",
       "org.scalamock"        %% "scalamock"                       % "7.5.2"                    % Test,
       "org.apache.pekko"     %% "pekko-actor-testkit-typed"       % pekkoVersion               % Test,
       "com.dimafeng"         %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
@@ -217,7 +217,7 @@ lazy val commonSettings = Seq(
   scalacOptions ++= Seq("-no-indent", "-Xmax-inlines", "64", "-explain-cyclic", "-Ydebug-cyclic"),
   libraryDependencies ++= Seq(
     "org.scalatest" %% "scalatest"       % "3.2.19" % Test,
-    "ch.qos.logback" % "logback-classic" % "1.5.23" % Test,
+    "ch.qos.logback" % "logback-classic" % "1.5.24" % Test,
   ),
   // scalafix settings
   semanticdbEnabled := true, // enable SemanticDB
