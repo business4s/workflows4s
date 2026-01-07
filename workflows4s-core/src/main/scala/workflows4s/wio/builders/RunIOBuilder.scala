@@ -34,12 +34,13 @@ object RunIOBuilder {
             build(Some(ModelUtils.prettifyName(n.value)), Option(description))
           def done: WIO[In, Err, Out, Ctx]                                                            = build(None, None)
 
-          private def build(name: Option[String], description: Option[String]): WIO[In, Err, Out, Ctx] =
+          private def build(name: Option[String], description: Option[String]): WIO[In, Err, Out, Ctx] = {
             WIO.RunIO[Ctx, In, Err, Out, Evt](
               getIO,
-              EventHandler(summon[ClassTag[Evt]].unapply, identity, evtHandler),
+              EventHandler.partial(identity, evtHandler),
               WIO.RunIO.Meta(errorMeta, name, description),
             )
+          }
         }
 
       }

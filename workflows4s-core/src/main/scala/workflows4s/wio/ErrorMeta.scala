@@ -6,6 +6,10 @@ import workflows4s.wio.model.ModelUtils
 
 sealed trait ErrorMeta[T] {
   def nameOpt: Option[String]
+  def canFail: Boolean = this match {
+    case ErrorMeta.NoError() => false
+    case ErrorMeta.Present(name) => true
+  }
 }
 
 object ErrorMeta {

@@ -2,7 +2,7 @@ package workflows4s.wio.builders
 
 import cats.implicits.catsSyntaxOptionId
 import workflows4s.wio.*
-import workflows4s.wio.internal.{EventHandler, SignalHandler}
+import workflows4s.wio.internal.{EventHandler, SignalHandler, TypedEventHandler}
 import workflows4s.wio.model.{ModelUtils, WIOMeta}
 
 import scala.concurrent.duration.FiniteDuration
@@ -147,7 +147,8 @@ object DraftBuilder {
 
   }
 
-  private def dummyEventHandler[EventBase, Evt]: EventHandler[Any, Nothing, EventBase, Evt] = EventHandler(_ => ???, _ => ???, (_, _) => ???)
+  private def dummyEventHandler[EventBase, Evt]: TypedEventHandler[Any, Nothing, EventBase, Evt] =
+    EventHandler.typed(_ => ???, (_, _) => ???, ???)
 
   private def getEffectiveName(name: String, autoName: sourcecode.Name): String =
     Option(name).getOrElse(ModelUtils.prettifyName(autoName.value))

@@ -2,6 +2,7 @@ package workflows4s.wio.internal
 
 import cats.effect.IO
 
+import scala.reflect.ClassTag
 import scala.util.chaining.scalaUtilChainingOps
 
 trait EventHandler[-In, +Out, EventBase, Evt] { parent =>
@@ -19,6 +20,10 @@ trait EventHandler[-In, +Out, EventBase, Evt] { parent =>
     }
 }
 
+trait TypedEventHandler[-In, +Out, EventBase, Evt] extends EventHandler[In, Out, EventBase, Evt] {
+  def matchedClass: ClassTag[?]
+}
+
 object EventHandler {
   def apply[EventBase, In, Out, Evt](
       detect0: EventBase => Option[Evt],
@@ -29,6 +34,23 @@ object EventHandler {
     override def handle: (In, Evt) => Out         = handle0
     override def convert: Evt => EventBase        = convert0
   }
+
+  def typed[EventBase, In, Out, Evt](
+      convert0: Evt => EventBase,
+      handle0: (In, Evt) => Out,
+      matchedClass0: ClassTag[Evt],
+  ): TypedEventHandler[In, Out, EventBase, Evt] = new TypedEventHandler[In, Out, EventBase, Evt] {
+    override def matchedClass: ClassTag[Evt]      = matchedClass0
+    override def handle: (In, Evt) => Out         = handle0
+    override def convert: Evt => EventBase        = convert0
+    override def detect: EventBase => Option[Evt] = matchedClass0.unapply
+  }
+
+  def partial[EventBase, In, Out, Evt](
+      convert0: Evt => EventBase,
+      handle0: (In, Evt) => Out,
+  )(using ct: ClassTag[Evt]): TypedEventHandler[In, Out, EventBase, Evt] =
+    typed(convert0, handle0, ct)
 }
 
 case class SignalHandler[-Sig, +Evt, -In](handle: (In, Sig) => IO[Evt]) {
