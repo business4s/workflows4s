@@ -1,0 +1,56 @@
+/*Theme Variables: Necessary for system-level Dark Mode support */
+:root {
+    --json-bg: #ffffff;
+    --json-header-bg: #f8f9fa;
+    --json-border: #dee2e6;
+    --json-text: #212529;
+    --json-btn-bg: #e9ecef;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --json-bg: #1a1b26;
+        --json-header-bg: #24283b;
+        --json-border: #3e4451;
+        --json-text: #c0caf5;
+        --json-btn-bg: #2f334d;
+    }
+}
+
+/*Structural Styles: Necessary to unify the custom JSON viewer UI */
+.json-view-container {
+    position: relative;
+    border: 1px solid var(--json-border);
+    border-radius: 8px;
+    background: var(--json-bg);
+    color: var(--json-text);
+    overflow: hidden;
+    margin-top: 1rem;
+}
+
+.json-view-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    background: var(--json-header-bg);
+    border-bottom: 1px solid var(--json-border);
+}
+
+/*Library Overrides: Required to make 3rd party components look right */
+pre code.hljs {
+    padding: 1rem !important;
+    background: transparent !important;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+/*UX Polish: Optional but recommended for a 'pro' feel */
+.copy-btn {
+    transition: all 0.2s;
+    background-color: var(--json-btn-bg) !important;
+    color: var(--json-text) !important;
+}
+
+.copy-btn:active {
+    transform: scale(0.95);
+}

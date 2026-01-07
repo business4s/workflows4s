@@ -3,9 +3,10 @@ package workflows4s.web.ui.components.instance
 import cats.effect.IO
 import tyrian.Html.*
 import tyrian.{Cmd, Html}
+
 import workflows4s.web.api.model.WorkflowInstance
 import workflows4s.web.ui.Http
-import workflows4s.web.ui.components.util.{AsyncView, Component}
+import workflows4s.web.ui.components.util.{AsyncView, Component, JsonView, JsonViewMsg}
 
 // Wrapper component that owns async loading and refresh
 final case class InstanceView(
@@ -43,7 +44,7 @@ final case class InstanceView(
 object InstanceView {
 
   // Inner content that actually renders the instance details
-  final case class Content(instance: WorkflowInstance, diagramView: MermaidDiagramView, signalsView: SignalsView) extends Component {
+  final case class Content(instance: WorkflowInstance, diagramView: MermaidDiagramView, signalsView: SignalsView, jsonView: JsonView) extends Component {
     override type Self = Content
     override type Msg  = Content.Msg
 
@@ -54,6 +55,9 @@ object InstanceView {
       case Content.Msg.ForSignalsView(msg) =>
         val (newCmp, cmd) = signalsView.update(msg)
         this.copy(signalsView = newCmp) -> cmd.map(Content.Msg.ForSignalsView(_))
+      case Content.Msg.ForJsonView(msg)    =>
+        val (newJsonView, cmd) = jsonView.update(msg)
+        this.copy(jsonView = newJsonView) -> cmd.map(Content.Msg.ForJsonView(_))
     }
 
     private def sectionHeader(text: String) = h4(cls := "mt-4")(text)
@@ -61,20 +65,12 @@ object InstanceView {
     override def view: Html[Content.Msg] =
       div(cls := "content mt-4")(
         sectionHeader("State"),
-        instanceStateView,
+        jsonView.view.map(Content.Msg.ForJsonView(_)),
         sectionHeader("Expected Signals"),
         signalsView.view.map(Content.Msg.ForSignalsView(_)),
         sectionHeader("Progress"),
         progressVisualizationView,
       )
-
-    private def instanceStateView: Html[Content.Msg] = {
-      div(
-        pre(cls := "mt-2 content is-small")(
-          code(instance.state.spaces2),
-        ),
-      )
-    }
 
     private def progressVisualizationView: Html[Content.Msg] =
       div(
@@ -95,11 +91,14 @@ object InstanceView {
     enum Msg {
       case ForDiagram(msg: MermaidDiagramView.Msg)
       case ForSignalsView(msg: SignalsView.Msg)
+      case ForJsonView(msg: JsonViewMsg)
     }
 
     def initial(instance: WorkflowInstance) = {
-      val (mermaidView, cmd) = MermaidDiagramView.initial(instance.mermaidCode)
-      Content(instance, mermaidView, SignalsView(instance, None)) -> cmd.map(Msg.ForDiagram(_))
+      val (mermaidView, cmd1) = MermaidDiagramView.initial(instance.mermaidCode)
+      val (jsonView, cmd2)    = JsonView.initial("state-json-view", instance.state)
+      val content             = Content(instance, mermaidView, SignalsView(instance, None), jsonView)
+      content -> Cmd.merge(cmd1.map(Msg.ForDiagram(_)), cmd2.map(Msg.ForJsonView(_)))
     }
   }
 
@@ -113,3 +112,4 @@ object InstanceView {
     case Refresh
   }
 }
+
