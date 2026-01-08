@@ -5,6 +5,7 @@ import org.scalatest.freespec.AnyFreeSpec
 import workflows4s.doobie.postgres.testing.JavaSerdeEventCodec
 import workflows4s.doobie.sqlite.testing.{SqliteRuntimeAdapter, SqliteWorkdirSuite}
 import workflows4s.wio.IOTestCtx
+import cats.effect.unsafe.implicits.global
 
 class SqliteRuntimeTest extends AnyFreeSpec with SqliteWorkdirSuite {
 
@@ -21,7 +22,7 @@ class SqliteRuntimeTest extends AnyFreeSpec with SqliteWorkdirSuite {
       val actor = adapter.runWorkflow(wio.provideInput("initial"), "initial")
       actor.wakeup()
 
-      assert(actor.queryState() == "done")
+      assert(actor.queryState().unsafeRunSync() == "done")
     }
   }
 

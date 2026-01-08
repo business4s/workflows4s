@@ -1,20 +1,21 @@
 package workflows4s.example
 
+import cats.effect.IO
 import org.scalatest.freespec.AnyFreeSpec
-import org.scalamock.scalatest.MockFactory
+import workflows4s.cats.CatsEffect
 import workflows4s.doobie.ByteCodec
 import workflows4s.doobie.sqlite.testing.{SqliteRuntimeAdapter, SqliteWorkdirSuite}
 import workflows4s.example.testuitls.CirceEventCodec
 import workflows4s.example.withdrawal.*
+import workflows4s.runtime.instanceengine.Effect
 
-class SqliteWithdrawalWorkflowTest extends AnyFreeSpec with SqliteWorkdirSuite with MockFactory with WithdrawalWorkflowTest.Suite {
+class SqliteWithdrawalWorkflowTest extends AnyFreeSpec with SqliteWorkdirSuite with WithdrawalWorkflowTestSuite[IO] {
+
+  override given effect: Effect[IO] = CatsEffect.ioEffect
 
   "sqlite" - {
-    // skipRecovery=true: DatabaseRuntime handles recovery internally via event replay from DB.
-    // The test's recovery mechanism (getEvents + replay) doesn't apply to database-backed runtimes.
-    withdrawalTests(new SqliteRuntimeAdapter[WithdrawalWorkflow.Context.Ctx](workdir, eventCodec), skipRecovery = true)
+    withdrawalTests(new SqliteRuntimeAdapter(workdir, eventCodec))
   }
 
-  lazy val eventCodec: ByteCodec[WithdrawalWorkflow.Context.Event] = CirceEventCodec.get()
-
+  lazy val eventCodec: ByteCodec[testContext.Context.Event] = CirceEventCodec.get()
 }

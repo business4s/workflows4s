@@ -54,3 +54,9 @@ object TestCtx2 extends WorkflowContext {
   type Eff[A] = Id[A]
   given effect: Effect[Eff] = Effect.idEffect
 }
+
+object FutureTestCtx extends LazyFutureWorkflowContext {
+  trait Event
+  case class SimpleEvent(value: String) extends Event
+  type State = TestState
+}

@@ -1,6 +1,7 @@
 package workflows4s.runtime
 
 import workflows4s.runtime.instanceengine.{Effect, Ref, WorkflowInstanceEngine}
+import workflows4s.runtime.instanceengine.Effect.*
 import workflows4s.wio.*
 import workflows4s.wio.WIO.Initial
 
@@ -23,23 +24,38 @@ class InMemoryRuntime[F[_], Ctx <: WorkflowContext] private (
     extends WorkflowRuntime[F, Ctx] {
 
   override def createInstance(id: String): F[WorkflowInstance[F, WCState[Ctx]]] = {
-    E.map(createInMemoryInstance(id))(identity)
+    createInMemoryInstance(id).map(identity)
   }
 
   /** Create an instance with the concrete InMemoryWorkflowInstance type exposed. Useful for tests that need access to implementation-specific methods
     * like getEvents.
     */
   def createInMemoryInstance(id: String): F[InMemoryWorkflowInstance[F, Ctx]] = {
-    E.flatMap(instances.modify { currentInstances =>
-      currentInstances.get(id) match {
-        case Some(existing) => (currentInstances, existing)
-        case None           =>
-          val instanceId  = WorkflowInstanceId(templateId, id)
-          val activeWf    = ActiveWorkflow(instanceId, workflow, initialState)
-          val newInstance = new InMemoryWorkflowInstance[F, Ctx](instanceId, activeWf, engine)
-          (currentInstances.updated(id, newInstance), newInstance)
+    instances
+      .modify { currentMap =>
+        currentMap.get(id) match {
+          case Some(existing) => (currentMap, Some(existing)) // No change
+          case None           => (currentMap, None)           // No change yet, signal creation needed
+        }
       }
-    })(E.pure)
+      .flatMap {
+        case Some(existing) => E.pure(existing)
+        case None           => createNewInstanceAtomic(id)
+      }
+  }
+
+  private def createNewInstanceAtomic(id: String): F[InMemoryWorkflowInstance[F, Ctx]] = {
+    val instanceId = WorkflowInstanceId(templateId, id)
+    val activeWf   = ActiveWorkflow(instanceId, workflow, initialState)
+
+    InMemoryWorkflowInstance.create[F, Ctx](instanceId, activeWf, engine).flatMap { newInstance =>
+      instances.modify { currentMap =>
+        currentMap.get(id) match {
+          case Some(winner) => (currentMap, winner)
+          case None         => (currentMap.updated(id, newInstance), newInstance)
+        }
+      }
+    }
   }
 }
 
@@ -51,8 +67,7 @@ object InMemoryRuntime {
       engine: WorkflowInstanceEngine[F],
       templateId: String = s"in-memory-runtime-${UUID.randomUUID().toString.take(8)}",
   ): F[InMemoryRuntime[F, Ctx]] = {
-    val E = Effect[F]
-    E.map(E.ref(Map.empty[String, InMemoryWorkflowInstance[F, Ctx]])) { instancesRef =>
+    Effect[F].ref(Map.empty[String, InMemoryWorkflowInstance[F, Ctx]]).map { instancesRef =>
       new InMemoryRuntime[F, Ctx](workflow, initialState, engine, templateId, instancesRef)
     }
   }

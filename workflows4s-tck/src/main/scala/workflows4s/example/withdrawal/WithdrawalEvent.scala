@@ -1,7 +1,6 @@
 package workflows4s.example.withdrawal
 
 import io.circe.Codec
-import workflows4s.example.pekko.PekkoCirceSerializer
 import workflows4s.example.withdrawal.WithdrawalService.{ExecutionResponse, Fee, Iban}
 import workflows4s.example.withdrawal.checks.ChecksEvent
 
@@ -30,8 +29,4 @@ object WithdrawalEvent {
   case class RejectionHandled(error: String) extends WithdrawalEvent
 
   case class WithdrawalCancelledByOperator(operatorId: String, comment: String) extends WithdrawalEvent
-
-  class PekkoSerializer extends PekkoCirceSerializer[WithdrawalEvent] {
-    override def identifier = 12345678
-  }
 }

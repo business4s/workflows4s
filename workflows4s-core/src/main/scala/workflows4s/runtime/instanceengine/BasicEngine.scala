@@ -6,7 +6,7 @@ import workflows4s.wio.model.WIOExecutionProgress
 
 import java.time.Instant
 
-trait BasicEngine[F[_]](using Effect[F]) extends WorkflowInstanceEngine[F] {
+trait BasicEngine[F[_]](using E: Effect[F]) extends WorkflowInstanceEngine[F] {
   import Effect.*
   protected def now: F[Instant]
 
@@ -21,7 +21,7 @@ trait BasicEngine[F[_]](using Effect[F]) extends WorkflowInstanceEngine[F] {
   ): F[SignalResult[WCEvent[Ctx], Resp, F]] = workflow.handleSignal(signalDef)(req).pure
 
   override def handleEvent[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx], event: WCEvent[Ctx]): F[Option[ActiveWorkflow[F, Ctx]]] =
-    workflow.handleEvent(event).pure
+    E.delay(workflow.handleEvent(event))
 
   override def queryState[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx]): WCState[Ctx] = workflow.liveState
 

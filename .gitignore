@@ -18,3 +18,6 @@ node_modules
 # Ignore package-lock.json except for workflows4s-web-ui (needed for npm ci)
 package-lock.json
 !workflows4s-web-ui/package-lock.json
+
+# Kiro specs (local development)
+.kiro/

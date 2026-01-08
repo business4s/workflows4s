@@ -1,9 +1,8 @@
 package workflows4s.example.withdrawal.checks
 
-import java.time.Instant
-
 import io.circe.Codec
-import workflows4s.example.pekko.PekkoCirceSerializer
+
+import java.time.Instant
 
 sealed trait ChecksEvent derives Codec.AsObject
 object ChecksEvent {
@@ -14,8 +13,4 @@ object ChecksEvent {
   case class AwaitingTimeout(started: Instant)                                                extends ChecksEvent
   case class ExecutionTimedOut(releasedAt: Instant)                                           extends ChecksEvent
   case class CheckCompleted(results: Map[CheckKey, CheckResult.Finished], decision: Decision) extends ChecksEvent
-
-  class PekkoSerializer extends PekkoCirceSerializer[ChecksEvent] {
-    override def identifier = 12345677
-  }
 }

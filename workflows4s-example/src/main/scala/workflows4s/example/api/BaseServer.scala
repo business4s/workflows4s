@@ -12,8 +12,9 @@ import workflows4s.example.courseregistration.CourseRegistrationWorkflow
 import workflows4s.example.docs.pullrequest.PullRequestWorkflow
 import workflows4s.example.docs.pullrequest.PullRequestWorkflow.PRState
 import workflows4s.example.pekko.DummyWithdrawalService
-import workflows4s.example.withdrawal.checks.ChecksEngine
-import workflows4s.example.withdrawal.{WithdrawalData, WithdrawalWorkflow}
+import workflows4s.example.withdrawal.WithdrawalWorkflow
+import workflows4s.example.withdrawal.checks.{ChecksEngine, IOChecksEngine}
+import workflows4s.example.withdrawal.{IOWithdrawalWorkflow, WithdrawalData}
 import workflows4s.runtime.InMemoryRuntime
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.registry.InMemoryWorkflowRegistry
@@ -45,9 +46,9 @@ trait BaseServer {
                           )
                           .toResource
 
-      withdrawalWf       = WithdrawalWorkflow(DummyWithdrawalService, ChecksEngine)
+      withdrawalWf       = IOWithdrawalWorkflow.create(DummyWithdrawalService, IOChecksEngine.create())
       withdrawalRuntime <- InMemoryRuntime
-                             .create[IO, WithdrawalWorkflow.Context.Ctx](
+                             .create[IO, IOWithdrawalWorkflow.Context.Ctx](
                                workflow = withdrawalWf.workflowDeclarative,
                                initialState = WithdrawalData.Empty,
                                engine = engine,

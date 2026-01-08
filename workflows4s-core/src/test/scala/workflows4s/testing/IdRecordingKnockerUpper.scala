@@ -19,7 +19,3 @@ class IdRecordingKnockerUpper extends KnockerUpper.Agent[Id] with StrictLogging 
     this.wakeups = wakeups.updatedWith(id)(_ => Some(at))
   }
 }
-
-object IdRecordingKnockerUpper {
-  def apply(): IdRecordingKnockerUpper = new IdRecordingKnockerUpper()
-}

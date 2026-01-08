@@ -175,9 +175,16 @@ All state changes are events. State is reconstructed by replaying events through
 **workflows4s-web-ui** - ScalaJS frontend
 - Tyrian (Elm-like) web UI for workflow visualization
 
+**workflows4s-tck** - Technology Compatibility Kit (for testing)
+- **WithdrawalWorkflow**: The "golden sample" workflow that all runtime implementations are tested against
+- **ChecksEngine**: Generic embedded workflow used to test the WIO embedding feature within WithdrawalWorkflow
+- Reusable test suites (WithdrawalWorkflowTestSuite, ChecksEngineTestSuite) that verify runtime correctness
+- Effect-polymorphic: works with IO, Future, or any effect type
+- **Location**: `workflows4s-tck/src/main/scala/workflows4s/example/`
+
 **workflows4s-example** - Example workflows
-- Withdrawal workflow and CI checks engine examples
-- Integration tests across all runtime backends
+- Effect-specific helpers (IOWithdrawalWorkflow, FutureWithdrawalWorkflowHelper)
+- Integration tests across all runtime backends (Pekko, Postgres, SQLite, in-memory)
 
 ### KnockerUpper Pattern
 
@@ -211,15 +218,21 @@ WIO
 - ScalaMock for mocking
 
 ### Testing Multiple Runtimes
-Tests often verify behavior across multiple backends:
+Tests verify behavior across multiple backends using reusable test suites from `workflows4s-tck`:
 ```scala
-class WithdrawalWorkflowTest extends AnyFreeSpec {
-  "in-memory-sync" - { withdrawalTests(TestRuntimeAdapter.InMemorySync()) }
-  "in-memory" - { withdrawalTests(TestRuntimeAdapter.InMemory()) }
+// Extend the generic test suite and provide effect + adapter
+class WithdrawalWorkflowTest extends AnyFreeSpec with WithdrawalWorkflowTestSuite[IO] {
+  override given effect: Effect[IO] = CatsEffect.ioEffect
+  override val testContext = new WithdrawalWorkflowTestContext[IO]
+
+  "in-memory" - {
+    val adapter = new WorkflowTestAdapter.InMemory[IO, testContext.Context.Ctx]()
+    withdrawalTests(adapter)
+  }
 }
 
-class PostgresWithdrawalWorkflowTest extends AnyFreeSpec {
-  "postgres" - { withdrawalTests(TestRuntimeAdapter.Postgres()) }
+class PostgresWithdrawalWorkflowTest extends AnyFreeSpec with WithdrawalWorkflowTestSuite[IO] {
+  // ... same pattern with PostgresRuntimeAdapter
 }
 ```
 
@@ -231,10 +244,13 @@ TestUtils.renderMermaidToFile(workflow, "workflow.mermaid")
 ```
 
 ### Key Test Utilities
-- `TestRuntimeAdapter`: Id-based adapter for synchronous testing
-- `IOTestRuntimeAdapter`: IO-based adapter for async/concurrent testing
+- `WorkflowTestAdapter`: Base trait for runtime test adapters
+- `WorkflowTestAdapter.InMemory`: In-memory adapter for any effect type
+- `WithdrawalWorkflowTestSuite[F]`: Generic test suite from TCK
+- `ChecksEngineTestSuite[F]`: Generic test suite for checks engine
 - `workflows4s.testing` package: Testing utilities
-- **Location**: `workflows4s-cats/src/test/scala/workflows4s/testing/`
+- **Location**: `workflows4s-core/src/test/scala/workflows4s/testing/`
+- **TCK test suites**: `workflows4s-tck/src/test/scala/`
 
 ## Code Style
 
@@ -285,11 +301,12 @@ workflows4s/
 ├── workflows4s-doobie/       # Database persistence
 ├── workflows4s-filesystem/   # Filesystem scheduler
 ├── workflows4s-quartz/       # Quartz scheduler
+├── workflows4s-tck/          # Technology Compatibility Kit (generic workflows & test suites)
 ├── workflows4s-web-api-shared/    # Shared API models
 ├── workflows4s-web-api-server/    # HTTP server
 ├── workflows4s-web-ui/            # ScalaJS frontend
 ├── workflows4s-web-ui-bundle/     # UI bundling
-├── workflows4s-example/           # Example workflows
+├── workflows4s-example/           # Example workflows (depends on tck)
 ├── website/                       # Docusaurus website
 └── project/                       # sbt build config
 ```

@@ -121,7 +121,7 @@ object RunIOEvaluator {
       // For synchronous effects like Id, exceptions are thrown immediately during recurse.
       // We need to catch them at this level to enable retry behavior.
       def handleError(err: Throwable): F[Either[Instant, WCEvent[Ctx]]] =
-        E.flatMap(wio.onError(err, lastSeenState, now)) {
+        wio.onError(err, lastSeenState, now).flatMap {
           case Some(retryTime) => E.pure(Left(retryTime))
           case None            => E.raiseError(err)
         }

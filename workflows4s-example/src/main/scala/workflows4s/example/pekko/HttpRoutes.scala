@@ -1,6 +1,5 @@
 package workflows4s.example.pekko
 
-import cats.effect.unsafe.IORuntime
 import com.github.pjfanning.pekkohttpcirce.FailFastCirceSupport
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
@@ -12,8 +11,8 @@ import workflows4s.example.withdrawal.WithdrawalSignal.CreateWithdrawal
 import workflows4s.example.withdrawal.checks.{CheckResult, ChecksInput, ChecksState}
 import io.circe.generic.auto.*
 
-class HttpRoutes(service: WithdrawalWorkflowService)(using ioRuntime: IORuntime) extends FailFastCirceSupport {
-  given checksInput: Encoder[ChecksInput]                   = Encoder.instance(_.checks.keys.map(_.value).asJson)
+class HttpRoutes(service: FutureWithdrawalWorkflowService) extends FailFastCirceSupport {
+  given checksInput[F[_]]: Encoder[ChecksInput[F]]          = Encoder.instance(_.checks.keys.map(_.value).asJson)
   given checksResult: Encoder[CheckResult]                  = Encoder.instance(_ => Json.Null)
   given checksResultFinished: Encoder[CheckResult.Finished] = Encoder.instance(_ => Json.Null)
   given Encoder[ChecksState]                                = Encoder.instance {
@@ -42,19 +41,19 @@ class HttpRoutes(service: WithdrawalWorkflowService)(using ioRuntime: IORuntime)
   val routes: Route             = {
     path("withdrawals") {
       get {
-        onSuccess(service.listWorkflows.unsafeToFuture()) { list =>
+        onSuccess(service.listWorkflows) { list =>
           complete(list)
         }
       }
     } ~
       path("withdrawals" / Segment) { id =>
         post {
-          onSuccess(service.startWorkflow(id, CreateWithdrawal(id, 100, Iban("123"))).unsafeToFuture()) {
+          onSuccess(service.startWorkflow(id, CreateWithdrawal(id, 100, Iban("123")))) {
             complete("OK")
           }
         } ~
           get {
-            onSuccess(service.getState(id).unsafeToFuture()) { state =>
+            onSuccess(service.getState(id)) { state =>
               complete(state)
             }
           }

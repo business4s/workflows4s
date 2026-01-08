@@ -1,23 +1,22 @@
 package workflows4s.example.withdrawal
 
-import cats.effect.IO
 import io.circe.Codec
 import sttp.tapir.Schema
 import workflows4s.example.withdrawal.WithdrawalService.{ExecutionResponse, Fee, Iban, NotEnoughFunds}
 import workflows4s.example.withdrawal.checks.Check
 
-trait WithdrawalService {
-  def calculateFees(amount: BigDecimal): IO[Fee]
+trait WithdrawalService[F[_]] {
+  def calculateFees(amount: BigDecimal): F[Fee]
 
-  def putMoneyOnHold(amount: BigDecimal): IO[Either[NotEnoughFunds, Unit]]
+  def putMoneyOnHold(amount: BigDecimal): F[Either[NotEnoughFunds, Unit]]
 
-  def initiateExecution(amount: BigDecimal, recepient: Iban): IO[ExecutionResponse]
+  def initiateExecution(amount: BigDecimal, recepient: Iban): F[ExecutionResponse]
 
-  def releaseFunds(amount: BigDecimal): IO[Unit]
+  def releaseFunds(amount: BigDecimal): F[Unit]
 
-  def cancelFundsLock(): IO[Unit]
+  def cancelFundsLock(): F[Unit]
 
-  def getChecks(): List[Check[WithdrawalData.Validated]]
+  def getChecks(): List[Check[F, WithdrawalData.Validated]]
 }
 
 object WithdrawalService {

@@ -88,14 +88,14 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext](using E: Effect[F]) ext
   }
 
   protected def recover(initialState: ActiveWorkflow[F, Ctx], events: Seq[WCEvent[Ctx]]): F[ActiveWorkflow[F, Ctx]] = {
-    // Manually implement foldLeftM logic using E.flatMap
+    // Manually implement foldLeftM logic
     // Note: When handleEvent returns None, we keep the current workflow unchanged (matching main branch behavior).
     // This silently ignores unmatched events - a known limitation that should be fixed in EventEvaluator.
     def loop(currentWf: ActiveWorkflow[F, Ctx], remaining: List[WCEvent[Ctx]]): F[ActiveWorkflow[F, Ctx]] = {
       remaining match {
         case Nil          => E.pure(currentWf)
         case head :: tail =>
-          E.flatMap(engine.handleEvent(currentWf, head)) {
+          engine.handleEvent(currentWf, head).flatMap {
             case Some(nextWf) => loop(nextWf, tail)
             case None         => loop(currentWf, tail) // Silent fallback to match main branch
           }

@@ -1,36 +1,34 @@
 package workflows4s.example.docs.pekko
 
-import cats.effect.IO
-import cats.effect.unsafe.IORuntime
 import org.apache.pekko.actor.typed.ActorSystem
 import workflows4s.runtime.WorkflowInstance
-import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
+import workflows4s.runtime.instanceengine.{LazyFuture, WorkflowInstanceEngine}
 import workflows4s.runtime.pekko.PekkoRuntime
-import workflows4s.cats.IOWorkflowContext
+import workflows4s.wio.LazyFutureWorkflowContext
 
-import scala.concurrent.Future
+import scala.concurrent.ExecutionContext
 
 object PekkoExample {
 
-  object MyWorkflowCtx extends IOWorkflowContext {
+  // doc_start
+  object MyWorkflowCtx extends LazyFutureWorkflowContext {
     sealed trait State
     case class InitialState() extends State
     sealed trait Event
   }
 
-  // doc_start
   import MyWorkflowCtx.*
-  given IORuntime                        = ???
-  given ActorSystem[?]                   = ???
-  val engine: WorkflowInstanceEngine[IO] = ???
-  val workflow: WIO.Initial              = ???
+  given ExecutionContext                         = ???
+  given ActorSystem[?]                           = ???
+  val engine: WorkflowInstanceEngine[LazyFuture] = ???
+  val workflow: WIO.Initial                      = ???
 
   val runtime: PekkoRuntime[Ctx] = PekkoRuntime.create("my-workflow", workflow, InitialState(), engine)
 
   runtime.initializeShard()
 
-  // Pekko runtime returns Future-based instances
-  val instance: WorkflowInstance[Future, State] = runtime.createInstance_("my-workflow-id")
+  // Pekko runtime returns LazyFuture-based instances (call .run to convert to Future)
+  val instance: WorkflowInstance[LazyFuture, State] = runtime.createInstance_("my-workflow-id")
   // doc_end
 
 }

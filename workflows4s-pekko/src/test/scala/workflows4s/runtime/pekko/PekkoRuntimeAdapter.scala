@@ -1,126 +1,139 @@
 package workflows4s.runtime.pekko
 
-import cats.Id
-import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.pekko.actor.typed.*
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity, EntityRef, EntityTypeKey}
 import org.apache.pekko.persistence.typed.PersistenceId
 import org.apache.pekko.util.Timeout
-import workflows4s.runtime.{MappedWorkflowInstance, WorkflowInstance, WorkflowInstanceId}
-import workflows4s.testing.TestRuntimeAdapter
+import workflows4s.runtime.{DelegateWorkflowInstance, WorkflowInstance, WorkflowInstanceId}
+import workflows4s.runtime.instanceengine.{Effect, FutureEffect, LazyFuture}
+import workflows4s.runtime.pekko.PekkoRuntimeAdapter.Stop
+import workflows4s.testing.{EventIntrospection, WorkflowTestAdapter}
 import workflows4s.wio.*
 
-import java.time.Clock
 import java.util.UUID
-import scala.concurrent.{Await, Future}
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.*
 
-/** Pekko runtime adapter for tests. Uses Future-based PekkoWorkflowInstance internally and converts to Id for test compatibility.
+object PekkoRuntimeAdapter {
+  case class Stop(replyTo: ActorRef[Unit])
+}
+
+/** Pekko runtime adapter for polymorphic tests, specifically implemented for LazyFuture.
   */
 class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(implicit actorSystem: ActorSystem[?])
-    extends TestRuntimeAdapter[Ctx]
+    extends WorkflowTestAdapter[LazyFuture, Ctx]
     with StrictLogging {
 
-  val sharding = ClusterSharding(actorSystem)
+  implicit val ec: ExecutionContext       = actorSystem.executionContext
+  implicit def effect: Effect[LazyFuture] = FutureEffect.futureEffect
 
-  case class Stop(replyTo: ActorRef[Unit])
+  /** Pekko messaging is slower than in-memory; override the default timeout. */
+  override def testTimeout: FiniteDuration = 60.seconds
+
+  // --- Pekko Specifics ---
+  private val sharding = ClusterSharding(actorSystem)
 
   type RawCmd = WorkflowBehavior.Command[Ctx]
-  type Cmd    = WorkflowBehavior.Command[Ctx] | Stop
+  type Cmd    = RawCmd | Stop
 
-  override type Actor = IdActor
+  /** Actor implementation that delegates to the Pekko-backed instance */
+  case class PekkoTestActor(
+      entityRef: EntityRef[Cmd],
+      typeKey: EntityTypeKey[Cmd],
+      override val id: WorkflowInstanceId,
+  ) extends DelegateWorkflowInstance[LazyFuture, WCState[Ctx]]
+      with EventIntrospection[WCEvent[Ctx]] {
+
+    // The actual Pekko-specific instance implementation
+    override val delegate: WorkflowInstance[LazyFuture, WCState[Ctx]] =
+      PekkoWorkflowInstance(
+        id,
+        entityRef,
+        queryTimeout = Timeout(10.seconds),
+      )
+
+    // Pekko actors are event-sourced, but getting events for introspection
+    // usually requires a query-side or a specific test command.
+    override def getEvents: Seq[WCEvent[Ctx]] = {
+      // In a real scenario, you'd use Pekko Persistence Query here.
+      // For this adapter, we assume the test logic primarily uses queryState.
+      Nil
+    }
+
+    override def getExpectedSignals: LazyFuture[List[SignalDef[?, ?]]] = delegate.getExpectedSignals
+  }
+
+  override type Actor = PekkoTestActor
 
   override def runWorkflow(
-      workflow: WIO.Initial[IO, Ctx],
+      workflow: WIO.Initial[LazyFuture, Ctx],
       state: WCState[Ctx],
   ): Actor = {
     val (entityRef, typeKey) = createEntityRef(workflow, state)
-    IdActor(entityRef, typeKey, clock)
+    val instId               = WorkflowInstanceId(typeKey.name, entityRef.entityId)
+    PekkoTestActor(entityRef, typeKey, instId)
   }
 
   override def recover(first: Actor): Actor = {
-    given Timeout = Timeout(3.seconds)
+    given Timeout = Timeout(5.seconds)
 
-    val isStopped = first.entityRef.ask(replyTo => Stop(replyTo))
-    Await.result(isStopped, 3.seconds)
-    Thread.sleep(100) // this is terrible, but sometimes akka gives us an already terminated actor if we ask for it too fast.
-    val entityRef = sharding.entityRefFor(first.typeKey, first.entityRef.entityId)
-    logger.debug(s"""Original Actor: ${first.entityRef}
-                    |New Actor     : ${entityRef}""".stripMargin)
-    IdActor(entityRef, first.typeKey, first.actorClock)
+    // 1. Tell the current actor to stop
+    val isStopped = LazyFuture.fromFuture(first.entityRef.ask[Unit](replyTo => Stop(replyTo)))
+    effect.runSyncUnsafe(isStopped)
+
+    // 2. Brief wait to allow the ShardRegion to realize the actor is gone
+    Thread.sleep(200)
+
+    // 3. Obtain a fresh EntityRef for the same ID.
+    // When we interact with it, Pekko Persistence will recover the state.
+    val newEntityRef = sharding.entityRefFor(first.typeKey, first.entityRef.entityId)
+
+    logger.debug(s"Recovered actor for ID: ${first.id.instanceId}")
+    PekkoTestActor(newEntityRef, first.typeKey, first.id)
   }
 
   protected def createEntityRef(
-      workflow: WIO.Initial[IO, Ctx],
+      workflow: WIO.Initial[LazyFuture, Ctx],
       state: WCState[Ctx],
   ): (EntityRef[Cmd], EntityTypeKey[Cmd]) = {
-    // we create unique type key per workflow, so we can ensure we get right actor/behavior/input
-    // with single shard region its tricky to inject input into behavior creation
-    val typeKey = EntityTypeKey[Cmd](entityKeyPrefix + "-" + UUID.randomUUID().toString)
+    // Use a stable string for the type key
+    val typeKeyName = s"$entityKeyPrefix-${UUID.randomUUID().toString}"
+    val typeKey     = EntityTypeKey[Cmd](typeKeyName)
 
-    // TODO we dont use PekkoRuntime because it's tricky to test recovery there.
-    val _             = sharding.init(
-      Entity(typeKey)(createBehavior = entityContext => {
+    sharding.init(
+      Entity(typeKey) { entityContext =>
         val persistenceId = PersistenceId(entityContext.entityTypeKey.name, entityContext.entityId)
         val instanceId    = WorkflowInstanceId(persistenceId.entityTypeHint, persistenceId.entityId)
         val base          = WorkflowBehavior(instanceId, persistenceId, workflow, state, engine)
+
         Behaviors.intercept[Cmd, RawCmd](() =>
           new BehaviorInterceptor[Cmd, RawCmd]() {
             override def aroundReceive(
                 ctx: TypedActorContext[Cmd],
                 msg: Cmd,
                 target: BehaviorInterceptor.ReceiveTarget[RawCmd],
-            ): Behavior[RawCmd] =
-              msg match {
-                case Stop(replyTo) => Behaviors.stopped(() => replyTo ! ())
-                case other         =>
-                  // classtag-based filtering doesnt work here due to union type
-                  // we are mimicking the logic of Interceptor where unhandled messaged are passed through with casting
+            ): Behavior[RawCmd] = {
+              (msg: Any) match {
+                case s: Stop                  =>
+                  Behaviors.stopped(() => s.replyTo ! ())
+                case other: RawCmd @unchecked =>
+                  target(ctx, other)
+                case internal                 =>
+                  // Pass internal Pekko messages (RecoveryPermitGranted) through untouched
                   target
-                    .asInstanceOf[BehaviorInterceptor.ReceiveTarget[Any]](ctx, other)
+                    .asInstanceOf[BehaviorInterceptor.ReceiveTarget[Any]](ctx, internal)
                     .asInstanceOf[Behavior[RawCmd]]
               }
+            }
           },
         )(base)
-      }),
+      },
     )
-    val persistenceId = UUID.randomUUID().toString
-    val entityRef     = sharding.entityRefFor(typeKey, persistenceId)
+
+    val entityId  = UUID.randomUUID().toString
+    val entityRef = sharding.entityRefFor(typeKey, entityId)
     (entityRef, typeKey)
-  }
-
-  /** Id-based actor wrapper that delegates to PekkoWorkflowInstance (Future) and converts to Id for test compatibility.
-    */
-  case class IdActor(entityRef: EntityRef[Cmd], typeKey: EntityTypeKey[Cmd], actorClock: Clock) extends WorkflowInstance[Id, WCState[Ctx]] {
-    private val ioBase: WorkflowInstance[IO, WCState[Ctx]] = {
-      val futureBase: WorkflowInstance[Future, WCState[Ctx]] =
-        PekkoWorkflowInstance(
-          WorkflowInstanceId(entityRef.typeKey.name, entityRef.entityId),
-          entityRef,
-          queryTimeout = Timeout(3.seconds),
-        )
-      // Convert Future to IO
-      MappedWorkflowInstance(futureBase, [t] => (x: Future[t]) => IO.fromFuture(IO(x)))
-    }
-
-    // Convert IO to Id by running synchronously
-    private val delegate: WorkflowInstance[Id, WCState[Ctx]] =
-      MappedWorkflowInstance(ioBase, [t] => (x: IO[t]) => x.unsafeRunSync())
-
-    override def id: WorkflowInstanceId = delegate.id
-
-    override def queryState(): Id[WCState[Ctx]] = delegate.queryState()
-
-    override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): Id[Either[WorkflowInstance.UnexpectedSignal, Resp]] =
-      delegate.deliverSignal(signalDef, req)
-
-    override def wakeup(): Id[Unit] = delegate.wakeup()
-
-    override def getProgress: Id[model.WIOExecutionProgress[WCState[Ctx]]] = delegate.getProgress
-
-    override def getExpectedSignals: Id[List[SignalDef[?, ?]]] = delegate.getExpectedSignals
   }
 }

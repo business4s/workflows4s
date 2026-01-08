@@ -45,7 +45,7 @@ class PostgresRuntimeTest extends AnyFreeSpec with PostgresSuite {
       val actor = adapter.runWorkflow(wio.provideInput("initial"), "initial")
       actor.wakeup()
 
-      assert(actor.queryState() == "done")
+      assert(actor.queryState().unsafeRunSync() == "done")
     }
   }
 

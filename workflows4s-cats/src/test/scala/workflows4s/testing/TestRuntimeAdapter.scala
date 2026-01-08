@@ -41,7 +41,7 @@ trait TestRuntimeAdapter[Ctx <: WorkflowContext] extends StrictLogging {
 
   def recover(first: Actor): Actor
 
-  final def executeDueWakup(actor: Actor): Unit = {
+  final def executeDueWakeup(actor: Actor): Unit = {
     val wakeup = knockerUpper.lastRegisteredWakeup(actor.id)
     logger.debug(s"Executing due wakeup for actor ${actor.id}. Last registered wakeup: ${wakeup}")
     if wakeup.exists(_.isBefore(clock.instant()))

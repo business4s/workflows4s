@@ -1,67 +1,70 @@
 package workflows4s.example.withdrawal
 
-import cats.effect.IO
-import cats.implicits.{catsSyntaxApplicativeId, catsSyntaxEitherId}
 import workflows4s.example.withdrawal.WithdrawalEvent.{MoneyLocked, WithdrawalAccepted, WithdrawalRejected}
 import workflows4s.example.withdrawal.WithdrawalService.ExecutionResponse
 import workflows4s.example.withdrawal.WithdrawalSignal.{CancelWithdrawal, CreateWithdrawal, ExecutionCompleted}
-import workflows4s.example.withdrawal.WithdrawalWorkflow.{Signals, checksEmbedding}
 import workflows4s.example.withdrawal.checks.*
+import workflows4s.runtime.instanceengine.Effect
+import workflows4s.runtime.instanceengine.Effect.*
 import workflows4s.wio
 import workflows4s.wio.internal.WorkflowEmbedding
-import workflows4s.cats.IOWorkflowContext
-import workflows4s.cats.CatsEffect.given
-import workflows4s.wio.SignalDef
+import workflows4s.wio.{SignalDef, WorkflowContext}
 
 import java.time.Duration
-object WithdrawalWorkflow {
 
-  val executionRetryDelay = Duration.ofMinutes(2)
+class WithdrawalWorkflow[
+    F[_],
+    Ctx <: WorkflowContext { type Eff[A] = F[A]; type Event = WithdrawalEvent; type State = WithdrawalData },
+    ChecksCtx <: WorkflowContext { type Eff[A] = F[A]; type Event = ChecksEvent; type State = ChecksState },
+](
+    ctx: Ctx,
+    service: WithdrawalService[F],
+    checksEngine: ChecksEngine[F, ChecksCtx],
+)(using effect: Effect[F]) {
 
-  object Context extends IOWorkflowContext {
-    override type Event = WithdrawalEvent
-    override type State = WithdrawalData
-  }
+  import ctx.WIO
 
-  object Signals {
-    val createWithdrawal   = SignalDef[CreateWithdrawal, Unit]()
-    val executionCompleted = SignalDef[ExecutionCompleted, Unit]()
-    val cancel             = SignalDef[CancelWithdrawal, Unit]()
-  }
+  /** Embedding for ChecksEngine workflow into WithdrawalWorkflow.
+    *
+    * This embedding bridges two workflow contexts with the same effect type F but different path-dependent types. The cast in `convertState` is
+    * required because Scala's match types cannot reduce when the scrutinee is an abstract type parameter (T), even though all possible cases are
+    * covered.
+    */
+  val checksEmbedding: WorkflowEmbedding[ChecksCtx, Ctx, WithdrawalData.Validated] =
+    new WorkflowEmbedding[ChecksCtx, Ctx, WithdrawalData.Validated] {
+      override type InnerEvent = ChecksEvent
+      override type OuterEvent = WithdrawalEvent
+      override type InnerState = ChecksState
+      override type OuterState = WithdrawalData
 
-  val checksEmbedding = new WorkflowEmbedding[ChecksEngine.Context.Ctx, WithdrawalWorkflow.Context.Ctx, WithdrawalData.Validated] {
-    override def convertEvent(e: ChecksEvent): WithdrawalEvent = WithdrawalEvent.ChecksRun(e)
+      override def convertEvent(e: ChecksEvent): WithdrawalEvent =
+        WithdrawalEvent.ChecksRun(e)
 
-    override def unconvertEvent(e: WithdrawalEvent): Option[ChecksEvent] = e match {
-      case WithdrawalEvent.ChecksRun(inner) => Some(inner)
-      case _                                => None
+      override def unconvertEvent(e: WithdrawalEvent): Option[ChecksEvent] = e match {
+        case WithdrawalEvent.ChecksRun(inner) => Some(inner)
+        case _                                => None
+      }
+
+      override type OutputState[T <: ChecksState] <: WithdrawalData = T match {
+        case ChecksState.InProgress => WithdrawalData.Checking
+        case ChecksState.Decided    => WithdrawalData.Checked
+      }
+
+      override def convertState[T <: ChecksState](s: T, input: WithdrawalData.Validated): OutputState[T] = (s match {
+        case x: ChecksState.InProgress => input.checking(x)
+        case x: ChecksState.Decided    => input.checked(x)
+      }).asInstanceOf[OutputState[T]]
+
+      override def unconvertState(outerState: WithdrawalData): Option[ChecksState] =
+        outerState match {
+          case _: WithdrawalData.Validated => Some(ChecksState.Empty)
+          case x: WithdrawalData.Checking  => Some(x.checkResults)
+          case x: WithdrawalData.Checked   => Some(x.checkResults)
+          case _                           => None
+        }
     }
 
-    override type OutputState[T <: ChecksState] <: WithdrawalData = T match {
-      case ChecksState.InProgress => WithdrawalData.Checking
-      case ChecksState.Decided    => WithdrawalData.Checked
-    }
-
-    override def convertState[T <: ChecksState](s: T, input: WithdrawalData.Validated): OutputState[T] = s match {
-      case x: ChecksState.InProgress => input.checking(x)
-      case x: ChecksState.Decided    => input.checked(x)
-    }
-
-    override def unconvertState(outerState: WithdrawalData): Option[ChecksState] = outerState match {
-      case _: WithdrawalData.Validated => Some(ChecksState.Empty)
-      case x: WithdrawalData.Checking  => Some(x.checkResults)
-      case x: WithdrawalData.Checked   => Some(x.checkResults)
-      case _                           => None
-    }
-  }
-
-}
-
-class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine) {
-
-  import WithdrawalWorkflow.Context.WIO
-
-  val workflow: WIO[WithdrawalData.Empty, Nothing, WithdrawalData.Completed] =
+  def workflow: WIO[WithdrawalData.Empty, Nothing, WithdrawalData.Completed] =
     (for {
       _ <- validate
       _ <- calculateFees
@@ -72,7 +75,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
     } yield s)
       .handleErrorWith(cancelFundsIfNeeded)
 
-  val workflowDeclarative: WIO.Initial =
+  def workflowDeclarative: WIO.Initial =
     (
       (
         validate >>>
@@ -86,7 +89,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
 
   private def validate: WIO[Any, WithdrawalRejection.InvalidInput, WithdrawalData.Initiated] =
     WIO
-      .handleSignal(Signals.createWithdrawal)
+      .handleSignal(WithdrawalWorkflow.Signals.createWithdrawal)
       .using[Any]
       .purely { (_, signal) =>
         if signal.amount > 0 then WithdrawalAccepted(signal.txId, signal.amount, signal.recipient)
@@ -94,8 +97,8 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
       }
       .handleEventWithError { (_, event) =>
         event match {
-          case WithdrawalAccepted(txId, amount, recipient) => WithdrawalData.Initiated(txId, amount, recipient).asRight
-          case WithdrawalRejected(error)                   => WithdrawalRejection.InvalidInput(error).asLeft
+          case WithdrawalAccepted(txId, amount, recipient) => Right(WithdrawalData.Initiated(txId, amount, recipient))
+          case WithdrawalRejected(error)                   => Left(WithdrawalRejection.InvalidInput(error))
         }
       }
       .voidResponse
@@ -108,28 +111,26 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
 
   private def putFundsOnHold: WIO[WithdrawalData.Validated, WithdrawalRejection.NotEnoughFunds, WithdrawalData.Validated] =
     WIO
-      .runIO[WithdrawalData.Validated](state =>
-        service
-          .putMoneyOnHold(state.amount)
-          .map({
-            case Left(WithdrawalService.NotEnoughFunds()) => WithdrawalEvent.MoneyLocked.NotEnoughFunds()
-            case Right(_)                                 => WithdrawalEvent.MoneyLocked.Success()
-          }),
-      )
+      .runIO[WithdrawalData.Validated] { state =>
+        service.putMoneyOnHold(state.amount).map {
+          case Left(WithdrawalService.NotEnoughFunds()) => WithdrawalEvent.MoneyLocked.NotEnoughFunds()
+          case Right(_)                                 => WithdrawalEvent.MoneyLocked.Success()
+        }
+      }
       .handleEventWithError { (state, evt) =>
         evt match {
-          case MoneyLocked.Success()        => state.asRight
-          case MoneyLocked.NotEnoughFunds() => WithdrawalRejection.NotEnoughFunds().asLeft
+          case MoneyLocked.Success()        => Right(state)
+          case MoneyLocked.NotEnoughFunds() => Left(WithdrawalRejection.NotEnoughFunds())
         }
       }
       .autoNamed()
 
   private def runChecks: WIO[WithdrawalData.Validated, WithdrawalRejection.RejectedInChecks, WithdrawalData.Checked] = {
-    val doRunChecks: WIO[WithdrawalData.Validated, Nothing, WithdrawalData.Checked] =
-      WIO.embed[WithdrawalData.Validated, Nothing, ChecksState.Decided, ChecksEngine.Context.Ctx, checksEmbedding.OutputState](
-        checksEngine.runChecks
-          .transformInput((x: WithdrawalData.Validated) => ChecksInput(x, service.getChecks())),
-      )(checksEmbedding)
+    val doRunChecks: WIO[WithdrawalData.Validated, Nothing, WithdrawalData.Checked] = {
+      val innerWIO = checksEngine.runChecks
+        .transformInput((x: WithdrawalData.Validated) => ChecksInput(x, service.getChecks()))
+      ctx.WIO.embed(innerWIO.asInstanceOf)(checksEmbedding.asInstanceOf).asInstanceOf[WIO[WithdrawalData.Validated, Nothing, WithdrawalData.Checked]]
+    }
 
     val actOnDecision = WIO.pure
       .makeFrom[WithdrawalData.Checked]
@@ -150,23 +151,19 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
   // This could use retries once we have them
   private def initiateExecution: WIO[WithdrawalData.Checked, WithdrawalRejection.RejectedByExecutionEngine, WithdrawalData.Executed] =
     WIO
-      .runIO[WithdrawalData.Checked](s =>
-        service
-          .initiateExecution(s.netAmount, s.recipient)
-          .map(WithdrawalEvent.ExecutionInitiated.apply),
-      )
-      .handleEventWithError((s, event) =>
+      .runIO[WithdrawalData.Checked](s => service.initiateExecution(s.netAmount, s.recipient).map(WithdrawalEvent.ExecutionInitiated.apply))
+      .handleEventWithError { (s, event) =>
         event.response match {
           case ExecutionResponse.Accepted(externalId) => Right(s.executed(externalId))
           case ExecutionResponse.Rejected(error)      => Left(WithdrawalRejection.RejectedByExecutionEngine(error))
-        },
-      )
+        }
+      }
       .autoNamed()
       .retryIn(_ => WithdrawalWorkflow.executionRetryDelay)
 
   private def awaitExecutionCompletion: WIO[WithdrawalData.Executed, WithdrawalRejection.RejectedByExecutionEngine, WithdrawalData.Executed] =
     WIO
-      .handleSignal(Signals.executionCompleted)
+      .handleSignal(WithdrawalWorkflow.Signals.executionCompleted)
       .using[WithdrawalData.Executed]
       .purely((_, sig) => WithdrawalEvent.ExecutionCompleted(sig))
       .handleEventWithError((s, e: WithdrawalEvent.ExecutionCompleted) =>
@@ -186,26 +183,29 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
 
   private def cancelFundsIfNeeded: WIO[(WithdrawalData, WithdrawalRejection), Nothing, WithdrawalData.Completed.Failed] = {
     WIO
-      .runIO[(WithdrawalData, WithdrawalRejection)]({ case (_, r) =>
+      .runIO[(WithdrawalData, WithdrawalRejection)] { case (_, r) =>
         r match {
-          case WithdrawalRejection.InvalidInput(error)              => WithdrawalEvent.RejectionHandled(error).pure[IO]
-          case WithdrawalRejection.NotEnoughFunds()                 => WithdrawalEvent.RejectionHandled("Not enough funds on the user's account").pure[IO]
+          case WithdrawalRejection.InvalidInput(error)              =>
+            WithdrawalEvent.RejectionHandled(error).pure[F]
+          case WithdrawalRejection.NotEnoughFunds()                 =>
+            WithdrawalEvent.RejectionHandled("Not enough funds on the user's account").pure[F]
           case WithdrawalRejection.RejectedInChecks()               =>
             service.cancelFundsLock().as(WithdrawalEvent.RejectionHandled("Transaction rejected in checks"))
-          case WithdrawalRejection.RejectedByExecutionEngine(error) => service.cancelFundsLock().as(WithdrawalEvent.RejectionHandled(error))
+          case WithdrawalRejection.RejectedByExecutionEngine(error) =>
+            service.cancelFundsLock().as(WithdrawalEvent.RejectionHandled(error))
           case WithdrawalRejection.Cancelled(operatorId, comment)   =>
             service.cancelFundsLock().as(WithdrawalEvent.RejectionHandled(s"Cancelled by ${operatorId}. Comment: ${comment}"))
         }
-      })
+      }
       .handleEvent((_: (WithdrawalData, WithdrawalRejection), evt) => WithdrawalData.Completed.Failed(evt.error))
       .autoNamed()
   }
 
   private def handleCancellation = {
     WIO.interruption
-      .throughSignal(Signals.cancel)
-      .handleAsync((state, signal) => {
-        def ok = WithdrawalEvent.WithdrawalCancelledByOperator(signal.operatorId, signal.comment).pure[IO]
+      .throughSignal(WithdrawalWorkflow.Signals.cancel)
+      .handleAsync { (state, signal) =>
+        def ok = WithdrawalEvent.WithdrawalCancelledByOperator(signal.operatorId, signal.comment).pure[F]
         state match {
           case _: WithdrawalData.Empty     => ok
           case _: WithdrawalData.Initiated => ok
@@ -215,15 +215,27 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
           case _: WithdrawalData.Executed  =>
             if signal.acceptStartedExecution then ok
             else
-              IO.raiseError(
+              effect.raiseError(
                 new Exception("To cancel transaction that has been already executed, this fact has to be explicitly accepted in the request."),
               )
-          case _: WithdrawalData.Completed => IO.raiseError(new Exception(s"Unexpected state for cancellation: $state"))
+          case _: WithdrawalData.Completed => effect.raiseError(new Exception(s"Unexpected state for cancellation: $state"))
         }
-      })
-      .handleEventWithError((_, evt) => WithdrawalRejection.Cancelled(evt.operatorId, evt.comment).asLeft)
+      }
+      .handleEventWithError((_, evt) => Left(WithdrawalRejection.Cancelled(evt.operatorId, evt.comment)))
       .voidResponse
       .done
+  }
+
+}
+
+object WithdrawalWorkflow {
+
+  val executionRetryDelay = Duration.ofMinutes(2)
+
+  object Signals {
+    val createWithdrawal   = SignalDef[CreateWithdrawal, Unit]()
+    val executionCompleted = SignalDef[ExecutionCompleted, Unit]()
+    val cancel             = SignalDef[CancelWithdrawal, Unit]()
   }
 
 }
