@@ -7,7 +7,10 @@ import workflows4s.wio.ActiveWorkflow
 object WorkflowRegistry {
 
   enum ExecutionStatus {
-    case Running, Awaiting, Finished
+    case Running
+    case AwaitingTrigger
+    case AwaitingNextStep
+    case Finished
   }
 
   trait Agent {

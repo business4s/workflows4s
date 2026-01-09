@@ -3,7 +3,7 @@ package workflows4s.runtime.wakeup
 import cats.Id
 import cats.effect.IO
 import cats.syntax.all.*
-import workflows4s.runtime.WorkflowInstance
+import workflows4s.runtime.{WorkflowInstance, WorkflowRuntime}
 import workflows4s.runtime.registry.WorkflowRegistry.ExecutionStatus
 import workflows4s.runtime.registry.WorkflowSearch
 
@@ -40,56 +40,23 @@ trait RegistryBasedWakeupPoller {
 
 object RegistryBasedWakeupPoller {
 
-  /** Create a poller for IO-based workflow instances (e.g., InMemoryWorkflowInstance). */
-  def apply[State](
+  def create[F[_], State](
       registry: WorkflowSearch[IO],
-      templateId: String,
       pollInterval: FiniteDuration,
-      lookupInstance: String => Option[WorkflowInstance[IO, State]],
-  ): RegistryBasedWakeupPoller = create(
-    registry = registry,
-    templateId = templateId,
-    pollInterval = pollInterval,
-    lookupInstance = lookupInstance,
-    wakeup = (instance: WorkflowInstance[IO, State]) => instance.wakeup(),
-  )
-
-  /** Create a poller for synchronous (Id-based) workflow instances (e.g., InMemorySyncWorkflowInstance). */
-  def forSync[State](
-      registry: WorkflowSearch[IO],
-      templateId: String,
-      pollInterval: FiniteDuration,
-      lookupInstance: String => Option[WorkflowInstance[Id, State]],
-  ): RegistryBasedWakeupPoller = create(
-    registry = registry,
-    templateId = templateId,
-    pollInterval = pollInterval,
-    lookupInstance = lookupInstance,
-    wakeup = (instance: WorkflowInstance[Id, State]) => IO(instance.wakeup()),
-  )
-
-  private def create[F[_], State](
-      registry: WorkflowSearch[IO],
-      templateId: String,
-      pollInterval: FiniteDuration,
-      lookupInstance: String => Option[WorkflowInstance[F, State]],
-      wakeup: WorkflowInstance[F, State] => IO[Unit],
+      runtime: WorkflowRuntime[IO, ?],
   ): RegistryBasedWakeupPoller = new RegistryBasedWakeupPoller {
 
     private val awaitingQuery: WorkflowSearch.Query = WorkflowSearch.Query(
-      status = Set(ExecutionStatus.Awaiting),
+      status = Set(ExecutionStatus.AwaitingNextStep),
     )
 
     override def pollOnce: IO[Int] = {
       for {
-        results <- registry.search(templateId, awaitingQuery)
-        wokenUp <- results.traverse { result =>
-                     lookupInstance(result.id.instanceId) match {
-                       case Some(instance) => wakeup(instance).as(1)
-                       case None           => IO.pure(0)
-                     }
+        results <- registry.search(runtime.templateId, awaitingQuery)
+        _       <- results.traverse { result =>
+                     runtime.createInstance(result.id.instanceId).flatMap(_.wakeup())
                    }
-      } yield wokenUp.sum
+      } yield results.size
     }
 
     override def pollForever: IO[Nothing] = {
