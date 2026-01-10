@@ -11,7 +11,7 @@ import workflows4s.runtime.registry.InMemoryWorkflowRegistry
 import workflows4s.wio.*
 
 // Adapt various runtimes to a single interface for tests
-// Works with workflows that use the context's effect type (typically IO or Id)
+// Works with workflows that use IO effect type
 trait TestRuntimeAdapter[Ctx <: WorkflowContext] extends StrictLogging {
 
   protected given Effect[IO] = CatsEffect.ioEffect
@@ -20,22 +20,11 @@ trait TestRuntimeAdapter[Ctx <: WorkflowContext] extends StrictLogging {
   val clock: TestClock                       = TestClock()
   val registry: InMemoryWorkflowRegistry[IO] = InMemoryWorkflowRegistry[IO](clock).unsafeRunSync()
 
-  val engine: WorkflowInstanceEngine[IO]   = WorkflowInstanceEngine.default(knockerUpper, registry, clock)
-  val idEngine: WorkflowInstanceEngine[Id] = {
-    given Effect[Id] = Effect.idEffect
-    WorkflowInstanceEngine
-      .builder[Id]
-      .withJavaTime(clock)
-      .withWakeUps(knockerUpper.asId)
-      .withoutRegistering
-      .withGreedyEvaluation
-      .withLogging
-      .get
-  }
+  val engine: WorkflowInstanceEngine[IO] = WorkflowInstanceEngine.default(knockerUpper, registry, clock)
 
   type Actor <: WorkflowInstance[Id, WCState[Ctx]]
 
-  // Accept IO workflows (most common case) and handle internally
+  // Accept IO workflows and handle internally
   def runWorkflow(
       workflow: WIO.Initial[IO, Ctx],
       state: WCState[Ctx],
@@ -56,39 +45,6 @@ object TestRuntimeAdapter {
 
   trait EventIntrospection[Event] {
     def getEvents: Seq[Event]
-  }
-
-  case class InMemorySync[Ctx <: WorkflowContext]() extends TestRuntimeAdapter[Ctx] {
-
-    override def runWorkflow(
-        workflow: WIO.Initial[IO, Ctx],
-        state: WCState[Ctx],
-    ): Actor = {
-      // SAFETY: This cast is safe because:
-      // 1. WIO structure is effect-polymorphic at runtime - only the type parameter differs
-      // 2. Test workflows use synchronous operations (e.g., IO.unit.unsafeRunSync() in TestUtils)
-      // 3. This adapter is specifically for testing synchronous execution of workflows
-      // 4. The Id effect executes operations synchronously, matching the test workflow behavior
-      given Effect[Id] = Effect.idEffect
-      val idWorkflow   = workflow.asInstanceOf[WIO.Initial[Id, Ctx]]
-      val runtime      = InMemoryRuntime.create[Id, Ctx](idWorkflow, state, idEngine, "test")
-      Actor(List(), runtime)
-    }
-
-    override def recover(first: Actor): Actor = Actor(first.getEvents, first.runtime)
-
-    case class Actor(events: Seq[WCEvent[Ctx]], runtime: InMemoryRuntime[Id, Ctx])
-        extends DelegateWorkflowInstance[Id, WCState[Ctx]]
-        with EventIntrospection[WCEvent[Ctx]] {
-      val delegate: InMemoryWorkflowInstance[Id, Ctx] = {
-        val inst = runtime.createInMemoryInstance("")
-        inst.recover(events)
-        inst
-      }
-
-      override def getEvents: Seq[WCEvent[Ctx]]                  = delegate.getEvents
-      override def getExpectedSignals: Id[List[SignalDef[?, ?]]] = delegate.getExpectedSignals
-    }
   }
 
   case class InMemory[Ctx <: WorkflowContext]() extends TestRuntimeAdapter[Ctx] {
