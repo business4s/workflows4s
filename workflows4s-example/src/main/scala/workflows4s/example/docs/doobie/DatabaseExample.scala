@@ -2,18 +2,19 @@ package workflows4s.example.docs.doobie
 
 import cats.effect.IO
 import doobie.util.transactor.Transactor
+import workflows4s.cats.IOWorkflowContext
 import workflows4s.doobie.postgres.PostgresWorkflowStorage
 import workflows4s.doobie.{ByteCodec, DatabaseRuntime, WorkflowStorage}
 import workflows4s.runtime.WorkflowInstance
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
-import workflows4s.wio.{WCState, WorkflowContext}
+import workflows4s.wio.WCState
 
 import scala.annotation.nowarn
 
 @nowarn("msg=unused local definition")
 object DatabaseExample {
 
-  object MyWorkflowCtx extends WorkflowContext {
+  object MyWorkflowCtx extends IOWorkflowContext {
     sealed trait State
     case class InitialState() extends State
     sealed trait Event
@@ -22,14 +23,14 @@ object DatabaseExample {
   import MyWorkflowCtx.*
   {
     // doc_start
-    val workflow: WIO.Initial           = ???
-    val initialState: State             = ???
-    val transactor: Transactor[IO]      = ???
-    val storage: WorkflowStorage[Event] = ???
-    val engine: WorkflowInstanceEngine  = ???
-    val templateId                      = "my-workflow"
+    val workflow: WIO.Initial              = ???
+    val initialState: State                = ???
+    val transactor: Transactor[IO]         = ???
+    given eventCodec: ByteCodec[Event]     = ???
+    val engine: WorkflowInstanceEngine[IO] = ???
+    val templateId                         = "my-workflow"
 
-    val runtime: DatabaseRuntime[Ctx]                      = DatabaseRuntime.create(workflow, initialState, transactor, engine, storage, templateId)
+    val runtime: DatabaseRuntime[Ctx]                      = DatabaseRuntime.create(workflow, initialState, transactor, engine, eventCodec, templateId)
     val wfInstance: IO[WorkflowInstance[IO, WCState[Ctx]]] = runtime.createInstance("1")
     // doc_end
   }

@@ -8,6 +8,8 @@ import SbtDependency from '@site/src/components/SbtDependency';
 
 ## Example
 
+The Pekko runtime uses `LazyFuture` as its effect type. `LazyFuture` is a lazy wrapper around `scala.concurrent.Future` that defers execution until explicitly run, providing better control over when side effects occur. Use `FutureWorkflowContext` to define your workflow context, which automatically provides the `Effect[LazyFuture]` instance.
+
 Here is an example of using `PekkoRuntime` in a workflow:
 
 ```scala file=./main/scala/workflows4s/example/docs/pekko/PekkoExample.scala start=doc_start end=doc_end
@@ -17,10 +19,18 @@ Here is an example of using `PekkoRuntime` in a workflow:
 
 While `PekkoRuntime` offers robust distributed capabilities, it comes with some caveats:
 
-1. **Configuration Complexity**:
+1. **LazyFuture Cancellation Semantics**:
+   - The Pekko runtime uses `LazyFuture`, which provides weaker cancellation semantics than effect systems like cats-effect IO.
+   - Scala `Future` does not support true cancellation - once a Future starts executing, it runs to completion.
+   - When a `LazyFuture` fiber is canceled:
+     - The fiber's outcome is marked as `Outcome.Canceled`
+     - Subsequent calls to `join` will see the canceled outcome
+     - **However, the underlying computation continues running in the background**
+   - This is an inherent limitation of the JVM Future model and cannot be fixed without cooperation from the running code (e.g., checking cancellation tokens periodically).
+2. **Configuration Complexity**:
    - A significant amount of complexity is encapsulated within Pekko.
    - Proper configuration is essential to ensure smooth operation.
-2. **Initial State Limitation**:
+3. **Initial State Limitation**:
    - Unlike other runtimes, `PekkoRuntime` does not support arbitrary initial states during workflow instance creation. Initial state has to be build uniformly across all instances based on `EntityContext`.
-3. **Shard Initialization**:
+4. **Shard Initialization**:
    - The `initializeShard` method must be invoked before creating workflow instances to ensure proper setup.

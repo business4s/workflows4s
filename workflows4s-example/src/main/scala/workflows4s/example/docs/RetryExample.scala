@@ -1,8 +1,8 @@
 package workflows4s.example.docs
 
 import cats.effect.IO
+import workflows4s.cats.CatsEffect.given
 import cats.implicits.catsSyntaxEitherId
-import workflows4s.example.docs
 import workflows4s.example.docs.Context.WIO
 
 import java.net.UnknownHostException
@@ -47,15 +47,15 @@ object RetryExample {
           in.error match {
             case _: TimeoutException         =>
               IO(
-                WIO.Retry.Stateful.Result.ScheduleWakeup(
+                workflows4s.wio.WIO.Retry.Stateful.Result.ScheduleWakeup(
                   at = Instant.now().plus(Duration.ofMinutes(30)),
                   event = Some(MyRetryEvent),
                 ),
               )
             case _: IllegalArgumentException =>
-              IO(WIO.Retry.Stateful.Result.Recover(MyEvent()))
+              IO(workflows4s.wio.WIO.Retry.Stateful.Result.Recover(MyEvent()))
             case _                           =>
-              IO(WIO.Retry.Stateful.Result.Ignore)
+              IO(workflows4s.wio.WIO.Retry.Stateful.Result.Ignore)
           }
         })
         .handleEventsWith(in =>

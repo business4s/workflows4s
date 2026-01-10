@@ -1,7 +1,5 @@
 package workflows4s.wio
 
-import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxOptionId
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
@@ -19,10 +17,10 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers {
   "WIO.HandleSignal" - {
 
     "process valid signal" in {
-      val wf: ActiveWorkflow[Ctx] = WIO
+      val wf: ActiveWorkflow[Eff, Ctx] = WIO
         .handleSignal(mySignalDef)
         .using[String]
-        .withSideEffects((input, request) => IO(s"input: $input, request: $request"))
+        .withSideEffects((input, request) => s"input: $input, request: $request")
         .handleEvent((input, request) => s"eventProcessed($input, $request)")
         .produceResponse((input, request) => s"response($input, $request)")
         .done
@@ -35,9 +33,9 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers {
       val signalResult = wf.handleSignal(mySignalDef)(42).toRaw
 
       // Assert
-      signalResult should not be empty
+      signalResult.`should`(not).`be`(empty)
       assert(
-        signalResult.get.unsafeRunSync() === (
+        signalResult.get === (
           SimpleEvent(
             "input: initialState, request: 42",
           ),
@@ -50,7 +48,7 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers {
       val validSignalDef      = SignalDef[Int, String]()
       val unexpectedSignalDef = SignalDef[String, String]()
 
-      val wf: ActiveWorkflow[Ctx] = WIO
+      val wf: ActiveWorkflow[Eff, Ctx] = WIO
         .handleSignal(validSignalDef)
         .using[String]
         .withSideEffects(ignore)
@@ -67,7 +65,7 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers {
     }
 
     "handle event" in {
-      val wf: ActiveWorkflow[Ctx] = WIO
+      val wf: ActiveWorkflow[Eff, Ctx] = WIO
         .handleSignal(mySignalDef)
         .using[String]
         .withSideEffects(ignore)
@@ -103,7 +101,7 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers {
     }
 
     "proceed should be a no-op" in {
-      val wf: ActiveWorkflow[Ctx] = WIO
+      val wf: ActiveWorkflow[Eff, Ctx] = WIO
         .handleSignal(mySignalDef)
         .using[String]
         .withSideEffects(ignore)
@@ -120,11 +118,11 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers {
       lazy val base = WIO
         .handleSignal(mySignalDef)
         .using[String]
-        .withSideEffects((input, request) => IO(s"metaSideEffect: $input/$request"))
+        .withSideEffects((input, request) => s"metaSideEffect: $input/$request")
         .handleEvent(ignore)
         .produceResponse(ignore)
       extension (x: WIO[?, ?, ?]) {
-        def extractMeta: HandleSignal.Meta = x.asInstanceOf[workflows4s.wio.WIO.HandleSignal[?, ?, ?, ?, ?, ?, ?]].meta
+        def extractMeta: HandleSignal.Meta = x.asInstanceOf[workflows4s.wio.WIO.HandleSignal[?, ?, ?, ?, ?, ?, ?, ?]].meta
       }
       "defaults" in {
         val wio = base.done
@@ -196,8 +194,8 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers {
 
     "convert to interruption" in {
       import TestCtx2.*
-      val (_, _, wio: workflows4s.wio.WIO.IHandleSignal[TestState, Nothing, TestState, Ctx]) = TestUtils.signal
-      val _: WIO.Interruption[Nothing, TestState]                                            = wio.toInterruption
+      val (_, _, wio)                             = TestUtils.signal
+      val _: WIO.Interruption[Nothing, TestState] = wio.toInterruption
     }
 
   }

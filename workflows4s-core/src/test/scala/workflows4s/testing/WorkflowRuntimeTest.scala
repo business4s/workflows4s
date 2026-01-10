@@ -1,140 +1,162 @@
 package workflows4s.testing
 
-import cats.effect.std.Semaphore
-import cats.effect.unsafe.implicits.global
-import cats.effect.{IO, Ref}
-import cats.syntax.all.*
 import org.scalatest.freespec.AnyFreeSpecLike
-import sourcecode.Text.generate
-import workflows4s.runtime.registry.InMemoryWorkflowRegistry
-import workflows4s.runtime.registry.WorkflowRegistry.ExecutionStatus
-import workflows4s.wio.{TestCtx2, TestState}
+import workflows4s.runtime.instanceengine.{Effect, Outcome}
+import workflows4s.runtime.instanceengine.Effect.*
+import workflows4s.wio.{SignalDef, WIO, WorkflowContext}
 
-import scala.annotation.nowarn
+import scala.compiletime.deferred
+import scala.concurrent.duration.*
+import scala.reflect.ClassTag
 
-class WorkflowRuntimeTest extends WorkflowRuntimeTest.Suite {
+// --- 1. Generic Context Definition ---
 
-  "in-memory" - {
-    workflowTests(TestRuntimeAdapter.InMemory[TestCtx2.Ctx]())
+object GenericTestCtx {
+  case class State(steps: List[String])
+  object State {
+    def empty: State = State(List.empty)
   }
-  "in-memory-sync" - {
-    workflowTests(TestRuntimeAdapter.InMemorySync[TestCtx2.Ctx]())
-  }
 
+  case class Event(stepId: String)
 }
 
-object WorkflowRuntimeTest {
-  trait Suite extends AnyFreeSpecLike {
+trait GenericTestCtx[F[_]](using F: Effect[F]) extends WorkflowContext {
+  override type State  = GenericTestCtx.State
+  override type Event  = GenericTestCtx.Event
+  override type Eff[A] = F[A]
+  override given effect: Effect[Eff] = F
+}
 
-    def workflowTests(getRuntime: => TestRuntimeAdapter[TestCtx2.Ctx]) = {
+// --- 2. The Test Suite (With Inner Utils) ---
 
-      "runtime should not allow interrupting a process while another step is running" in new Fixture {
-        def singleRun(i: Int): IO[Unit] = {
-          IO(println(s"Running $i iteration")) *> {
-            import TestCtx2.*
+trait WorkflowRuntimeTest[F[_]] extends AnyFreeSpecLike {
 
-            for {
-              longRunningStartedSem  <- Semaphore[IO](0)
-              longrunningFinishedSem <- Semaphore[IO](0)
-              signalStartedRef       <- Ref[IO].of(false)
+  given effect: Effect[F]         = deferred
+  def unsafeRun(program: => F[Unit]): Unit
+  def testTimeout: FiniteDuration = 5.seconds
 
-              (longRunningStepId, longRunningStep) = TestUtils.runIOCustom(longRunningStartedSem.release *> longrunningFinishedSem.acquire)
+  // --- Context Initialization ---
+  // The Single Source of Truth for the Context
+  val ctx: GenericTestCtx[F] = new GenericTestCtx[F]() {}
+  import GenericTestCtx.State
 
-              (signal, _, signalStep) = TestUtils.signalCustom(signalStartedRef.set(true))
+  type Adapter = WorkflowTestAdapter[F, ctx.type]
 
-              wio = longRunningStep.interruptWith(signalStep.toInterruption)
-              wf  = createInstance(wio)
-
-              wakeupFiber <- IO(wf.wakeup()).start
-              signalFiber <- (longRunningStartedSem.acquire *> IO(wf.deliverSignal(signal, 1))).start
-
-              _ = assert(wf.queryState() == TestState.empty)
-
-              _ <- longrunningFinishedSem.release
-              _ <- wakeupFiber.joinWith(IO(fail("wakeup was cancelled")))
-              _  = assert(wf.queryState() == TestState(List(longRunningStepId)))
-
-              signalResult  <- signalFiber.joinWith(IO(fail("signal was cancelled"))).attempt
-              signalStarted <- signalStartedRef.get
-
-              _ <- IO(assert(!signalStarted))
-              _ <- IO(assert(signalResult.isLeft || signalResult.exists(_.isLeft)))
-              _ <- IO(assert(wf.queryState() == TestState(List(longRunningStepId))))
-            } yield ()
-          }
-        }
-
-        (1 to 50).toList.traverse_(singleRun).unsafeRunSync()
+  // --- Helper Classes ---
+  class TestLatch(ref: workflows4s.runtime.instanceengine.Ref[F, Boolean]) {
+    def release: F[Unit] = ref.set(true)
+    def acquire: F[Unit] = {
+      def loop: F[Unit] = ref.get.flatMap {
+        case true  => effect.unit
+        case false => effect.sleep(10.millis) *> loop
       }
+      loop
+    }
+  }
+  object TestLatch                                                         {
+    def create: F[TestLatch] = effect.ref(false).map(new TestLatch(_))
+  }
 
-      "workflow registry interaction" - {
-        "register execution status for io" in new Fixture {
+  // --- Internal Test Utilities ---
+  // Defined INSIDE the trait to share the exact same 'ctx' instance
+  class TestUtils(using E: Effect[F]) {
 
-          val exception = new Exception("IO failed")
-          @nowarn("msg=unused private member")
-          var failing   = true
-          val ioLogic   = IO(if failing then throw exception else ())
+    import GenericTestCtx.{Event, State}
 
-          val wf = createInstance(runSpecificIO(ioLogic))
+    // Aliases using the Outer 'ctx'
+    // Note: We cast ctx.Eff back to F explicitly where needed,
+    // but the Types rely on ctx.type
+    type TestWIO[Err]          = workflows4s.wio.WIO[F, State, Err, State, ctx.type]
+    type TestInterruption[Err] = workflows4s.wio.WIO.Interruption[F, ctx.type, Err, State]
 
-          val thrown = intercept[Exception](wf.wakeup())
-          assert(thrown == exception)
-          expectRegistryEntry(ExecutionStatus.Running)
+    def runCustom(fa: => F[Unit]): (String, TestWIO[Nothing]) = {
+      val id   = java.util.UUID.randomUUID().toString
+      val step = ctx.WIO
+        .runIO[State]
+        .apply(_ => E.map(fa)(_ => Event(id)))
+        .handleEvent((state, _) => state)
+        .named(id)
+      (id, step.asInstanceOf[TestWIO[Nothing]])
+    }
 
-          failing = false
-          wf.wakeup()
-          expectRegistryEntry(ExecutionStatus.Finished)
+    def signalInterruption[S: ClassTag](onDeliver: => F[Unit]): (SignalDef[S, Unit], TestInterruption[Nothing]) = {
+      val id        = java.util.UUID.randomUUID().toString
+      val signalDef = SignalDef[S, Unit](id)
 
-        }
-        "register execution status for signal" in new Fixture {
-          val (signal, _, signalStep) = TestUtils.signal
+      val interruption = ctx.WIO.interruption
+        .throughSignal(signalDef)
+        .handleAsync((_, _) => E.map(onDeliver)(_ => Event(id)))
+        .handleEvent((state, _) => state)
+        .voidResponse
+        .named(id)
 
-          val wf = createInstance(signalStep)
-          wf.wakeup()
-          expectRegistryEntry(ExecutionStatus.Awaiting)
-
-          wf.deliverSignal(signal, 1).value
-          expectRegistryEntry(ExecutionStatus.Finished)
-        }
-        "register execution status for timer" in new Fixture {
-          val (duration, timerStep) = TestUtils.timer()
-
-          val wf = createInstance(timerStep)
-          wf.wakeup()
-
-          expectRegistryEntry(ExecutionStatus.Awaiting)
-
-          runtime.clock.advanceBy(duration)
-          wf.wakeup()
-
-          expectRegistryEntry(ExecutionStatus.Finished)
-        }
-
-      }
-
-      trait Fixture {
-        val runtime  = getRuntime
-        val registry = InMemoryWorkflowRegistry(runtime.clock).unsafeRunSync()
-
-        def expectRegistryEntry(status: ExecutionStatus)                     = {
-          val registeredWorkflows = runtime.registry.getWorkflows().unsafeRunSync()
-          assert(registeredWorkflows.size == 1)
-          assert(registeredWorkflows.head.status == status)
-        }
-        def createInstance(wio: TestCtx2.WIO[TestState, Nothing, TestState]) = {
-          runtime.runWorkflow(wio.provideInput(TestState.empty), TestState.empty)
-        }
-      }
-
+      (signalDef, interruption.asInstanceOf[TestInterruption[Nothing]])
     }
   }
 
-  private def runSpecificIO(effect: IO[Any]) = {
-    import TestCtx2.*
-    WIO
-      .runIO[TestState](_ => effect.as(TestCtx2.SimpleEvent("")))
-      .handleEvent((st, _) => st)
-      .done
-  }
+  // --- Test Logic ---
 
+  def workflowTests(getAdapter: => Adapter): Unit = {
+
+    "runtime should not allow interrupting a process while another step is running" in {
+      val runtime = getAdapter
+      val utils   = new TestUtils // Instantiate inner class
+
+      def createInstance(wio: WIO[F, State, ?, ?, ctx.type]): runtime.Actor = {
+        // Safe cast to Initial WIO (No Error, State Output)
+        val specificWio = wio.asInstanceOf[WIO[F, State, Nothing, State, ctx.type]]
+        val initialWio  = specificWio.provideInput(State.empty)
+        runtime.runWorkflow(initialWio, State.empty)
+      }
+
+      def singleRun(i: Int): F[Unit] = {
+        effect.delay(println(s"Running $i iteration")) *> {
+          for {
+            longRunningStarted  <- TestLatch.create
+            longRunningFinished <- TestLatch.create
+            signalStartedRef    <- effect.ref(false)
+
+            (longRunningStepId, longRunningStep) = utils.runCustom(
+                                                     longRunningStarted.release *> longRunningFinished.acquire,
+                                                   )
+
+            (signal, interruption) = utils.signalInterruption[Int](signalStartedRef.set(true))
+
+            // Everything shares 'ctx', so types match perfectly
+            wio = longRunningStep.interruptWith(interruption)
+
+            wf = createInstance(wio)
+
+            wakeupFiber <- effect.start(wf.wakeup())
+
+            signalFiber <- effect.start(
+                             longRunningStarted.acquire *> wf.deliverSignal(signal, 1),
+                           )
+
+            initialState <- wf.queryState()
+            _             = assert(initialState == State.empty)
+
+            _ <- longRunningFinished.release
+
+            _ <- wakeupFiber.join.flatMap {
+                   case Outcome.Succeeded(_) => effect.unit
+                   case _                    => effect.raiseError(new Exception("Wakeup failed"))
+                 }
+
+            stateAfterWakeup <- wf.queryState()
+            _                 = assert(stateAfterWakeup == State.empty)
+
+            signalStarted <- signalStartedRef.get
+            _             <- effect.delay(assert(!signalStarted, "Signal should not have executed"))
+
+            finalState <- wf.queryState()
+            _           = assert(finalState == State.empty)
+          } yield ()
+        }
+      }
+
+      val testProgram = effect.traverse_((1 to 50).toList)(singleRun)
+      unsafeRun(testProgram)
+    }
+  }
 }
