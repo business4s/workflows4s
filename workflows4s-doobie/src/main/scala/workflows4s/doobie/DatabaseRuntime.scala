@@ -1,9 +1,10 @@
 package workflows4s.doobie
 
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import doobie.util.transactor.Transactor
 import doobie.WeakAsync
-import workflows4s.cats.CatsEffect.given
+import workflows4s.cats.CatsEffect.ioEffect
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.{MappedWorkflowInstance, WorkflowInstance, WorkflowInstanceId, WorkflowRuntime}
 import workflows4s.wio.WIO.Initial

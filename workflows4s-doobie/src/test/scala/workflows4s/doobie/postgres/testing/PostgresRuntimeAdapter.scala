@@ -1,6 +1,7 @@
 package workflows4s.doobie.postgres.testing
 
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import doobie.util.transactor.Transactor
 import workflows4s.doobie.{ByteCodec, DatabaseRuntime}
 import workflows4s.runtime.{DelegateWorkflowInstance, WorkflowInstance, WorkflowInstanceId}

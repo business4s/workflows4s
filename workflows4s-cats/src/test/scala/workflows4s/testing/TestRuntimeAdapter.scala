@@ -4,7 +4,7 @@ import cats.Id
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.typesafe.scalalogging.StrictLogging
-import workflows4s.cats.CatsEffect.given
+import workflows4s.cats.CatsEffect
 import workflows4s.runtime.*
 import workflows4s.runtime.instanceengine.{Effect, WorkflowInstanceEngine}
 import workflows4s.runtime.registry.InMemoryWorkflowRegistry
@@ -13,6 +13,8 @@ import workflows4s.wio.*
 // Adapt various runtimes to a single interface for tests
 // Works with workflows that use the context's effect type (typically IO or Id)
 trait TestRuntimeAdapter[Ctx <: WorkflowContext] extends StrictLogging {
+
+  protected given Effect[IO] = CatsEffect.ioEffect
 
   protected val knockerUpper                 = RecordingKnockerUpper()
   val clock: TestClock                       = TestClock()

@@ -1,6 +1,7 @@
 package workflows4s.example
 
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import org.scalatest.freespec.AnyFreeSpec
 import workflows4s.cats.CatsEffect
 import workflows4s.example.withdrawal.*

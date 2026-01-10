@@ -2,14 +2,15 @@ package workflows4s.cats
 
 import cats.effect.IO
 import cats.effect.std.Semaphore
-import cats.effect.unsafe.implicits.global
+import cats.effect.unsafe.IORuntime
 import workflows4s.runtime.instanceengine.{Effect, Fiber, Outcome, Ref}
 
 object CatsEffect {
 
-  /** Effect instance for cats.effect.IO (asynchronous, non-blocking execution).
+  /** Effect instance for cats.effect.IO (asynchronous, non-blocking execution). Requires an implicit IORuntime for unsafe operations like
+    * runSyncUnsafe. Users can provide their own runtime or import cats.effect.unsafe.implicits.global.
     */
-  given ioEffect: Effect[IO] = new Effect[IO] {
+  def ioEffect(using runtime: IORuntime): Effect[IO] = new Effect[IO] {
 
     type Mutex = Semaphore[IO]
 

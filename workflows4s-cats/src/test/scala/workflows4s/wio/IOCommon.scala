@@ -1,6 +1,7 @@
 package workflows4s.wio
 
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import workflows4s.cats.CatsEffect
 import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.runtime.instanceengine.Effect

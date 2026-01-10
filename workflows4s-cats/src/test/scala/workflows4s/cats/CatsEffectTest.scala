@@ -1,14 +1,14 @@
 package workflows4s.cats
 
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 import workflows4s.runtime.instanceengine.{Effect, EffectTestSuite, Outcome}
 
 class CatsEffectTest extends AnyFreeSpec with EffectTestSuite[IO] with Matchers {
 
-  import CatsEffect.ioEffect
-  given effect: Effect[IO] = Effect[IO]
+  given effect: Effect[IO] = CatsEffect.ioEffect
 
   "CatsEffect (IO)" - {
     effectTests()

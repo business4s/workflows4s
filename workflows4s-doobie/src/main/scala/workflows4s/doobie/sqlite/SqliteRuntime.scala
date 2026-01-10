@@ -2,11 +2,12 @@ package workflows4s.doobie.sqlite
 
 import com.typesafe.scalalogging.StrictLogging
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import doobie.implicits.*
 import doobie.util.fragment.Fragment
 import doobie.util.transactor.Transactor
 import doobie.WeakAsync
-import workflows4s.cats.CatsEffect.given
+import workflows4s.cats.CatsEffect.ioEffect
 import workflows4s.doobie.{ByteCodec, DbWorkflowInstance, DoobieEffect}
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.{MappedWorkflowInstance, WorkflowInstance, WorkflowInstanceId, WorkflowRuntime}

@@ -11,8 +11,7 @@ import workflows4s.runtime.instanceengine.Effect.*
   *
   * Fiber lifecycle: This implementation manages background fibers that sleep until a workflow's wakeup time. When a wakeup is updated or cancelled,
   * the old fiber is cancelled via the state management in updateWakeup. The guaranteeCase in sleepAndWakeup ensures cleanup happens regardless of how
-  * the fiber completes (success, error, or cancellation). Unlike the previous Resource-based approach, explicit cleanup on shutdown is not needed
-  * since fibers are cancelled individually through state updates.
+  * the fiber completes (success, error, or cancellation). Call shutdown() to cancel all fibers when the knocker-upper is no longer needed.
   */
 class SleepingKnockerUpper[F[_]](
     state: Ref[F, Map[WorkflowInstanceId, (Instant, Fiber[F, Unit])]],
@@ -71,6 +70,15 @@ class SleepingKnockerUpper[F[_]](
       case Some(_) => E.raiseError(new Exception("Start can be called only once"))
       case None    => wakeupLogicRef.set(Some(wakeUp))
     }
+  }
+
+  /** Cancel all active fibers and clear state. Call this when shutting down. */
+  def shutdown: F[Unit] = {
+    for {
+      currentState <- state.getAndUpdate(_ => Map.empty)
+      _            <- E.delay(logger.debug(s"Shutting down SleepingKnockerUpper, cancelling ${currentState.size} fibers"))
+      _            <- E.traverse_(currentState.values.toList)(_._2.cancel)
+    } yield ()
   }
 
 }

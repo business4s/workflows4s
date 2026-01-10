@@ -1,6 +1,7 @@
 package workflows4s.doobie.sqlite.testing
 
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import workflows4s.doobie.ByteCodec
 import workflows4s.doobie.sqlite.SqliteRuntime
 import workflows4s.runtime.{DelegateWorkflowInstance, WorkflowInstance, WorkflowInstanceId}
