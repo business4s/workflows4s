@@ -7,17 +7,17 @@ class PathDependentWIOTest extends AnyFreeSpec with Matchers {
 
   "PathDependentWIO" - {
     "should support basic types" in {
-       object MyWorkflow extends Workflow {
-         type Event = String
-         type State = Int
-       }
+      object MyWorkflow extends Workflow {
+        type Event = String
+        type State = Int
+      }
 
-       val step1: MyWorkflow.WIO[Any, Nothing, Int] = MyWorkflow.WIO.Pure(42)
-       val step2: MyWorkflow.WIO[Int, Nothing, String] = step1.map(_.toString)
-       println(step2)
+      val step1: MyWorkflow.WIO[Any, Nothing, Int]    = MyWorkflow.WIO.Pure(42)
+      val step2: MyWorkflow.WIO[Int, Nothing, String] = step1.map(_.toString)
+      println(step2)
 
-       // Just verifying that it compiles and types are correct
-       succeed
+      // Just verifying that it compiles and types are correct
+      succeed
     }
   }
 
