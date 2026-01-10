@@ -16,9 +16,9 @@ trait TestRuntimeAdapter[Ctx <: WorkflowContext] extends StrictLogging {
 
   protected given Effect[IO] = CatsEffect.ioEffect
 
-  protected val knockerUpper                 = RecordingKnockerUpper()
-  val clock: TestClock                       = TestClock()
-  val registry: InMemoryWorkflowRegistry[IO] = InMemoryWorkflowRegistry[IO](clock).unsafeRunSync()
+  protected val knockerUpper: RecordingKnockerUpper[IO] = RecordingKnockerUpper[IO].unsafeRunSync()
+  val clock: TestClock                                  = TestClock()
+  val registry: InMemoryWorkflowRegistry[IO]            = InMemoryWorkflowRegistry[IO](clock).unsafeRunSync()
 
   val engine: WorkflowInstanceEngine[IO] = WorkflowInstanceEngine.default(knockerUpper, registry, clock)
 
@@ -33,7 +33,7 @@ trait TestRuntimeAdapter[Ctx <: WorkflowContext] extends StrictLogging {
   def recover(first: Actor): Actor
 
   final def executeDueWakeup(actor: Actor): Unit = {
-    val wakeup = knockerUpper.lastRegisteredWakeup(actor.id)
+    val wakeup = knockerUpper.lastRegisteredWakeupUnsafe(actor.id)
     logger.debug(s"Executing due wakeup for actor ${actor.id}. Last registered wakeup: ${wakeup}")
     if wakeup.exists(_.isBefore(clock.instant()))
     then actor.wakeup()
