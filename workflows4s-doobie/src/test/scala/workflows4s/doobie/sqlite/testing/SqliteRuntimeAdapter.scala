@@ -21,6 +21,10 @@ class SqliteRuntimeAdapter[Ctx <: WorkflowContext](
   // satisfy the WorkflowTestAdapter requirements for IO
   implicit override val effect: Effect[IO] = ioEffect
 
+  // Store workflow and state for recovery
+  private var lastWorkflow: WIO.Initial[IO, Ctx] = scala.compiletime.uninitialized
+  private var lastState: WCState[Ctx]            = scala.compiletime.uninitialized
+
   /** Wrapper for the SQLite-backed instance */
   case class SqliteTestActor(
       delegate: WorkflowInstance[IO, WCState[Ctx]],
@@ -39,6 +43,10 @@ class SqliteRuntimeAdapter[Ctx <: WorkflowContext](
       workflow: WIO.Initial[IO, Ctx],
       state: WCState[Ctx],
   ): Actor = {
+    // Store for recovery
+    lastWorkflow = workflow
+    lastState = state
+
     val idString = s"sqlruntime-workflow-${Random.nextLong()}"
 
     val action = for {
@@ -50,8 +58,13 @@ class SqliteRuntimeAdapter[Ctx <: WorkflowContext](
   }
 
   override def recover(first: Actor): Actor = {
-    // Database runtimes are effectively stateless in memory;
-    // the "new" actor will automatically reload events from the SQLite file.
-    first
+    // Create a fresh runtime and instance with the same ID
+    // The new instance will replay events from the SQLite file to recover state
+    val action = for {
+      runtime  <- SqliteRuntime.create[Ctx](lastWorkflow, lastState, eventCodec, engine, workdir)
+      instance <- runtime.createInstance(first.id.instanceId)
+    } yield SqliteTestActor(instance, first.id)
+
+    effect.runSyncUnsafe(action)
   }
 }

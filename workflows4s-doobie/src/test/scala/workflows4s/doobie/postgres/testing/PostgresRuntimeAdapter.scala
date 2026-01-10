@@ -19,6 +19,10 @@ class PostgresRuntimeAdapter[Ctx <: WorkflowContext](
   // Provide the IO-specific effect
   implicit override val effect: Effect[IO] = ioEffect
 
+  // Store workflow and state for recovery
+  private var lastWorkflow: WIO.Initial[IO, Ctx] = scala.compiletime.uninitialized
+  private var lastState: WCState[Ctx]            = scala.compiletime.uninitialized
+
   // Define the Actor type for this adapter
   case class PostgresTestActor(
       delegate: WorkflowInstance[IO, WCState[Ctx]],
@@ -37,6 +41,10 @@ class PostgresRuntimeAdapter[Ctx <: WorkflowContext](
       workflow: WIO.Initial[IO, Ctx],
       state: WCState[Ctx],
   ): Actor = {
+    // Store for recovery
+    lastWorkflow = workflow
+    lastState = state
+
     // DatabaseRuntime usually handles the engine and persistence logic
     val runtime  = DatabaseRuntime.create[Ctx](workflow, state, xa, engine, eventCodec, "test")
     val idString = StringUtils.randomAlphanumericString(12)
@@ -46,6 +54,10 @@ class PostgresRuntimeAdapter[Ctx <: WorkflowContext](
   }
 
   override def recover(first: Actor): Actor = {
-    first
+    // Create a fresh runtime and instance with the same ID
+    // The new instance will replay events from the database to recover state
+    val runtime  = DatabaseRuntime.create[Ctx](lastWorkflow, lastState, xa, engine, eventCodec, "test")
+    val instance = effect.runSyncUnsafe(runtime.createInstance(first.id.instanceId))
+    PostgresTestActor(instance, first.id)
   }
 }
