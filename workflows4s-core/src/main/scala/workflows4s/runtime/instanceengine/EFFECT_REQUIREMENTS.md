@@ -6,11 +6,9 @@ This document describes the requirements for implementing a custom `Effect[F[_]]
 
 The `Effect[F[_]]` typeclass abstracts over effect types (IO, Future, Id, etc.) to allow workflows to be effect-polymorphic. Each implementation must provide the operations defined in the trait.
 
-## MoSCoW Requirements
+## Required Operations
 
-### Must Have (Critical - workflows will break without these)
-
-These operations are essential for basic workflow execution:
+All operations below are **required** - workflows will not work correctly without them:
 
 | Operation | Signature | Description |
 |-----------|-----------|-------------|
@@ -19,39 +17,22 @@ These operations are essential for basic workflow execution:
 | `map` | `F[A] => (A => B) => F[B]` | Transform the result |
 | `delay` | `(=> A) => F[A]` | Suspend a side-effectful computation |
 | `raiseError` | `Throwable => F[A]` | Create a failed effect |
-| `handleErrorWith` | `F[A] => (Throwable => F[A]) => F[A]` | Recover from errors. **Note:** First parameter is by-name to support synchronous effects |
+| `handleErrorWith` | `(=> F[A]) => (Throwable => F[A]) => F[A]` | Recover from errors. **Note:** First parameter is by-name to support synchronous effects |
 | `ref` | `A => F[Ref[F, A]]` | Create a mutable reference for state management |
-| `runSyncUnsafe` | `F[A] => A` | Execute effect synchronously (for tests and integration) |
-
-### Should Have (Important - some features may not work)
-
-These operations enable advanced workflow features:
-
-| Operation | Signature | Description |
-|-----------|-----------|-------------|
 | `sleep` | `FiniteDuration => F[Unit]` | Time-based delays (required for timers/retries) |
 | `createMutex` | `F[Mutex]` | Create a mutex for synchronization |
 | `withLock` | `Mutex => (=> F[A]) => F[A]` | Execute while holding lock. **Note:** Effect parameter is by-name for eager effects like Future |
 | `start` | `F[A] => F[Fiber[F, A]]` | Start background computation (required for SleepingKnockerUpper) |
 | `guaranteeCase` | `F[A] => (Outcome[A] => F[Unit]) => F[A]` | Resource cleanup with outcome information |
+| `runSyncUnsafe` | `F[A] => A` | Execute effect synchronously (for tests and integration) |
 
-### Could Have (Nice to have - convenience operations)
+## Derived Operations
 
-These are derived operations with default implementations:
+These operations have default implementations - no action needed:
 
-| Operation | Signature | Description |
-|-----------|-----------|-------------|
-| `void` | `F[A] => F[Unit]` | Discard result |
-| `unit` | `F[Unit]` | Pure unit value |
-| `as` | `F[A] => B => F[B]` | Replace result with constant |
-| `whenA` | `Boolean => (=> F[Unit]) => F[Unit]` | Conditional execution |
-| `traverse` | `List[A] => (A => F[B]) => F[List[B]]` | Map and sequence |
-| `sequence` | `List[F[A]] => F[List[A]]` | Sequence effects |
-| `attempt` | `F[A] => F[Either[Throwable, A]]` | Capture errors as values |
-| `fromOption` | `Option[A] => Throwable => F[A]` | Convert Option to effect |
-| `fromEither` | `Either[Throwable, A] => F[A]` | Convert Either to effect |
+`void`, `unit`, `as`, `whenA`, `traverse`, `traverse_`, `sequence`, `sequence_`, `attempt`, `fromOption`, `fromEither`, `productR`, `productL`, `onError`, `guarantee`
 
-### Won't Have (Out of scope)
+## Won't Have (Out of scope)
 
 The Effect typeclass intentionally excludes:
 
@@ -148,6 +129,25 @@ class MySleepingKnockerUpperTest extends SleepingKnockerUpperTestSuite[MyEffect]
 }
 ```
 
+### InMemoryRuntimeTestSuite
+
+Location: `workflows4s-core/src/test/scala/workflows4s/runtime/InMemoryRuntimeTestSuite.scala`
+
+Tests for basic runtime operations with your effect type:
+
+```scala
+class MyInMemoryRuntimeTest extends InMemoryRuntimeTestSuite[MyEffect] {
+  given effect: Effect[MyEffect] = MyEffect.instance
+
+  // Define test context, workflow, and initial state
+  // ...
+
+  "InMemoryRuntime (MyEffect)" - {
+    inMemoryRuntimeTests()
+  }
+}
+```
+
 ### WithdrawalWorkflowTestSuite
 
 Location: `workflows4s-tck/src/test/scala/workflows4s/example/withdrawal/WithdrawalWorkflowTestSuite.scala`
@@ -169,14 +169,14 @@ Reference implementations:
 |-------------|----------|-------|
 | `cats.Id` | `Effect.idEffect` in core | Synchronous, throws exceptions |
 | `cats.effect.IO` | `CatsEffect.ioEffect` | Async, cats-effect based |
-| `LazyFuture` | `FutureEffect.futureEffect` | Deferred Future for Pekko integration |
+| `LazyFuture` | `LazyFuture.lazyFutureEffect` | Deferred Future for Pekko integration |
 
 ## Implementation Checklist
 
-- [ ] Implement all "Must Have" operations
-- [ ] Implement "Should Have" operations for timer/retry support
+- [ ] Implement all required operations
 - [ ] Pass `EffectTestSuite` tests
-- [ ] Pass `SleepingKnockerUpperTestSuite` tests (if using timers)
+- [ ] Pass `InMemoryRuntimeTestSuite` tests
+- [ ] Pass `SleepingKnockerUpperTestSuite` tests
 - [ ] Pass `WithdrawalWorkflowTestSuite` tests (full integration)
 - [ ] Handle by-name parameters correctly for eager effect types
 - [ ] Ensure `Ref` operations are thread-safe/atomic
@@ -187,5 +187,5 @@ Reference implementations:
 For effect types that evaluate eagerly (like `Future`), pay special attention to:
 
 1. **By-name parameters**: `handleErrorWith(fa: => F[A])` and `withLock(m)(fa: => F[A])` use by-name to prevent premature evaluation
-2. **Deferred construction**: Consider wrapping in a lazy wrapper (see `LazyFuture` in `FutureEffect.scala`)
+2. **Deferred construction**: Consider wrapping in a lazy wrapper (see `LazyFuture` in `LazyFuture.scala`)
 3. **Referential transparency**: Ensure effects are not executed until explicitly run

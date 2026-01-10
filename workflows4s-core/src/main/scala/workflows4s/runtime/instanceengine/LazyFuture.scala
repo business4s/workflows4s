@@ -19,23 +19,26 @@ import scala.util.{Failure, Success}
   * This is an inherent limitation of the JVM Future model and cannot be fixed without cooperation from the running code (e.g., checking cancellation
   * tokens periodically).
   */
-final case class LazyFuture[A](private val thunk: () => Future[A]) {
-
-  def run: Future[A] = thunk()
-}
+opaque type LazyFuture[A] = () => Future[A]
 
 object LazyFuture {
 
-  def successful[A](a: A): LazyFuture[A] = LazyFuture(() => Future.successful(a))
+  def apply[A](thunk: () => Future[A]): LazyFuture[A] = thunk
 
-  def failed[A](e: Throwable): LazyFuture[A] = LazyFuture(() => Future.failed(e))
+  extension [A](lf: LazyFuture[A]) {
+    def run: Future[A] = lf()
+  }
 
-  def delay[A](a: => A): LazyFuture[A] = LazyFuture { () =>
+  def successful[A](a: A): LazyFuture[A] = () => Future.successful(a)
+
+  def failed[A](e: Throwable): LazyFuture[A] = () => Future.failed(e)
+
+  def delay[A](a: => A): LazyFuture[A] = { () =>
     try Future.successful(a)
     catch { case e: Throwable => Future.failed(e) }
   }
 
-  def fromFuture[A](f: => Future[A]): LazyFuture[A] = LazyFuture(() => f)
+  def fromFuture[A](f: => Future[A]): LazyFuture[A] = () => f
 
   given lazyFutureEffect(using ec: ExecutionContext): Effect[LazyFuture] =
     new Effect[LazyFuture] {

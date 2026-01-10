@@ -1,31 +1,30 @@
 package workflows4s.runtime
 
 import cats.effect.IO
-import org.scalatest.freespec.AnyFreeSpec
 import cats.effect.unsafe.implicits.global
-import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
+import workflows4s.cats.{CatsEffect, IOWorkflowContext}
+import workflows4s.runtime.instanceengine.Effect
+import workflows4s.wio.{WCState, WIO}
 
-class InMemoryRuntimeTest extends AnyFreeSpec {
+class InMemoryRuntimeTest extends InMemoryRuntimeTestSuite[IO] {
 
-  import workflows4s.wio.IOTestCtx.{*, given}
+  given effect: Effect[IO] = CatsEffect.ioEffect
 
-  "InMemoryRuntime" - {
-
-    "should return the same workflow instance for the same id" in {
-      val workflow: WIO.Initial = WIO.pure("myValue").done
-      val runtime               = InMemoryRuntime
-        .create[IO, Ctx](
-          workflow = workflow,
-          initialState = "initialState",
-          engine = WorkflowInstanceEngine.basic[IO](),
-        )
-        .unsafeRunSync()
-
-      val instance1 = runtime.createInstance("id1").unsafeRunSync()
-      val instance2 = runtime.createInstance("id1").unsafeRunSync()
-      assert(instance1 == instance2)
-    }
-
+  object TestCtx extends IOWorkflowContext {
+    trait Event
+    type State = String
   }
 
+  override type Ctx = TestCtx.Ctx
+
+  override def simpleWorkflow: WIO.Initial[IO, Ctx] = {
+    import TestCtx.WIO
+    WIO.pure("myValue").done
+  }
+
+  override def initialState: WCState[Ctx] = "initialState"
+
+  "InMemoryRuntime (IO)" - {
+    inMemoryRuntimeTests()
+  }
 }
