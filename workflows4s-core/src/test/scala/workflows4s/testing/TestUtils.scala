@@ -12,9 +12,9 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.util.Random
 
 class TestRuntime {
-  val clock        = TestClock()
-  given Effect[Id] = Effect.idEffect
-  val knockerUpper = IdRecordingKnockerUpper()
+  val clock                                   = TestClock()
+  given Effect[Id]                            = Effect.idEffect
+  val knockerUpper: RecordingKnockerUpper[Id] = RecordingKnockerUpper[Id]
 
   val engine: WorkflowInstanceEngine[Id] =
     WorkflowInstanceEngine
@@ -68,6 +68,17 @@ object TestUtils {
 
   def runIO: (StepId, TestCtx2.WIO[TestState, Nothing, TestState]) = {
     runIOCustom(IO.unit)
+  }
+
+  def runIOFailing(exception: Throwable): (StepId, TestCtx2.WIO[TestState, Nothing, TestState]) = {
+    import TestCtx2.*
+    case class RunIODone(stepId: StepId) extends TestCtx2.Event
+    val stepId = StepId.random
+    val wio    = WIO
+      .runIO[TestState](_ => throw exception)
+      .handleEvent((st, _) => st) // Event is never produced since runIO always fails
+      .done
+    (stepId, wio)
   }
 
   def errorIO: (Error, TestCtx2.WIO[Any, String, Nothing]) = {

@@ -89,6 +89,15 @@ object InMemoryWorkflowRegistry {
       }
     }
 
+    override def count(templateId: String, query: WorkflowSearch.Query): F[Int] = {
+      val filters = buildFilters(templateId, query)
+      for {
+        state <- stateRef.get
+      } yield {
+        state.values.toList.count(x => filters.forall(_.apply(x)))
+      }
+    }
+
     private def buildFilters(templateId: String, query: WorkflowSearch.Query): List[InMemoryWorkflowRegistry.Data => Boolean] = {
       List(
         // templateId filter

@@ -152,7 +152,7 @@ lazy val `workflows4s-web-ui` = (project in file("workflows4s-web-ui"))
       "io.circe"                      %%% "circe-core"         % circeVersion,
       "io.circe"                      %%% "circe-generic"      % circeVersion,
       "io.circe"                      %%% "circe-parser"       % circeVersion,
-      "com.softwaremill.sttp.tapir"   %%% "tapir-sttp-client4" % "1.13.3",
+      "com.softwaremill.sttp.tapir"   %%% "tapir-sttp-client4" % "1.13.4",
       "com.softwaremill.sttp.client4" %%% "cats"               % "4.0.13",
       "org.business4s"                %%% "forms4s-jsonschema" % "0.1.0",
       "org.business4s"                %%% "forms4s-tyrian"     % "0.1.0",
@@ -203,7 +203,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "com.h2database"        % "h2"                              % "2.4.240",
       "io.r2dbc"              % "r2dbc-h2"                        % "1.1.0.RELEASE",
       "com.github.pjfanning" %% "pekko-http-circe"                % "3.7.0",
-      "ch.qos.logback"        % "logback-classic"                 % "1.5.23",
+      "ch.qos.logback"        % "logback-classic"                 % "1.5.24",
       "org.scalamock"        %% "scalamock"                       % "7.5.2"                    % Test,
       "org.apache.pekko"     %% "pekko-actor-testkit-typed"       % pekkoVersion               % Test,
       "com.dimafeng"         %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
@@ -243,7 +243,7 @@ lazy val commonSettings = Seq(
   scalacOptions ++= Seq("-no-indent", "-Xmax-inlines", "64", "-explain-cyclic", "-Ydebug-cyclic"),
   libraryDependencies ++= Seq(
     "org.scalatest" %% "scalatest"       % "3.2.19" % Test,
-    "ch.qos.logback" % "logback-classic" % "1.5.23" % Test,
+    "ch.qos.logback" % "logback-classic" % "1.5.24" % Test,
   ),
   // scalafix settings
   semanticdbEnabled := true, // enable SemanticDB
@@ -265,7 +265,7 @@ lazy val commonSettings = Seq(
 lazy val pekkoVersion               = "1.4.0"
 lazy val pekkoHttpVersion           = "1.3.0"
 lazy val testcontainersScalaVersion = "0.44.1"
-lazy val tapirVersion               = "1.13.3"
+lazy val tapirVersion               = "1.13.4"
 lazy val circeVersion               = "0.14.15"
 
 addCommandAlias("prePR", List("compile", "Test / compile", "test", "scalafmtCheckAll").mkString(";", ";", ""))

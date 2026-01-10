@@ -159,7 +159,9 @@ class WithdrawalWorkflow[
         }
       }
       .autoNamed()
-      .retryIn(_ => WithdrawalWorkflow.executionRetryDelay)
+      .retry
+      .statelessly
+      .wakeupIn(_ => WithdrawalWorkflow.executionRetryDelay)
 
   private def awaitExecutionCompletion: WIO[WithdrawalData.Executed, WithdrawalRejection.RejectedByExecutionEngine, WithdrawalData.Executed] =
     WIO

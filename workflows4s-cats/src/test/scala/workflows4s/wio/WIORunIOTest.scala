@@ -2,7 +2,7 @@ package workflows4s.wio
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import org.scalatest.EitherValues
+import org.scalatest.{EitherValues, OptionValues}
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 import workflows4s.wio.WIO.RunIO
@@ -10,7 +10,7 @@ import workflows4s.wio.internal.WakeupResult
 
 import java.time.Instant
 
-class WIORunIOTest extends AnyFreeSpec with Matchers with EitherValues {
+class WIORunIOTest extends AnyFreeSpec, Matchers, EitherValues, OptionValues {
 
   // Use IO-based context for these tests since they test IO behavior
   import IOTestCtx.{*, given}

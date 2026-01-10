@@ -128,9 +128,9 @@ trait DraftBuilderStep0[F[_], Ctx <: WorkflowContext] {
 
     def retry(base: WIO.Draft[F, Ctx]): WIO.Draft[F, Ctx]      = {
       WIO
-        .Retry(
+        .Retry[F, Ctx, Any, Nothing, Nothing](
           base,
-          (_: Throwable, _: WCState[Ctx], _: java.time.Instant) => ???,
+          WIO.Retry.Mode.Stateless[F, Ctx, Any]((_: Any, _: Throwable, _: WCState[Ctx], _: java.time.Instant) => ???),
         )
         .transformInput((_: Any) => ???)
         .map(_ => ???)

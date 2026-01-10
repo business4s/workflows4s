@@ -4,6 +4,7 @@ import cats.syntax.all.*
 import workflows4s.wio.*
 import workflows4s.wio.Interpreter.EventResponse
 import workflows4s.runtime.instanceengine.Effect
+import workflows4s.wio.WIO.Retry.Mode
 
 object EventEvaluator {
 
@@ -93,6 +94,21 @@ object EventEvaluator {
         .unconvertEvent(event)
         .flatMap((elemId, convertedEvent) => runVisitor(state(elemId), convertedEvent, input, wio.initialElemState(), nextIndex).tupleLeft(elemId))
         .map((elemId, newExec) => convertForEachResult(wio, newExec, input, elemId))
+    }
+
+    override def onRetry(wio: WIO.Retry[F, Ctx, In, Err, Out]): Option[NewWf] = {
+      wio.mode match {
+        case Mode.Stateless(_)                                 => super.onRetry(wio)
+        case mode @ Mode.Stateful(_, eventHandler, retryState) =>
+          eventHandler
+            .detect(event)
+            .map(x => {
+              eventHandler.handle((input, lastSeenState, retryState), x) match {
+                case Left(value)  => WFExecution.Partial(wio.copy(mode = mode.copy(state = Some(value))))
+                case Right(value) => WFExecution.complete(wio, value, input, index)
+              }
+            })
+      }
     }
 
     /** Helper to correctly recurse within the same context (Ctx).

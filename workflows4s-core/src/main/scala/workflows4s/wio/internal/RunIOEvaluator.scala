@@ -1,12 +1,14 @@
 package workflows4s.wio.internal
 
-import java.time.Instant
 import workflows4s.wio.*
 import workflows4s.wio.WIO.HandleInterruption.InterruptionStatus
+import workflows4s.wio.WIO.Retry.Mode
 import workflows4s.wio.WIO.Timer
 import workflows4s.runtime.instanceengine.Effect
 // Added missing Cats syntax for .some
 import cats.syntax.option.*
+
+import java.time.Instant
 
 object RunIOEvaluator {
   def proceed[Ctx <: WorkflowContext, F[_], StIn <: WCState[Ctx]](
@@ -121,9 +123,23 @@ object RunIOEvaluator {
       // For synchronous effects like Id, exceptions are thrown immediately during recurse.
       // We need to catch them at this level to enable retry behavior.
       def handleError(err: Throwable): F[Either[Instant, WCEvent[Ctx]]] =
-        wio.onError(err, lastSeenState, now).flatMap {
-          case Some(retryTime) => E.pure(Left(retryTime))
-          case None            => E.raiseError(err)
+        wio.mode match {
+          case Mode.Stateless(errorHandler)               =>
+            errorHandler(input, err, lastSeenState, now)
+              .flatMap({
+                case WIO.Retry.Stateless.Result.Ignore             => E.raiseError(err)
+                case WIO.Retry.Stateless.Result.ScheduleWakeup(at) => E.pure(Left(at))
+              })
+          case Mode.Stateful(errorHandler, _, retryState) =>
+            errorHandler(input, err, lastSeenState, retryState).flatMap({
+              case WIO.Retry.Stateful.Result.Ignore                    => E.raiseError(err)
+              case WIO.Retry.Stateful.Result.ScheduleWakeup(at, event) =>
+                E.pure(event match {
+                  case Some(value) => Right(value) // If we have an event, proceed with it
+                  case None        => Left(at)     // Otherwise schedule wakeup
+                })
+              case WIO.Retry.Stateful.Result.Recover(event)            => E.pure(Right(event))
+            })
         }
 
       try {
