@@ -1,7 +1,6 @@
 package workflows4s.cats
 
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import workflows4s.runtime.instanceengine.Effect
 import workflows4s.wio.WorkflowContext
 
@@ -10,5 +9,5 @@ import workflows4s.wio.WorkflowContext
   */
 trait IOWorkflowContext extends WorkflowContext {
   type Eff[A] = IO[A]
-  given effect: Effect[Eff] = CatsEffect.ioEffect
+  given effect: Effect[Eff] = CatsEffect.globalIoEffect
 }

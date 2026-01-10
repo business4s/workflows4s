@@ -3,12 +3,20 @@ package workflows4s.cats
 import cats.effect.IO
 import cats.effect.std.Semaphore
 import cats.effect.unsafe.IORuntime
+import cats.effect.unsafe.implicits.global
 import workflows4s.runtime.instanceengine.{Effect, Fiber, Outcome, Ref}
 
 object CatsEffect {
 
+  /** Default Effect[IO] instance using the global IORuntime. Import this for convenient use:
+    * {{{
+    * import workflows4s.cats.CatsEffect.given
+    * }}}
+    */
+  given globalIoEffect: Effect[IO] = ioEffect
+
   /** Effect instance for cats.effect.IO (asynchronous, non-blocking execution). Requires an implicit IORuntime for unsafe operations like
-    * runSyncUnsafe. Users can provide their own runtime or import cats.effect.unsafe.implicits.global.
+    * runSyncUnsafe. Users can provide their own runtime or use the global one via `CatsEffect.given`.
     */
   def ioEffect(using runtime: IORuntime): Effect[IO] = new Effect[IO] {
 

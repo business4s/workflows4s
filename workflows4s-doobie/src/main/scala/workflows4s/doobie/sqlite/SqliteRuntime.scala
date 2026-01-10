@@ -7,9 +7,11 @@ import doobie.implicits.*
 import doobie.util.fragment.Fragment
 import doobie.util.transactor.Transactor
 import doobie.WeakAsync
-import workflows4s.cats.CatsEffect.ioEffect
+import workflows4s.cats.CatsEffect
 import workflows4s.doobie.{ByteCodec, DbWorkflowInstance, DoobieEffect}
-import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
+import workflows4s.runtime.instanceengine.{Effect, WorkflowInstanceEngine}
+
+private given Effect[IO] = CatsEffect.ioEffect
 import workflows4s.runtime.{MappedWorkflowInstance, WorkflowInstance, WorkflowInstanceId, WorkflowRuntime}
 import workflows4s.wio.WIO.Initial
 import workflows4s.wio.WorkflowContext.State
