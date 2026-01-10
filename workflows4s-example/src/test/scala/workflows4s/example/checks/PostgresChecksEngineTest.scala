@@ -31,8 +31,7 @@ class PostgresChecksEngineTest extends AnyFreeSpec with PostgresSuite with Check
     }
 
   "postgres" - {
-    val adapter = new PostgresRuntimeAdapter[testContext.Context.Ctx](xa, eventCodec)
-    checkEngineTests(adapter)
+    checkEngineTests(new PostgresRuntimeAdapter[testContext.Context.Ctx](xa, eventCodec))
   }
 
   lazy val eventCodec: ByteCodec[testContext.Context.Event] = CirceEventCodec.get()

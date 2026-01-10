@@ -20,7 +20,7 @@ class SqliteRuntimeTest extends AnyFreeSpec with SqliteWorkdirSuite {
         .done
 
       val actor = adapter.runWorkflow(wio.provideInput("initial"), "initial")
-      actor.wakeup()
+      actor.wakeup().unsafeRunSync()
 
       assert(actor.queryState().unsafeRunSync() == "done")
     }
