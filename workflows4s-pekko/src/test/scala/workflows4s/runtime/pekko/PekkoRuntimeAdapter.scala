@@ -94,6 +94,8 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(impli
     PekkoTestActor(newEntityRef, first.typeKey, first.id)
   }
 
+  // we create unique type key per workflow, so we can ensure we get right actor/behavior/input
+  // with single shard region its tricky to inject input into behavior creation
   protected def createEntityRef(
       workflow: WIO.Initial[LazyFuture, Ctx],
       state: WCState[Ctx],
