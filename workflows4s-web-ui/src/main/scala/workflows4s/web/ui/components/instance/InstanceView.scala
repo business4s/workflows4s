@@ -44,7 +44,8 @@ final case class InstanceView(
 object InstanceView {
 
   // Inner content that actually renders the instance details
-  final case class Content(instance: WorkflowInstance, diagramView: MermaidDiagramView, signalsView: SignalsView, jsonView: JsonView) extends Component {
+  final case class Content(instance: WorkflowInstance, diagramView: MermaidDiagramView, signalsView: SignalsView, jsonView: JsonView)
+      extends Component {
     override type Self = Content
     override type Msg  = Content.Msg
 
@@ -112,4 +113,3 @@ object InstanceView {
     case Refresh
   }
 }
-

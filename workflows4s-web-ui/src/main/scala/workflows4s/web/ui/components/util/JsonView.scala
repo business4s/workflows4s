@@ -15,8 +15,8 @@ enum JsonViewMode {
 sealed trait JsonViewMsg
 object JsonViewMsg {
   case class SetViewType(vt: JsonViewMode) extends JsonViewMsg
-  case object Render extends JsonViewMsg
-  case object NoOp extends JsonViewMsg
+  case object Render                       extends JsonViewMsg
+  case object NoOp                         extends JsonViewMsg
 }
 
 final case class JsonView(
@@ -29,7 +29,8 @@ final case class JsonView(
   override type Msg  = JsonViewMsg
 
   override def update(msg: JsonViewMsg): (JsonView, Cmd[IO, JsonViewMsg]) = msg match {
-    case JsonViewMsg.SetViewType(vt) => this.copy(viewType = vt) -> Cmd.Run(IO.sleep(scala.concurrent.duration.DurationInt(50).millis).as(JsonViewMsg.Render))
+    case JsonViewMsg.SetViewType(vt) =>
+      this.copy(viewType = vt) -> Cmd.Run(IO.sleep(scala.concurrent.duration.DurationInt(50).millis).as(JsonViewMsg.Render))
     case JsonViewMsg.Render          =>
       val cmd = viewType match {
         case JsonViewMode.Tree => Cmd.Run(JsonView.renderTree(viewId, json).as(JsonViewMsg.NoOp))
@@ -38,7 +39,7 @@ final case class JsonView(
       this -> cmd
     case JsonViewMsg.NoOp            => this -> Cmd.None
   }
-  
+
   override def view: Html[JsonViewMsg] =
     div(cls := "json-view-container")(
       div(cls := "json-view-header")(
@@ -62,7 +63,7 @@ final case class JsonView(
         ),
       ),
       div(id := viewId, cls := "is-overflow-hidden")(
-        if (viewType == JsonViewMode.Raw) {
+        if viewType == JsonViewMode.Raw then {
           pre(cls := "m-0")(
             code(cls := "language-json", id := s"$viewId-raw")(json.spaces2),
           )
@@ -77,20 +78,20 @@ object JsonView {
 
   def renderTree(viewId: String, json: Json): IO[Unit] = IO {
     val container = dom.document.getElementById(s"$viewId-tree")
-    if (container != null && js.typeOf(js.Dynamic.global.JSONFormatter) != "undefined") {
+    if container != null && js.typeOf(js.Dynamic.global.JSONFormatter) != "undefined" then {
       val parsed    = js.JSON.parse(json.noSpaces)
       val isDark    = js.Dynamic.global.isDarkMode().asInstanceOf[Boolean]
-      val theme     = if (isDark) "dark" else ""
+      val theme     = if isDark then "dark" else ""
       val formatter = js.Dynamic.newInstance(js.Dynamic.global.JSONFormatter)(parsed, 1, js.Dynamic.literal(theme = theme))
       val node      = formatter.render().asInstanceOf[dom.Node]
       container.innerHTML = ""
-      val _ = container.appendChild(node)
+      val _         = container.appendChild(node)
     }
   }
 
   def renderRaw(viewId: String): IO[Unit] = IO {
     val element = dom.document.getElementById(s"$viewId-raw")
-    if (element != null && js.typeOf(js.Dynamic.global.hljs) != "undefined") {
+    if element != null && js.typeOf(js.Dynamic.global.hljs) != "undefined" then {
       val _ = js.Dynamic.global.hljs.highlightElement(element)
     }
   }
