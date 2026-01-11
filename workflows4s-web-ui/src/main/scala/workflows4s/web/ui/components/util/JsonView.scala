@@ -29,7 +29,7 @@ final case class JsonView(
   override type Msg  = JsonViewMsg
 
   override def update(msg: JsonViewMsg): (JsonView, Cmd[IO, JsonViewMsg]) = msg match {
-    case JsonViewMsg.SetViewType(vt) => this.copy(viewType = vt) -> Cmd.Emit(JsonViewMsg.Render)
+    case JsonViewMsg.SetViewType(vt) => this.copy(viewType = vt) -> Cmd.Run(IO.sleep(scala.concurrent.duration.DurationInt(50).millis).as(JsonViewMsg.Render))
     case JsonViewMsg.Render          =>
       val cmd = viewType match {
         case JsonViewMode.Tree => Cmd.Run(JsonView.renderTree(viewId, json).as(JsonViewMsg.NoOp))
@@ -38,7 +38,7 @@ final case class JsonView(
       this -> cmd
     case JsonViewMsg.NoOp            => this -> Cmd.None
   }
-
+  
   override def view: Html[JsonViewMsg] =
     div(cls := "json-view-container")(
       div(cls := "json-view-header")(
@@ -67,18 +67,16 @@ final case class JsonView(
             code(cls := "language-json", id := s"$viewId-raw")(json.spaces2),
           )
         } else {
-          div(cls := "p-3")()
+          div(cls := "p-3", id := s"$viewId-tree")()
         },
       ),
-      // Trigger render after view is updated
-      button(cls := "is-hidden", onClick(JsonViewMsg.Render))(text("render")),
     )
 }
 
 object JsonView {
 
   def renderTree(viewId: String, json: Json): IO[Unit] = IO {
-    val container = dom.document.getElementById(viewId)
+    val container = dom.document.getElementById(s"$viewId-tree")
     if (container != null && js.typeOf(js.Dynamic.global.JSONFormatter) != "undefined") {
       val parsed    = js.JSON.parse(json.noSpaces)
       val isDark    = js.Dynamic.global.isDarkMode().asInstanceOf[Boolean]
@@ -86,10 +84,7 @@ object JsonView {
       val formatter = js.Dynamic.newInstance(js.Dynamic.global.JSONFormatter)(parsed, 1, js.Dynamic.literal(theme = theme))
       val node      = formatter.render().asInstanceOf[dom.Node]
       container.innerHTML = ""
-      val wrapper = dom.document.createElement("div")
-      wrapper.setAttribute("class", "p-3")
-      val _ = wrapper.appendChild(node)
-      val _ = container.appendChild(wrapper)
+      val _ = container.appendChild(node)
     }
   }
 
@@ -101,6 +96,6 @@ object JsonView {
   }
 
   def initial(viewId: String, json: Json): (JsonView, Cmd[IO, JsonViewMsg]) = {
-    JsonView(json, viewId) -> Cmd.Emit(JsonViewMsg.Render)
+    JsonView(json, viewId) -> Cmd.Run(IO.sleep(scala.concurrent.duration.DurationInt(50).millis).as(JsonViewMsg.Render))
   }
 }

@@ -1,11 +1,23 @@
+// Import library CSS
+import './node_modules/bulma/css/bulma.min.css';
+import './node_modules/json-formatter-js/dist/json-formatter.css';
+import './node_modules/@fortawesome/fontawesome-free/css/all.min.css';
+
 // Import libraries from node_modules
-import JSONFormatter from './node_modules/json-formatter-js/dist/json-formatter.mjs';
-import hljs from './node_modules/highlight.js/lib/core.js';
-import json from './node_modules/highlight.js/lib/languages/json.js';
-import mermaid from './node_modules/mermaid/dist/mermaid.esm.mjs';
+import JSONFormatter from 'json-formatter-js';
+import hljs from 'highlight.js/lib/core';
+import json from 'highlight.js/lib/languages/json';
+import mermaid from 'mermaid';
 
 // Setup Highlight.js
 hljs.registerLanguage('json', json);
+
+// Initialize Mermaid
+mermaid.initialize({
+    startOnLoad: false,
+    theme: 'default',
+    securityLevel: 'loose',
+});
 
 // Attach to window so the rest of the app can see them
 window.JSONFormatter = JSONFormatter;
