@@ -12,10 +12,18 @@ import tyrian.*
 import workflows4s.web.api.model.{Signal, SignalRequest, WorkflowInstance}
 import workflows4s.web.ui.Http
 import workflows4s.web.ui.components.instance.SignalModal.Msg
-import workflows4s.web.ui.components.util.{AsyncView, Component}
+import workflows4s.web.ui.components.util.{AsyncView, Component, JsonView, JsonViewMsg}
 
-case class SignalResponseView(response: Json) extends Component.ReadOnly[SignalResponseView] {
-  override def view: Html[Nothing] = code(response.spaces2)
+case class SignalResponseView(jsonView: JsonView) extends Component {
+  override type Self = SignalResponseView
+  override type Msg  = JsonViewMsg
+
+  override def update(msg: JsonViewMsg): (SignalResponseView, Cmd[IO, JsonViewMsg]) = {
+    val (newJsonView, cmd) = jsonView.update(msg)
+    this.copy(jsonView = newJsonView) -> cmd
+  }
+
+  override def view: Html[JsonViewMsg] = jsonView.view
 }
 
 case class SignalModal(
@@ -62,9 +70,12 @@ case class SignalModal(
 
     case Msg.Send =>
       val (cmp, cmd) =
-        AsyncView.empty_(
+        AsyncView.empty(
           Http.sendSignal(SignalRequest(wfInstance.templateId, wfInstance.id, signal.id, formState.extractJson)),
-          SignalResponseView(_),
+          (json: Json) => {
+            val (jv, jvCmd) = JsonView.initial(s"signal-response-${java.util.UUID.randomUUID()}", json)
+            SignalResponseView(jv) -> jvCmd
+          },
         )
       this.copy(response = cmp.some) -> cmd.map(Msg.ForResult(_))
   }
