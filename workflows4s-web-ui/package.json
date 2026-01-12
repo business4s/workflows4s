@@ -13,8 +13,10 @@
     "vite": "^5.0.0"
   },
   "dependencies": {
-    "@fortawesome/fontawesome-free": "^7.0.1",
+    "@fortawesome/fontawesome-free": "^7.1.0",
     "bulma": "^1.0.4",
+    "highlight.js": "^11.11.1",
+    "json-formatter-js": "^2.5.23",
     "mermaid": "^11.0.0"
   }
 }
