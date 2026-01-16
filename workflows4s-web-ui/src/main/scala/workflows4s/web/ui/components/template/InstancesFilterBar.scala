@@ -102,6 +102,8 @@ case class InstancesFilterBar(
 }
 
 object InstancesFilterBar {
+  val allowedPageSizes = Set(10, 25, 50, 100)
+
   def default: InstancesFilterBar = InstancesFilterBar(
     statusFilters = Set(),
     sortBy = Some(WorkflowSearchRequest.SortBy.UpdatedDesc),
@@ -111,7 +113,7 @@ object InstancesFilterBar {
   def fromQueryParams(params: Map[String, String]): InstancesFilterBar = {
     val statusFilters = params.get("status").map(_.split(",").flatMap(s => scala.util.Try(ExecutionStatus.valueOf(s)).toOption).toSet).getOrElse(Set.empty)
     val sortBy = params.get("sort").flatMap(s => scala.util.Try(parseSortBy(s)).toOption).orElse(Some(WorkflowSearchRequest.SortBy.UpdatedDesc))
-    val pageSize = params.get("limit").flatMap(_.toIntOption).getOrElse(25)
+    val pageSize = params.get("limit").flatMap(_.toIntOption).filter(allowedPageSizes.contains).getOrElse(25)
     InstancesFilterBar(statusFilters, sortBy, pageSize)
   }
 

@@ -77,7 +77,9 @@ object Route {
     case Route.Home                                          => "/"
     case Route.Workflow(workflowId, WorkflowView.Definition) => s"/workflows/$workflowId/definition"
     case Route.Workflow(workflowId, WorkflowView.Instances(params)) =>
-      val queryString = if (params.isEmpty) "" else "?" + params.map { case (k, v) => s"$k=$v" }.mkString("&")
+      val queryString = if (params.isEmpty) "" else "?" + params.map { case (k, v) =>
+        s"${java.net.URLEncoder.encode(k, "UTF-8")}=${java.net.URLEncoder.encode(v, "UTF-8")}"
+      }.mkString("&")
       s"/workflows/$workflowId/instances$queryString"
     case Route.Workflow(workflowId, WorkflowView.Instance(instanceId)) => s"/workflows/$workflowId/instances/$instanceId"
   }
@@ -89,8 +91,9 @@ object Route {
         .split('&')
         .map { part =>
           val eqIdx = part.indexOf('=')
-          if (eqIdx == -1) part -> ""
+          val (k, v) = if (eqIdx == -1) part -> ""
           else part.substring(0, eqIdx) -> part.substring(eqIdx + 1)
+          java.net.URLDecoder.decode(k, "UTF-8") -> java.net.URLDecoder.decode(v, "UTF-8")
         }
         .toMap
   }
