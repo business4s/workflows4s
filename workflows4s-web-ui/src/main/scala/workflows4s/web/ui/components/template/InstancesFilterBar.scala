@@ -92,6 +92,13 @@ case class InstancesFilterBar(
     case "WakeupDesc"  => WorkflowSearchRequest.SortBy.WakeupDesc
     case _             => throw new IllegalArgumentException(s"Unknown sortBy value: $value")
   }
+  def toQueryParams: Map[String, String] = {
+    val params = scala.collection.mutable.Map[String, String]()
+    if (statusFilters.nonEmpty) params += "status" -> statusFilters.mkString(",")
+    sortBy.foreach(s => params += "sort" -> s.toString)
+    if (pageSize != 25) params += "limit" -> pageSize.toString
+    params.toMap
+  }
 }
 
 object InstancesFilterBar {
@@ -100,6 +107,23 @@ object InstancesFilterBar {
     sortBy = Some(WorkflowSearchRequest.SortBy.UpdatedDesc),
     pageSize = 25,
   )
+
+  def fromQueryParams(params: Map[String, String]): InstancesFilterBar = {
+    val statusFilters = params.get("status").map(_.split(",").flatMap(s => scala.util.Try(ExecutionStatus.valueOf(s)).toOption).toSet).getOrElse(Set.empty)
+    val sortBy = params.get("sort").flatMap(s => scala.util.Try(parseSortBy(s)).toOption).orElse(Some(WorkflowSearchRequest.SortBy.UpdatedDesc))
+    val pageSize = params.get("limit").flatMap(_.toIntOption).getOrElse(25)
+    InstancesFilterBar(statusFilters, sortBy, pageSize)
+  }
+
+  private def parseSortBy(value: String): WorkflowSearchRequest.SortBy = value match {
+    case "CreatedAsc"  => WorkflowSearchRequest.SortBy.CreatedAsc
+    case "CreatedDesc" => WorkflowSearchRequest.SortBy.CreatedDesc
+    case "UpdatedAsc"  => WorkflowSearchRequest.SortBy.UpdatedAsc
+    case "UpdatedDesc" => WorkflowSearchRequest.SortBy.UpdatedDesc
+    case "WakeupAsc"   => WorkflowSearchRequest.SortBy.WakeupAsc
+    case "WakeupDesc"  => WorkflowSearchRequest.SortBy.WakeupDesc
+    case _             => throw new IllegalArgumentException(s"Unknown sortBy value: $value")
+  }
 
   enum Msg {
     case ToggleStatus(status: ExecutionStatus)

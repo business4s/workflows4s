@@ -6,17 +6,24 @@ import cats.effect.kernel.Async
 import org.scalajs.dom
 import tyrian.*
 import tyrian.Html.*
-import workflows4s.web.ui.components.instance.MermaidWebComponent
 import workflows4s.web.ui.components.template.{TemplateDetailsView, TemplateSelector, TemplatesList}
 import workflows4s.web.ui.components.util.AsyncView
 import workflows4s.web.ui.util.{MermaidSupport, UIConfig}
 
 import scala.scalajs.js.annotation.*
+import workflows4s.web.api.model.WorkflowDefinition
+import workflows4s.web.ui.components.instance.MermaidWebComponent
+import workflows4s.web.ui.components.template.InstancesFilterBar
+
+enum WorkflowView {
+  case Definition
+  case Instances(queryParams: Map[String, String])
+  case Instance(instanceId: String)
+}
 
 enum Route {
   case Home
-  case Workflow(workflowId: String)
-  case Instance(workflowId: String, instanceId: String)
+  case Workflow(workflowId: String, view: WorkflowView)
 }
 
 object Route {
@@ -46,22 +53,46 @@ object Route {
   }
 
   def fromInternalUrl(url: String): Route = {
-    val noHash  = url.takeWhile(_ != '#')
-    val noQuery = noHash.takeWhile(_ != '?')
-    val parts   = noQuery.split('/').toList.filter(_.nonEmpty)
+    val (path, query) = url.split('?') match {
+      case Array(p, q) => (p, q)
+      case Array(p)    => (p, "")
+      case _           => (url, "")
+    }
+    val noHash = path.takeWhile(_ != '#')
+    val parts  = noHash.split('/').toList.filter(_.nonEmpty)
 
     parts match {
-      case Nil                                          => Route.Home
-      case "workflows" :: workflowId :: Nil            => Route.Workflow(workflowId)
-      case "workflows" :: workflowId :: "instances" :: instanceId :: Nil => Route.Instance(workflowId, instanceId)
-      case _                                            => Route.Home
+      case Nil                                                           => Route.Home
+      case "workflows" :: workflowId :: "definition" :: Nil              => Route.Workflow(workflowId, WorkflowView.Definition)
+      case "workflows" :: workflowId :: "instances" :: instanceId :: Nil => Route.Workflow(workflowId, WorkflowView.Instance(instanceId))
+      case "workflows" :: workflowId :: "instances" :: Nil               =>
+        val params = parseQuery(query)
+        Route.Workflow(workflowId, WorkflowView.Instances(params))
+      case "workflows" :: workflowId :: Nil                              => Route.Workflow(workflowId, WorkflowView.Definition)
+      case _                                                             => Route.Home
     }
   }
 
   def toInternalUrl(route: Route): String = route match {
-    case Route.Home                               => "/"
-    case Route.Workflow(workflowId)               => s"/workflows/$workflowId"
-    case Route.Instance(workflowId, instanceId)   => s"/workflows/$workflowId/instances/$instanceId"
+    case Route.Home                                          => "/"
+    case Route.Workflow(workflowId, WorkflowView.Definition) => s"/workflows/$workflowId/definition"
+    case Route.Workflow(workflowId, WorkflowView.Instances(params)) =>
+      val queryString = if (params.isEmpty) "" else "?" + params.map { case (k, v) => s"$k=$v" }.mkString("&")
+      s"/workflows/$workflowId/instances$queryString"
+    case Route.Workflow(workflowId, WorkflowView.Instance(instanceId)) => s"/workflows/$workflowId/instances/$instanceId"
+  }
+
+  private def parseQuery(query: String): Map[String, String] = {
+    if (query.isEmpty) Map.empty
+    else
+      query
+        .split('&')
+        .map { part =>
+          val eqIdx = part.indexOf('=')
+          if (eqIdx == -1) part -> ""
+          else part.substring(0, eqIdx) -> part.substring(eqIdx + 1)
+        }
+        .toMap
   }
 }
 
@@ -108,38 +139,41 @@ object Main extends TyrianIOApp[Msg, Model] {
       applyRoute(model, route)
 
     case Msg.ForWorkflows(workflowsMsg) =>
-      val newWorkflowDef           = workflowsMsg match {
-        case TemplatesList.Msg.ForSelector(msg) =>
-          msg match {
-            case AsyncView.Msg.Propagate(msg) =>
-              msg match {
-                case TemplateSelector.Msg.Select(workflowDef) => Some(workflowDef)
-                case TemplateSelector.Msg.ClearSelection       => None
-              }
-            case _                            => None
-          }
-      }
-      val newInstanceManager       = newWorkflowDef.map(wd => TemplateDetailsView.initial(wd))
-      val cmd1                     = newInstanceManager.map(_._2).getOrElse(Cmd.None).map(Msg.ForInstances(_))
-      val (updatedWorkflows, cmd2) = model.workflows.update(workflowsMsg)
-      val urlCmd                   = newWorkflowDef match {
-        case Some(wd) =>
-          model.route match {
-            case Route.Workflow(wfId) if wfId == wd.id       => Cmd.None
-            case Route.Instance(wfId, _) if wfId == wd.id    => Cmd.None
-            case _                                            => Nav.pushUrl(Route.toBrowserUrl(Route.Workflow(wd.id)))(using summon[Async[IO]])
-          }
-        case None => Cmd.None
+      val selectionChange: Option[Option[WorkflowDefinition]] = workflowsMsg match {
+        case TemplatesList.Msg.ForSelector(AsyncView.Msg.Propagate(TemplateSelector.Msg.Select(wd))) => Some(Some(wd))
+        case TemplatesList.Msg.ForSelector(AsyncView.Msg.Propagate(TemplateSelector.Msg.ClearSelection)) => Some(None)
+        case _ => None
       }
 
-      val updatedModel             = model.copy(
+      val newInstanceManager = selectionChange match {
+        case Some(Some(wd)) => Some(TemplateDetailsView.initial(wd))
+        case Some(None)     => None
+        case None           => None
+      }
+
+      val (updatedWorkflows, cmd2) = model.workflows.update(workflowsMsg)
+      
+      val newRoute = selectionChange match {
+        case Some(Some(wd)) =>
+          model.route match {
+            case Route.Workflow(wfId, view) if wfId == wd.id => Route.Workflow(wfId, view)
+            case _                                           => Route.Workflow(wd.id, WorkflowView.Definition)
+          }
+        case Some(None) => Route.Home
+        case None => model.route
+      }
+      
+      val urlCmd = if (selectionChange.isDefined && newRoute != model.route) Nav.pushUrl(Route.toBrowserUrl(newRoute))(using summon[Async[IO]]) else Cmd.None
+
+      val updatedModel = model.copy(
         workflows = updatedWorkflows,
-        instances = newInstanceManager.map(_._1).orElse(model.instances),
-        route = newWorkflowDef.map(wd => Route.Workflow(wd.id)).getOrElse(model.route),
-        pendingRoute = if newWorkflowDef.isDefined then None else model.pendingRoute,
+        instances = newInstanceManager.map(_._1).orElse(if (selectionChange.isDefined) None else model.instances),
+        route = newRoute,
+        pendingRoute = if (selectionChange.isDefined) None else model.pendingRoute,
       )
 
       val (finalModel, pendingCmd) = applyPendingRouteIfPossible(updatedModel)
+      val cmd1 = newInstanceManager.map(_._2).getOrElse(Cmd.None).map(Msg.ForInstances(_))
 
       (
         finalModel,
@@ -147,26 +181,25 @@ object Main extends TyrianIOApp[Msg, Model] {
       )
 
     case Msg.ForInstances(instancesMsg) =>
-      val urlCmd = instancesMsg match {
-        case TemplateDetailsView.Msg.LoadInstance(instanceId) =>
-          model.instances match {
-            case Some(view) if model.route != Route.Instance(view.definition.id, instanceId) =>
-              Nav.pushUrl(Route.toBrowserUrl(Route.Instance(view.definition.id, instanceId)))(using summon[Async[IO]])
-            case _ => Cmd.None
-          }
-        case _                                               => Cmd.None
-      }
-
       model.instances.map(_.update(instancesMsg)) match {
         case Some((updatedInstances, cmd)) =>
+          val newRoute = updatedInstances.selectedTab match {
+            case TemplateDetailsView.Tab.Definition => Route.Workflow(updatedInstances.definition.id, WorkflowView.Definition)
+            case TemplateDetailsView.Tab.Instances => Route.Workflow(updatedInstances.definition.id, WorkflowView.Instances(updatedInstances.filterBar.toQueryParams))
+            case TemplateDetailsView.Tab.InstanceDetails =>
+              updatedInstances.instanceView match {
+                case Some(iv) => Route.Workflow(updatedInstances.definition.id, WorkflowView.Instance(iv.instanceId))
+                case None => Route.Workflow(updatedInstances.definition.id, WorkflowView.Instances(updatedInstances.filterBar.toQueryParams))
+              }
+          }
+          
+          val urlCmd = if (newRoute != model.route) Nav.pushUrl(Route.toBrowserUrl(newRoute))(using summon[Async[IO]]) else Cmd.None
+
           val updatedModel = model.copy(
             instances = updatedInstances.some,
-            route = instancesMsg match {
-              case TemplateDetailsView.Msg.LoadInstance(instanceId) => Route.Instance(updatedInstances.definition.id, instanceId)
-              case _                                               => model.route
-            },
+            route = newRoute,
           )
-          (updatedModel, Cmd.merge(cmd.map(Msg.ForInstances.apply), urlCmd))
+          (updatedModel, cmd.map(Msg.ForInstances.apply) |+| urlCmd)
         case None                          => model -> Cmd.None
       }
 
@@ -199,46 +232,34 @@ object Main extends TyrianIOApp[Msg, Model] {
       case Route.Home =>
         clearSelectionIfPossible(model)
 
-      case Route.Workflow(workflowId) =>
-        findDefinition(workflowId) match {
-          case Some(definition) =>
-            val (newInstances, cmd1) = TemplateDetailsView.initial(definition)
-            val (updatedWorkflows, cmd2) = model.workflows.update(
-              TemplatesList.Msg.ForSelector(AsyncView.Msg.Propagate(TemplateSelector.Msg.Select(definition))),
-            )
-            (
-              model.copy(
-                workflows = updatedWorkflows,
-                instances = newInstances.some,
-                route = Route.Workflow(workflowId),
-                pendingRoute = None,
-              ),
-              Cmd.merge(cmd1.map(Msg.ForInstances.apply), cmd2.map(Msg.ForWorkflows.apply)),
-            )
-          case None             =>
-            (model.copy(instances = None, route = route, pendingRoute = route.some), Cmd.None)
-        }
-
-      case Route.Instance(workflowId, instanceId) =>
+      case Route.Workflow(workflowId, view) =>
         findDefinition(workflowId) match {
           case Some(definition) =>
             val (baseInstances, cmd1) = TemplateDetailsView.initial(definition)
-            val (withInstance, cmd2)  = baseInstances.update(TemplateDetailsView.Msg.InstanceIdChanged(instanceId))
-            val (finalInstances, cmd3) = withInstance.update(TemplateDetailsView.Msg.LoadInstance(instanceId))
-            val (updatedWorkflows, cmd4) = model.workflows.update(
+            
+            val (finalInstances, cmd2) = view match {
+              case WorkflowView.Definition => 
+                (baseInstances.copy(selectedTab = TemplateDetailsView.Tab.Definition), Cmd.None)
+              case WorkflowView.Instances(params) =>
+                val filterBar = InstancesFilterBar.fromQueryParams(params)
+                val withFilters = baseInstances.copy(filterBar = filterBar, selectedTab = TemplateDetailsView.Tab.Instances)
+                withFilters.update(TemplateDetailsView.Msg.ReloadInstances)
+              case WorkflowView.Instance(instanceId) =>
+                val withTab = baseInstances.copy(selectedTab = TemplateDetailsView.Tab.InstanceDetails)
+                withTab.update(TemplateDetailsView.Msg.LoadInstance(instanceId))
+            }
+            
+            val (updatedWorkflows, cmd3) = model.workflows.update(
               TemplatesList.Msg.ForSelector(AsyncView.Msg.Propagate(TemplateSelector.Msg.Select(definition))),
             )
             (
               model.copy(
                 workflows = updatedWorkflows,
                 instances = finalInstances.some,
-                route = Route.Instance(workflowId, instanceId),
+                route = Route.Workflow(workflowId, view),
                 pendingRoute = None,
               ),
-              Cmd.merge(
-                Cmd.merge(cmd1.map(Msg.ForInstances.apply), cmd2.map(Msg.ForInstances.apply)),
-                Cmd.merge(cmd3.map(Msg.ForInstances.apply), cmd4.map(Msg.ForWorkflows.apply)),
-              ),
+              cmd1.map(Msg.ForInstances.apply) |+| cmd2.map(Msg.ForInstances.apply) |+| cmd3.map(Msg.ForWorkflows.apply),
             )
           case None             =>
             (model.copy(instances = None, route = route, pendingRoute = route.some), Cmd.None)
