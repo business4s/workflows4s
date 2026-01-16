@@ -69,6 +69,7 @@ final case class Model(
     workflows: TemplatesList,
     instances: Option[TemplateDetailsView],
     route: Route,
+    /** Stores routes that can't be applied yet (e.g., when navigating to a workflow URL before definitions are loaded). */
     pendingRoute: Option[Route],
 )
 
@@ -122,10 +123,13 @@ object Main extends TyrianIOApp[Msg, Model] {
       val cmd1                     = newInstanceManager.map(_._2).getOrElse(Cmd.None).map(Msg.ForInstances(_))
       val (updatedWorkflows, cmd2) = model.workflows.update(workflowsMsg)
       val urlCmd                   = newWorkflowDef match {
-        case Some(wd) if model.route != Route.Workflow(wd.id) && (!model.route.isInstanceOf[Route.Instance] || model.route.asInstanceOf[Route.Instance].workflowId != wd.id) =>
-          Nav.pushUrl(Route.toBrowserUrl(Route.Workflow(wd.id)))(using summon[Async[IO]])
-        case None     => Cmd.None
-        case _        => Cmd.None
+        case Some(wd) =>
+          model.route match {
+            case Route.Workflow(wfId) if wfId == wd.id       => Cmd.None
+            case Route.Instance(wfId, _) if wfId == wd.id    => Cmd.None
+            case _                                            => Nav.pushUrl(Route.toBrowserUrl(Route.Workflow(wd.id)))(using summon[Async[IO]])
+          }
+        case None => Cmd.None
       }
 
       val updatedModel             = model.copy(
@@ -139,7 +143,7 @@ object Main extends TyrianIOApp[Msg, Model] {
 
       (
         finalModel,
-        Cmd.merge(Cmd.merge(cmd1, cmd2.map(Msg.ForWorkflows.apply)), Cmd.merge(urlCmd, pendingCmd)),
+        cmd1 |+| cmd2.map(Msg.ForWorkflows.apply) |+| urlCmd |+| pendingCmd,
       )
 
     case Msg.ForInstances(instancesMsg) =>
@@ -148,8 +152,7 @@ object Main extends TyrianIOApp[Msg, Model] {
           model.instances match {
             case Some(view) if model.route != Route.Instance(view.definition.id, instanceId) =>
               Nav.pushUrl(Route.toBrowserUrl(Route.Instance(view.definition.id, instanceId)))(using summon[Async[IO]])
-            case None       => Cmd.None
-            case _          => Cmd.None
+            case _ => Cmd.None
           }
         case _                                               => Cmd.None
       }

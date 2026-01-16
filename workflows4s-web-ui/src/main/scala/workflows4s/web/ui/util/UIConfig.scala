@@ -26,7 +26,7 @@ object UIConfig {
       text     <- IOFromPromise(response.text())
       cfg      <- IO.fromEither(io.circe.parser.decode[UIConfig](text))
       _        <- _config.complete(cfg)
-      _         = println(s"UI config set to ${_config} from ${cfg}")
+      _         = println(s"UI config set to ${cfg}")
     } yield ())
       .handleErrorWith(ex => {
         println(s"Failed to fetch ui config. ${ex}")
