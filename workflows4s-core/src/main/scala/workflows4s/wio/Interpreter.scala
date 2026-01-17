@@ -10,6 +10,8 @@ object Interpreter {
   sealed trait EventResponse[F[_], Ctx <: WorkflowContext] {
     def newWorkflow: Option[WIO.Initial[F, Ctx]] = this match {
       case EventResponse.Ok(newFlow)       => newFlow.some
+      // TODO event is silently ignored here and runtimes have to log it.
+      //   Would be good to commonize this behavior
       case EventResponse.UnexpectedEvent() => None
     }
   }
@@ -25,7 +27,6 @@ abstract class Visitor[F[_], Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx
   type Result
   type State = WCState[Ctx]
 
-  // Every method now accepts the parameterized WIO
   def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[F, Ctx, In, Out, Err, Sig, Resp, Evt]): Result
   def onRunIO[Evt](wio: WIO.RunIO[F, Ctx, In, Err, Out, Evt]): Result
   def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[F, Ctx, Err1, Err, Out1, Out, In]): Result

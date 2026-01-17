@@ -315,13 +315,4 @@ object WIO {
       wio: WIO[F, BranchIn, Err, Out, Ctx],
       name: Option[String],
   )
-
-  object Branch {
-    def selected[F[_], Err, Out <: WCState[Ctx], Ctx <: WorkflowContext, BranchIn](
-        branchIn: BranchIn,
-        wio: WIO[F, BranchIn, Err, Out, Ctx],
-        name: Option[String] = None,
-    ): Branch[F, BranchIn, Err, Out, Ctx, BranchIn] =
-      Branch(_ => Some(branchIn), wio, name)
-  }
 }

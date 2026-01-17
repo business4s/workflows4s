@@ -120,6 +120,8 @@ abstract class ProceedingVisitor[F[_], Ctx <: WorkflowContext, In, Err, Out <: W
   }
 
   def onLoop[BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx], ReturnIn](wio: WIO.Loop[F, Ctx, In, Err, Out, BodyIn, BodyOut, ReturnIn]): Result = {
+    // TODO all the `.provideInput` here are not good, they enlarge the graph unnecessarily.
+    //  alternatively we could maybe take the input from the last history entry
     val lastHistoryState = wio.history.flatMap(_.lastState(lastSeenState)).lastOption.getOrElse(lastSeenState)
     val nextIndex        = wio.history.lastOption.map(result => result.index + 1).getOrElse(index)
     wio.current match {
@@ -168,7 +170,11 @@ abstract class ProceedingVisitor[F[_], Ctx <: WorkflowContext, In, Err, Out <: W
     def updateSelectedBranch[I](selected: Matching[I]): WIO.Fork[F, Ctx, In, Err, Out] = {
       wio.copy(
         branches = wio.branches.zipWithIndex.map((branch, idx) => {
-          if idx == selected.idx then WIO.Branch.selected(selected.input, selected.wio, branch.name).asInstanceOf[WIO.Branch[F, In, Err, Out, Ctx, ?]]
+          if idx == selected.idx then WIO.Branch(
+            (_: Any) => Some(selected.input),
+            selected.wio,
+            branch.name,
+          )
           else branch
         }),
         selected = Some(selected.idx),
@@ -239,24 +245,37 @@ abstract class ProceedingVisitor[F[_], Ctx <: WorkflowContext, In, Err, Out <: W
   override def onParallel[InterimState <: WCState[Ctx]](
       wio: WIO.Parallel[F, Ctx, In, Err, Out, InterimState],
   ): Option[NewWf] = {
+    // Try to handle the event in one branch – the first branch that accepts it.
+    // We update that branch and leave the others unchanged.
     var branchHandled: Option[(Int, WIO[F, In, Err, WCState[Ctx], Ctx])] = None
-    val nextIndex                                                        = GetIndexEvaluator.findMaxIndex(wio).map(_ + 1).getOrElse(index)
+
+    val nextIndex = GetIndexEvaluator.findMaxIndex(wio).map(_ + 1).getOrElse(index)
 
     val updatedElements = wio.elements.zipWithIndex.map { case (elem, idx) =>
       if branchHandled.isEmpty then {
+        // Try to process the event on this branch using our recurse helper.
         recurse(elem.wio, input, lastSeenState, nextIndex) match {
           case Some(newBranch) =>
             branchHandled = Some((idx, newBranch.wio))
+            // Replace the branch with the updated branch.
             elem.copy(wio = newBranch.wio)
-          case None            => elem
+
+          case None =>
+            // This branch does not accept the event.
+            elem
         }
-      } else elem
+      } else {
+        // A branch has already handled the event; leave this branch unchanged.
+        elem
+      }
     }
     if branchHandled.isEmpty then return None
 
     val maybeStates: Either[Err, Seq[Option[WCState[Ctx]]]] = updatedElements.traverse(elem => elem.wio.asExecuted.traverse(_.output))
     val newWio                                              = wio.copy(elements = updatedElements)
-    val maybeLastIndex                                      = branchHandled.flatMap(_._2.asExecuted.map(_.index))
+
+    val maybeLastIndex =
+      branchHandled.flatMap(_._2.asExecuted.map(_.index)) // in case of completion, index for WIO.Parallel will be the index of last executed element
 
     maybeStates match {
       case Left(err)   =>

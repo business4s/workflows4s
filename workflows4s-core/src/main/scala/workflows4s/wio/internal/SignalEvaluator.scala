@@ -7,14 +7,13 @@ import workflows4s.runtime.instanceengine.Effect
 
 object SignalEvaluator {
 
-  def handleSignal[Ctx <: WorkflowContext, Req, Resp, F[_], In, Out <: WCState[Ctx]](
+  def handleSignal[Ctx <: WorkflowContext, Req, Resp, F[_], In <: WCState[Ctx], Out <: WCState[Ctx]](
       signalDef: SignalDef[Req, Resp],
       req: Req,
       wio: WIO[F, In, Nothing, Out, Ctx],
       state: In,
-      lastSeenState: WCState[Ctx],
   )(using E: Effect[F]): SignalResult[WCEvent[Ctx], Resp, F] = {
-    val visitor = new SignalVisitor[Ctx, F, Resp, Nothing, Out, In, Req](wio, signalDef, req, state, lastSeenState)
+    val visitor = new SignalVisitor[Ctx, F, Resp, Nothing, Out, In, Req](wio, signalDef, req, state, state)
     SignalResult.fromRaw[WCEvent[Ctx], Resp, F](visitor.run)
   }
 
@@ -64,6 +63,9 @@ object SignalEvaluator {
     def onNoop(wio: WIO.End[F, Ctx]): Result                                  = None
     def onPure(wio: WIO.Pure[F, Ctx, In, Err, Out]): Result                   = None
     def onTimer(wio: WIO.Timer[F, Ctx, In, Err, Out]): Result                 = None
+    // we could have "operational" signal that triggers the release?
+    // the problem is identifying the timer, but we could parametrize the signal request with time, so its
+    // "release timers as if current time was time communicated in the signal"
     def onAwaitingTime(wio: WIO.AwaitingTime[F, Ctx, In, Err, Out]): Result   = None
     def onExecuted[In1](wio: WIO.Executed[F, Ctx, Err, Out, In1]): Result     = None
     def onDiscarded[In1](wio: WIO.Discarded[F, Ctx, In1]): Result             = None

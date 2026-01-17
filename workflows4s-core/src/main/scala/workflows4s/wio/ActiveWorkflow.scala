@@ -10,36 +10,36 @@ case class ActiveWorkflow[F[_], Ctx <: WorkflowContext](
     id: WorkflowInstanceId,
     wio: WIO.Initial[F, Ctx],
     initialState: WCState[Ctx],
-)(using E: Effect[F]) { // Added Effect here
+)(using E: Effect[F]) {
 
   lazy val wakeupAt: Option[Instant] =
-    GetWakeupEvaluator.extractNearestWakeup[F, Ctx, Any, Nothing, WCState[Ctx]](wio)
+    GetWakeupEvaluator.extractNearestWakeup(wio)
 
   lazy val staticState: WCState[Ctx] =
-    GetStateEvaluator.extractLastState[F, Ctx, Any, Nothing, WCState[Ctx]](wio, (), initialState).getOrElse(initialState)
+    GetStateEvaluator.extractLastState(wio, (), initialState).getOrElse(initialState)
 
   def liveState: WCState[Ctx] = effectlessProceed.staticState
 
   def expectedSignals: List[SignalDef[?, ?]] =
-    GetSignalDefsEvaluator.run[F, Ctx, Any, Nothing, WCState[Ctx]](effectlessProceed.wio)
+    GetSignalDefsEvaluator.run(effectlessProceed.wio)
 
   def handleSignal[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req): SignalResult[WCEvent[Ctx], Resp, F] = {
     val wf = effectlessProceed
-    SignalEvaluator.handleSignal[Ctx, Req, Resp, F, Any, WCState[Ctx]](signalDef, req, wf.wio, (), wf.staticState)
+    SignalEvaluator.handleSignal(signalDef, req, wf.wio, wf.staticState)
   }
 
   def handleEvent(event: WCEvent[Ctx]): Option[ActiveWorkflow[F, Ctx]] = {
     val wf = effectlessProceed
     EventEvaluator
-      .handleEvent[F, Ctx, Any, Nothing, WCState[Ctx]](event, wf.wio, initialState)
+      .handleEvent(event, wf.wio, initialState)
       .newWorkflow
       .map(newWio => this.copy(wio = newWio))
-      .map(_.effectlessProceed)
+      .map(x => x.effectlessProceed)
   }
 
   def proceed(now: Instant): WakeupResult[WCEvent[Ctx], F] = {
     val wf = effectlessProceed
-    RunIOEvaluator.proceed[Ctx, F, WCState[Ctx]](wf.wio, wf.staticState, now)
+    RunIOEvaluator.proceed(wf.wio, wf.staticState, now)
   }
 
   def progress: WIOExecutionProgress[WCState[Ctx]] =
@@ -50,6 +50,6 @@ case class ActiveWorkflow[F[_], Ctx <: WorkflowContext](
       .proceed[F, Ctx](wio, initialState)
       .newFlow
       .map(newWio => this.copy(wio = newWio))
-      .map(_.effectlessProceed)
+      .map(x => x.effectlessProceed)
       .getOrElse(this)
 }

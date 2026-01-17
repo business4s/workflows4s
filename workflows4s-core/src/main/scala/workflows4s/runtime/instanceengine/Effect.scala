@@ -98,7 +98,7 @@ trait Effect[F[_]] {
       case Left(e)  => raiseError(e)
     }
 
-  def attempt[A](fa: F[A]): F[Either[Throwable, A]] =
+  def attempt[A](fa: => F[A]): F[Either[Throwable, A]] =
     handleErrorWith(map(fa)(Right(_): Either[Throwable, A]))(e => pure(Left(e)))
 
   def productR[A, B](fa: F[A], fb: F[B]): F[B] =

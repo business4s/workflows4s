@@ -53,7 +53,7 @@ object RunIOEvaluator {
         case Some(baseExecuted) =>
           baseExecuted.output match {
             case Left(err) => recurse(wio.handleError, (lastSeenState, err))
-            case Right(_)  => throw bug("HandleErrorWith entered but base succeeded")
+            case Right(_)  => throw bug("Base was executed but surrounding HandleError was still entered during evaluation.")
           }
         case None               => recurse(wio.base, input)
       }
@@ -63,7 +63,7 @@ object RunIOEvaluator {
       wio.first.asExecuted match {
         case Some(firstExecuted) =>
           firstExecuted.output match {
-            case Left(_)      => throw bug("AndThen entered but first failed")
+            case Left(_)      => throw bug("First step of AndThen was executed with an error but surrounding AndThen was still entered during evaluation.")
             case Right(value) => recurse(wio.second, value)
           }
         case None                => recurse(wio.first, input)
@@ -168,6 +168,6 @@ object RunIOEvaluator {
     private def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[F, I1, E1, O1, Ctx], s: I1): Result =
       new RunIOVisitor(wio, s, lastSeenState, now).run
 
-    private def bug(msg: String) = new IllegalStateException(s"$msg. This is a library bug.")
+    private def bug(msg: String) = new IllegalStateException(s"$msg. This is a bug in the library. Please report it to the maintainers.")
   }
 }
