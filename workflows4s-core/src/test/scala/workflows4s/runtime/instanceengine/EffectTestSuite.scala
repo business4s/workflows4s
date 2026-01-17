@@ -18,6 +18,11 @@ trait EffectTestSuite[F[_]] extends AnyFreeSpecLike with Matchers {
 
   val E: Effect[F] = effect
 
+  /** Override to false for synchronous effects (like Id) where raiseError throws immediately rather than capturing the error in the effect type.
+    * Tests requiring lazy error capture will be skipped when this is false.
+    */
+  def supportsLazyErrorCapture: Boolean = true
+
   // Generic test context for WIO tests - uses the effect type F from the test suite
   object WIOTestCtx extends WorkflowContext {
     trait Event
@@ -45,6 +50,11 @@ trait EffectTestSuite[F[_]] extends AnyFreeSpecLike with Matchers {
     }
   }
 
+  /** Helper for tests that require lazy error capture - skips test if not supported */
+  def assumeLazyErrorCapture(): Unit = {
+    assume(supportsLazyErrorCapture, "Test requires lazy error capture (skipped for synchronous effects like Id)"): Unit
+  }
+
   def effectTests(): Unit = {
 
     // === Required Operations (see EFFECT_REQUIREMENTS.md) ===
@@ -65,6 +75,7 @@ trait EffectTestSuite[F[_]] extends AnyFreeSpecLike with Matchers {
     }
 
     "delay" in {
+      assumeLazyErrorCapture() // Id executes delay immediately
       var sideEffect = 0
       val program    = E.delay { sideEffect = 42; sideEffect }
       assert(sideEffect == 0) // Not executed yet (lazy)
@@ -73,6 +84,7 @@ trait EffectTestSuite[F[_]] extends AnyFreeSpecLike with Matchers {
     }
 
     "raiseError" in {
+      assumeLazyErrorCapture() // Id throws immediately
       val error = new RuntimeException("test error")
       assertFailsWith(E.raiseError[Int](error)) shouldBe error
     }
@@ -201,6 +213,7 @@ trait EffectTestSuite[F[_]] extends AnyFreeSpecLike with Matchers {
       }
 
       "fiber.cancel marks as canceled" in {
+        assumeLazyErrorCapture() // Id doesn't support real fiber cancellation
         val program = for {
           fiber   <- E.start(E.sleep(scala.concurrent.duration.Duration(1, "s")))
           _       <- fiber.cancel
@@ -225,6 +238,7 @@ trait EffectTestSuite[F[_]] extends AnyFreeSpecLike with Matchers {
       }
 
       "calls finalizer on failure" in {
+        assumeLazyErrorCapture()
         val error                                  = new RuntimeException("test")
         var finalizerOutcome: Option[Outcome[Int]] = None
         val result                                 = E.guaranteeCase(E.raiseError[Int](error)) { outcome =>
@@ -283,6 +297,7 @@ trait EffectTestSuite[F[_]] extends AnyFreeSpecLike with Matchers {
       }
 
       "error in IO" in {
+        assumeLazyErrorCapture()
         val wf = CtxWIO
           .runIO[String](_ => E.raiseError(new RuntimeException("IO failed")))
           .handleEvent(ignore)
