@@ -33,7 +33,7 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers {
       val signalResult = wf.handleSignal(mySignalDef)(42).toRaw
 
       // Assert
-      signalResult.`should`(not).`be`(empty)
+      signalResult.should(not).be(empty)
       assert(
         signalResult.get === (
           SimpleEvent(

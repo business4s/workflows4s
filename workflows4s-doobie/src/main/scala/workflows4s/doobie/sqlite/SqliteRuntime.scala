@@ -6,6 +6,7 @@ import cats.effect.unsafe.implicits.global
 import doobie.implicits.*
 import doobie.util.fragment.Fragment
 import doobie.util.transactor.Transactor
+import doobie.ConnectionIO
 import doobie.WeakAsync
 import workflows4s.cats.CatsEffect
 import workflows4s.doobie.{ByteCodec, DbWorkflowInstance, DoobieEffect}
@@ -49,10 +50,10 @@ class SqliteRuntime[Ctx <: WorkflowContext](
       new MappedWorkflowInstance[DoobieEffect, IO, State[Ctx]](
         base,
         [t] =>
-          (doobieEffect: DoobieEffect[t]) =>
+          (connIo: DoobieEffect[t]) =>
             // we use rawTrans because locking manages transactions itself.
             // And querying events without locking doesn't require any kind of transaction.
-            WeakAsync.liftIO[doobie.ConnectionIO].use(liftIO => xa.rawTrans.apply(doobieEffect.run(liftIO))),
+            WeakAsync.liftIO[ConnectionIO].use(liftIO => xa.rawTrans.apply(connIo.run(liftIO))),
       )
     }
   }
