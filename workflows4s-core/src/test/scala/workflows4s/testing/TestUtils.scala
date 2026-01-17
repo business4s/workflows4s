@@ -1,7 +1,6 @@
 package workflows4s.testing
 
 import cats.Id
-import cats.effect.IO
 import workflows4s.runtime.instanceengine.{Effect, WorkflowInstanceEngine}
 import workflows4s.runtime.{InMemoryRuntime, InMemoryWorkflowInstance, WorkflowInstanceId}
 import workflows4s.wio.*
@@ -67,7 +66,7 @@ object TestUtils {
   }
 
   def runIO: (StepId, TestCtx2.WIO[TestState, Nothing, TestState]) = {
-    runIOCustom(IO.unit)
+    runIOCustom(())
   }
 
   def runIOFailing(exception: Throwable): (StepId, TestCtx2.WIO[TestState, Nothing, TestState]) = {
@@ -92,15 +91,13 @@ object TestUtils {
     (error, wio)
   }
 
-  def runIOCustom(logic: IO[Unit]): (StepId, TestCtx2.WIO[TestState, Nothing, TestState]) = {
+  def runIOCustom(logic: => Unit): (StepId, TestCtx2.WIO[TestState, Nothing, TestState]) = {
     import TestCtx2.*
     case class RunIODone(stepId: StepId) extends TestCtx2.Event
     val stepId = StepId.random
-    // For Id effect, we need to run the IO synchronously
     val wio    = WIO
       .runIO[TestState](_ => {
-        import cats.effect.unsafe.implicits.global
-        logic.unsafeRunSync()
+        logic
         RunIODone(stepId)
       })
       .handleEvent((st, evt) => st.addExecuted(evt.stepId))
@@ -114,23 +111,21 @@ object TestUtils {
   }
 
   // inline assures two calls get different events
-  inline def signal: (SignalDef[Int, Int], StepId, WIO.IHandleSignal[Id, TestState, Nothing, TestState, TestCtx2.Ctx]) = signalCustom(IO.unit)
+  inline def signal: (SignalDef[Int, Int], StepId, WIO.IHandleSignal[Id, TestState, Nothing, TestState, TestCtx2.Ctx]) = signalCustom(())
 
   // inline assures two calls get different events
-  inline def signalCustom(logic: IO[Unit]): (SignalDef[Int, Int], StepId, WIO.IHandleSignal[Id, TestState, Nothing, TestState, TestCtx2.Ctx]) = {
+  inline def signalCustom(logic: => Unit): (SignalDef[Int, Int], StepId, WIO.IHandleSignal[Id, TestState, Nothing, TestState, TestCtx2.Ctx]) = {
     import TestCtx2.*
     val signalDef = SignalDef[Int, Int](id = UUID.randomUUID().toString)
     class SigEvent(val req: Int) extends TestCtx2.Event with Serializable {
       override def toString: String = s"SigEvent(${req})"
     }
     val stepId = StepId.random("signal")
-    // For Id effect, we need to run the IO synchronously
     val wio = WIO
       .handleSignal(signalDef)
       .using[TestState]
       .withSideEffects((_, req) => {
-        import cats.effect.unsafe.implicits.global
-        logic.unsafeRunSync()
+        logic
         SigEvent(req)
       })
       .handleEvent((st, _) => st.addExecuted(stepId))
