@@ -14,5 +14,6 @@ class FutureEffectTest extends AnyFreeSpec with EffectTestSuite[LazyFuture] with
 
   "LazyFuture Effect" - {
     effectTests()
+    wioRunIOTests()
   }
 }

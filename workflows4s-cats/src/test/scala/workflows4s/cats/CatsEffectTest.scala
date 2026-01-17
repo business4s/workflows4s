@@ -12,6 +12,7 @@ class CatsEffectTest extends AnyFreeSpec with EffectTestSuite[IO] with Matchers 
 
   "CatsEffect (IO)" - {
     effectTests()
+    wioRunIOTests()
 
     // Effect-specific tests below
 

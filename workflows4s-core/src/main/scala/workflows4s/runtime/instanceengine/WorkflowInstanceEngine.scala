@@ -37,11 +37,13 @@ trait WorkflowInstanceEngine[F[_]](using E: Effect[F]) {
   // Process event synchronously and return the new state
   // This ensures event handling is atomic and deterministic
   def processEvent[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx], event: WCEvent[Ctx]): F[ActiveWorkflow[F, Ctx]] = {
-   val f =  E.delay(    this
-      .handleEvent(workflow, event)
-      .map(_.getOrElse(workflow)))
-f.flatMap(identity)
-    
+    val f = E.delay(
+      this
+        .handleEvent(workflow, event)
+        .map(_.getOrElse(workflow)),
+    )
+    f.flatMap(identity)
+
   }
 
 }

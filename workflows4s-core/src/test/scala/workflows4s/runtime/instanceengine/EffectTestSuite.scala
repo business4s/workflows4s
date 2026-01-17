@@ -1,7 +1,13 @@
 package workflows4s.runtime.instanceengine
 
+import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.freespec.AnyFreeSpecLike
 import org.scalatest.matchers.should.Matchers
+import workflows4s.runtime.WorkflowInstanceId
+import workflows4s.wio.internal.WakeupResult
+import workflows4s.wio.{ActiveWorkflow, ErrorMeta, SignalDef, WCState, WIO, WorkflowContext}
+
+import java.time.Instant
 
 /** Test suite for Effect implementations. Tests mirror the required operations from EFFECT_REQUIREMENTS.md.
   */
@@ -11,6 +17,25 @@ trait EffectTestSuite[F[_]] extends AnyFreeSpecLike with Matchers {
   import Effect.{flatMap, map}
 
   val E: Effect[F] = effect
+
+  // Generic test context for WIO tests - uses the effect type F from the test suite
+  object WIOTestCtx extends WorkflowContext {
+    trait Event
+    case class SimpleEvent(value: String) extends Event
+    type State = String
+
+    type Eff[A] = F[A]
+    given effect: Effect[Eff] = EffectTestSuite.this.effect
+
+    extension [In, Out <: WCState[Ctx]](wio: WIO[In, Nothing, Out]) {
+      def toWorkflow[In1 <: In & WCState[Ctx]](state: In1): ActiveWorkflow[Eff, Ctx] =
+        ActiveWorkflow(WorkflowInstanceId("test", "test"), wio.provideInput(state), state)
+    }
+
+    def ignore[A, B, C]: (A, B) => C = (_, _) => ???
+
+    given Conversion[String, SimpleEvent] = SimpleEvent.apply
+  }
 
   def assertFailsWith[A](fa: F[A]): Throwable = {
     import scala.util.{Failure, Success, Try}
@@ -231,6 +256,120 @@ trait EffectTestSuite[F[_]] extends AnyFreeSpecLike with Matchers {
       assert(effect.runSyncUnsafe(E.attempt(E.pure(42))) == Right(42))
       val error = new RuntimeException("test")
       assert(effect.runSyncUnsafe(E.attempt(E.raiseError[Int](error))) == Left(error))
+    }
+  }
+
+  def wioRunIOTests(): Unit = {
+    import WIOTestCtx.{SimpleEvent, ignore, toWorkflow, WIO as CtxWIO, given}
+
+    "WIO.RunIO" - {
+
+      "proceed" in {
+        val wf = CtxWIO
+          .runIO[String](input => E.pure(s"ProcessedEvent($input)"))
+          .handleEvent(ignore)
+          .done
+          .toWorkflow("initialState")
+
+        val resultOpt = wf.proceed(Instant.now)
+
+        assert(resultOpt.toRaw.isDefined)
+        val newEvent = E.runSyncUnsafe(resultOpt.toRaw.value)
+        assert(newEvent == SimpleEvent("ProcessedEvent(initialState)"))
+      }
+
+      "error in IO" in {
+        val wf = CtxWIO
+          .runIO[String](_ => E.raiseError(new RuntimeException("IO failed")))
+          .handleEvent(ignore)
+          .done
+          .toWorkflow("initialState")
+
+        val Some(result) = wf.proceed(Instant.now).toRaw: @unchecked
+
+        val processingResult = E.runSyncUnsafe(result)
+        processingResult match {
+          case WakeupResult.ProcessingResult.Failed(ex) =>
+            assert(ex.getMessage == "IO failed")
+
+          case _ => fail("Expected Failed result")
+        }
+      }
+
+      "event handling" in {
+        val wf = CtxWIO
+          .runIO[String](_ => ???)
+          .handleEvent((input, evt) => s"SuccessHandled($input, $evt)")
+          .done
+          .toWorkflow("initialState")
+
+        val Some(result) = wf.handleEvent("my-event"): @unchecked
+
+        assert(result.staticState == "SuccessHandled(initialState, SimpleEvent(my-event))")
+      }
+
+      "handle signal" in {
+        val wf = CtxWIO
+          .runIO[Any](_ => ???)
+          .handleEvent(ignore)
+          .done
+          .toWorkflow("initialState")
+
+        val resultOpt = wf.handleSignal(SignalDef[String, String]())("").toRaw
+
+        assert(resultOpt.isEmpty)
+      }
+
+      "metadata attachment" - {
+        val base = CtxWIO
+          .runIO[String](input => E.pure(s"EventGenerated($input)"))
+          .handleEvent(ignore)
+
+        extension (x: workflows4s.wio.WIO[?, ?, ?, ?, ?]) {
+          def extractMeta: WIO.RunIO.Meta = x.asInstanceOf[WIO.RunIO[?, ?, ?, ?, ?, ?]].meta
+        }
+
+        "defaults" in {
+          val wio = base.done
+
+          val meta = wio.extractMeta
+          assert(meta == WIO.RunIO.Meta(ErrorMeta.NoError(), None, None))
+        }
+
+        "explicitly named" in {
+          val wio = base.named("ExplicitRunIO")
+
+          val meta = wio.extractMeta
+          assert(meta.name.contains("ExplicitRunIO"))
+        }
+
+        "autonamed" in {
+          val autonamedRunIO = base.autoNamed()
+
+          val meta = autonamedRunIO.extractMeta
+          assert(meta.name.contains("Autonamed Run IO"))
+        }
+
+        "error autonamed" in {
+          val wio = CtxWIO
+            .runIO[String](_ => ???)
+            .handleEventWithError((_, _) => Left(""))
+            .done
+
+          val meta = wio.extractMeta
+          assert(meta.error == ErrorMeta.Present("String"))
+        }
+
+        "error explicitly named" in {
+          val wio = CtxWIO
+            .runIO[String](_ => ???)
+            .handleEventWithError(ignore)(using ErrorMeta.Present("XXX"))
+            .done
+
+          val meta = wio.extractMeta
+          assert(meta.error == ErrorMeta.Present("XXX"))
+        }
+      }
     }
   }
 }
