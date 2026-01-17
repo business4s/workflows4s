@@ -43,10 +43,6 @@ trait TestRuntimeAdapter[Ctx <: WorkflowContext] extends StrictLogging {
 
 object TestRuntimeAdapter {
 
-  trait EventIntrospection[Event] {
-    def getEvents: Seq[Event]
-  }
-
   case class InMemory[Ctx <: WorkflowContext]() extends TestRuntimeAdapter[Ctx] {
 
     override def runWorkflow(

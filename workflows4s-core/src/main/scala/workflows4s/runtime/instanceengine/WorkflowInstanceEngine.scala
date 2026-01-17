@@ -10,7 +10,7 @@ import workflows4s.wio.model.WIOExecutionProgress
 import java.time.Clock
 import scala.annotation.unused
 
-trait WorkflowInstanceEngine[F[_]](using Effect[F]) {
+trait WorkflowInstanceEngine[F[_]](using E: Effect[F]) {
   import Effect.*
   def queryState[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx]): WCState[Ctx]
 
@@ -36,9 +36,13 @@ trait WorkflowInstanceEngine[F[_]](using Effect[F]) {
 
   // Process event synchronously and return the new state
   // This ensures event handling is atomic and deterministic
-  def processEvent[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx], event: WCEvent[Ctx]): F[ActiveWorkflow[F, Ctx]] = this
-    .handleEvent(workflow, event)
-    .map(_.getOrElse(workflow))
+  def processEvent[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx], event: WCEvent[Ctx]): F[ActiveWorkflow[F, Ctx]] = {
+   val f =  E.delay(    this
+      .handleEvent(workflow, event)
+      .map(_.getOrElse(workflow)))
+f.flatMap(identity)
+    
+  }
 
 }
 

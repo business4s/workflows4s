@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **Website**: https://business4s.github.io/workflows4s/
 - **Discord**: https://bit.ly/business4s-discord
-- **Language**: Scala 3.7.3
+- **Language**: Scala 3.7.4
 - **Build Tool**: sbt
 - **Testing**: ScalaTest with cats-effect
 

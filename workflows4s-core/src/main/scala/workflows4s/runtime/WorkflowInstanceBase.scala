@@ -79,8 +79,7 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext](using E: Effect[F]) ext
                      E.unit
                    case ProcessingResult.Failed(err)      =>
                      // Log the actual error
-                     logger.error("Workflow wakeup failed", err)
-                     E.unit
+                     E.delay(logger.error("Workflow wakeup failed", err))
                  }
         } yield ()
       case _: WakeupResult.Noop[?, ?]      => E.unit

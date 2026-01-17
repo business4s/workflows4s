@@ -47,13 +47,6 @@ trait IOTestRuntimeAdapter[Ctx <: WorkflowContext] extends StrictLogging {
 
 object IOTestRuntimeAdapter {
 
-  // TODO: This trait is duplicated from TestRuntimeAdapter. Consider extracting to a common location
-  // if more shared test utilities emerge. Currently kept separate to avoid coupling between
-  // IO-based and Id-based test infrastructure.
-  trait EventIntrospection[Event] {
-    def getEvents: Seq[Event]
-  }
-
   /** InMemory implementation of IOTestRuntimeAdapter for testing IO-based concurrency.
     */
   case class InMemory[Ctx <: WorkflowContext]() extends IOTestRuntimeAdapter[Ctx] {
