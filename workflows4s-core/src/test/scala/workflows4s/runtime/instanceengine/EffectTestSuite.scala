@@ -274,8 +274,12 @@ trait EffectTestSuite[F[_]] extends AnyFreeSpecLike with Matchers {
         val resultOpt = wf.proceed(Instant.now)
 
         assert(resultOpt.toRaw.isDefined)
-        val newEvent = E.runSyncUnsafe(resultOpt.toRaw.value)
-        assert(newEvent == SimpleEvent("ProcessedEvent(initialState)"))
+        val processingResult = E.runSyncUnsafe(resultOpt.toRaw.value)
+        processingResult match {
+          case WakeupResult.ProcessingResult.Proceeded(event) =>
+            assert(event == SimpleEvent("ProcessedEvent(initialState)"))
+          case _                                              => fail("Expected Proceeded result")
+        }
       }
 
       "error in IO" in {
