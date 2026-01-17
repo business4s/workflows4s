@@ -5,8 +5,6 @@ import workflows4s.wio.WIO.HandleInterruption.InterruptionStatus
 import workflows4s.wio.WIO.Retry.Mode
 import workflows4s.wio.WIO.Timer
 import workflows4s.runtime.instanceengine.Effect
-// Added missing Cats syntax for .some
-import cats.syntax.option.*
 
 import java.time.Instant
 
@@ -40,7 +38,7 @@ object RunIOEvaluator {
     override def onRecovery[Evt](wio: WIO.Recovery[F, Ctx, In, Err, Out, Evt]): Result                = None
 
     def onRunIO[Evt](wio: WIO.RunIO[F, Ctx, In, Err, Out, Evt]): Result =
-      wio.buildIO(input).map(evt => Right(wio.evtHandler.convert(evt))).some
+      Some(wio.buildIO(input).map(evt => Right(wio.evtHandler.convert(evt))))
 
     def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[F, Ctx, Err1, Err, Out1, Out, In]): Result = recurse(wio.base, input)
     def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[F, Ctx, In1, Err1, Out1, In, Out, Err]): Result =
@@ -111,10 +109,7 @@ object RunIOEvaluator {
     override def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[F, Ctx, In, Err, Out1, Evt]): Result = {
       wio.base.asExecuted match {
         case Some(executedBase) =>
-          executedBase.output match {
-            case Right(baseOut) => wio.genEvent(input, baseOut).map(evt => Right(wio.eventHandler.convert(evt))).some
-            case Left(_)        => None
-          }
+          executedBase.output.toOption.map(baseOut => wio.genEvent(input, baseOut).map(evt => Right(wio.eventHandler.convert(evt))))
         case None               => recurse(wio.base, input)
       }
     }
