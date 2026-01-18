@@ -1,0 +1,4 @@
+[Interruptible](no-name) 
+  - base: [Pure](Do A) 
+  - trigger: [HandleSignal](Interruption) Signal: My Request
+  - handler: [Pure](Do B) 

@@ -1,0 +1,7 @@
+flowchart TD
+node0@{ shape: circle, label: "Start"}
+node1:::checkpoint
+subgraph node1 ["Checkpoint"]
+node2["Base"]
+node0 --> node2
+end

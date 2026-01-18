@@ -54,14 +54,15 @@ object TestUtils {
   }
 
   def renderDocsExample(wio: WIO[?, ?, ?, ?], name: String, technical: Boolean = false) = {
-    renderModelToFile(wio, s"docs/${name}.json")
-    renderBpmnToFile(wio, s"docs/${name}.bpmn")
-    renderMermaidToFile(wio.toProgress, s"docs/${name}.mermaid", technical)
+    renderModelToFile(wio, s"docs/${name}/model.json")
+    renderBpmnToFile(wio, s"docs/${name}/diagram.bpmn")
+    renderMermaidToFile(wio.toProgress, s"docs/${name}/diagram.mermaid", technical)
+    renderDebugToFile(wio.toProgress, s"docs/${name}/debug.txt")
   }
 
   def renderDocsProgressExample(wio: WorkflowInstance[cats.Id, ?], name: String, technical: Boolean = false) = {
-    renderMermaidToFile(wio.getProgress, s"docs/${name}.mermaid", technical)
-    renderDebugToFile(wio.getProgress, s"docs/${name}.debug.txt")
+    renderMermaidToFile(wio.getProgress, s"docs/${name}/diagram.mermaid", technical)
+    renderDebugToFile(wio.getProgress, s"docs/${name}/debug.txt")
   }
 
   private def ensureFileContentMatchesOrUpdate(content: String, path: Path): Unit = {

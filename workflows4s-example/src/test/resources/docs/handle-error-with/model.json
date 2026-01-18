@@ -1,0 +1,25 @@
+{
+  "base" : {
+    "meta" : {
+      "name" : "Do Things",
+      "error" : {
+        "name" : "My Error"
+      }
+    },
+    "_type" : "Pure"
+  },
+  "handler" : {
+    "meta" : {
+      "name" : "Handle That Nasty Error",
+      "error" : null
+    },
+    "_type" : "Pure"
+  },
+  "meta" : {
+    "newErrorMeta" : null,
+    "handledErrorMeta" : {
+      "name" : "My Error"
+    }
+  },
+  "_type" : "HandleError"
+}

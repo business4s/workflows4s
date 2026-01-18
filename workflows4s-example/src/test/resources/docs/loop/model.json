@@ -1,0 +1,22 @@
+{
+  "base" : {
+    "meta" : {
+      "name" : "Step1",
+      "error" : null
+    },
+    "_type" : "Pure"
+  },
+  "onRestart" : {
+    "meta" : {
+      "name" : "Step2",
+      "error" : null
+    },
+    "_type" : "Pure"
+  },
+  "meta" : {
+    "conditionName" : "Is everything done?",
+    "exitBranchName" : "Yes!",
+    "restartBranchName" : "No"
+  },
+  "_type" : "Loop"
+}

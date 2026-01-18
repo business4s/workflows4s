@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<definitions xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="definitions_0" targetNamespace="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL">
+  <process camunda:historyTimeToLive="P180D" id="process_1" isExecutable="true">
+    <startEvent id="startEvent_8">
+      <outgoing>sequenceFlow_3</outgoing>
+    </startEvent>
+    <intermediateCatchEvent id="intermediateCatchEvent_0" name="My Request">
+      <incoming>sequenceFlow_3</incoming>
+      <outgoing>sequenceFlow_4</outgoing>
+      <signalEventDefinition id="signalEventDefinition_7" signalRef="signal_6"/>
+    </intermediateCatchEvent>
+    <sequenceFlow id="sequenceFlow_3" sourceRef="startEvent_8" targetRef="intermediateCatchEvent_0"/>
+    <serviceTask id="serviceTask_2" name="Do Things">
+      <incoming>sequenceFlow_4</incoming>
+      <outgoing>sequenceFlow_5</outgoing>
+    </serviceTask>
+    <sequenceFlow id="sequenceFlow_4" sourceRef="intermediateCatchEvent_0" targetRef="serviceTask_2"/>
+    <endEvent id="endEvent_9">
+      <incoming>sequenceFlow_5</incoming>
+    </endEvent>
+    <sequenceFlow id="sequenceFlow_5" sourceRef="serviceTask_2" targetRef="endEvent_9"/>
+  </process>
+  <signal id="signal_6" name="My Request"/>
+  <bpmndi:BPMNDiagram id="BpmnDiagram_0">
+    <bpmndi:BPMNPlane bpmnElement="process_1" id="BpmnPlaneImpl_7">
+      <bpmndi:BPMNShape bpmnElement="startEvent_8" id="BpmnShapeImpl_3">
+        <dc:Bounds height="36.0" width="36.0" x="100.0" y="100.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="intermediateCatchEvent_0" id="BpmnShapeImpl_4">
+        <dc:Bounds height="36.0" width="36.0" x="186.0" y="100.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_3" id="BpmnEdgeImpl_0">
+        <di:waypoint x="136.0" y="118.0"/>
+        <di:waypoint x="186.0" y="118.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape bpmnElement="serviceTask_2" id="BpmnShapeImpl_5">
+        <dc:Bounds height="80.0" width="100.0" x="272.0" y="78.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_4" id="BpmnEdgeImpl_1">
+        <di:waypoint x="222.0" y="118.0"/>
+        <di:waypoint x="272.0" y="118.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape bpmnElement="endEvent_9" id="BpmnShapeImpl_6">
+        <dc:Bounds height="36.0" width="36.0" x="422.0" y="100.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_5" id="BpmnEdgeImpl_2">
+        <di:waypoint x="372.0" y="118.0"/>
+        <di:waypoint x="422.0" y="118.0"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>

@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<definitions xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="definitions_0" targetNamespace="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL">
+  <process camunda:historyTimeToLive="P180D" id="process_3" isExecutable="true">
+    <startEvent id="startEvent_30">
+      <outgoing>sequenceFlow_22</outgoing>
+    </startEvent>
+    <subProcess id="subProcess_2">
+      <incoming>sequenceFlow_22</incoming>
+      <outgoing>sequenceFlow_25</outgoing>
+      <startEvent id="startEvent_31" name="">
+        <outgoing>sequenceFlow_15</outgoing>
+      </startEvent>
+      <intermediateCatchEvent id="intermediateCatchEvent_0" name="Create PR">
+        <incoming>sequenceFlow_15</incoming>
+        <outgoing>sequenceFlow_16</outgoing>
+        <signalEventDefinition id="signalEventDefinition_28" signalRef="signal_26"/>
+      </intermediateCatchEvent>
+      <sequenceFlow id="sequenceFlow_15" sourceRef="startEvent_31" targetRef="intermediateCatchEvent_0"/>
+      <serviceTask id="serviceTask_7" name="Handle &quot;Create PR&quot;">
+        <incoming>sequenceFlow_16</incoming>
+        <outgoing>sequenceFlow_17</outgoing>
+      </serviceTask>
+      <sequenceFlow id="sequenceFlow_16" sourceRef="intermediateCatchEvent_0" targetRef="serviceTask_7"/>
+      <serviceTask id="serviceTask_8" name="Run Pipeline">
+        <incoming>sequenceFlow_17</incoming>
+        <outgoing>sequenceFlow_18</outgoing>
+      </serviceTask>
+      <sequenceFlow id="sequenceFlow_17" sourceRef="serviceTask_7" targetRef="serviceTask_8"/>
+      <boundaryEvent attachedToRef="serviceTask_8" id="boundaryEvent_12" name="Critical Issue">
+        <errorEventDefinition id="errorEventDefinition_4"/>
+      </boundaryEvent>
+      <intermediateCatchEvent id="intermediateCatchEvent_1" name="Await Review">
+        <incoming>sequenceFlow_18</incoming>
+        <outgoing>sequenceFlow_19</outgoing>
+        <signalEventDefinition id="signalEventDefinition_29" signalRef="signal_27"/>
+      </intermediateCatchEvent>
+      <sequenceFlow id="sequenceFlow_18" sourceRef="serviceTask_8" targetRef="intermediateCatchEvent_1"/>
+      <serviceTask id="serviceTask_9" name="Handle &quot;Await Review&quot;">
+        <incoming>sequenceFlow_19</incoming>
+        <outgoing>sequenceFlow_20</outgoing>
+      </serviceTask>
+      <sequenceFlow id="sequenceFlow_19" sourceRef="intermediateCatchEvent_1" targetRef="serviceTask_9"/>
+      <boundaryEvent attachedToRef="serviceTask_9" id="boundaryEvent_13" name="Rejected">
+        <errorEventDefinition id="errorEventDefinition_5"/>
+      </boundaryEvent>
+      <serviceTask id="serviceTask_10" name="Merge PR">
+        <incoming>sequenceFlow_20</incoming>
+        <outgoing>sequenceFlow_21</outgoing>
+      </serviceTask>
+      <sequenceFlow id="sequenceFlow_20" sourceRef="serviceTask_9" targetRef="serviceTask_10"/>
+      <endEvent id="endEvent_32">
+        <incoming>sequenceFlow_21</incoming>
+      </endEvent>
+      <sequenceFlow id="sequenceFlow_21" sourceRef="serviceTask_10" targetRef="endEvent_32"/>
+    </subProcess>
+    <sequenceFlow id="sequenceFlow_22" sourceRef="startEvent_30" targetRef="subProcess_2"/>
+    <boundaryEvent attachedToRef="subProcess_2" id="boundaryEvent_14" name="">
+      <outgoing>sequenceFlow_23</outgoing>
+      <errorEventDefinition id="errorEventDefinition_6"/>
+    </boundaryEvent>
+    <serviceTask id="serviceTask_11" name="Close PR">
+      <incoming>sequenceFlow_23</incoming>
+      <outgoing>sequenceFlow_24</outgoing>
+    </serviceTask>
+    <sequenceFlow id="sequenceFlow_23" sourceRef="boundaryEvent_14" targetRef="serviceTask_11"/>
+    <endEvent id="endEvent_33">
+      <incoming>sequenceFlow_24</incoming>
+    </endEvent>
+    <sequenceFlow id="sequenceFlow_24" sourceRef="serviceTask_11" targetRef="endEvent_33"/>
+    <endEvent id="endEvent_34">
+      <incoming>sequenceFlow_25</incoming>
+    </endEvent>
+    <sequenceFlow id="sequenceFlow_25" sourceRef="subProcess_2" targetRef="endEvent_34"/>
+  </process>
+  <signal id="signal_26" name="Create PR"/>
+  <signal id="signal_27" name="Await Review"/>
+  <bpmndi:BPMNDiagram id="BpmnDiagram_0">
+    <bpmndi:BPMNPlane bpmnElement="process_3" id="BpmnPlaneImpl_27">
+      <bpmndi:BPMNShape bpmnElement="startEvent_30" id="BpmnShapeImpl_11">
+        <dc:Bounds height="36.0" width="36.0" x="100.0" y="100.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="subProcess_2" id="BpmnShapeImpl_12" isExpanded="true">
+        <dc:Bounds height="200.0" width="994.0" x="186.0" y="18.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_22" id="BpmnEdgeImpl_0">
+        <di:waypoint x="136.0" y="118.0"/>
+        <di:waypoint x="186.0" y="118.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape bpmnElement="startEvent_31" id="BpmnShapeImpl_13">
+        <dc:Bounds height="36.0" width="36.0" x="236.0" y="100.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="intermediateCatchEvent_0" id="BpmnShapeImpl_14">
+        <dc:Bounds height="36.0" width="36.0" x="322.0" y="100.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_15" id="BpmnEdgeImpl_1">
+        <di:waypoint x="272.0" y="118.0"/>
+        <di:waypoint x="322.0" y="118.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape bpmnElement="serviceTask_7" id="BpmnShapeImpl_15">
+        <dc:Bounds height="80.0" width="100.0" x="408.0" y="78.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_16" id="BpmnEdgeImpl_2">
+        <di:waypoint x="358.0" y="118.0"/>
+        <di:waypoint x="408.0" y="118.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape bpmnElement="serviceTask_8" id="BpmnShapeImpl_16">
+        <dc:Bounds height="80.0" width="100.0" x="558.0" y="78.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_17" id="BpmnEdgeImpl_3">
+        <di:waypoint x="508.0" y="118.0"/>
+        <di:waypoint x="558.0" y="118.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape bpmnElement="boundaryEvent_12" id="BpmnShapeImpl_17">
+        <dc:Bounds height="36.0" width="36.0" x="590.0" y="140.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="intermediateCatchEvent_1" id="BpmnShapeImpl_18">
+        <dc:Bounds height="36.0" width="36.0" x="708.0" y="100.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_18" id="BpmnEdgeImpl_4">
+        <di:waypoint x="658.0" y="118.0"/>
+        <di:waypoint x="708.0" y="118.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape bpmnElement="serviceTask_9" id="BpmnShapeImpl_19">
+        <dc:Bounds height="80.0" width="100.0" x="794.0" y="78.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_19" id="BpmnEdgeImpl_5">
+        <di:waypoint x="744.0" y="118.0"/>
+        <di:waypoint x="794.0" y="118.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape bpmnElement="boundaryEvent_13" id="BpmnShapeImpl_20">
+        <dc:Bounds height="36.0" width="36.0" x="826.0" y="140.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="serviceTask_10" id="BpmnShapeImpl_21">
+        <dc:Bounds height="80.0" width="100.0" x="944.0" y="78.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_20" id="BpmnEdgeImpl_6">
+        <di:waypoint x="894.0" y="118.0"/>
+        <di:waypoint x="944.0" y="118.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape bpmnElement="endEvent_32" id="BpmnShapeImpl_22">
+        <dc:Bounds height="36.0" width="36.0" x="1094.0" y="100.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_21" id="BpmnEdgeImpl_7">
+        <di:waypoint x="1044.0" y="118.0"/>
+        <di:waypoint x="1094.0" y="118.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape bpmnElement="boundaryEvent_14" id="BpmnShapeImpl_23">
+        <dc:Bounds height="36.0" width="36.0" x="665.0" y="200.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="serviceTask_11" id="BpmnShapeImpl_24">
+        <dc:Bounds height="80.0" width="100.0" x="713.5" y="246.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_23" id="BpmnEdgeImpl_8">
+        <di:waypoint x="683.0" y="236.0"/>
+        <di:waypoint x="683.0" y="286.0"/>
+        <di:waypoint x="713.5" y="286.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape bpmnElement="endEvent_33" id="BpmnShapeImpl_25">
+        <dc:Bounds height="36.0" width="36.0" x="863.5" y="268.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_24" id="BpmnEdgeImpl_9">
+        <di:waypoint x="813.5" y="286.0"/>
+        <di:waypoint x="863.5" y="286.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape bpmnElement="endEvent_34" id="BpmnShapeImpl_26">
+        <dc:Bounds height="36.0" width="36.0" x="1230.0" y="100.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sequenceFlow_25" id="BpmnEdgeImpl_10">
+        <di:waypoint x="1180.0" y="118.0"/>
+        <di:waypoint x="1230.0" y="118.0"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>

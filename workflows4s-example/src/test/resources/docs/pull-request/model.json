@@ -1,0 +1,58 @@
+{
+  "base" : {
+    "steps" : [
+      {
+        "meta" : {
+          "signalName" : "Create Request",
+          "operationName" : "Create PR",
+          "error" : {
+            "name" : "Commit Not Found"
+          }
+        },
+        "_type" : "HandleSignal"
+      },
+      {
+        "meta" : {
+          "name" : "Run Pipeline",
+          "error" : {
+            "name" : "Pipeline Failed"
+          },
+          "description" : null
+        },
+        "_type" : "RunIO"
+      },
+      {
+        "meta" : {
+          "signalName" : "Review Request",
+          "operationName" : "Process Review",
+          "error" : {
+            "name" : "Review Rejected"
+          }
+        },
+        "_type" : "HandleSignal"
+      },
+      {
+        "meta" : {
+          "name" : "Merge PR",
+          "error" : null
+        },
+        "_type" : "Pure"
+      }
+    ],
+    "_type" : "Sequence"
+  },
+  "handler" : {
+    "meta" : {
+      "name" : "Close PR",
+      "error" : null
+    },
+    "_type" : "Pure"
+  },
+  "meta" : {
+    "newErrorMeta" : null,
+    "handledErrorMeta" : {
+      "name" : "PRError"
+    }
+  },
+  "_type" : "HandleError"
+}

@@ -1,0 +1,56 @@
+{
+  "base" : {
+    "steps" : [
+      {
+        "meta" : {
+          "signalName" : "Create PR",
+          "operationName" : null,
+          "error" : null
+        },
+        "_type" : "HandleSignal"
+      },
+      {
+        "meta" : {
+          "name" : "Run Pipeline",
+          "error" : {
+            "name" : "Critical Issue"
+          },
+          "description" : null
+        },
+        "_type" : "RunIO"
+      },
+      {
+        "meta" : {
+          "signalName" : "Await Review",
+          "operationName" : null,
+          "error" : {
+            "name" : "Rejected"
+          }
+        },
+        "_type" : "HandleSignal"
+      },
+      {
+        "meta" : {
+          "name" : "Merge PR",
+          "error" : null,
+          "description" : null
+        },
+        "_type" : "RunIO"
+      }
+    ],
+    "_type" : "Sequence"
+  },
+  "handler" : {
+    "meta" : {
+      "name" : "Close PR",
+      "error" : null,
+      "description" : null
+    },
+    "_type" : "RunIO"
+  },
+  "meta" : {
+    "newErrorMeta" : null,
+    "handledErrorMeta" : null
+  },
+  "_type" : "HandleError"
+}
