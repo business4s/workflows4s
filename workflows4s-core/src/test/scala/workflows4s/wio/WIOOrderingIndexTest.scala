@@ -333,7 +333,7 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
     // 2. Setup an interruption that fires after a timer and executes a simple step
     val (timerDuration, timer)                 = TestUtils.timer()
     val (interruptionStepId, interruptionStep) = TestUtils.pure
-    val timerInterruption                      = timer.toInterruption.andThen(_ >>> interruptionStep)
+    val timerInterruption                      = timer.toInterruption.andThen[Nothing, TestState](_ >>> interruptionStep)
 
     // 3. Create the interruptible workflow
     val wio               = handleSignalA.interruptWith(timerInterruption)

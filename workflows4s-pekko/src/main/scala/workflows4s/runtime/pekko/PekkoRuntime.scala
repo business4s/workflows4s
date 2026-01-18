@@ -3,34 +3,40 @@ package workflows4s.runtime.pekko
 import org.apache.pekko.actor.typed.ActorSystem
 import org.apache.pekko.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity, EntityTypeKey}
 import org.apache.pekko.persistence.typed.PersistenceId
-import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
-import workflows4s.runtime.{WorkflowInstance, WorkflowInstanceId, WorkflowRuntime}
+import workflows4s.runtime.instanceengine.{LazyFuture, WorkflowInstanceEngine}
+import workflows4s.runtime.{WorkflowInstance, WorkflowInstanceId}
 import workflows4s.wio.WIO.Initial
 import workflows4s.wio.{WCState, WorkflowContext}
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
-trait PekkoRuntime[Ctx <: WorkflowContext] extends WorkflowRuntime[Future, Ctx] {
-  def createInstance_(id: String): WorkflowInstance[Future, WCState[Ctx]]
+/** Pekko runtime for workflows. Uses LazyFuture for workflow processing internally and exposes a Future-based API for external interaction since
+  * Pekko naturally uses Futures.
+  */
+trait PekkoRuntime[Ctx <: WorkflowContext] {
+  def templateId: String
+  def workflow: Initial[LazyFuture, Ctx]
+  def createInstance(id: String): Future[WorkflowInstance[LazyFuture, WCState[Ctx]]]
+  def createInstance_(id: String): WorkflowInstance[LazyFuture, WCState[Ctx]]
   def initializeShard(): Unit
 }
 
 class PekkoRuntimeImpl[Ctx <: WorkflowContext](
-    val workflow: Initial[Ctx],
+    val workflow: Initial[LazyFuture, Ctx],
     initialState: WCState[Ctx],
     entityName: String,
-    engine: WorkflowInstanceEngine,
+    engine: WorkflowInstanceEngine[LazyFuture],
     val templateId: String,
-)(using system: ActorSystem[?])
+)(using system: ActorSystem[?], ec: ExecutionContext)
     extends PekkoRuntime[Ctx] {
   private val sharding: ClusterSharding = ClusterSharding(system)
   private type Command = WorkflowBehavior.Command[Ctx]
   private val typeKey = EntityTypeKey[Command](entityName)
 
-  override def createInstance(id: String): Future[WorkflowInstance[Future, WCState[Ctx]]] = {
+  override def createInstance(id: String): Future[WorkflowInstance[LazyFuture, WCState[Ctx]]] = {
     Future.successful(createInstance_(id))
   }
-  override def createInstance_(id: String): WorkflowInstance[Future, WCState[Ctx]]        = {
+  override def createInstance_(id: String): WorkflowInstance[LazyFuture, WCState[Ctx]]        = {
     val instanceId = WorkflowInstanceId(templateId, id)
     PekkoWorkflowInstance(instanceId, sharding.entityRefFor(typeKey, id))
   }
@@ -52,16 +58,34 @@ object PekkoRuntime {
 
   type WorkflowId = String
 
+  /** Create a PekkoRuntime for LazyFuture-based workflows.
+    *
+    * @param entityName
+    *   The name of the entity type for Pekko cluster sharding
+    * @param workflow
+    *   The workflow definition using LazyFuture as the effect type
+    * @param initialState
+    *   The initial state for new workflow instances
+    * @param engine
+    *   The workflow instance engine for LazyFuture
+    * @param system
+    *   The Pekko actor system
+    * @param ec
+    *   The execution context for Future operations
+    * @return
+    *   A PekkoRuntime instance
+    */
   def create[Ctx <: WorkflowContext](
       entityName: String,
-      workflow: Initial[Ctx],
+      workflow: Initial[LazyFuture, Ctx],
       initialState: WCState[Ctx],
-      engine: WorkflowInstanceEngine,
+      engine: WorkflowInstanceEngine[LazyFuture],
   )(using
       system: ActorSystem[?],
+      ec: ExecutionContext,
   ): PekkoRuntime[Ctx] = {
     // this might need customization if you have two clusters with the same entities but workflows from both in the same knocker-upper/registry.
-    val templateId = s"pekko-runtime-$entityName}"
+    val templateId = s"pekko-runtime-$entityName"
     new PekkoRuntimeImpl(workflow, initialState, entityName, engine, templateId)
   }
 

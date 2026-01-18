@@ -8,12 +8,14 @@ class WIOCheckpointTest extends AnyFreeSpec with Matchers {
 
   import TestCtx2.*
 
+  // Define checkpoint event at class level to avoid type erasure warnings
+  case class MyCheckpoint(state: TestState) extends TestCtx2.Event
+
   "WIO.Checkpoint" - {
 
     "ignore wrapped logic when it was checkpointed (effectful)" in {
       val (step1Id, runIoStep1) = TestUtils.runIO
 
-      case class MyCheckpoint(state: TestState) extends TestCtx2.Event
       val wio1     = runIoStep1.checkpointed(
         (_, state) => MyCheckpoint(state),
         (_, ckp) => ckp.state,
@@ -36,7 +38,6 @@ class WIOCheckpointTest extends AnyFreeSpec with Matchers {
     "ignore wrapped logic when it was checkpointed (pure)" in {
       val (step1Id, step1) = TestUtils.pure
 
-      case class MyCheckpoint(state: TestState) extends TestCtx2.Event
       val wio1     = step1.checkpointed(
         (_, state) => MyCheckpoint(state),
         (_, ckp) => ckp.state,
@@ -59,7 +60,6 @@ class WIOCheckpointTest extends AnyFreeSpec with Matchers {
     "allow recovering when checkpointed logic was removed" in {
       val (stepId, runIoStep) = TestUtils.runIO
 
-      case class MyCheckpoint(state: TestState) extends TestCtx2.Event
       val wio1     = runIoStep.checkpointed(
         (_, state) => MyCheckpoint(state),
         (_, ckp) => ckp.state,
@@ -68,9 +68,12 @@ class WIOCheckpointTest extends AnyFreeSpec with Matchers {
       wf1.wakeup()
       assert(wf1.queryState().executed == List(stepId))
 
-      val wio2     = WIO.recover((_, evt: MyCheckpoint) => evt.state)
-      val (_, wf2) = TestUtils.createInstance2(wio2)
-      wf2.recover(wf1.getEvents)
+      val wio2             = WIO.recover((_, evt: MyCheckpoint) => evt.state)
+      val (_, wf2)         = TestUtils.createInstance2(wio2)
+      // Only recover from checkpoint events - the intermediate events are not needed
+      // when the checkpointed logic has been removed
+      val checkpointEvents = wf1.getEvents.collect { case e: MyCheckpoint => e }
+      wf2.recover(checkpointEvents)
       assert(wf2.queryState().executed == List(stepId))
     }
 
@@ -78,7 +81,6 @@ class WIOCheckpointTest extends AnyFreeSpec with Matchers {
       val (error, step1) = TestUtils.error
       val errHandler     = TestUtils.errorHandler
 
-      case class MyCheckpoint(state: TestState) extends TestCtx2.Event
       val wio1 = step1
         .checkpointed(
           (_, state) => MyCheckpoint(state),
@@ -95,7 +97,6 @@ class WIOCheckpointTest extends AnyFreeSpec with Matchers {
       val (error, step1) = TestUtils.errorIO
       val errHandler     = TestUtils.errorHandler
 
-      case class MyCheckpoint(state: TestState) extends TestCtx2.Event
       val wio1 = step1
         .checkpointed(
           (_, state) => MyCheckpoint(state),

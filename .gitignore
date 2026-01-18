@@ -8,9 +8,16 @@
 
 # sbt
 target
-project/metals.sbt
+**/metals.sbt
 
 # JS
 dist
 node_modules
 .vite
+
+# Ignore package-lock.json except for workflows4s-web-ui (needed for npm ci)
+package-lock.json
+!workflows4s-web-ui/package-lock.json
+
+# Kiro specs (local development)
+.kiro/

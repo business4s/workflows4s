@@ -1,33 +1,63 @@
 package workflows4s.doobie.postgres.testing
 
-import cats.Id
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import doobie.util.transactor.Transactor
-import workflows4s.doobie.postgres.PostgresWorkflowStorage
 import workflows4s.doobie.{ByteCodec, DatabaseRuntime}
-import workflows4s.runtime.{MappedWorkflowInstance, WorkflowInstance}
-import workflows4s.testing.TestRuntimeAdapter
+import workflows4s.runtime.{DelegateWorkflowInstance, WorkflowInstance, WorkflowInstanceId}
+import workflows4s.runtime.instanceengine.Effect
+import workflows4s.testing.{EventIntrospection, WorkflowTestAdapter}
 import workflows4s.utils.StringUtils
 import workflows4s.wio.*
+import workflows4s.cats.CatsEffect.ioEffect
 
-type WorkflowId = String
+class PostgresRuntimeAdapter[Ctx <: WorkflowContext](
+    xa: Transactor[IO],
+    eventCodec: ByteCodec[WCEvent[Ctx]],
+) extends WorkflowTestAdapter[IO, Ctx] {
 
-class PostgresRuntimeAdapter[Ctx <: WorkflowContext](xa: Transactor[IO], eventCodec: ByteCodec[WCEvent[Ctx]]) extends TestRuntimeAdapter[Ctx] {
+  // Provide the IO-specific effect
+  implicit override val effect: Effect[IO] = ioEffect
 
-  type Actor = WorkflowInstance[Id, WCState[Ctx]]
+  // Store workflow and state for recovery
+  private var lastWorkflow: WIO.Initial[IO, Ctx] = scala.compiletime.uninitialized
+  private var lastState: WCState[Ctx]            = scala.compiletime.uninitialized
 
-  override def runWorkflow(
-      workflow: WIO.Initial[Ctx],
-      state: WCState[Ctx],
-  ): Actor = {
-    val storage = PostgresWorkflowStorage()(using eventCodec)
-    val runtime = DatabaseRuntime.create[Ctx](workflow, state, xa, engine, storage, "test")
-    val id      = StringUtils.randomAlphanumericString(12)
-    import cats.effect.unsafe.implicits.global
+  // Define the Actor type for this adapter
+  case class PostgresTestActor(
+      delegate: WorkflowInstance[IO, WCState[Ctx]],
+      override val id: WorkflowInstanceId,
+  ) extends DelegateWorkflowInstance[IO, WCState[Ctx]]
+      with EventIntrospection[WCEvent[Ctx]] {
+    // In DB runtime, events are in the DB. We could query them via Doobie if needed.
+    override def getEvents: Seq[WCEvent[Ctx]] = Nil
 
-    MappedWorkflowInstance(runtime.createInstance(id).unsafeRunSync(), [t] => (x: IO[t]) => x.unsafeRunSync())
+    override def getExpectedSignals = delegate.getExpectedSignals
   }
 
-  override def recover(first: Actor): Actor = first // in this runtime there is no in-memory state, hence no recovery.
+  override type Actor = PostgresTestActor
 
+  override def runWorkflow(
+      workflow: WIO.Initial[IO, Ctx],
+      state: WCState[Ctx],
+  ): Actor = {
+    // Store for recovery
+    lastWorkflow = workflow
+    lastState = state
+
+    // DatabaseRuntime usually handles the engine and persistence logic
+    val runtime  = DatabaseRuntime.create[Ctx](workflow, state, xa, engine, eventCodec, "test")
+    val idString = StringUtils.randomAlphanumericString(12)
+
+    val instance = effect.runSyncUnsafe(runtime.createInstance(idString))
+    PostgresTestActor(instance, WorkflowInstanceId("test", idString))
+  }
+
+  override def recover(first: Actor): Actor = {
+    // Create a fresh runtime and instance with the same ID
+    // The new instance will replay events from the database to recover state
+    val runtime  = DatabaseRuntime.create[Ctx](lastWorkflow, lastState, xa, engine, eventCodec, "test")
+    val instance = effect.runSyncUnsafe(runtime.createInstance(first.id.instanceId))
+    PostgresTestActor(instance, first.id)
+  }
 }

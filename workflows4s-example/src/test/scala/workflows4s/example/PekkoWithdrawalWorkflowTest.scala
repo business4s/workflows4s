@@ -2,21 +2,19 @@ package workflows4s.example
 
 import org.apache.pekko.actor.testkit.typed.scaladsl.{ActorTestKit, ScalaTestWithActorTestKit}
 import org.apache.pekko.persistence.jdbc.testkit.scaladsl.SchemaUtils
-import org.scalamock.scalatest.MockFactory
-import org.scalatest.BeforeAndAfterAll
 import org.scalatest.freespec.AnyFreeSpecLike
+import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
+import workflows4s.example.withdrawal.*
+import workflows4s.runtime.instanceengine.{Effect, FutureEffect, LazyFuture}
 import workflows4s.runtime.pekko.PekkoRuntimeAdapter
 
 import scala.concurrent.Await
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.ExecutionContext.Implicits.global
 
-//noinspection ForwardReference
 class PekkoWithdrawalWorkflowTest
     extends ScalaTestWithActorTestKit(ActorTestKit("MyCluster"))
     with AnyFreeSpecLike
-    with MockFactory
-    with BeforeAndAfterAll
-    with WithdrawalWorkflowTest.Suite {
+    with WithdrawalWorkflowTestSuite[LazyFuture] {
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -24,8 +22,10 @@ class PekkoWithdrawalWorkflowTest
     ()
   }
 
-  "pekko" - {
-    withdrawalTests(new PekkoRuntimeAdapter("withdrawal")(using testKit.system))
-  }
+  override given effect: Effect[LazyFuture] = FutureEffect.futureEffect
 
+  "pekko" - {
+    val adapter = new PekkoRuntimeAdapter[testContext.Context.Ctx]("pekko-withdrawal")(using testKit.system)
+    withdrawalTests(adapter)
+  }
 }

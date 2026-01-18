@@ -7,7 +7,7 @@ import cats.implicits.catsSyntaxEitherId
 import workflows4s.example.withdrawal.checks.Check
 import workflows4s.example.withdrawal.{WithdrawalData, WithdrawalService}
 
-object DummyWithdrawalService extends WithdrawalService {
+object DummyWithdrawalService extends WithdrawalService[IO] {
 
   override def calculateFees(amount: BigDecimal): IO[WithdrawalService.Fee] = IO(WithdrawalService.Fee(amount * 0.1))
 
@@ -29,5 +29,5 @@ object DummyWithdrawalService extends WithdrawalService {
 
   override def cancelFundsLock(): IO[Unit] = IO.unit
 
-  override def getChecks(): List[Check[WithdrawalData.Validated]] = List()
+  override def getChecks(): List[Check[IO, WithdrawalData.Validated]] = List()
 }

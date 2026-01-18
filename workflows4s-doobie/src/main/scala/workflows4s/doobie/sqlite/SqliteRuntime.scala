@@ -1,14 +1,18 @@
 package workflows4s.doobie.sqlite
 
-import cats.data.Kleisli
-import cats.effect.{IO, LiftIO}
 import com.typesafe.scalalogging.StrictLogging
+import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import doobie.implicits.*
 import doobie.util.fragment.Fragment
 import doobie.util.transactor.Transactor
-import doobie.{ConnectionIO, WeakAsync}
-import workflows4s.doobie.{ByteCodec, DbWorkflowInstance}
-import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
+import doobie.ConnectionIO
+import doobie.WeakAsync
+import workflows4s.cats.CatsEffect
+import workflows4s.doobie.{ByteCodec, DbWorkflowInstance, DoobieEffect}
+import workflows4s.runtime.instanceengine.{Effect, WorkflowInstanceEngine}
+
+private given Effect[IO] = CatsEffect.ioEffect
 import workflows4s.runtime.{MappedWorkflowInstance, WorkflowInstance, WorkflowInstanceId, WorkflowRuntime}
 import workflows4s.wio.WIO.Initial
 import workflows4s.wio.WorkflowContext.State
@@ -18,9 +22,9 @@ import java.nio.file.{Files, Path}
 import java.util.Properties
 
 class SqliteRuntime[Ctx <: WorkflowContext](
-    val workflow: Initial[Ctx],
+    val workflow: Initial[IO, Ctx],
     initialState: WCState[Ctx],
-    engine: WorkflowInstanceEngine,
+    engine: WorkflowInstanceEngine[IO],
     eventCodec: ByteCodec[WCEvent[Ctx]],
     workdir: Path,
     val templateId: String,
@@ -43,13 +47,13 @@ class SqliteRuntime[Ctx <: WorkflowContext](
         engine,
       )
 
-      new MappedWorkflowInstance(
+      new MappedWorkflowInstance[DoobieEffect, IO, State[Ctx]](
         base,
         [t] =>
-          (connIo: Kleisli[ConnectionIO, LiftIO[ConnectionIO], t]) =>
+          (connIo: DoobieEffect[t]) =>
             // we use rawTrans because locking manages transactions itself.
             // And querying events without locking doesn't require any kind of transaction.
-            WeakAsync.liftIO[ConnectionIO].use(liftIO => xa.rawTrans.apply(connIo.apply(liftIO))),
+            WeakAsync.liftIO[ConnectionIO].use(liftIO => xa.rawTrans.apply(connIo.run(liftIO))),
       )
     }
   }
@@ -90,10 +94,10 @@ class SqliteRuntime[Ctx <: WorkflowContext](
 
 object SqliteRuntime {
   def create[Ctx <: WorkflowContext](
-      workflow: Initial[Ctx],
+      workflow: Initial[IO, Ctx],
       initialState: WCState[Ctx],
       eventCodec: ByteCodec[WCEvent[Ctx]],
-      engine: WorkflowInstanceEngine,
+      engine: WorkflowInstanceEngine[IO],
       workdir: Path,
       templateId: String = s"sqlite-runtime-${java.util.UUID.randomUUID().toString.take(8)}",
   ): IO[SqliteRuntime[Ctx]] = {

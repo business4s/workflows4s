@@ -33,7 +33,7 @@ object GettingStarted {
         )
 
       // tapir endpoints for serving the API, we dont configure search for now
-      val apiEndpoints = WorkflowServerEndpoints.get(List(myApiEntry), search = None)
+      val apiEndpoints = WorkflowServerEndpoints.get[IO](List(myApiEntry), search = None)
       // tapir endpoints for service the UI assets
       val uiEndpoints  = UiEndpoints.get[IO](UIConfig(Uri.unsafeParse("http://localhost:8080")))
 

@@ -13,8 +13,9 @@ import org.scalatest.matchers.should.Matchers
 import workflows4s.runtime.WorkflowInstance.UnexpectedSignal
 import workflows4s.runtime.pekko.WorkflowBehavior.Command
 import workflows4s.runtime.pekko.WorkflowBehaviorTest.*
+import workflows4s.cats.IOWorkflowContext
 import workflows4s.wio.model.WIOExecutionProgress
-import workflows4s.wio.{SignalDef, WorkflowContext}
+import workflows4s.wio.SignalDef
 
 import scala.jdk.CollectionConverters.MapHasAsJava
 
@@ -88,7 +89,7 @@ class WorkflowBehaviorTest extends AnyFreeSpec with Matchers with BeforeAndAfter
 }
 
 object WorkflowBehaviorTest {
-  object DummyCtx extends WorkflowContext {
+  object DummyCtx extends IOWorkflowContext {
     type Event = DummyEvent
     type State = DummyState
   }

@@ -1,14 +1,20 @@
 package workflows4s.wio
 
+import cats.Id
 import workflows4s.runtime.WorkflowInstanceId
+import workflows4s.runtime.instanceengine.Effect
 
 object TestCtx extends WorkflowContext {
   trait Event
   case class SimpleEvent(value: String) extends Event
   type State = String
 
+  // Use Id as the effect type for tests
+  type Eff[A] = Id[A]
+  given effect: Effect[Eff] = Effect.idEffect
+
   extension [In, Out <: WCState[Ctx]](wio: WIO[In, Nothing, Out]) {
-    def toWorkflow[In1 <: In & WCState[Ctx]](state: In1): ActiveWorkflow[Ctx] =
+    def toWorkflow[In1 <: In & WCState[Ctx]](state: In1): ActiveWorkflow[Eff, Ctx] =
       ActiveWorkflow(WorkflowInstanceId("test", "test"), wio.provideInput(state), state)
   }
 
@@ -40,6 +46,16 @@ object TestState {
 }
 
 object TestCtx2 extends WorkflowContext {
+  trait Event
+  case class SimpleEvent(value: String) extends Event
+  type State = TestState
+
+  // Use Id as the effect type for tests
+  type Eff[A] = Id[A]
+  given effect: Effect[Eff] = Effect.idEffect
+}
+
+object FutureTestCtx extends LazyFutureWorkflowContext {
   trait Event
   case class SimpleEvent(value: String) extends Event
   type State = TestState

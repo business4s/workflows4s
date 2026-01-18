@@ -83,7 +83,7 @@ class WIOParallelTest extends AnyFreeSpec with Matchers with OptionValues with E
   def createParallel[Err](
       step1: TestCtx2.WIO[TestState, Err, TestState],
       step2: TestCtx2.WIO[TestState, Err, TestState],
-  ): (StepId, WIO[Any, Err, TestState, TestCtx2.Ctx]) = {
+  ): (StepId, TestCtx2.WIO[Any, Err, TestState]) = {
     val parStepId = StepId.random
     val wf        = TestCtx2.WIO.parallel
       .taking[TestState]
