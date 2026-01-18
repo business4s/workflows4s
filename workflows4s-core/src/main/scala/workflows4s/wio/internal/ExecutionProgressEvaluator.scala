@@ -39,7 +39,7 @@ object ExecutionProgressEvaluator {
     def onNoop(wio: WIO.End[Ctx]): Result                                                                              = WIOExecutionProgress.End(result)
 
     def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result                           = {
-      WIOExecutionProgress.HandleError(
+      WIOExecutionProgress.HandleErrorWith(
         recurse(wio.base, input, result = None),
         recurse(wio.handleError, None, result = None)
       ))
