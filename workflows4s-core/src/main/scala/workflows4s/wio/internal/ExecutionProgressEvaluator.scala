@@ -38,22 +38,13 @@ object ExecutionProgressEvaluator {
       recurse(wio.base, input.map(wio.contramapInput))
     def onNoop(wio: WIO.End[Ctx]): Result                                                                              = WIOExecutionProgress.End(result)
     def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result = {
-  WIOExecutionProgress.Sequence(
+    WIOExecutionProgress.Sequence(
     Seq(
       recurse(wio.base, input, result = None),
       recurse(wio.handleError, None, result = None),
     ),
   )
 }
-
-    def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result                           = {
-      WIOExecutionProgress.HandleError(
-        recurse(wio.base, input, result = None),
-        recurse(wio.handleError, None, result = None),
-        WIOMeta.HandleError(wio.newErrorMeta.toModel, wio.handledErrorMeta.toModel),
-        result,
-      )
-    }
     def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result                             = {
       (recurse(wio.first, None, result = None), recurse(wio.second, None, result = None)) match {
         case (WIOExecutionProgress.Sequence(steps1), WIOExecutionProgress.Sequence(steps2)) => WIOExecutionProgress.Sequence(steps1 ++ steps2)
@@ -202,8 +193,6 @@ object ExecutionProgressEvaluator {
       case WIOExecutionProgress.Dynamic(_)                                    => None
       case WIOExecutionProgress.RunIO(_, _)                                   => None
       case x @ WIOExecutionProgress.HandleSignal(_, _)                        => Some((x, None))
-      case WIOExecutionProgress.HandleError(base, handler, errorName, result) =>
-        extractFirstInterruption(base).map((first, rest) => first -> rest.map(x => WIOExecutionProgress.HandleError(x, handler, errorName, result)))
       case _ @WIOExecutionProgress.End(_)                                     => None
       case _ @WIOExecutionProgress.Pure(_, _)                                 => None
       case _: WIOExecutionProgress.Loop[?]                                    => None
