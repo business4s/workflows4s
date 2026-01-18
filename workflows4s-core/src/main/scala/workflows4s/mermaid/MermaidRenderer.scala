@@ -26,9 +26,9 @@ object MermaidRenderer {
     // However, skip this if any active node is already an End node (to avoid End -> End).
     val hasEndNode = finalState.chart.elements.exists {
       case Node(_, "End", Some("circle"), _) => true
-      case _                                  => false
+      case _                                 => false
     }
-    
+
     val finalChart = if finalState.activeNodes.nonEmpty && !hasEndNode then {
       val endNodeId = s"node${finalState.idIdx}"
       val endNode   = Node(endNodeId, "End", shape = "circle".some, clazz = None)
