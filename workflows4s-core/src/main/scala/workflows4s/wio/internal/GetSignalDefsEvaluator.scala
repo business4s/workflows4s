@@ -42,16 +42,6 @@ private[workflows4s] object GetSignalDefsEvaluator {
         case None    => recurse(wio.first)
       }
 
-    override def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result =
-      wio.base.asExecuted match {
-        case Some(baseExecuted) =>
-          baseExecuted.output match {
-            case Left(_)  => recurse(wio.handleError)
-            case Right(_) => Nil
-          }
-        case None               => recurse(wio.base)
-      }
-
     override def onLoop[BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx], ReturnIn](
         wio: WIO.Loop[Ctx, In, Err, Out, BodyIn, BodyOut, ReturnIn],
     ): Result                                                                                                         = recurse(wio.current.wio)
