@@ -62,19 +62,20 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
       val compositeWIO  = (step1 >>> step2).handleErrorWith(step4)
       val (_, instance) = TestUtils.createInstance2(compositeWIO)
       instance.getProgress match {
-        case WIOExecutionProgress.HandleError(base, handler, _, step3Result) =>
-          step3Result.map(_.index) shouldBe Some(3)
-          base match {
-            case WIOExecutionProgress.Sequence(steps) =>
-              steps.forall(_.isExecuted) shouldBe true
-              steps(0).result.map(_.index) shouldBe Some(0)
-              steps(1).result.map(_.index) shouldBe Some(1)
-
-            case _ => fail("Expected WIOExecutionProgress.Sequence")
-
+        case WIOExecutionProgress.Sequence(steps) =>
+          // HandleErrorWith now produces a Sequence of [base, handler]
+          steps.size shouldBe 2 
+          steps(0) match {
+            case WIOExecutionProgress.Sequence(baseSteps) =>
+                baseSteps.forall(_.isExecuted) shouldBe true
+                baseSteps(0).result.map(_.index) shouldBe Some(0)
+                baseSteps(1).result.map(_.index) shouldBe Some(1)
+            case _ => fail("Expected base to be a Sequence")
           }
+          // Handler step
+           steps(1).result.map(_.index) shouldBe Some(3)
 
-        case other => fail(s"Expected WIOExecutionProgress.HandleError")
+        case other => fail(s"Expected WIOExecutionProgress.Sequence")
       }
     }
 
@@ -216,21 +217,19 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
     val (_, instance) = TestUtils.createInstance2(wio)
 
     instance.getProgress match {
-      case WIOExecutionProgress.HandleError(base, _, _, result) =>
-        base match {
-          case WIOExecutionProgress.Sequence(steps) =>
-            steps(1) match {
-              case WIOExecutionProgress.Parallel(elements, parallelResult) =>
-                assert(parallelResult.exists(_.index == 2))
-              case _                                                       =>
-                fail("expected WIOExecutionProgress.Parallel")
-            }
-          case _                                    =>
-            fail("expected WIOExecutionProgress.Sequence")
+      case WIOExecutionProgress.Sequence(steps) =>
+        steps(0) match { // Base
+          case WIOExecutionProgress.Sequence(baseSteps) =>
+             baseSteps(1) match {
+               case WIOExecutionProgress.Parallel(elements, parallelResult) =>
+                 assert(parallelResult.exists(_.index == 2))
+               case _ => fail("expected WIOExecutionProgress.Parallel")
+             }
+          case _ => fail("expected WIOExecutionProgress.Sequence for base")
         }
 
       case other @ _ =>
-        fail("expected WIOExecutionProgress.HandleError")
+        fail("expected WIOExecutionProgress.Sequence")
     }
   }
 

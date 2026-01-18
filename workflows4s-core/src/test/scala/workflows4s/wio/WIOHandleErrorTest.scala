@@ -9,7 +9,7 @@ class WIOHandleErrorTest extends AnyFreeSpec with Matchers with EitherValues {
 
   case class MyError(value: Int)
 
-  "WIO.HandleError" - {
+  "WIO.HandleErrorWith" - {
 
     "pure base" in {
       val (step1Id, step1) = TestUtils.pure

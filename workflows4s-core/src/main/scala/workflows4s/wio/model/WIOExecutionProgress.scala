@@ -60,16 +60,7 @@ object WIOExecutionProgress {
       HandleSignal(meta, result.flatMap(_.mapValue(f)))
   }
 
-  case class HandleError[State](
-      base: WIOExecutionProgress[State],
-      handler: WIOExecutionProgress[State],
-      meta: WIOMeta.HandleError,
-      result: ExecutionResult[State],
-  ) extends WIOExecutionProgress[State] {
-    override lazy val toModel: WIOModel                                                      = WIOModel.HandleError(base.toModel, handler.toModel, meta)
-    override def map[NewState](f: State => Option[NewState]): WIOExecutionProgress[NewState] =
-      HandleError(base.map(f), handler.map(f), meta, result.flatMap(_.mapValue(f)))
-  }
+
 
   case class End[State](result: ExecutionResult[State]) extends WIOExecutionProgress[State] {
     override lazy val toModel: WIOModel = WIOModel.End
@@ -156,7 +147,7 @@ object WIOExecutionProgress {
     case WIOModel.Sequence(steps)                       => Sequence(steps.map(fromModel))
     case WIOModel.Dynamic(meta)                         => Dynamic(meta)
     case WIOModel.RunIO(meta)                           => RunIO(meta, None)
-    case WIOModel.HandleError(base, handler, meta)      => HandleError(fromModel(base), fromModel(handler), meta, None)
+
     case WIOModel.End                                   => End(None)
     case WIOModel.Pure(meta)                            => Pure(meta, None)
     case WIOModel.Loop(base, onRestart, meta)           => Loop(base, onRestart, meta, Seq.empty)

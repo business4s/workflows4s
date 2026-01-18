@@ -13,7 +13,7 @@ private[workflows4s] object RenderUtils {
     case WIOExecutionProgress.Dynamic(_)                           => false
     case WIOExecutionProgress.RunIO(_, result)                     => result.isDefined
     case WIOExecutionProgress.HandleSignal(_, result)              => result.isDefined
-    case WIOExecutionProgress.HandleError(base, handler, _, _)     => hasStarted(base) || hasStarted(handler)
+
     case WIOExecutionProgress.End(result)                          => result.isDefined
     case WIOExecutionProgress.Pure(_, result)                      => result.isDefined
     case WIOExecutionProgress.Loop(_, _, _, history)               => history.nonEmpty

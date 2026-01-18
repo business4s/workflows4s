@@ -21,7 +21,7 @@ object DebugRenderer {
       case _: WIOExecutionProgress.Dynamic          => "Dynamic"
       case _: WIOExecutionProgress.RunIO[?]         => "RunIO"
       case _: WIOExecutionProgress.HandleSignal[?]  => "HandleSignal"
-      case _: WIOExecutionProgress.HandleError[?]   => "HandleError"
+
       case _: WIOExecutionProgress.End[?]           => "End"
       case _: WIOExecutionProgress.Pure[?]          => "Pure"
       case _: WIOExecutionProgress.Loop[?]          => "Loop"
@@ -38,7 +38,7 @@ object DebugRenderer {
       case x: WIOExecutionProgress.Sequence[?]      => None
       case x: WIOExecutionProgress.Dynamic          => None
       case x: WIOExecutionProgress.RunIO[?]         => x.meta.name
-      case x: WIOExecutionProgress.HandleError[?]   => None
+
       case x: WIOExecutionProgress.HandleSignal[?]  => x.meta.operationName
       case x: WIOExecutionProgress.End[?]           => None
       case x: WIOExecutionProgress.Pure[?]          => x.meta.name
@@ -56,7 +56,7 @@ object DebugRenderer {
       case x: WIOExecutionProgress.Sequence[?]      => None
       case x: WIOExecutionProgress.Dynamic          => None
       case x: WIOExecutionProgress.RunIO[?]         => None
-      case x: WIOExecutionProgress.HandleError[?]   => None
+
       case x: WIOExecutionProgress.HandleSignal[?]  => s"Signal: ${x.meta.signalName}".some
       case x: WIOExecutionProgress.End[?]           => None
       case x: WIOExecutionProgress.Pure[?]          => None
@@ -79,9 +79,7 @@ object DebugRenderer {
         executedDesc ++ firstNonExecuted ++ remainingDesc
       case _: WIOExecutionProgress.Dynamic          => Seq()
       case _: WIOExecutionProgress.RunIO[?]         => Seq()
-      case x: WIOExecutionProgress.HandleError[?]   =>
-        Seq(renderChild("base", x.base)) ++
-          Option.when(RenderUtils.hasStarted(x.handler))(renderChild("handler", x.handler))
+
       case _: WIOExecutionProgress.HandleSignal[?]  => Seq()
       case _: WIOExecutionProgress.End[?]           => Seq()
       case _: WIOExecutionProgress.Pure[?]          => Seq()
