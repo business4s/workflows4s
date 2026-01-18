@@ -16,4 +16,7 @@ node7["Close PR"]:::executed
 node2 -.->|"fa:fa-bolt Commit Not Found"| node7
 node3 -.->|"fa:fa-bolt Pipeline Failed"| node7
 node5 -.->|"fa:fa-bolt Review Rejected"| node7
+node8@{ shape: circle, label: "End"}
+node6 --> node8
+node7 --> node8
 classDef executed fill:#0e0

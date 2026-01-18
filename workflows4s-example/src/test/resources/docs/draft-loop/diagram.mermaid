@@ -9,4 +9,6 @@ node2 --> node3
 node4["Reset for retry"]
 node3 -->|"No"| node4
 node4 --> node1
+node5@{ shape: circle, label: "End"}
+node3 -->|"Yes"| node5
 classDef executed fill:#0e0
