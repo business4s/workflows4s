@@ -37,14 +37,15 @@ object ExecutionProgressEvaluator {
     def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Result          =
       recurse(wio.base, input.map(wio.contramapInput))
     def onNoop(wio: WIO.End[Ctx]): Result                                                                              = WIOExecutionProgress.End(result)
-    def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result = {
-      WIOExecutionProgress.HandleError(
-        recurse(wio.base, input, None),
-        WIOExecutionProgress.Dynamic(WIOMeta.Dynamic(wio.newErrorMeta.toModel)),
-        WIOMeta.HandleError(wio.newErrorMeta.toModel, wio.handledErrorMeta.toModel),
-        result,
-      )
-    }
+    def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result = {
+  WIOExecutionProgress.Sequence(
+    Seq(
+      recurse(wio.base, input, result = None),
+      recurse(wio.handleError, None, result = None),
+    ),
+  )
+}
+
     def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result                           = {
       WIOExecutionProgress.HandleError(
         recurse(wio.base, input, result = None),
