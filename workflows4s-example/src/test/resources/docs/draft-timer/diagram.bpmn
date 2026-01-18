@@ -8,7 +8,7 @@
       <incoming>sequenceFlow_3</incoming>
       <outgoing>sequenceFlow_4</outgoing>
       <timerEventDefinition id="timerEventDefinition_2">
-        <timeDuration id="timeDuration_5">PT24H</timeDuration>
+        <timeDuration id="timeDuration_5">24h</timeDuration>
       </timerEventDefinition>
     </intermediateCatchEvent>
     <sequenceFlow id="sequenceFlow_3" sourceRef="startEvent_6" targetRef="intermediateCatchEvent_0"/>

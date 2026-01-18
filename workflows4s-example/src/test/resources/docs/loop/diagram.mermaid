@@ -7,8 +7,6 @@ node1 --> node2
 node3["Step2"]
 node2 -->|"No"| node3
 node3 --> node1
-node4[""]
+node4@{ shape: circle, label: "End"}
 node2 -->|"Yes!"| node4
-node5:::executed@{ shape: circle, label: "End"}
-node4 --> node5
-classDef executed fill:`#0e0`
+classDef executed fill:#0e0

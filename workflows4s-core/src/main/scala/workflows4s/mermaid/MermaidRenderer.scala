@@ -22,8 +22,14 @@ object MermaidRenderer {
       .value
 
     // If there are still active nodes after rendering (e.g., loop exit branches),
-    // connect them to an End node to make the exit path visible
-    val finalChart = if finalState.activeNodes.nonEmpty then {
+    // connect them to an End node to make the exit path visible.
+    // However, skip this if any active node is already an End node (to avoid End -> End).
+    val hasEndNode = finalState.chart.elements.exists {
+      case Node(_, "End", Some("circle"), _) => true
+      case _                                  => false
+    }
+    
+    val finalChart = if finalState.activeNodes.nonEmpty && !hasEndNode then {
       val endNodeId = s"node${finalState.idIdx}"
       val endNode   = Node(endNodeId, "End", shape = "circle".some, clazz = None)
       val endLinks  = finalState.activeNodes.map(activeNode => Link(activeNode._1, endNodeId, activeNode._2))
