@@ -42,7 +42,7 @@ object ExecutionProgressEvaluator {
       WIOExecutionProgress.HandleError(
         recurse(wio.base, input, result = None),
         recurse(wio.handleError, None, result = None)
-      ))
+      )
     }
     def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result                             = {
       (recurse(wio.first, None, result = None), recurse(wio.second, None, result = None)) match {
