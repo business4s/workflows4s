@@ -19,7 +19,7 @@ object WIOMeta {
       restartBranchName: Option[String],
   ) derives Codec
   case class Fork(name: Option[String], branches: Vector[Branch]) derives Codec
-  case class HandleError(newErrorMeta: Option[WIOMeta.Error], handledErrorMeta: Option[WIOMeta.Error]) derives Codec
+
   case class ForEach(name: Option[String]) derives Codec
 
   case class Error(name: String) derives Codec

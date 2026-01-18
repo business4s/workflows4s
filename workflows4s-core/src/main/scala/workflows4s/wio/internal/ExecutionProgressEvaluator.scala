@@ -37,14 +37,7 @@ object ExecutionProgressEvaluator {
     def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Result          =
       recurse(wio.base, input.map(wio.contramapInput))
     def onNoop(wio: WIO.End[Ctx]): Result                                                                              = WIOExecutionProgress.End(result)
-    def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result = {
-      WIOExecutionProgress.HandleError(
-        recurse(wio.base, input, None),
-        WIOExecutionProgress.Dynamic(WIOMeta.Dynamic(wio.newErrorMeta.toModel)),
-        WIOMeta.HandleError(wio.newErrorMeta.toModel, wio.handledErrorMeta.toModel),
-        result,
-      )
-    }
+
     def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result                           = {
       WIOExecutionProgress.HandleError(
         recurse(wio.base, input, result = None),
@@ -201,10 +194,7 @@ object ExecutionProgressEvaluator {
       case WIOExecutionProgress.Dynamic(_)                                    => None
       case WIOExecutionProgress.RunIO(_, _)                                   => None
       case x @ WIOExecutionProgress.HandleSignal(_, _)                        => Some((x, None))
-      case WIOExecutionProgress.HandleError(base, handler, errorName, result) =>
-        // TODO this is not a correct model, in case of signal handler with error handler,
-        //  it will not express it correctly
-        extractFirstInterruption(base).map((first, rest) => first -> rest.map(x => WIOExecutionProgress.HandleError(x, handler, errorName, result)))
+
       case _ @WIOExecutionProgress.End(_)                                     => None
       case _ @WIOExecutionProgress.Pure(_, _)                                 => None
       case _: WIOExecutionProgress.Loop[?]                                    => None

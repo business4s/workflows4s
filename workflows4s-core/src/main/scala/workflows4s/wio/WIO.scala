@@ -71,13 +71,11 @@ object WIO {
       errorMeta: ErrorMeta[?],
   ) extends WIO[In, Err2, Out2, Ctx]
 
-  case class HandleError[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx], ErrIn, TempOut <: WCState[Ctx]](
-      base: WIO[In, ErrIn, Out, Ctx],
-      handleError: (WCState[Ctx], ErrIn) => WIO[Any, Err, Out, Ctx],
-      handledErrorMeta: ErrorMeta[?],
-      newErrorMeta: ErrorMeta[?],
-  ) extends WIO[In, Err, Out, Ctx]
 
+
+  /**
+   * Replaces the legacy HandleError. Use this for all error handling.
+   */
   case class HandleErrorWith[Ctx <: WorkflowContext, -In, Err, +Out <: WCState[Ctx], +ErrOut](
       base: WIO[In, Err, Out, Ctx],
       handleError: WIO[(WCState[Ctx], Err), ErrOut, Out, Ctx],
