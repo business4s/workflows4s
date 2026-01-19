@@ -1,0 +1,11 @@
+flowchart TD
+node0@{ shape: circle, label: "Start"}
+node1@{ shape: hex, label: "Is counter positive?"}
+node0 --> node1
+node2["Do A"]
+node1 -->|"Yes"| node2
+node3["Do B"]
+node1 -->|"No"| node3
+node4@{ shape: circle, label: "End"}
+node2 --> node4
+node3 --> node4
