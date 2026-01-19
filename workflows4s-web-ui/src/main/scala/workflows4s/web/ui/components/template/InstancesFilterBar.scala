@@ -92,11 +92,11 @@ case class InstancesFilterBar(
     case "WakeupDesc"  => WorkflowSearchRequest.SortBy.WakeupDesc
     case _             => throw new IllegalArgumentException(s"Unknown sortBy value: $value")
   }
-  def toQueryParams: Map[String, String] = {
+  def toQueryParams: Map[String, String]                               = {
     val params = scala.collection.mutable.Map[String, String]()
-    if (statusFilters.nonEmpty) params += "status" -> statusFilters.mkString(",")
+    if statusFilters.nonEmpty then params += "status" -> statusFilters.mkString(",")
     sortBy.foreach(s => params += "sort" -> s.toString)
-    if (pageSize != 25) params += "limit" -> pageSize.toString
+    if pageSize != 25 then params += "limit"          -> pageSize.toString
     params.toMap
   }
 }
@@ -111,9 +111,10 @@ object InstancesFilterBar {
   )
 
   def fromQueryParams(params: Map[String, String]): InstancesFilterBar = {
-    val statusFilters = params.get("status").map(_.split(",").flatMap(s => scala.util.Try(ExecutionStatus.valueOf(s)).toOption).toSet).getOrElse(Set.empty)
-    val sortBy = params.get("sort").flatMap(s => scala.util.Try(parseSortBy(s)).toOption).orElse(Some(WorkflowSearchRequest.SortBy.UpdatedDesc))
-    val pageSize = params.get("limit").flatMap(_.toIntOption).filter(allowedPageSizes.contains).getOrElse(25)
+    val statusFilters =
+      params.get("status").map(_.split(",").flatMap(s => scala.util.Try(ExecutionStatus.valueOf(s)).toOption).toSet).getOrElse(Set.empty)
+    val sortBy        = params.get("sort").flatMap(s => scala.util.Try(parseSortBy(s)).toOption).orElse(Some(WorkflowSearchRequest.SortBy.UpdatedDesc))
+    val pageSize      = params.get("limit").flatMap(_.toIntOption).filter(allowedPageSizes.contains).getOrElse(25)
     InstancesFilterBar(statusFilters, sortBy, pageSize)
   }
 

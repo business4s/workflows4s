@@ -12,7 +12,7 @@ case class TemplateSelector(defs: List[WorkflowDefinition], selectedWorkflowId: 
 
   override def update(msg: TemplateSelector.Msg): (TemplateSelector, Cmd[IO, TemplateSelector.Msg]) = msg match {
     case TemplateSelector.Msg.Select(workflow) => this.copy(selectedWorkflowId = Some(workflow.id)) -> Cmd.None
-    case TemplateSelector.Msg.ClearSelection   => this.copy(selectedWorkflowId = None) -> Cmd.None
+    case TemplateSelector.Msg.ClearSelection   => this.copy(selectedWorkflowId = None)              -> Cmd.None
   }
 
   override def view: Html[TemplateSelector.Msg] =
