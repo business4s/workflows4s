@@ -74,7 +74,20 @@ object MermaidRenderer {
             stepId   <- addStep(meta.operationName.getOrElse(s"Handle ${meta.signalName}"))
             _        <- meta.error.traverse(addPendingError(stepId, _))
           } yield signalId.some
-
+        case WIOExecutionProgress.HandleError(base, handler, error, _)        =>
+          // generalized error label is unused as we connect specific errors directly to the handler
+          for {
+            baseStart       <- go(base)
+            baseEnds        <- cleanActiveNodes
+            errors          <- cleanPendingErrors
+            handlerStartOpt <- go(handler)
+            handlerStart     = handlerStartOpt.getOrElse(
+                                 throw new Exception(s"""Rendering error handler didn't produce a node. This is unexpected, please report as a bug.
+                                                    |Handler: ${handler}""".stripMargin),
+                               )
+            _               <- handleErrors(errors, handlerStart)
+            _               <- State.modify[RenderState] { s => s.copy(activeNodes = baseEnds ++ s.activeNodes) }
+          } yield baseStart
         case WIOExecutionProgress.End(_)                                      =>
           addStep("End", shape = "circle".some).map(_.some)
         case WIOExecutionProgress.Pure(meta, _)                               =>
