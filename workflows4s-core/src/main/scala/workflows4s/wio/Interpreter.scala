@@ -68,6 +68,7 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
       case x: WIO.End[?]                                               => onNoop(x)
       case x: WIO.AndThen[?, ?, ?, ? <: State, ? <: State]             => onAndThen(x)
       case x: WIO.Pure[?, ?, ?, ?]                                     => onPure(x)
+      case x: WIO.HandleErrorWith[?, ?, ?, ?, ?]                       => onHandleErrorWith(x)
       case x: WIO.Loop[?, ?, ?, ? <: State, ? <: State, ? <: State, ?] => onLoop(x)
       case x: WIO.Fork[?, ?, ?, ?]                                     => onFork(x)
       case x: WIO.Embedded[?, ?, ?, ?, ?, ?]                           => onEmbedded(x.asInstanceOf) // TODO make compiler happy
