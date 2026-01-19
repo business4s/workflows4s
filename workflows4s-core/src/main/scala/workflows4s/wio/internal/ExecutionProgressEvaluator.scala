@@ -38,12 +38,10 @@ object ExecutionProgressEvaluator {
       recurse(wio.base, input.map(wio.contramapInput))
     def onNoop(wio: WIO.End[Ctx]): Result                                                                              = WIOExecutionProgress.End(result)
     def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result = {
-    WIOExecutionProgress.Sequence(
-    Seq(
+    WIOExecutionProgress.HandleError(
       recurse(wio.base, input, result = None),
       recurse(wio.handleError, None, result = None),
     ),
-  )
 }
     def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result                             = {
       (recurse(wio.first, None, result = None), recurse(wio.second, None, result = None)) match {
