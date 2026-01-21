@@ -59,10 +59,6 @@ class ExamplesTest extends AnyFreeSpec {
         TestUtils.renderDocsExample(config.workflow, config.name, technical = config.technical)
       }
     }
-
-    "debug output" in {
-      TestUtils.renderDebugToFile(PullRequestWorkflow.workflow.toProgress, "docs/pull-request.debug.txt")
-    }
   }
 
   "render progress" in {
