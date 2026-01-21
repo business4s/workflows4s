@@ -66,4 +66,18 @@ trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self
   type Now = Instant
   def retry[In1 <: In, Err1 >: Err, Out1 >: Out <: WCState[Ctx]]: RetryBuilder.Step0[In1, Err1, Out1, Ctx] =
     new RetryBuilder.Step0[In1, Err1, Out1, Ctx](this)
+
+  def exposeErrorToRepeat[StateOnError >: Out <: WCState[Ctx], ErrIn >: Err, In1 <: In & WCState[Ctx]](
+      errorHandler: (ErrIn, In1) => StateOnError,
+  )(using errMeta: ErrorMeta[ErrIn]): WIO[In1, Nothing, StateOnError, Ctx] = {
+    WIO.Transform(
+      self,
+      identity[In1],
+      (in: In1, result: Either[ErrIn, Out]) =>
+        result match {
+          case Right(out) => Right(out)
+          case Left(err)  => Right(errorHandler(err, in))
+        },
+    )
+  }
 }
