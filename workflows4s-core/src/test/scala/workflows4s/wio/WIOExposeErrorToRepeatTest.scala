@@ -22,7 +22,7 @@ class WIOExposeErrorToRepeatTest extends AnyFreeSpec with Matchers {
           state.addError(s"Caught error: $error")
         }
 
-      val (_, wf) = TestUtils.createInstance2(exposedError)
+      val (_, wf)     = TestUtils.createInstance2(exposedError)
       val resultState = wf.queryState()
 
       assert(resultState.errors.exists(_.contains("Caught error")))
@@ -37,7 +37,7 @@ class WIOExposeErrorToRepeatTest extends AnyFreeSpec with Matchers {
           state.addError(s"Unexpected error: $error")
         }
 
-      val (_, wf) = TestUtils.createInstance2(workflow)
+      val (_, wf)     = TestUtils.createInstance2(workflow)
       val resultState = wf.queryState()
 
       assert(resultState.executed == List(step1Id, step2Id))
@@ -57,7 +57,8 @@ class WIOExposeErrorToRepeatTest extends AnyFreeSpec with Matchers {
         }
 
       val loopWio: WIO[TestState, Nothing, TestState] =
-        WIO.build[Ctx]
+        WIO
+          .build[Ctx]
           .repeat(exposedError)
           .until { state =>
             state.errors.length > 2
@@ -66,8 +67,8 @@ class WIOExposeErrorToRepeatTest extends AnyFreeSpec with Matchers {
           .done
 
       val initialState = TestState.empty
-      val (_, wf) = TestUtils.createInstance2(loopWio.provideInput(initialState))
-      val resultState = wf.queryState()
+      val (_, wf)      = TestUtils.createInstance2(loopWio.provideInput(initialState))
+      val resultState  = wf.queryState()
 
       assert(resultState.errors.length >= 3)
     }
@@ -81,14 +82,14 @@ class WIOExposeErrorToRepeatTest extends AnyFreeSpec with Matchers {
         }
 
       val (_, wf) = TestUtils.createInstance2(workflow)
-      val result = wf.queryState()
+      val result  = wf.queryState()
 
       assert(result.errors.nonEmpty)
     }
 
     "should work with effectful operations" in {
       val (duration, timerStep) = TestUtils.timer(secs = 1)
-      val (step1Id, step1) = TestUtils.pure
+      val (step1Id, step1)      = TestUtils.pure
 
       val effectfulWorkflow: WIO[TestState, Nothing, TestState] =
         (step1 >>> timerStep).exposeErrorToRepeat { (error, state) =>
@@ -97,14 +98,14 @@ class WIOExposeErrorToRepeatTest extends AnyFreeSpec with Matchers {
 
       val (clock, wf) = TestUtils.createInstance2(effectfulWorkflow)
       wf.wakeup()
-      
+
       val resultState = wf.queryState()
       assert(resultState.executed.contains(step1Id))
     }
 
     "should handle multiple error exposures in a chain" in {
       val (err1, errorStep1) = TestUtils.error
-      val (step1Id, step1) = TestUtils.pure
+      val (step1Id, step1)   = TestUtils.pure
 
       val workflow: WIO[TestState, Nothing, TestState] =
         (step1 >>> errorStep1)
@@ -112,7 +113,7 @@ class WIOExposeErrorToRepeatTest extends AnyFreeSpec with Matchers {
             state.addError(s"First error: $error")
           }
 
-      val (_, wf) = TestUtils.createInstance2(workflow)
+      val (_, wf)     = TestUtils.createInstance2(workflow)
       val resultState = wf.queryState()
 
       assert(resultState.errors.nonEmpty)
