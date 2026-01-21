@@ -116,9 +116,9 @@ class WIOExposeErrorToRepeatTest extends AnyFreeSpec with Matchers {
             state.addError(s"First error: $error")
           }
           >>> errorStep2
-          .exposeErrorToRepeat { (error, state) =>
-            state.addError(s"Second error: $error")
-          }
+            .exposeErrorToRepeat { (error, state) =>
+              state.addError(s"Second error: $error")
+            }
 
       val (_, wf)     = TestUtils.createInstance2(workflow)
       val resultState = wf.queryState()
