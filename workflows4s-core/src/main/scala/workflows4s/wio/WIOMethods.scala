@@ -69,7 +69,7 @@ trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self
 
   def exposeErrorToRepeat[StateOnError >: Out <: WCState[Ctx], ErrIn >: Err, In1 <: In & WCState[Ctx]](
       errorHandler: (ErrIn, In1) => StateOnError,
-  )(using errMeta: ErrorMeta[ErrIn]): WIO[In1, Nothing, StateOnError, Ctx] = {
+  ): WIO[In1, Nothing, StateOnError, Ctx] = {
     WIO.Transform(
       self,
       identity[In1],
