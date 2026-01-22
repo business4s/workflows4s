@@ -35,9 +35,9 @@ object AwaitBuilder {
           incorporate: WIO.Timer.Started => Evt,
       )(extractStartTime: Evt => Instant)(using ct: ClassTag[Evt]): Step2 = {
         val evtHandler: EventHandler[InOut, Unit, WCEvent[Ctx], WIO.Timer.Started] = new TypedEventHandler {
-          override def matchedClass: ClassTag[?] = ct
-          override def convert: WIO.Timer.Started => WCEvent[Ctx] = incorporate
-          override def handle: (InOut, WIO.Timer.Started) => Unit = (_, _) => ()
+          override def matchedClass: ClassTag[?]                         = ct
+          override def convert: WIO.Timer.Started => WCEvent[Ctx]        = incorporate
+          override def handle: (InOut, WIO.Timer.Started) => Unit        = (_, _) => ()
           override def detect: WCEvent[Ctx] => Option[WIO.Timer.Started] = ct.unapply.andThen(_.map(x => Timer.Started(extractStartTime(x))))
         }
         Step2(evtHandler)

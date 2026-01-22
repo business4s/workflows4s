@@ -17,7 +17,7 @@ class UnnecessaryErrorHandlerRuleTest extends AnyFreeSpec with Matchers {
     }
 
     "should not detect unnecessary error handler when base can fail" in {
-      val (_, wf) = TestUtils.error
+      val (_, wf)       = TestUtils.error
       val wfWithHandler = wf.handleErrorWith(TestUtils.errorHandler)
 
       val issues = Linter.lint(wfWithHandler)

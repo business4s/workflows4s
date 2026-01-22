@@ -20,15 +20,15 @@ object ClashingEventsRule extends Rule {
   ) extends Visitor[Ctx, In, Err, Out](wio) {
     override type Result = List[LinterIssue]
 
-    override def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): List[LinterIssue]                     = Nil
-    override def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): List[LinterIssue]                                                   = Nil
-    override def onNoop(wio: WIO.End[Ctx]): List[LinterIssue]                                                                              = Nil
-    override def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): List[LinterIssue]                                                               = Nil
-    override def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): List[LinterIssue]                                                             = Nil
-    override def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): List[LinterIssue]                                               = Nil
-    override def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): List[LinterIssue]                                                 = Nil
-    override def onDiscarded[In1](wio: WIO.Discarded[Ctx, In1]): List[LinterIssue]                                                         = Nil
-    override def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): List[LinterIssue]                                             = Nil
+    override def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): List[LinterIssue] = Nil
+    override def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): List[LinterIssue]                               = Nil
+    override def onNoop(wio: WIO.End[Ctx]): List[LinterIssue]                                                          = Nil
+    override def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): List[LinterIssue]                                           = Nil
+    override def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): List[LinterIssue]                                         = Nil
+    override def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): List[LinterIssue]                           = Nil
+    override def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): List[LinterIssue]                             = Nil
+    override def onDiscarded[In1](wio: WIO.Discarded[Ctx, In1]): List[LinterIssue]                                     = Nil
+    override def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): List[LinterIssue]                         = Nil
 
     override def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): List[LinterIssue]          =
       recurse(wio.base, "flatMap")

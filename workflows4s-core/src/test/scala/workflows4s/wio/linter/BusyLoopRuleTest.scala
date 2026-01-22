@@ -10,7 +10,8 @@ class BusyLoopRuleTest extends AnyFreeSpec with Matchers {
   "BusyLoopRule" - {
     "should detect busy loop" in {
       val pure = TestUtils.pure._2
-      val wf = TestCtx2.WIO.repeat(pure)
+      val wf   = TestCtx2.WIO
+        .repeat(pure)
         .until((_: TestState) => true)
         .onRestart(pure)
         .done
@@ -21,8 +22,9 @@ class BusyLoopRuleTest extends AnyFreeSpec with Matchers {
 
     "should not detect busy loop when signal is present" in {
       val (_, _, step) = TestUtils.signal
-      val pure = TestUtils.pure._2
-      val wf = TestCtx2.WIO.repeat(step)
+      val pure         = TestUtils.pure._2
+      val wf           = TestCtx2.WIO
+        .repeat(step)
         .until((_: TestState) => true)
         .onRestart(pure)
         .done
@@ -31,16 +33,15 @@ class BusyLoopRuleTest extends AnyFreeSpec with Matchers {
       assert(!issues.map(_.message).exists(_.contains("Busy loop")))
     }
 
-
-
     "should not detect busy loop when timer is present" in {
       val timer = TestCtx2.WIO
         .await[TestState](java.time.Duration.ofSeconds(1))
         .persistStartThrough(x => TestCtx2.TimerStarted(x))(_.inner.at)
         .persistReleaseThrough(x => TestCtx2.TimerReleased(x))(_.inner.at)
         .done
-      val pure = TestUtils.pure._2
-      val wf = TestCtx2.WIO.repeat(timer)
+      val pure  = TestUtils.pure._2
+      val wf    = TestCtx2.WIO
+        .repeat(timer)
         .until((_: TestState) => true)
         .onRestart(pure)
         .done
