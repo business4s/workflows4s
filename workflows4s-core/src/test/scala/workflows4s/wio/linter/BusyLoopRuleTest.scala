@@ -34,7 +34,19 @@ class BusyLoopRuleTest extends AnyFreeSpec with Matchers {
 
 
     "should not detect busy loop when timer is present" in {
-      fail("TODO")
+      val timer = TestCtx2.WIO
+        .await[TestState](java.time.Duration.ofSeconds(1))
+        .persistStartThrough(x => TestCtx2.TimerStarted(x))(_.inner.at)
+        .persistReleaseThrough(x => TestCtx2.TimerReleased(x))(_.inner.at)
+        .done
+      val pure = TestUtils.pure._2
+      val wf = TestCtx2.WIO.repeat(timer)
+        .until((_: TestState) => true)
+        .onRestart(pure)
+        .done
+
+      val issues = Linter.lint(wf)
+      assert(!issues.map(_.message).exists(_.contains("Busy loop")))
     }
   }
 

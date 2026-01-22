@@ -53,7 +53,24 @@ object ClashingEventsRule extends Rule {
       new ClashingEventsVisitor(wio.inner, path :+ "embedded").run
     }
 
-    override def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): List[LinterIssue] = recurse(wio.base, "checkpoint")
+    override def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): List[LinterIssue] = {
+      val baseEvents       = getExpectedEvents(wio.base)
+      val checkpointEvents = extractMatchedClass(wio.eventHandler).toSet
+      val clashes          = baseEvents.intersect(checkpointEvents)
+      val clashIssues      = clashes.map(evt =>
+        LinterIssue(
+          s"Clashing event: ${evt.runtimeClass.getSimpleName} expected in both base and checkpoint. This will lead to non-deterministic recovery.",
+          id,
+          path,
+        ),
+      )
+      clashIssues.toList ++ recurse(wio.base, "checkpoint")
+    }
+
+    private def extractMatchedClass(eh: EventHandler[?, ?, ?, ?]): List[ClassTag[?]] = eh match {
+      case te: TypedEventHandler[?, ?, ?, ?] => List(te.matchedClass)
+      case _                                 => Nil
+    }
 
     override def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): List[LinterIssue] = {
       val baseEvents    = getExpectedEvents(wio.base)

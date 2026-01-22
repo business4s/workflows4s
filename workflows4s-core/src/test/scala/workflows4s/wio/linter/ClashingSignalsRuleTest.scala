@@ -19,7 +19,8 @@ class ClashingSignalsRuleTest extends AnyFreeSpec with Matchers {
 
       val issues = Linter.lint(wf)
       issues.map(_.message) should contain(s"Clashing signal: ${signalDef.name} (${signalDef.id}) expected in parallel branches 0 and 1")
-      issues.forall(_.ruleId == "clashing-signals")
+      val clashingSignalIssues = issues.filter(_.message.contains("Clashing signal"))
+      assert(clashingSignalIssues.forall(_.ruleId == "clashing-signals"))
     }
 
     "should detect clashing signals in interruption" in {

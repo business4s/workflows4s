@@ -53,7 +53,16 @@ class ClashingEventsRuleTest extends AnyFreeSpec with Matchers {
     }
 
     "should detect clashing events in checkpoint" in {
-      fail("TODO")
+      val recover = TestCtx2.WIO.recover((st: TestState, _: TestCtx2.SimpleEvent) => st)
+      val wf = recover.checkpointed(
+        (_, _) => TestCtx2.SimpleEvent("checkpoint"),
+        (in, _) => in,
+      )
+
+      val issues = Linter.lint(wf)
+      issues.map(_.message) should contain(
+        s"Clashing event: SimpleEvent expected in both base and checkpoint. This will lead to non-deterministic recovery.",
+      )
     }
   }
 
