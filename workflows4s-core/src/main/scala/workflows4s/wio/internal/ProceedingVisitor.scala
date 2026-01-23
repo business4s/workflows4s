@@ -135,7 +135,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
                     WFExecution.complete(
                       wio.copy(
                         history = wio.history :+ newWio,
-                        current = WIO.Loop.State.Finished(WIO.Executed(currentWio, Right(value), input, newWio.index, newWio.event)),
+                        current = WIO.Loop.State.Finished(newWio),
                       ),
                       Right(value1),
                       input,

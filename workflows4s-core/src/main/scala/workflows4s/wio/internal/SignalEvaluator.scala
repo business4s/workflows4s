@@ -17,7 +17,7 @@ object SignalEvaluator {
   ): SignalResult[WCEvent[Ctx], Resp] = {
     val visitor = new SignalVisitor(wio, signalDef, req, state, state)
     visitor.run match {
-      case Some(signalMatch) => produceResult(signalMatch, signalDef, req)
+      case Some(signalMatch) => produceResult(signalMatch, signalDef)
       case None              => SignalResult.UnexpectedSignal
     }
   }
@@ -29,12 +29,17 @@ object SignalEvaluator {
     case class Fresh[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx], Req, Resp, Evt](
         node: WIO.HandleSignal[Ctx, In, Out, Err, Req, Resp, Evt],
         input: In,
-    ) extends SignalMatch[Ctx]
+        request: Req,
+    ) extends SignalMatch[Ctx] {
+      def toRedelivered(storedEvent: Evt): Redelivered[Ctx, In, Err, Out, Req, Resp, Evt] =
+        Redelivered(node, input, storedEvent, request)
+    }
 
     case class Redelivered[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx], Req, Resp, Evt](
         originalNode: WIO.HandleSignal[Ctx, In, Out, Err, Req, Resp, Evt],
         input: In,
         storedEvent: Evt,
+        request: Req,
     ) extends SignalMatch[Ctx]
 
     // Wrapper for matches in embedded/inner contexts that need event conversion
@@ -44,44 +49,38 @@ object SignalEvaluator {
     ) extends SignalMatch[OuterCtx]
   }
 
+  private def extractTypedResponse[Req, Resp](signalDef: SignalDef[Req, Resp], response: Any): Resp =
+    signalDef.respCt.unapply(response).getOrElse(
+      throw new Exception(
+        s"""The signal response type was different from the one expected based on SignalDef. This is probably a bug, please report it.
+           |Response: ${response}
+           |Expected: ${signalDef.respCt}""".stripMargin,
+      ),
+    )
+
   @nowarn("msg=the type test for workflows4s.wio.internal.SignalEvaluator.SignalMatch")
   private def produceResult[Ctx <: WorkflowContext, Req, Resp](
       signalMatch: SignalMatch[Ctx],
-      signalDef: SignalDef[Req, Resp],
-      req: Req,
+      signalDef: SignalDef[?, Resp],
   ): SignalResult[WCEvent[Ctx], Resp] = signalMatch match {
     case fresh: SignalMatch.Fresh[Ctx, in, err, out, Req, Resp, evt] =>
-      val eventIO = fresh.node.sigHandler.handle(fresh.input, req)
+      val eventIO = fresh.node.sigHandler.handle(fresh.input, fresh.request)
       SignalResult.Processed(eventIO.map { evt =>
         val event    = fresh.node.evtHandler.convert(evt)
-        val response = fresh.node.responseProducer(fresh.input, evt, req)
-        val typedResp = signalDef.respCt.unapply(response).getOrElse(
-          throw new Exception(
-            s"""The signal response type was different from the one expected based on SignalDef. This is probably a bug, please report it.
-               |Response: ${response}
-               |Expected: ${signalDef.respCt}""".stripMargin,
-          ),
-        )
-        SignalResult.ProcessingResult(event, typedResp)
+        val response = fresh.node.responseProducer(fresh.input, evt, fresh.request)
+        SignalResult.ProcessingResult(event, extractTypedResponse(signalDef, response))
       })
 
     case redelivered: SignalMatch.Redelivered[Ctx, in, err, out, Req, Resp, evt] =>
-      val response  = redelivered.originalNode.responseProducer(redelivered.input, redelivered.storedEvent, req)
-      val typedResp = signalDef.respCt.unapply(response).getOrElse(
-        throw new Exception(
-          s"""The signal response type was different from the one expected based on SignalDef. This is probably a bug, please report it.
-             |Response: ${response}
-             |Expected: ${signalDef.respCt}""".stripMargin,
-        ),
-      )
-      SignalResult.Redelivered(typedResp)
+      val response = redelivered.originalNode.responseProducer(redelivered.input, redelivered.storedEvent, redelivered.request)
+      SignalResult.Redelivered(extractTypedResponse(signalDef, response))
 
     case embedded: SignalMatch.Embedded[Ctx, innerCtx] =>
       // Recursively produce result for inner match, then convert the event
-      produceResult(embedded.inner, signalDef, req) match {
+      produceResult(embedded.inner, signalDef) match {
         case SignalResult.Processed(resultIO) =>
           SignalResult.Processed(resultIO.map { result =>
-            SignalResult.ProcessingResult(embedded.convertEvent(result.event.asInstanceOf[WCEvent[innerCtx]]), result.response)
+            SignalResult.ProcessingResult(embedded.convertEvent(result.event), result.response)
           })
         case SignalResult.Redelivered(resp) => SignalResult.Redelivered(resp)
         case SignalResult.UnexpectedSignal  => SignalResult.UnexpectedSignal
@@ -109,7 +108,7 @@ object SignalEvaluator {
                |""".stripMargin,
           )
         }
-        expectedReqOpt.map(_ => SignalMatch.Fresh(wio, input))
+        expectedReqOpt.map(typedReq => SignalMatch.Fresh(wio, input, typedReq))
       } else None
     }
 
@@ -122,25 +121,19 @@ object SignalEvaluator {
     def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): Result = None
 
     def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result = {
-      // Find a HandleSignal with matching ID, possibly wrapped in Transform
-      def findMatchingHandleSignal(w: WIO[?, ?, ?, Ctx]): Option[WIO.HandleSignal[Ctx, ?, ?, ?, ?, ?, ?]] = w match {
-        case hs: WIO.HandleSignal[Ctx, ?, ?, ?, ?, ?, ?] if signalDef.id == hs.sigDef.id => Some(hs)
-        case t: WIO.Transform[Ctx, ?, ?, ?, ?, ?, ?]                                     => findMatchingHandleSignal(t.base)
-        case _                                                                           => None
-      }
-
-      findMatchingHandleSignal(wio.original) match {
-        case Some(hs) =>
-          // Redelivery match found - extract stored event and typed request
-          // Use the visitor's signalDef for type-safe request extraction (IDs match, so types match)
-          for {
-            evt      <- wio.event
-            typedEvt <- hs.evtHandler.detect(evt)
-            typedReq <- signalDef.reqCt.unapply(req)
-          } yield SignalMatch.Redelivered(hs.asInstanceOf[WIO.HandleSignal[Ctx, In1, Out, Err, Req, Resp, Any]], wio.input, typedEvt)
-        case None =>
-          // Recurse into original to find nested executed signals
-          recurse(wio.original, wio.input)
+      // Always recurse into original to find signal matches (handles all nested structures)
+      recurse(wio.original, wio.input).flatMap {
+        case fresh: SignalMatch.Fresh[Ctx, _, _, _, _, _, _] =>
+          // Found a fresh match inside an Executed node
+          // If we have an event, this signal was already processed - convert to Redelivered
+          wio.event
+            .flatMap { outerEvt =>
+              fresh.node.evtHandler.detect(outerEvt).map { typedEvt =>
+                fresh.toRedelivered(typedEvt)
+              }
+            }
+            .orElse(Some(fresh)) // If no event or event doesn't match, keep as Fresh
+        case other => Some(other) // Keep Redelivered and Embedded as-is
       }
     }
 
