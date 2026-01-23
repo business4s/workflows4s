@@ -1,0 +1,3 @@
+[Fork](Is counter positive?) 
+  - branch 0: [Pure](Do A) 
+  - branch 1: [Pure](Do B) 

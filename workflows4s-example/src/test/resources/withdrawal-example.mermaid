@@ -9,3 +9,6 @@ node2 --> node3
 node4["Cancel Funds If Needed"]
 node2 -.->|"fa:fa-bolt Invalid Input"| node4
 node3 -.->|"fa:fa-bolt Withdrawal Rejection"| node4
+node5@{ shape: circle, label: "End"}
+node3 --> node5
+node4 --> node5
