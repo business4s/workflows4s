@@ -147,7 +147,8 @@ object DraftBuilder {
 
   }
 
-  private def dummyEventHandler[EventBase, Evt]: EventHandler[Any, Nothing, EventBase, Evt] = EventHandler(_ => ???, _ => ???, (_, _) => ???)
+  private def dummyEventHandler[EventBase, Evt]: EventHandler[Any, Nothing, EventBase, Evt] =
+    EventHandler.apply[EventBase, Any, Nothing, Evt](_ => ???, _ => ???, (_, _) => ???)
 
   private def getEffectiveName(name: String, autoName: sourcecode.Name): String =
     Option(name).getOrElse(ModelUtils.prettifyName(autoName.value))

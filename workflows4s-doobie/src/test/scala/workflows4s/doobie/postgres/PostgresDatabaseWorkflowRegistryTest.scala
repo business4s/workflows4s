@@ -19,6 +19,15 @@ import scala.concurrent.duration.DurationInt
 
 class PostgresDatabaseWorkflowRegistryTest extends AnyFreeSpec with PostgresSuite with Matchers with BeforeAndAfterEach {
 
+  override def run(testName: Option[String], args: org.scalatest.Args): org.scalatest.Status = {
+    if (!isDockerAvailable) {
+      println("Docker is not available - skipping PostgreSQL tests")
+      org.scalatest.SucceededStatus
+    } else {
+      super.run(testName, args)
+    }
+  }
+
   override def afterEach(): Unit = {
     super.afterEach()
     sql"TRUNCATE table executing_workflows".update.run.transact(xa).void.unsafeRunSync()

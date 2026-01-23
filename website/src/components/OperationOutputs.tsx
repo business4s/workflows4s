@@ -10,9 +10,10 @@ interface OperationOutputsProps {
 }
 
 const OperationOutputs: React.FC<OperationOutputsProps> = ({name, showBpmn = true}) => {
-    const mermaidSource = require(`!!raw-loader!../../../workflows4s-example/src/test/resources/docs/${name}.mermaid`).default;
-    const jsonSource = require(`!!raw-loader!../../../workflows4s-example/src/test/resources/docs/${name}.json`).default;
-    const svgPath = showBpmn ? require(`../../../workflows4s-example/src/test/resources/docs/${name}.svg`).default : "";
+    const mermaidSource = require(`!!raw-loader!../../../workflows4s-example/src/test/resources/docs/${name}/diagram.mermaid`).default;
+    const jsonSource = require(`!!raw-loader!../../../workflows4s-example/src/test/resources/docs/${name}/model.json`).default;
+    const debugSource = require(`!!raw-loader!../../../workflows4s-example/src/test/resources/docs/${name}/debug.txt`).default;
+    const svgPath = showBpmn ? require(`../../../workflows4s-example/src/test/resources/docs/${name}/diagram.svg`).default : "";
 
     return (
         <details>
@@ -30,6 +31,9 @@ const OperationOutputs: React.FC<OperationOutputsProps> = ({name, showBpmn = tru
             )}
                 <TabItem value="model" label="Model">
                     <CodeBlock language="json">{jsonSource}</CodeBlock>
+                </TabItem>
+                <TabItem value="debug" label="Debug">
+                    <CodeBlock language="text">{debugSource}</CodeBlock>
                 </TabItem>
             </Tabs>
         </details>
