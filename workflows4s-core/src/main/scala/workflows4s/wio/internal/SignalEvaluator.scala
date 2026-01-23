@@ -5,8 +5,6 @@ import com.typesafe.scalalogging.StrictLogging
 import workflows4s.wio.*
 import workflows4s.wio.WIO.HandleInterruption.InterruptionStatus
 
-import scala.annotation.nowarn
-
 object SignalEvaluator {
 
   def handleSignal[Ctx <: WorkflowContext, Req, Resp, In <: WCState[Ctx], Out <: WCState[Ctx]](
@@ -17,13 +15,15 @@ object SignalEvaluator {
   ): SignalResult[WCEvent[Ctx], Resp] = {
     val visitor = new SignalVisitor(wio, signalDef, req, state, state)
     visitor.run match {
-      case Some(signalMatch) => produceResult(signalMatch, signalDef)
+      case Some(signalMatch) => signalMatch.produceResult(signalDef)
       case None              => SignalResult.UnexpectedSignal
     }
   }
 
   // Internal types for signal matching
-  private sealed trait SignalMatch[Ctx <: WorkflowContext]
+  private sealed trait SignalMatch[Ctx <: WorkflowContext] {
+    def produceResult[Resp](signalDef: SignalDef[?, Resp]): SignalResult[WCEvent[Ctx], Resp]
+  }
 
   private object SignalMatch {
     case class Fresh[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx], Req, Resp, Evt](
@@ -33,6 +33,15 @@ object SignalEvaluator {
     ) extends SignalMatch[Ctx] {
       def toRedelivered(storedEvent: Evt): Redelivered[Ctx, In, Err, Out, Req, Resp, Evt] =
         Redelivered(node, input, storedEvent, request)
+
+      def produceResult[R](signalDef: SignalDef[?, R]): SignalResult[WCEvent[Ctx], R] = {
+        val eventIO = node.sigHandler.handle(input, request)
+        SignalResult.Processed(eventIO.map { evt =>
+          val event    = node.evtHandler.convert(evt)
+          val response = node.responseProducer(input, evt, request)
+          SignalResult.ProcessingResult(event, extractTypedResponse(signalDef, response))
+        })
+      }
     }
 
     case class Redelivered[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx], Req, Resp, Evt](
@@ -40,13 +49,28 @@ object SignalEvaluator {
         input: In,
         storedEvent: Evt,
         request: Req,
-    ) extends SignalMatch[Ctx]
+    ) extends SignalMatch[Ctx] {
+      def produceResult[R](signalDef: SignalDef[?, R]): SignalResult[WCEvent[Ctx], R] = {
+        val response = originalNode.responseProducer(input, storedEvent, request)
+        SignalResult.Redelivered(extractTypedResponse(signalDef, response))
+      }
+    }
 
     // Wrapper for matches in embedded/inner contexts that need event conversion
     case class Embedded[OuterCtx <: WorkflowContext, InnerCtx <: WorkflowContext](
         inner: SignalMatch[InnerCtx],
         convertEvent: WCEvent[InnerCtx] => WCEvent[OuterCtx],
-    ) extends SignalMatch[OuterCtx]
+    ) extends SignalMatch[OuterCtx] {
+      def produceResult[R](signalDef: SignalDef[?, R]): SignalResult[WCEvent[OuterCtx], R] =
+        inner.produceResult(signalDef) match {
+          case SignalResult.Processed(resultIO) =>
+            SignalResult.Processed(resultIO.map { result =>
+              SignalResult.ProcessingResult(convertEvent(result.event), result.response)
+            })
+          case SignalResult.Redelivered(resp) => SignalResult.Redelivered(resp)
+          case SignalResult.UnexpectedSignal  => SignalResult.UnexpectedSignal
+        }
+    }
   }
 
   private def extractTypedResponse[Req, Resp](signalDef: SignalDef[Req, Resp], response: Any): Resp =
@@ -57,35 +81,6 @@ object SignalEvaluator {
            |Expected: ${signalDef.respCt}""".stripMargin,
       ),
     )
-
-  @nowarn("msg=the type test for workflows4s.wio.internal.SignalEvaluator.SignalMatch")
-  private def produceResult[Ctx <: WorkflowContext, Req, Resp](
-      signalMatch: SignalMatch[Ctx],
-      signalDef: SignalDef[?, Resp],
-  ): SignalResult[WCEvent[Ctx], Resp] = signalMatch match {
-    case fresh: SignalMatch.Fresh[Ctx, in, err, out, Req, Resp, evt] =>
-      val eventIO = fresh.node.sigHandler.handle(fresh.input, fresh.request)
-      SignalResult.Processed(eventIO.map { evt =>
-        val event    = fresh.node.evtHandler.convert(evt)
-        val response = fresh.node.responseProducer(fresh.input, evt, fresh.request)
-        SignalResult.ProcessingResult(event, extractTypedResponse(signalDef, response))
-      })
-
-    case redelivered: SignalMatch.Redelivered[Ctx, in, err, out, Req, Resp, evt] =>
-      val response = redelivered.originalNode.responseProducer(redelivered.input, redelivered.storedEvent, redelivered.request)
-      SignalResult.Redelivered(extractTypedResponse(signalDef, response))
-
-    case embedded: SignalMatch.Embedded[Ctx, innerCtx] =>
-      // Recursively produce result for inner match, then convert the event
-      produceResult(embedded.inner, signalDef) match {
-        case SignalResult.Processed(resultIO) =>
-          SignalResult.Processed(resultIO.map { result =>
-            SignalResult.ProcessingResult(embedded.convertEvent(result.event), result.response)
-          })
-        case SignalResult.Redelivered(resp) => SignalResult.Redelivered(resp)
-        case SignalResult.UnexpectedSignal  => SignalResult.UnexpectedSignal
-      }
-  }
 
   private class SignalVisitor[Ctx <: WorkflowContext, Resp, Err, Out <: WCState[Ctx], In, Req](
       wio: WIO[In, Err, Out, Ctx],
@@ -125,14 +120,17 @@ object SignalEvaluator {
       recurse(wio.original, wio.input).flatMap {
         case fresh: SignalMatch.Fresh[Ctx, _, _, _, _, _, _] =>
           // Found a fresh match inside an Executed node
-          // If we have an event, this signal was already processed - convert to Redelivered
-          wio.event
-            .flatMap { outerEvt =>
-              fresh.node.evtHandler.detect(outerEvt).map { typedEvt =>
-                fresh.toRedelivered(typedEvt)
-              }
-            }
-            .orElse(Some(fresh)) // If no event or event doesn't match, keep as Fresh
+          wio.event match {
+            case None => Some(fresh) // No event stored, keep as Fresh
+            case Some(storedEvt) =>
+              // Event exists - detection must succeed, otherwise it's a bug
+              val typedEvt = fresh.node.evtHandler.detect(storedEvt).getOrElse(
+                throw new IllegalStateException(
+                  s"Executed node has stored event but event handler failed to detect it. This is a bug in the library. Event: $storedEvt",
+                ),
+              )
+              Some(fresh.toRedelivered(typedEvt))
+          }
         case other => Some(other) // Keep Redelivered and Embedded as-is
       }
     }
