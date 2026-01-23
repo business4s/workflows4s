@@ -22,7 +22,7 @@ object SignalRedeliveryExample {
       .handleEvent((state, event) => state.copy(result = Some(event.result)))
       .produceResponse { (state, event, currentRequest) =>
         // Compare original request (stored in event) with current request
-        if (event.originalRequestId != currentRequest.id) {
+        if event.originalRequestId != currentRequest.id then {
           // Handle mismatch - could return error response or original result
           RedeliveryMismatchResponse(expected = event.originalRequestId, received = currentRequest.id)
         } else {

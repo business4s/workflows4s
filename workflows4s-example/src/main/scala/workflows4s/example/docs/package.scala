@@ -7,10 +7,10 @@ import java.time.Instant
 package object docs {
 
   sealed trait MyEventBase
-  case class MyEvent()                                              extends MyEventBase
-  case class MyTimerStarted(time: Instant)                          extends MyEventBase
-  case class MyTimerReleased(time: Instant)                         extends MyEventBase
-  case object MyRetryEvent                                          extends MyEventBase
+  case class MyEvent()                                                extends MyEventBase
+  case class MyTimerStarted(time: Instant)                            extends MyEventBase
+  case class MyTimerReleased(time: Instant)                           extends MyEventBase
+  case object MyRetryEvent                                            extends MyEventBase
   case class MySignalEvent(originalRequestId: String, result: String) extends MyEventBase
   case class MyState(counter: Int, result: Option[String] = None)
   case class MyError()

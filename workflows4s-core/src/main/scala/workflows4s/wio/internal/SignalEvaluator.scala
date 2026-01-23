@@ -21,7 +21,7 @@ object SignalEvaluator {
   }
 
   // Internal types for signal matching
-  private sealed trait SignalMatch[Ctx <: WorkflowContext] {
+  sealed private trait SignalMatch[Ctx <: WorkflowContext] {
     def produceResult[Resp](signalDef: SignalDef[?, Resp]): SignalResult[WCEvent[Ctx], Resp]
   }
 
@@ -67,20 +67,22 @@ object SignalEvaluator {
             SignalResult.Processed(resultIO.map { result =>
               SignalResult.ProcessingResult(convertEvent(result.event), result.response)
             })
-          case SignalResult.Redelivered(resp) => SignalResult.Redelivered(resp)
-          case SignalResult.UnexpectedSignal  => SignalResult.UnexpectedSignal
+          case SignalResult.Redelivered(resp)   => SignalResult.Redelivered(resp)
+          case SignalResult.UnexpectedSignal    => SignalResult.UnexpectedSignal
         }
     }
   }
 
   private def extractTypedResponse[Req, Resp](signalDef: SignalDef[Req, Resp], response: Any): Resp =
-    signalDef.respCt.unapply(response).getOrElse(
-      throw new Exception(
-        s"""The signal response type was different from the one expected based on SignalDef. This is probably a bug, please report it.
-           |Response: ${response}
-           |Expected: ${signalDef.respCt}""".stripMargin,
-      ),
-    )
+    signalDef.respCt
+      .unapply(response)
+      .getOrElse(
+        throw new Exception(
+          s"""The signal response type was different from the one expected based on SignalDef. This is probably a bug, please report it.
+             |Response: ${response}
+             |Expected: ${signalDef.respCt}""".stripMargin,
+        ),
+      )
 
   private class SignalVisitor[Ctx <: WorkflowContext, Resp, Err, Out <: WCState[Ctx], In, Req](
       wio: WIO[In, Err, Out, Ctx],
@@ -107,31 +109,33 @@ object SignalEvaluator {
       } else None
     }
 
-    def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result      = None
-    def onNoop(wio: WIO.End[Ctx]): Result                                 = None
-    def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                  = None
-    def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result                = None
-    def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result  = None
-    def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result              = None
+    def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result       = None
+    def onNoop(wio: WIO.End[Ctx]): Result                                  = None
+    def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                   = None
+    def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result                 = None
+    def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result   = None
+    def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result               = None
     def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): Result = None
 
     def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result = {
       // Always recurse into original to find signal matches (handles all nested structures)
       recurse(wio.original, wio.input).flatMap {
-        case fresh: SignalMatch.Fresh[Ctx, _, _, _, _, _, _] =>
+        case fresh: SignalMatch.Fresh[Ctx, ?, ?, ?, ?, ?, ?] =>
           // Found a fresh match inside an Executed node
           wio.event match {
-            case None => Some(fresh) // No event stored, keep as Fresh
+            case None            => Some(fresh) // No event stored, keep as Fresh
             case Some(storedEvt) =>
               // Event exists - detection must succeed, otherwise it's a bug
-              val typedEvt = fresh.node.evtHandler.detect(storedEvt).getOrElse(
-                throw new IllegalStateException(
-                  s"Executed node has stored event but event handler failed to detect it. This is a bug in the library. Event: $storedEvt",
-                ),
-              )
+              val typedEvt = fresh.node.evtHandler
+                .detect(storedEvt)
+                .getOrElse(
+                  throw new IllegalStateException(
+                    s"Executed node has stored event but event handler failed to detect it. This is a bug in the library. Event: $storedEvt",
+                  ),
+                )
               Some(fresh.toRedelivered(typedEvt))
           }
-        case other => Some(other) // Keep Redelivered and Embedded as-is
+        case other                                           => Some(other) // Keep Redelivered and Embedded as-is
       }
     }
 
@@ -166,9 +170,7 @@ object SignalEvaluator {
       recurse(wio.current.wio, input, lastState)
         .orElse {
           // Then check history (most recent first) for redelivery matches
-          wio.history.reverse.collectFirstSome(executed =>
-            recurse(executed, input, lastState),
-          )
+          wio.history.reverse.collectFirstSome(executed => recurse(executed, input, lastState))
         }
     }
 
@@ -203,7 +205,7 @@ object SignalEvaluator {
 
     def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result = {
       wio.status match {
-        case InterruptionStatus.Interrupted =>
+        case InterruptionStatus.Interrupted                               =>
           // Interruption was triggered - check interruption for fresh/redelivery, then base for redelivery
           recurse(wio.interruption, lastSeenState)
             .orElse(recurse(wio.base, input))
@@ -213,7 +215,7 @@ object SignalEvaluator {
             case Some(_) =>
               // Base completed - only check base for redelivery, NOT interruption for fresh
               recurse(wio.base, input)
-            case None =>
+            case None    =>
               // Base not completed - check both interruption and base for fresh/redelivery
               recurse(wio.interruption, lastSeenState)
                 .orElse(recurse(wio.base, input))
@@ -233,10 +235,10 @@ object SignalEvaluator {
         wio: WIO.ForEach[Ctx, In, Err, Out, ElemId, InnerCtx, ElemOut, InterimState],
     ): Option[SignalMatch[Ctx]] = {
       for {
-        unwrapped <- wio.signalRouter.unwrap(signalDef, req, wio.interimState(input))
-        elemWioOpt = wio.state(input).get(unwrapped.elem)
-        _          = if elemWioOpt.isEmpty then logger.warn(s"Tried to deliver a signal to an unrecognized element ${unwrapped.elem}")
-        elemWio   <- elemWioOpt
+        unwrapped  <- wio.signalRouter.unwrap(signalDef, req, wio.interimState(input))
+        elemWioOpt  = wio.state(input).get(unwrapped.elem)
+        _           = if elemWioOpt.isEmpty then logger.warn(s"Tried to deliver a signal to an unrecognized element ${unwrapped.elem}")
+        elemWio    <- elemWioOpt
         innerMatch <- new SignalVisitor(elemWio, unwrapped.sigDef, unwrapped.req, (), wio.initialElemState()).run
       } yield SignalMatch.Embedded(innerMatch, wio.eventEmbedding.convertEvent(unwrapped.elem, _))
     }

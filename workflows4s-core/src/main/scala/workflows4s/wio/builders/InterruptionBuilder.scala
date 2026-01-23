@@ -56,10 +56,10 @@ object InterruptionBuilder {
               WIO.Interruption(source(None, None), tpe)
 
             private def source(operationName: Option[String], signalName: Option[String]): WIO[Input, Err, Out, Ctx] = {
-              val eh: EventHandler[Input, Either[Err, Out], WCEvent[Ctx], Evt] =
+              val eh: EventHandler[Input, Either[Err, Out], WCEvent[Ctx], Evt]         =
                 EventHandler.partial[WCEvent[Ctx], Input, Either[Err, Out], Evt](identity, eventHandler)(using evtCt)
-              val sh: SignalHandler[Req, Evt, Input]                           = SignalHandler(signalHandler)
-              val meta                                                         = WIO.HandleSignal.Meta(errorMeta, signalName.getOrElse(ModelUtils.getPrettyNameForClass(signalDef.reqCt)), operationName)
+              val sh: SignalHandler[Req, Evt, Input]                                   = SignalHandler(signalHandler)
+              val meta                                                                 = WIO.HandleSignal.Meta(errorMeta, signalName.getOrElse(ModelUtils.getPrettyNameForClass(signalDef.reqCt)), operationName)
               val handleSignal: WIO.HandleSignal[Ctx, Input, Out, Err, Req, Resp, Evt] = WIO.HandleSignal(signalDef, sh, eh, responseBuilder, meta)
               handleSignal
             }

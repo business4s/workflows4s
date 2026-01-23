@@ -208,7 +208,7 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers with EitherValues {
         case class SignalEvent(req: Int) extends Event
 
         val signalDef = SignalDef[Int, Int]()
-        val wio = WIO
+        val wio       = WIO
           .handleSignal(signalDef)
           .using[TestState]
           .withSideEffects { (_, req) =>
@@ -241,7 +241,7 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers with EitherValues {
         case class SignalEvent(originalReq: Int) extends Event
 
         val signalDef = SignalDef[Int, String]()
-        val wio = WIO
+        val wio       = WIO
           .handleSignal(signalDef)
           .using[TestState]
           .purely((_, req) => SignalEvent(req))
