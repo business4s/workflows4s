@@ -12,7 +12,7 @@ import doobie.implicits.*
 import doobie.util.transactor.Transactor
 import doobie.{ConnectionIO, *}
 import io.circe.syntax.*
-import io.circe.parser.decode
+import io.circe.parser.*
 import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.runtime.registry.WorkflowRegistry.ExecutionStatus
 import workflows4s.runtime.registry.{WorkflowRegistry, WorkflowSearch}
