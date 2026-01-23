@@ -145,8 +145,9 @@ class WIOLoopTest extends AnyFreeSpec with Matchers with OptionValues with Eithe
         assert(response2 == 2)
         assert(instance.queryState().executed == List(signalStepId, signalStepId, loopFinishedId))
 
-        // Signal should no longer be accepted
-        assert(instance.deliverSignal(signalDef, 3).isLeft)
+        // Redelivery should return the last response (state unchanged)
+        assert(instance.deliverSignal(signalDef, 3).value == 2)
+        assert(instance.queryState().executed == List(signalStepId, signalStepId, loopFinishedId))
       }
 
       "going backward" in {
@@ -168,9 +169,10 @@ class WIOLoopTest extends AnyFreeSpec with Matchers with OptionValues with Eithe
         assert(response2 == 2)
         assert(instance.queryState().executed == List(step1Id, signalStepId, step1Id, signalStepId, step1Id, loopFinishedId))
 
-        // Signal should no longer be accepted
+        // Redelivery should return the last response (state unchanged)
         instance.getExpectedSignals shouldBe empty
-        assert(instance.deliverSignal(signalDef, 3).isLeft)
+        assert(instance.deliverSignal(signalDef, 3).value == 2)
+        assert(instance.queryState().executed == List(step1Id, signalStepId, step1Id, signalStepId, step1Id, loopFinishedId))
       }
     }
 

@@ -90,6 +90,9 @@ class LoggingWorkflowInstanceEngine(
                     .onError(e => IO(logger.error("handleSignalEffect failed", e))),
               ),
             )
+          case SignalResult.Redelivered(resp)   =>
+            IO(logger.debug(s"[${workflow.id}] handleSignal → redelivered signal(${signalDef.name}), resp=$resp")) *>
+              SignalResult.Redelivered(resp).pure[IO]
           case SignalResult.UnexpectedSignal    =>
             IO(logger.warn(s"[${workflow.id}] handleSignal → unexpected signal(${signalDef.name})")) *>
               SignalResult.UnexpectedSignal.pure[IO]

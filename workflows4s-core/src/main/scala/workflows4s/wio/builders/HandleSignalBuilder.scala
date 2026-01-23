@@ -40,11 +40,11 @@ object HandleSignalBuilder {
               errorMeta: ErrorMeta[Err],
           ) {
 
-            def produceResponse(f: (Input, Evt) => Resp): Step4 = Step4(f, None, None)
+            def produceResponse(f: (Input, Evt, Req) => Resp): Step4 = Step4(f, None, None)
 
-            def voidResponse(using ev: Unit =:= Resp): Step4 = Step4((_, _) => (), None, None)
+            def voidResponse(using ev: Unit =:= Resp): Step4 = Step4((_, _, _) => (), None, None)
 
-            class Step4(responseBuilder: (Input, Evt) => Resp, operationName: Option[String], signalName: Option[String]) {
+            class Step4(responseBuilder: (Input, Evt, Req) => Resp, operationName: Option[String], signalName: Option[String]) {
 
               def named(operationName: String = null, signalName: String = null): WIO[Input, Err, Out, Ctx] =
                 Step4(
@@ -56,12 +56,11 @@ object HandleSignalBuilder {
               def autoNamed(using n: sourcecode.Name): WIO[Input, Err, Out, Ctx] = named(operationName = ModelUtils.prettifyName(n.value))
 
               def done: WIO.IHandleSignal[Input, Err, Out, Ctx] = {
-                val combined: (Input, Evt) => (Either[Err, Out], Resp)                   = (s: Input, e: Evt) => (eventHandler(s, e), responseBuilder(s, e))
-                val eh: EventHandler[Input, (Either[Err, Out], Resp), WCEvent[Ctx], Evt] =
-                  EventHandler.partial[WCEvent[Ctx], Input, (Either[Err, Out], Resp), Evt](identity, combined)(using evtCt)
-                val sh: SignalHandler[Req, Evt, Input]                                   = SignalHandler(signalHandler)
-                val meta                                                                 = HandleSignal.Meta(errorMeta, signalName.getOrElse(signalDef.name), operationName)
-                WIO.HandleSignal(signalDef, sh, eh, meta)
+                val eh: EventHandler[Input, Either[Err, Out], WCEvent[Ctx], Evt] =
+                  EventHandler.partial[WCEvent[Ctx], Input, Either[Err, Out], Evt](identity, eventHandler)(using evtCt)
+                val sh: SignalHandler[Req, Evt, Input] = SignalHandler(signalHandler)
+                val meta                               = HandleSignal.Meta(errorMeta, signalName.getOrElse(signalDef.name), operationName)
+                WIO.HandleSignal(signalDef, sh, eh, responseBuilder, meta)
               }
 
             }

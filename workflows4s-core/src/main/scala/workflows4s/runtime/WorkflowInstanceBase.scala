@@ -44,6 +44,9 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
                            _            <- newStateOpt.traverse_(updateState)
                            _            <- handleStateChange(state, newStateOpt)
                          } yield Right(eventAndResp._2)
+                       case SignalResult.Redelivered(resp)   =>
+                         // Redelivery: no event to persist, just return the reconstructed response
+                         Right(resp).pure[F]
                        case SignalResult.UnexpectedSignal    => Left(WorkflowInstance.UnexpectedSignal(signalDef)).pure[F]
                      }
       } yield result

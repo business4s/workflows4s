@@ -93,10 +93,11 @@ class WIOHandleInterruptionTest extends AnyFreeSpec with Matchers with OptionVal
         // after processing, state is coming from interruption flow
         assert(instance.queryState() === TestState(executed = List(signalAStepId)))
 
-        // after interruption is processed, interruption is no longer possible
+        // Redelivery should return the original response (state unchanged)
         instance.getExpectedSignals shouldBe empty
         val interruptionSignalResult = instance.deliverSignal(signalA, 43)
-        assert(interruptionSignalResult.isLeft)
+        assert(interruptionSignalResult.value === 42)
+        assert(instance.queryState() === TestState(executed = List(signalAStepId)))
       }
 
       // TODO we could add more tests

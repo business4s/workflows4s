@@ -49,13 +49,16 @@ class WIOParallelTest extends AnyFreeSpec with Matchers with OptionValues with E
       val response1 = instance.deliverSignal(signalDef1, 1).value
       assert(response1 == 1)
       assert(instance.queryState().executed == List(singlaStepId1))
-      assert(instance.deliverSignal(signalDef1, 2).isLeft)
+      // Redelivery should return the original response (not modify state)
+      assert(instance.deliverSignal(signalDef1, 2).value == 1)
+      assert(instance.queryState().executed == List(singlaStepId1))
 
       instance.getExpectedSignals should contain theSameElementsAs (List(signalDef2))
       val response2 = instance.deliverSignal(signalDef2, 2).value
       assert(response2 == 2)
       assert(instance.queryState().executed == List(singlaStepId1, singlaStepId2, parStepId))
-      assert(instance.deliverSignal(signalDef1, 2).isLeft)
+      // Redelivery should return the original response (not modify state)
+      assert(instance.deliverSignal(signalDef1, 2).value == 1)
     }
 
     "should wait for all timers" in {

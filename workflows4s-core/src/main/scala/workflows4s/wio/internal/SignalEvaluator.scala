@@ -1,10 +1,11 @@
 package workflows4s.wio.internal
 
-import cats.effect.IO
 import cats.implicits.toFoldableOps
 import com.typesafe.scalalogging.StrictLogging
 import workflows4s.wio.*
 import workflows4s.wio.WIO.HandleInterruption.InterruptionStatus
+
+import scala.annotation.nowarn
 
 object SignalEvaluator {
 
@@ -15,7 +16,76 @@ object SignalEvaluator {
       state: In,
   ): SignalResult[WCEvent[Ctx], Resp] = {
     val visitor = new SignalVisitor(wio, signalDef, req, state, state)
-    SignalResult.fromRaw(visitor.run)
+    visitor.run match {
+      case Some(signalMatch) => produceResult(signalMatch, signalDef, req)
+      case None              => SignalResult.UnexpectedSignal
+    }
+  }
+
+  // Internal types for signal matching
+  private sealed trait SignalMatch[Ctx <: WorkflowContext]
+
+  private object SignalMatch {
+    case class Fresh[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx], Req, Resp, Evt](
+        node: WIO.HandleSignal[Ctx, In, Out, Err, Req, Resp, Evt],
+        input: In,
+    ) extends SignalMatch[Ctx]
+
+    case class Redelivered[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx], Req, Resp, Evt](
+        originalNode: WIO.HandleSignal[Ctx, In, Out, Err, Req, Resp, Evt],
+        input: In,
+        storedEvent: Evt,
+    ) extends SignalMatch[Ctx]
+
+    // Wrapper for matches in embedded/inner contexts that need event conversion
+    case class Embedded[OuterCtx <: WorkflowContext, InnerCtx <: WorkflowContext](
+        inner: SignalMatch[InnerCtx],
+        convertEvent: WCEvent[InnerCtx] => WCEvent[OuterCtx],
+    ) extends SignalMatch[OuterCtx]
+  }
+
+  @nowarn("msg=the type test for workflows4s.wio.internal.SignalEvaluator.SignalMatch")
+  private def produceResult[Ctx <: WorkflowContext, Req, Resp](
+      signalMatch: SignalMatch[Ctx],
+      signalDef: SignalDef[Req, Resp],
+      req: Req,
+  ): SignalResult[WCEvent[Ctx], Resp] = signalMatch match {
+    case fresh: SignalMatch.Fresh[Ctx, in, err, out, Req, Resp, evt] =>
+      val eventIO = fresh.node.sigHandler.handle(fresh.input, req)
+      SignalResult.Processed(eventIO.map { evt =>
+        val event    = fresh.node.evtHandler.convert(evt)
+        val response = fresh.node.responseProducer(fresh.input, evt, req)
+        val typedResp = signalDef.respCt.unapply(response).getOrElse(
+          throw new Exception(
+            s"""The signal response type was different from the one expected based on SignalDef. This is probably a bug, please report it.
+               |Response: ${response}
+               |Expected: ${signalDef.respCt}""".stripMargin,
+          ),
+        )
+        SignalResult.ProcessingResult(event, typedResp)
+      })
+
+    case redelivered: SignalMatch.Redelivered[Ctx, in, err, out, Req, Resp, evt] =>
+      val response  = redelivered.originalNode.responseProducer(redelivered.input, redelivered.storedEvent, req)
+      val typedResp = signalDef.respCt.unapply(response).getOrElse(
+        throw new Exception(
+          s"""The signal response type was different from the one expected based on SignalDef. This is probably a bug, please report it.
+             |Response: ${response}
+             |Expected: ${signalDef.respCt}""".stripMargin,
+        ),
+      )
+      SignalResult.Redelivered(typedResp)
+
+    case embedded: SignalMatch.Embedded[Ctx, innerCtx] =>
+      // Recursively produce result for inner match, then convert the event
+      produceResult(embedded.inner, signalDef, req) match {
+        case SignalResult.Processed(resultIO) =>
+          SignalResult.Processed(resultIO.map { result =>
+            SignalResult.ProcessingResult(embedded.convertEvent(result.event.asInstanceOf[WCEvent[innerCtx]]), result.response)
+          })
+        case SignalResult.Redelivered(resp) => SignalResult.Redelivered(resp)
+        case SignalResult.UnexpectedSignal  => SignalResult.UnexpectedSignal
+      }
   }
 
   private class SignalVisitor[Ctx <: WorkflowContext, Resp, Err, Out <: WCState[Ctx], In, Req](
@@ -26,7 +96,7 @@ object SignalEvaluator {
       lastSeenState: WCState[Ctx],
   ) extends Visitor[Ctx, In, Err, Out](wio)
       with StrictLogging {
-    override type Result = Option[IO[(WCEvent[Ctx], Resp)]]
+    override type Result = Option[SignalMatch[Ctx]]
 
     def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result = {
       if signalDef.id == wio.sigDef.id then {
@@ -39,48 +109,57 @@ object SignalEvaluator {
                |""".stripMargin,
           )
         }
-        val responseOpt    = expectedReqOpt
-          .map(wio.sigHandler.handle(input, _))
-          .map(evtIo =>
-            for {
-              evt   <- evtIo
-              result = wio.evtHandler.handle(input, evt)
-            } yield wio.evtHandler.convert(evt) -> signalDef.respCt
-              .unapply(result._2)
-              .getOrElse(
-                throw new Exception(
-                  s"""The signal response type was different from the one expected based on SignalDef. This is probably a bug, please report it.
-                     |Response: ${result._2}
-                     |Expected: ${signalDef.respCt}""".stripMargin,
-                ),
-              ),
-          )
-        responseOpt
+        expectedReqOpt.map(_ => SignalMatch.Fresh(wio, input))
       } else None
     }
-    def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result                               = None
-    def onNoop(wio: WIO.End[Ctx]): Result                                                          = None
-    def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                                           = None
-    def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result                                         = None
-    // we could have "operational" signal that triggers the release?
-    // the problem is identifying the timer, but we could parametrize the signal request with time, so its
-    // "release timers as if current time was time communicated in the signal"
-    def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result                           = None
-    def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result                             = None
-    def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result                                       = None
-    def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): Result                         = None
+
+    def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result      = None
+    def onNoop(wio: WIO.End[Ctx]): Result                                 = None
+    def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                  = None
+    def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result                = None
+    def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result  = None
+    def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result              = None
+    def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): Result = None
+
+    def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result = {
+      // Find a HandleSignal with matching ID, possibly wrapped in Transform
+      def findMatchingHandleSignal(w: WIO[?, ?, ?, Ctx]): Option[WIO.HandleSignal[Ctx, ?, ?, ?, ?, ?, ?]] = w match {
+        case hs: WIO.HandleSignal[Ctx, ?, ?, ?, ?, ?, ?] if signalDef.id == hs.sigDef.id => Some(hs)
+        case t: WIO.Transform[Ctx, ?, ?, ?, ?, ?, ?]                                     => findMatchingHandleSignal(t.base)
+        case _                                                                           => None
+      }
+
+      findMatchingHandleSignal(wio.original) match {
+        case Some(hs) =>
+          // Redelivery match found - extract stored event and typed request
+          // Use the visitor's signalDef for type-safe request extraction (IDs match, so types match)
+          for {
+            evt      <- wio.event
+            typedEvt <- hs.evtHandler.detect(evt)
+            typedReq <- signalDef.reqCt.unapply(req)
+          } yield SignalMatch.Redelivered(hs.asInstanceOf[WIO.HandleSignal[Ctx, In1, Out, Err, Req, Resp, Any]], wio.input, typedEvt)
+        case None =>
+          // Recurse into original to find nested executed signals
+          recurse(wio.original, wio.input)
+      }
+    }
 
     def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result          = recurse(wio.base, input)
     def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result = recurse(wio.base, input)
     override def onRetry(wio: WIO.Retry[Ctx, In, Err, Out]): Result                                                    = recurse(wio.base, input)
 
-    def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Result                                  =
+    def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Result =
       recurse(wio.base, wio.contramapInput(input))
-    def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result                                                   = {
+
+    def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result = {
       wio.base.asExecuted match {
         case Some(baseExecuted) =>
           baseExecuted.output match {
-            case Left(err) => recurse(wio.handleError, (lastSeenState, err))
+            case Left(err) =>
+              // First check error handler for fresh match
+              recurse(wio.handleError, (lastSeenState, err))
+                // Then check base for redelivery
+                .orElse(recurse(wio.base, input))
             case Right(_)  =>
               throw new IllegalStateException(
                 "Base was executed but surrounding HandleErrorWith was still entered during evaluation. This is a bug in the library. Please report it to the maintainers.",
@@ -89,11 +168,20 @@ object SignalEvaluator {
         case None               => recurse(wio.base, input)
       }
     }
+
     def onLoop[BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx], ReturnIn](wio: WIO.Loop[Ctx, In, Err, Out, BodyIn, BodyOut, ReturnIn]): Result = {
       val lastState = wio.history.lastOption.flatMap(_.output.toOption).getOrElse(lastSeenState)
+      // First check current iteration for fresh match
       recurse(wio.current.wio, input, lastState)
+        .orElse {
+          // Then check history (most recent first) for redelivery matches
+          wio.history.reverse.collectFirstSome(executed =>
+            recurse(executed, input, lastState),
+          )
+        }
     }
-    def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result                                                                                       =
+
+    def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result =
       selectMatching(wio, input).flatMap(selected => recurse(selected.wio, selected.input))
 
     def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result = {
@@ -104,7 +192,11 @@ object SignalEvaluator {
               throw new IllegalStateException(
                 "First step of AndThen was executed with an error but surrounding AndThen was still entered during evaluation. This is a bug in the library. Please report it to the maintainers.",
               )
-            case Right(value) => recurse(wio.second, value, value)
+            case Right(value) =>
+              // First check second for fresh match (precedence)
+              recurse(wio.second, value, value)
+                // Then check first for redelivery match
+                .orElse(recurse(wio.first, input))
           }
         case None                => recurse(wio.first, input)
       }
@@ -112,30 +204,35 @@ object SignalEvaluator {
 
     def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_ <: WCState[InnerCtx]] <: WCState[Ctx]](
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
-    ): Result                                                                        = {
+    ): Result = {
       val newState = wio.embedding.unconvertStateUnsafe(lastSeenState)
       new SignalVisitor(wio.inner, signalDef, req, input, newState).run
-        .map(_.map((event, resp) => wio.embedding.convertEvent(event) -> resp))
+        .map(innerMatch => SignalMatch.Embedded(innerMatch, wio.embedding.convertEvent))
     }
+
     def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result = {
       wio.status match {
-        case InterruptionStatus.Interrupted                               =>
-          recurse(wio.interruption, lastSeenState)
-        case InterruptionStatus.TimerStarted | InterruptionStatus.Pending =>
+        case InterruptionStatus.Interrupted =>
+          // Interruption was triggered - check interruption for fresh/redelivery, then base for redelivery
           recurse(wio.interruption, lastSeenState)
             .orElse(recurse(wio.base, input))
+        case InterruptionStatus.TimerStarted | InterruptionStatus.Pending =>
+          // Check if base has already completed (never interrupted)
+          wio.base.asExecuted.flatMap(_.output.toOption) match {
+            case Some(_) =>
+              // Base completed - only check base for redelivery, NOT interruption for fresh
+              recurse(wio.base, input)
+            case None =>
+              // Base not completed - check both interruption and base for fresh/redelivery
+              recurse(wio.interruption, lastSeenState)
+                .orElse(recurse(wio.base, input))
+          }
       }
     }
 
     def onParallel[InterimState <: workflows4s.wio.WorkflowContext.State[Ctx]](
         wio: workflows4s.wio.WIO.Parallel[Ctx, In, Err, Out, InterimState],
     ): Result = {
-      // We have multiple paths that could handle a signal.
-      // We have a lot of options:
-      // 1. We could say "only one signal handler for particular signal type can be expected at any point in time" (through linter).
-      // 2. Or we could allow for multiple signals of the same type but process only one.
-      // 3. Or we change the signature and process all of them.
-      // For now we go with 2) but we might need a special EventSignal[Req, Unit] that would be delivered everywhere
       wio.elements.collectFirstSome(elem => recurse(elem.wio, input))
     }
 
@@ -143,14 +240,14 @@ object SignalEvaluator {
 
     override def onForEach[ElemId, InnerCtx <: WorkflowContext, ElemOut <: WCState[InnerCtx], InterimState <: WCState[Ctx]](
         wio: WIO.ForEach[Ctx, In, Err, Out, ElemId, InnerCtx, ElemOut, InterimState],
-    ): Option[IO[(WCEvent[Ctx], Resp)]] = {
+    ): Option[SignalMatch[Ctx]] = {
       for {
         unwrapped <- wio.signalRouter.unwrap(signalDef, req, wio.interimState(input))
         elemWioOpt = wio.state(input).get(unwrapped.elem)
         _          = if elemWioOpt.isEmpty then logger.warn(s"Tried to deliver a signal to an unrecognized element ${unwrapped.elem}")
         elemWio   <- elemWioOpt
-        result    <- SignalVisitor(elemWio, unwrapped.sigDef, unwrapped.req, (), wio.initialElemState()).run
-      } yield result.map(x => wio.eventEmbedding.convertEvent(unwrapped.elem, x._1) -> x._2)
+        innerMatch <- new SignalVisitor(elemWio, unwrapped.sigDef, unwrapped.req, (), wio.initialElemState()).run
+      } yield SignalMatch.Embedded(innerMatch, wio.eventEmbedding.convertEvent(unwrapped.elem, _))
     }
 
     def recurse[I1, E1, O1 <: WCState[Ctx]](
