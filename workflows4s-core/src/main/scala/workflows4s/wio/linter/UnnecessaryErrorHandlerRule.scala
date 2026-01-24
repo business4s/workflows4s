@@ -17,11 +17,6 @@ object UnnecessaryErrorHandlerRule extends Rule {
   ) extends Visitor[Ctx, In, Err, Out](wio) {
     override type Result = List[LinterIssue]
 
-    override def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): List[LinterIssue] = {
-      val canFail    = canSubtreeFail(wio.base)
-      val errorIssue = if !canFail then List(LinterIssue("Unnecessary error handler: base workflow cannot fail", id, path)) else Nil
-      errorIssue ++ recurse(wio.base, "base")
-    }
 
     override def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): List[LinterIssue] = {
       val canFail    = canSubtreeFail(wio.base)
@@ -81,8 +76,6 @@ object UnnecessaryErrorHandlerRule extends Rule {
     override def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Boolean                                                   = wio.meta.error.canFail
     override def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Boolean                                                               = wio.meta.error.canFail
     override def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Boolean                           = wio.newErrorMeta.canFail
-    override def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Boolean =
-      wio.newErrorMeta.canFail
 
     override def onNoop(wio: WIO.End[Ctx]): Boolean                                                                            = false
     override def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Boolean                                                           = false

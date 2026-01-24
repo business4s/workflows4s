@@ -1,0 +1,58 @@
+[info] welcome to sbt 1.12.0 (Homebrew Java 25.0.1)
+[info] loading settings for project workflows4s-build from plugins.sbt...
+[info] loading project definition from /Users/Vansh/Desktop/brandnewworkflowforscala/workflows4s/project
+[info] loading settings for project workflows4s from build.sbt...
+[info] resolving key references (15435 settings) ...
+[info] set current project to workflows4s (in build file:/Users/Vansh/Desktop/brandnewworkflowforscala/workflows4s/)
+[info] Executing in batch mode. For better performance use sbt's shell
+[info] set current project to workflows4s-core (in build file:/Users/Vansh/Desktop/brandnewworkflowforscala/workflows4s/)
+[info] compiling 5 Scala sources to /Users/Vansh/Desktop/brandnewworkflowforscala/workflows4s/workflows4s-core/target/scala-3.7.4/classes ...
+[info] done compiling
+[info] compiling 37 Scala sources to /Users/Vansh/Desktop/brandnewworkflowforscala/workflows4s/workflows4s-core/target/scala-3.7.4/classes ...
+[error] -- [E008] Not Found Error: /Users/Vansh/Desktop/brandnewworkflowforscala/workflows4s/workflows4s-core/src/main/scala/workflows4s/wio/internal/GetIndexEvaluator.scala:30:63 
+[error] 30 |    def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result = recurse(wio.base)
+[error]    |                                                           ^^^^^^^^^^^^^^^
+[error]    |          type HandleError is not a member of object workflows4s.wio.WIO
+[error] -- [E008] Not Found Error: /Users/Vansh/Desktop/brandnewworkflowforscala/workflows4s/workflows4s-core/src/main/scala/workflows4s/wio/internal/GetSignalDefsEvaluator.scala:33:72 
+[error] 33 |    override def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result = Nil
+[error]    |                                                                    ^^^^^^^^^^^^^^^
+[error]    |          type HandleError is not a member of object workflows4s.wio.WIO
+[error] -- [E008] Not Found Error: /Users/Vansh/Desktop/brandnewworkflowforscala/workflows4s/workflows4s-core/src/main/scala/workflows4s/wio/internal/GetStateEvaluator.scala:39:63 
+[error] 39 |    def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result = recurse(wio.base, input)
+[error]    |                                                           ^^^^^^^^^^^^^^^
+[error]    |          type HandleError is not a member of object workflows4s.wio.WIO
+[error] -- [E008] Not Found Error: /Users/Vansh/Desktop/brandnewworkflowforscala/workflows4s/workflows4s-core/src/main/scala/workflows4s/wio/internal/GetWakeupEvaluator.scala:35:63 
+[error] 35 |    def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result = recurse(wio.base)
+[error]    |                                                           ^^^^^^^^^^^^^^^
+[error]    |          type HandleError is not a member of object workflows4s.wio.WIO
+[error] -- [E008] Not Found Error: /Users/Vansh/Desktop/brandnewworkflowforscala/workflows4s/workflows4s-core/src/main/scala/workflows4s/wio/internal/RunIOEvaluator.scala:43:63 
+[error] 43 |    def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result = recurse(wio.base, input)
+[error]    |                                                           ^^^^^^^^^^^^^^^
+[error]    |          type HandleError is not a member of object workflows4s.wio.WIO
+[error] -- [E008] Not Found Error: /Users/Vansh/Desktop/brandnewworkflowforscala/workflows4s/workflows4s-core/src/main/scala/workflows4s/wio/internal/SignalEvaluator.scala:74:63 
+[error] 74 |    def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result = recurse(wio.base, input)
+[error]    |                                                           ^^^^^^^^^^^^^^^
+[error]    |          type HandleError is not a member of object workflows4s.wio.WIO
+[error] -- [E008] Not Found Error: /Users/Vansh/Desktop/brandnewworkflowforscala/workflows4s/workflows4s-core/src/main/scala/workflows4s/wio/linter/BusyLoopRule.scala:41:72 
+[error] 41 |    override def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): List[LinterIssue] =
+[error]    |                                                                    ^^^^^^^^^^^^^^^
+[error]    |          type HandleError is not a member of object workflows4s.wio.WIO
+[error] -- [E008] Not Found Error: /Users/Vansh/Desktop/brandnewworkflowforscala/workflows4s/workflows4s-core/src/main/scala/workflows4s/wio/linter/BusyLoopRule.scala:87:72 
+[error] 87 |    override def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Boolean = recurse(wio.base)
+[error]    |                                                                    ^^^^^^^^^^^^^^^
+[error]    |          type HandleError is not a member of object workflows4s.wio.WIO
+[error] -- [E008] Not Found Error: /Users/Vansh/Desktop/brandnewworkflowforscala/workflows4s/workflows4s-core/src/main/scala/workflows4s/wio/linter/ClashingEventsRule.scala:35:72 
+[error] 35 |    override def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): List[LinterIssue] =
+[error]    |                                                                    ^^^^^^^^^^^^^^^
+[error]    |          type HandleError is not a member of object workflows4s.wio.WIO
+[error] -- [E008] Not Found Error: /Users/Vansh/Desktop/brandnewworkflowforscala/workflows4s/workflows4s-core/src/main/scala/workflows4s/wio/linter/ClashingEventsRule.scala:135:72 
+[error] 135 |    override def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): List[ClassTag[?]] = recurse(
+[error]     |                                                                    ^^^^^^^^^^^^^^^
+[error]     |        type HandleError is not a member of object workflows4s.wio.WIO
+[error] -- [E008] Not Found Error: /Users/Vansh/Desktop/brandnewworkflowforscala/workflows4s/workflows4s-core/src/main/scala/workflows4s/wio/linter/ClashingSignalsRule.scala:33:72 
+[error] 33 |    override def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): List[LinterIssue] =
+[error]    |                                                                    ^^^^^^^^^^^^^^^
+[error]    |          type HandleError is not a member of object workflows4s.wio.WIO
+[error] 11 errors found
+[error] (Compile / compileIncremental) Compilation failed
+[error] Total time: 7 s, completed Jan 24, 2026, 1:21:33 PM

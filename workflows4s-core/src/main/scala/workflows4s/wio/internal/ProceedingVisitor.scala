@@ -43,29 +43,6 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
     })
   }
 
-  def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result = {
-    wio.base.asExecuted match {
-      case Some(baseExecuted) =>
-        baseExecuted.output match {
-          case Left(err) =>
-            onHandleErrorWith(WIO.HandleErrorWith(baseExecuted, wio.handleError(lastSeenState, err), wio.handledErrorMeta, wio.newErrorMeta))
-          case Right(_)  =>
-            throw new IllegalStateException(
-              "Base was successfully executed, but surrounding handle error was still evaluated. This is a bug.",
-            )
-        }
-      case None               =>
-        recurse(wio.base, input).map({
-          case WFExecution.Complete(executedBase) =>
-            executedBase.output match {
-              case Left(err)    =>
-                WFExecution.Partial(WIO.HandleErrorWith(executedBase, wio.handleError(lastSeenState, err), wio.handledErrorMeta, wio.newErrorMeta))
-              case Right(value) => WFExecution.complete(wio.copy(base = executedBase), Right(value), executedBase.input, executedBase.index)
-            }
-          case WFExecution.Partial(newWio)        => WFExecution.Partial(wio.copy(base = newWio))
-        })
-    }
-  }
 
   def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result = {
     wio.base.asExecuted match {

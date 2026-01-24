@@ -32,7 +32,6 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
   def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result
   def onTransform[In1, Out1 <: WCState[Ctx], Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Result
   def onNoop(wio: WIO.End[Ctx]): Result
-  def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result
   def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result
   def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result
   def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result
@@ -67,7 +66,6 @@ abstract class Visitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](wio
         }
       case x: WIO.Transform[?, ?, ?, ? <: State, ?, ?, Err]            => onTransform(x)
       case x: WIO.End[?]                                               => onNoop(x)
-      case x: WIO.HandleError[?, ?, ?, ?, ?, ? <: State]               => onHandleError(x)
       case x: WIO.AndThen[?, ?, ?, ? <: State, ? <: State]             => onAndThen(x)
       case x: WIO.Pure[?, ?, ?, ?]                                     => onPure(x)
       case x: WIO.HandleErrorWith[?, ?, ?, ?, ?]                       => onHandleErrorWith(x)
