@@ -34,10 +34,10 @@ object GetStateEvaluator {
     def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result                                         = None
     def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result                           = None
 
-    def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result                                                           = recurse(wio.original, wio.input)
-    def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result          = recurse(wio.base, input)
-    override def onRetry(wio: WIO.Retry[Ctx, In, Err, Out]): Option[WCState[Ctx]]                                      = recurse(wio.base, input)
-    override def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): Result                  = recurse(wio.base, input)
+    def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result                                                  = recurse(wio.original, wio.input)
+    def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result = recurse(wio.base, input)
+    override def onRetry(wio: WIO.Retry[Ctx, In, Err, Out]): Option[WCState[Ctx]]                             = recurse(wio.base, input)
+    override def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): Result         = recurse(wio.base, input)
 
     def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Result =
       recurse(wio.base, wio.contramapInput(input))

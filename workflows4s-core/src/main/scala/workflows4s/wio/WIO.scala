@@ -71,7 +71,6 @@ object WIO {
       errorMeta: ErrorMeta[?],
   ) extends WIO[In, Err2, Out2, Ctx]
 
-
   case class HandleErrorWith[Ctx <: WorkflowContext, -In, Err, +Out <: WCState[Ctx], +ErrOut](
       base: WIO[In, Err, Out, Ctx],
       handleError: WIO[(WCState[Ctx], Err), ErrOut, Out, Ctx],

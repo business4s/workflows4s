@@ -43,7 +43,6 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
     })
   }
 
-
   def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result = {
     wio.base.asExecuted match {
       case Some(baseExecuted) =>

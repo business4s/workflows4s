@@ -23,21 +23,21 @@ object ExecutionProgressEvaluator {
   ) extends Visitor[Ctx, In, Err, Out](wio) {
     override type Result = WIOExecutionProgress[WCState[Ctx]]
 
-    def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result                     = {
+    def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result            = {
       val meta = WIOMeta.HandleSignal(wio.meta.signalName, wio.meta.operationName, wio.meta.error.toModel)
       WIOExecutionProgress.HandleSignal(meta, result)
     }
-    def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result                                                   = {
+    def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result                                          = {
       val meta = WIOMeta.RunIO(wio.meta.name, wio.meta.error.toModel, wio.meta.description)
       WIOExecutionProgress.RunIO(meta, result)
     }
-    def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result          = {
+    def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result = {
       WIOExecutionProgress.Sequence(Seq(recurse(wio.base, input, None), WIOExecutionProgress.Dynamic(WIOMeta.Dynamic(wio.errorMeta.toModel))))
     }
-    def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Result          =
+    def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Result =
       recurse(wio.base, input.map(wio.contramapInput))
-    def onNoop(wio: WIO.End[Ctx]): Result                                                                              = WIOExecutionProgress.End(result)
-    def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result                           = {
+    def onNoop(wio: WIO.End[Ctx]): Result                                                                     = WIOExecutionProgress.End(result)
+    def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result                  = {
       WIOExecutionProgress.HandleError(
         recurse(wio.base, input, result = None),
         recurse(wio.handleError, None, result = None),
@@ -45,7 +45,7 @@ object ExecutionProgressEvaluator {
         result,
       )
     }
-    def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result                             = {
+    def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result                    = {
       (recurse(wio.first, None, result = None), recurse(wio.second, None, result = None)) match {
         case (WIOExecutionProgress.Sequence(steps1), WIOExecutionProgress.Sequence(steps2)) => WIOExecutionProgress.Sequence(steps1 ++ steps2)
         case (x, WIOExecutionProgress.Sequence(steps2))                                     => WIOExecutionProgress.Sequence(List(x) ++ steps2)
@@ -196,7 +196,8 @@ object ExecutionProgressEvaluator {
       case WIOExecutionProgress.HandleError(base, handler, errorName, result) =>
         // TODO this is not a correct model, in case of signal handler with error handler,
         //  it will not express it correctly
-        extractFirstInterruption(base).map((first, rest) => first -> rest.map(x => WIOExecutionProgress.HandleError(x, handler, errorName, result)))      case _ @WIOExecutionProgress.End(_)                                     => None
+        extractFirstInterruption(base).map((first, rest) => first -> rest.map(x => WIOExecutionProgress.HandleError(x, handler, errorName, result)))
+      case _ @WIOExecutionProgress.End(_)                                     => None
       case _ @WIOExecutionProgress.Pure(_, _)                                 => None
       case _: WIOExecutionProgress.Loop[?]                                    => None
       case _ @WIOExecutionProgress.Fork(_, _, _)                              => None

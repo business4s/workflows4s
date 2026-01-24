@@ -36,28 +36,28 @@ object BusyLoopRule extends Rule {
     override def onDiscarded[In1](wio: WIO.Discarded[Ctx, In1]): List[LinterIssue]                                     = Nil
     override def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): List[LinterIssue]                         = Nil
 
-    override def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): List[LinterIssue]          =
+    override def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): List[LinterIssue]        =
       recurse(wio.base, "flatMap")
-    override def onRetry(wio: WIO.Retry[Ctx, In, Err, Out]): List[LinterIssue]                                                             = recurse(wio.base, "retry")
-    override def onTransform[In1, Out1 <: WCState[Ctx], Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): List[LinterIssue]   =
+    override def onRetry(wio: WIO.Retry[Ctx, In, Err, Out]): List[LinterIssue]                                                           = recurse(wio.base, "retry")
+    override def onTransform[In1, Out1 <: WCState[Ctx], Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): List[LinterIssue] =
       recurse(wio.base, "transform")
-    override def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): List[LinterIssue]                           =
+    override def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): List[LinterIssue]                         =
       recurse(wio.base, "base") ++ recurse(wio.handleError, "handler")
-    override def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): List[LinterIssue]                                                               =
+    override def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): List[LinterIssue]                                                             =
       wio.branches.zipWithIndex.flatMap { case (branch, idx) => recurse(branch.wio, s"branch[${branch.name.getOrElse(idx.toString)}]") }.toList
-    override def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): List[LinterIssue]                             =
+    override def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): List[LinterIssue]                           =
       recurse(wio.first, "first") ++ recurse(wio.second, "second")
     override def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_ <: WCState[InnerCtx]] <: WCState[Ctx]](
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
-    ): List[LinterIssue]                                                                                                                   = new BusyLoopVisitor(wio.inner, path :+ "embedded").run
-    override def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): List[LinterIssue]                                   =
+    ): List[LinterIssue]                                                                                                                 = new BusyLoopVisitor(wio.inner, path :+ "embedded").run
+    override def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): List[LinterIssue]                                 =
       recurse(wio.base, "base") ++ recurse(wio.interruption, "interruption")
-    override def onParallel[InterimState <: WCState[Ctx]](wio: WIO.Parallel[Ctx, In, Err, Out, InterimState]): List[LinterIssue]           =
+    override def onParallel[InterimState <: WCState[Ctx]](wio: WIO.Parallel[Ctx, In, Err, Out, InterimState]): List[LinterIssue]         =
       wio.elements.zipWithIndex.flatMap { case (e, idx) => recurse(e.wio, s"branch[$idx]") }.toList
-    override def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): List[LinterIssue]                           = recurse(wio.base, "checkpoint")
+    override def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): List[LinterIssue]                         = recurse(wio.base, "checkpoint")
     override def onForEach[Elem, InnerCtx <: WorkflowContext, ElemOut <: WCState[InnerCtx], InterimState <: WCState[Ctx]](
         wio: WIO.ForEach[Ctx, In, Err, Out, Elem, InnerCtx, ElemOut, InterimState],
-    ): List[LinterIssue]                                                                                                                   = new BusyLoopVisitor(wio.elemWorkflow, path :+ "forEach").run
+    ): List[LinterIssue]                                                                                                                 = new BusyLoopVisitor(wio.elemWorkflow, path :+ "forEach").run
 
     private def recurse(nextWio: WIO[?, ?, ?, Ctx], name: String): List[LinterIssue] = new BusyLoopVisitor(nextWio, path :+ name).run
 
@@ -81,25 +81,25 @@ object BusyLoopRule extends Rule {
     override def onDiscarded[In1](wio: WIO.Discarded[Ctx, In1]): Boolean             = false
     override def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): Boolean = false
 
-    override def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Boolean          = recurse(wio.base)
-    override def onRetry(wio: WIO.Retry[Ctx, In, Err, Out]): Boolean                                                             = recurse(wio.base)
-    override def onTransform[In1, Out1 <: WCState[Ctx], Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Boolean   = recurse(wio.base)
-    override def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Boolean                           = recurse(wio.base) || recurse(wio.handleError)
+    override def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Boolean        = recurse(wio.base)
+    override def onRetry(wio: WIO.Retry[Ctx, In, Err, Out]): Boolean                                                           = recurse(wio.base)
+    override def onTransform[In1, Out1 <: WCState[Ctx], Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Boolean = recurse(wio.base)
+    override def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Boolean                         = recurse(wio.base) || recurse(wio.handleError)
     override def onLoop[BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx], ReturnIn](
         wio: WIO.Loop[Ctx, In, Err, Out, BodyIn, BodyOut, ReturnIn],
-    ): Boolean                                                                                                                   = recurse(wio.body) || recurse(wio.onRestart)
-    override def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Boolean                                                               = wio.branches.exists(b => recurse(b.wio))
-    override def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Boolean                             = recurse(wio.first) || recurse(wio.second)
+    ): Boolean                                                                                                                 = recurse(wio.body) || recurse(wio.onRestart)
+    override def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Boolean                                                             = wio.branches.exists(b => recurse(b.wio))
+    override def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Boolean                           = recurse(wio.first) || recurse(wio.second)
     override def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_ <: WCState[InnerCtx]] <: WCState[Ctx]](
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
-    ): Boolean                                                                                                                   = new ProgressMarkVisitor(wio.inner).run
-    override def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Boolean                                   = recurse(wio.base) || recurse(wio.interruption)
-    override def onParallel[InterimState <: WCState[Ctx]](wio: WIO.Parallel[Ctx, In, Err, Out, InterimState]): Boolean           =
+    ): Boolean                                                                                                                 = new ProgressMarkVisitor(wio.inner).run
+    override def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Boolean                                 = recurse(wio.base) || recurse(wio.interruption)
+    override def onParallel[InterimState <: WCState[Ctx]](wio: WIO.Parallel[Ctx, In, Err, Out, InterimState]): Boolean         =
       wio.elements.exists(e => recurse(e.wio))
-    override def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): Boolean                           = recurse(wio.base)
+    override def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): Boolean                         = recurse(wio.base)
     override def onForEach[Elem, InnerCtx <: WorkflowContext, ElemOut <: WCState[InnerCtx], InterimState <: WCState[Ctx]](
         wio: WIO.ForEach[Ctx, In, Err, Out, Elem, InnerCtx, ElemOut, InterimState],
-    ): Boolean                                                                                                                   = new ProgressMarkVisitor(wio.elemWorkflow).run
+    ): Boolean                                                                                                                 = new ProgressMarkVisitor(wio.elemWorkflow).run
 
     private def recurse(nextWio: WIO[?, ?, ?, Ctx]): Boolean = new ProgressMarkVisitor(nextWio).run
   }
