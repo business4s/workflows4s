@@ -144,12 +144,12 @@ class WIOForEachTest extends AnyFreeSpec with Matchers with OptionValues with Ei
       val elements                     = genElements(3)
 
       val (_, instance) = TestUtils.createInstance2(wf.provideInput(elements.toSet))
-      assert(instance.getExpectedSignals == List(SigRouter.outerSignalDef(signalDef1)))
+      assert(instance.getExpectedSignals() == List(SigRouter.outerSignalDef(signalDef1)))
 
       instance.deliverRoutedSignal(SigRouter, elements.head, signalDef1, 1).value
 
       assert(
-        instance.getExpectedSignals == List(
+        instance.getExpectedSignals() == List(
           SigRouter.outerSignalDef(signalDef1),
           SigRouter.outerSignalDef(signalDef2),
         ),

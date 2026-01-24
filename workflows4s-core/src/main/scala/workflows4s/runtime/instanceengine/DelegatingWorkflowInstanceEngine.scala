@@ -10,7 +10,8 @@ trait DelegatingWorkflowInstanceEngine extends WorkflowInstanceEngine {
 
   def queryState[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[WCState[Ctx]]                        = delegate.queryState(workflow)
   def getProgress[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[WIOExecutionProgress[WCState[Ctx]]] = delegate.getProgress(workflow)
-  def getExpectedSignals[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[List[SignalDef[?, ?]]]       = delegate.getExpectedSignals(workflow)
+  def getExpectedSignals[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx], includeRedeliverable: Boolean = false): IO[List[SignalDef[?, ?]]] =
+    delegate.getExpectedSignals(workflow, includeRedeliverable)
 
   override def triggerWakeup[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[WakeupResult[WCEvent[Ctx]]] =
     delegate.triggerWakeup(workflow)

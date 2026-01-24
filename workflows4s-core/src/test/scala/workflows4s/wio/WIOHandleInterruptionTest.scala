@@ -62,7 +62,7 @@ class WIOHandleInterruptionTest extends AnyFreeSpec with Matchers with OptionVal
         assert(instance.queryState() === TestState(executed = List(step1Id)))
 
         // after base is processed, interruption is no longer possible
-        instance.getExpectedSignals shouldBe empty
+        instance.getExpectedSignals() shouldBe empty
         val interruptionSignalResult = instance.deliverSignal(signalA, 43)
         assert(interruptionSignalResult.isLeft)
       }
@@ -71,13 +71,13 @@ class WIOHandleInterruptionTest extends AnyFreeSpec with Matchers with OptionVal
         val wf            = handleSignalB.interruptWith(interruptWithSignalA)
         val (_, instance) = TestUtils.createInstance2(wf)
 
-        instance.getExpectedSignals should contain theSameElementsAs List(signalA, signalB)
+        instance.getExpectedSignals() should contain theSameElementsAs List(signalA, signalB)
         val signalResult = instance.deliverSignal(signalB, 42).value
         assert(signalResult === 42)
         assert(instance.queryState() === TestState(executed = List(signalBStepId)))
 
         // after base is processed, interruption is no longer possible
-        instance.getExpectedSignals shouldBe empty
+        instance.getExpectedSignals() shouldBe empty
         val interruptionSignalResult = instance.deliverSignal(signalA, 43)
         assert(interruptionSignalResult.isLeft)
       }
@@ -86,7 +86,7 @@ class WIOHandleInterruptionTest extends AnyFreeSpec with Matchers with OptionVal
         val wf            = handleSignalB.interruptWith(interruptWithSignalA)
         val (_, instance) = TestUtils.createInstance2(wf)
 
-        instance.getExpectedSignals should contain theSameElementsAs List(signalA, signalB)
+        instance.getExpectedSignals() should contain theSameElementsAs List(signalA, signalB)
         val signalResult = instance.deliverSignal(signalA, 42).value
         assert(signalResult === 42)
 
@@ -94,10 +94,32 @@ class WIOHandleInterruptionTest extends AnyFreeSpec with Matchers with OptionVal
         assert(instance.queryState() === TestState(executed = List(signalAStepId)))
 
         // Redelivery should return the original response (state unchanged)
-        instance.getExpectedSignals shouldBe empty
+        instance.getExpectedSignals() shouldBe empty
         val interruptionSignalResult = instance.deliverSignal(signalA, 43)
         assert(interruptionSignalResult.value === 42)
         assert(instance.queryState() === TestState(executed = List(signalAStepId)))
+      }
+
+      "getExpectedSignals with includeRedeliverable" in {
+        val (signalC, signalCStepId, handleSignalC) = TestUtils.signal
+        // Create a simple workflow: signalC followed by signalB
+        val wf            = handleSignalC >>> handleSignalB
+        val (_, instance) = TestUtils.createInstance2(wf)
+
+        // Initially only the first signal (signalC) is pending
+        instance.getExpectedSignals() should contain theSameElementsAs List(signalC)
+        // With includeRedeliverable = true, all signals in the workflow structure are returned
+        instance.getExpectedSignals(includeRedeliverable = true) should contain theSameElementsAs List(signalC, signalB)
+
+        // Deliver the first signal
+        val signalResult = instance.deliverSignal(signalC, 42).value
+        assert(signalResult === 42)
+        assert(instance.queryState().executed === List(signalCStepId))
+
+        // After processing the first signal, only the second signal is pending
+        instance.getExpectedSignals() should contain theSameElementsAs List(signalB)
+        // With includeRedeliverable = true, both signals are still returned (signalC was executed, signalB is pending)
+        instance.getExpectedSignals(includeRedeliverable = true) should contain theSameElementsAs List(signalC, signalB)
       }
 
       // TODO we could add more tests

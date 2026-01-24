@@ -43,16 +43,16 @@ class WIOHandleErrorTest extends AnyFreeSpec with Matchers with EitherValues {
       val wio                       = base.handleErrorWith(handler)
       val (_, wf)                   = TestUtils.createInstance2(wio)
 
-      wf.getExpectedSignals should contain theSameElementsAs (List(signal1))
+      wf.getExpectedSignals() should contain theSameElementsAs (List(signal1))
       val response = wf.deliverSignal(signal1, 43).value
       assert(response === 43)
       assert(wf.queryState() === TestState.empty)
 
-      wf.getExpectedSignals should contain theSameElementsAs (List(signal2))
+      wf.getExpectedSignals() should contain theSameElementsAs (List(signal2))
       val response2 = wf.deliverSignal(signal2, 44).value
       assert(response2 === 44)
       assert(wf.queryState() === TestState(executed = List(step2Id), errors = List(error)))
-      wf.getExpectedSignals shouldBe empty
+      wf.getExpectedSignals() shouldBe empty
     }
 
     "effectful handler" in {

@@ -29,7 +29,8 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
 
   override def getProgress: F[WIOExecutionProgress[WCState[Ctx]]] = getWorkflow.flatMap(x => engine.getProgress(x).pipe(liftIO.liftIO))
 
-  override def getExpectedSignals: F[List[SignalDef[?, ?]]] = getWorkflow.flatMap(x => engine.getExpectedSignals(x).pipe(liftIO.liftIO))
+  override def getExpectedSignals(includeRedeliverable: Boolean = false): F[List[SignalDef[?, ?]]] =
+    getWorkflow.flatMap(x => engine.getExpectedSignals(x, includeRedeliverable).pipe(liftIO.liftIO))
 
   override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): F[Either[WorkflowInstance.UnexpectedSignal, Resp]] = {
     def processSignal(state: ActiveWorkflow[Ctx]): F[Either[WorkflowInstance.UnexpectedSignal, Resp]] = {

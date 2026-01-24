@@ -79,5 +79,45 @@ class GetSignalDefsEvaluatorTest extends AnyFreeSpec with Matchers {
         GetSignalDefsEvaluator.run(wio).shouldBe(empty)
       }
     }
+
+    "includeRedeliverable parameter" - {
+      "should include executed signal when includeRedeliverable is true" in {
+        val (signalDef, _, wio) = TestUtils.signal
+        val executedWio         = WIO.Executed(wio, Right(TestState(Nil, Nil)), TestState(Nil, Nil), 1)
+        GetSignalDefsEvaluator.run(executedWio, includeRedeliverable = true) should contain theSameElementsAs List(signalDef)
+      }
+
+      "should not include executed signal when includeRedeliverable is false" in {
+        val (_, _, wio) = TestUtils.signal
+        val executedWio = WIO.Executed(wio, Right(TestState(Nil, Nil)), TestState(Nil, Nil), 1)
+        GetSignalDefsEvaluator.run(executedWio, includeRedeliverable = false).shouldBe(empty)
+      }
+
+      "for AndThen, should include signals from both steps when includeRedeliverable is true" in {
+        val (signalDef1, _, step1) = TestUtils.signal
+        val (signalDef2, _, step2) = TestUtils.signal
+        val executedStep1          = WIO.Executed(step1, Right(TestState(Nil, Nil)), TestState(Nil, Nil), 1)
+        val wio                    = executedStep1 >>> step2
+        GetSignalDefsEvaluator.run(wio, includeRedeliverable = true) should contain theSameElementsAs List(signalDef1, signalDef2)
+      }
+
+      "for AndThen, should only include pending signals when includeRedeliverable is false" in {
+        val (signalDef1, _, step1) = TestUtils.signal
+        val (signalDef2, _, step2) = TestUtils.signal
+        val executedStep1          = WIO.Executed(step1, Right(TestState(Nil, Nil)), TestState(Nil, Nil), 1)
+        val wio                    = executedStep1 >>> step2
+        GetSignalDefsEvaluator.run(wio, includeRedeliverable = false) should contain theSameElementsAs List(signalDef2)
+      }
+
+      "for HandleErrorWith, should include signals from both base and handler when includeRedeliverable is true" in {
+        val (signalDef1, _, handleSignal1) = TestUtils.signal
+        val (signalDef2, _, handleSignal2) = TestUtils.signal
+        // The error handler takes (State, Error) as input and maps to Just the State
+        val handler                        = handleSignal2.transformInput((input: (TestState, String)) => input._1)
+        val base                           = WIO.Executed(handleSignal1, Left("error"), TestState(Nil), 0)
+        val wio                            = base.handleErrorWith(handler)
+        GetSignalDefsEvaluator.run(wio, includeRedeliverable = true) should contain theSameElementsAs List(signalDef1, signalDef2)
+      }
+    }
   }
 }

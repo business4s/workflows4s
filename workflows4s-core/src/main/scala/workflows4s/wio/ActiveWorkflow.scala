@@ -16,9 +16,9 @@ case class ActiveWorkflow[Ctx <: WorkflowContext](id: WorkflowInstanceId, wio: W
     wf.staticState
   }
 
-  def expectedSignals: List[SignalDef[?, ?]] = {
+  def expectedSignals(includeRedeliverable: Boolean = false): List[SignalDef[?, ?]] = {
     val wf = effectlessProceed
-    GetSignalDefsEvaluator.run(wf.wio)
+    GetSignalDefsEvaluator.run(wf.wio, includeRedeliverable)
   }
 
   def handleSignal[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req): SignalResult[WCEvent[Ctx], Resp] = {
