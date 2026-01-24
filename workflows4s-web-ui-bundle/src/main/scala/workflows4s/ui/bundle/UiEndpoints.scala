@@ -24,24 +24,37 @@ object UiEndpoints {
       .out(header[String]("Content-Type"))
       .out(inputStreamBody)
       .serverLogicPure[F] { pathList =>
-        val relativePath = pathList.mkString("/")
-        if (relativePath.isEmpty) {
-          val indexStream = this.getClass.getClassLoader.getResourceAsStream("workflows4s-web-ui-bundle/index.html")
-          if (indexStream != null) Right(("text/html", indexStream))
-          else Left(())
+        val sanitizedPathList = pathList.filter(_ != ".")
+        val isValid = sanitizedPathList.forall { segment =>
+          segment.nonEmpty && 
+          segment != ".." && 
+          !segment.contains('/') && 
+          !segment.contains('\\') && 
+          !segment.contains(':')
+        }
+
+        if (!isValid) {
+          Left(())
         } else {
-          val resourcePath = s"workflows4s-web-ui-bundle/$relativePath"
-          // try to find the resource
-          val stream = this.getClass.getClassLoader.getResourceAsStream(resourcePath)
-          if (stream != null) {
-            Right((guessContentType(relativePath), stream))
-          } else {
-            // fallback to index.html
+          val relativePath = sanitizedPathList.mkString("/")
+          if (relativePath.isEmpty) {
             val indexStream = this.getClass.getClassLoader.getResourceAsStream("workflows4s-web-ui-bundle/index.html")
-            if (indexStream != null) {
-              Right(("text/html", indexStream))
+            if (indexStream != null) Right(("text/html", indexStream))
+            else Left(())
+          } else {
+            val resourcePath = s"workflows4s-web-ui-bundle/$relativePath"
+            // try to find the resource
+            val stream = this.getClass.getClassLoader.getResourceAsStream(resourcePath)
+            if (stream != null) {
+              Right((guessContentType(relativePath), stream))
             } else {
-              Left(())
+              // fallback to index.html
+              val indexStream = this.getClass.getClassLoader.getResourceAsStream("workflows4s-web-ui-bundle/index.html")
+              if (indexStream != null) {
+                Right(("text/html", indexStream))
+              } else {
+                Left(())
+              }
             }
           }
         }
