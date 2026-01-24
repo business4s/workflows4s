@@ -12,7 +12,7 @@ trait BasicEngine extends WorkflowInstanceEngine {
 
   protected def now: IO[Instant]
 
-  override def triggerWakeup[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[WakeupResult[WCEvent[Ctx]]] = {
+  override def triggerWakeup[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[WakeupResult[WCEvent[Ctx], IO]] = {
     now.map(workflow.proceed)
   }
 
@@ -20,7 +20,7 @@ trait BasicEngine extends WorkflowInstanceEngine {
       workflow: ActiveWorkflow[Ctx],
       signalDef: SignalDef[Req, Resp],
       req: Req,
-  ): IO[SignalResult[WCEvent[Ctx], Resp]] = workflow.handleSignal(signalDef)(req).pure[IO]
+  ): IO[SignalResult[WCEvent[Ctx], Resp, IO]] = workflow.handleSignal(signalDef)(req).pure[IO]
 
   override def handleEvent[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx], event: WCEvent[Ctx]): SyncIO[Option[ActiveWorkflow[Ctx]]] =
     workflow.handleEvent(event).pure[SyncIO]

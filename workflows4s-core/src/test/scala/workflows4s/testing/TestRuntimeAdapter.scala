@@ -1,6 +1,5 @@
 package workflows4s.testing
 
-import cats.Id
 import cats.effect.IO
 import cats.effect.unsafe.IORuntime
 import cats.effect.unsafe.implicits.global
@@ -19,10 +18,10 @@ trait TestRuntimeAdapter[Ctx <: WorkflowContext] extends StrictLogging {
 
   val engine: WorkflowInstanceEngine = WorkflowInstanceEngine.default(knockerUpper, registry, clock)
 
-  type Actor <: WorkflowInstance[Id, WCState[Ctx]]
+  type Actor <: WorkflowInstance[cats.Id, WCState[Ctx]]
 
   def runWorkflow(
-      workflow: WIO[Any, Nothing, WCState[Ctx], Ctx],
+      workflow: WIO[IO, Any, Nothing, WCState[Ctx], Ctx],
       state: WCState[Ctx],
   ): Actor
 
@@ -46,7 +45,7 @@ object TestRuntimeAdapter {
   case class InMemorySync[Ctx <: WorkflowContext]() extends TestRuntimeAdapter[Ctx] {
 
     override def runWorkflow(
-        workflow: WIO.Initial[Ctx],
+        workflow: WIO.Initial[IO, Ctx],
         state: WCState[Ctx],
     ): Actor = {
       val runtime = new InMemorySyncRuntime[Ctx](workflow, state, engine, "test")(using IORuntime.global)
@@ -56,7 +55,7 @@ object TestRuntimeAdapter {
     override def recover(first: Actor): Actor = Actor(first.getEvents, first.runtime)
 
     case class Actor(events: Seq[WCEvent[Ctx]], runtime: InMemorySyncRuntime[Ctx])
-        extends DelegateWorkflowInstance[Id, WCState[Ctx]]
+        extends DelegateWorkflowInstance[cats.Id, WCState[Ctx]]
         with EventIntrospection[WCEvent[Ctx]] {
       val delegate: InMemorySyncWorkflowInstance[Ctx] = {
         val inst = runtime.createInstance("")
@@ -64,15 +63,15 @@ object TestRuntimeAdapter {
         inst
       }
 
-      override def getEvents: Seq[WCEvent[Ctx]]                  = delegate.getEvents
-      override def getExpectedSignals: Id[List[SignalDef[?, ?]]] = delegate.getExpectedSignals
+      override def getEvents: Seq[WCEvent[Ctx]]                       = delegate.getEvents
+      override def getExpectedSignals: cats.Id[List[SignalDef[?, ?]]] = delegate.getExpectedSignals
     }
   }
 
   case class InMemory[Ctx <: WorkflowContext]() extends TestRuntimeAdapter[Ctx] {
 
     override def runWorkflow(
-        workflow: WIO.Initial[Ctx],
+        workflow: WIO.Initial[IO, Ctx],
         state: WCState[Ctx],
     ): Actor = {
       val runtime = InMemoryRuntime.default[Ctx](workflow, state, engine).unsafeRunSync()

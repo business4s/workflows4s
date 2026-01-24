@@ -44,7 +44,7 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
                            _            <- newStateOpt.traverse_(updateState)
                            _            <- handleStateChange(state, newStateOpt)
                          } yield Right(eventAndResp._2)
-                       case SignalResult.UnexpectedSignal    => Left(WorkflowInstance.UnexpectedSignal(signalDef)).pure[F]
+                       case SignalResult.UnexpectedSignal()  => Left(WorkflowInstance.UnexpectedSignal(signalDef)).pure[F]
                      }
       } yield result
     }
@@ -72,22 +72,25 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
       _         <- resultOpt match {
                      case WakeupResult.Processed(resultIO) =>
                        for {
-                         retryOrEvent <- resultIO.pipe(liftIO.liftIO)
-                         eventOpt      = retryOrEvent match {
-                                           case WakeupResult.ProcessingResult.Failed(_, event) => event
-                                           case WakeupResult.ProcessingResult.Proceeded(event) => event.some
-                                         }
-                         newStateOpt  <- eventOpt.flatTraverse { event =>
-                                           for {
-                                             _           <- persistEvent(event)
-                                             newStateOpt <- engine.handleEvent(state, event).to[IO].pipe(liftIO.liftIO)
-                                             _           <- newStateOpt.traverse_(updateState)
-                                             _           <- handleStateChange(state, newStateOpt)
-                                           } yield newStateOpt
-                                         }
+                         processingResult <- resultIO.pipe(liftIO.liftIO)
+                         eventOpt          = processingResult match {
+                                               case WakeupResult.ProcessingResult.Proceeded(event) => event.some
+                                               case WakeupResult.ProcessingResult.Delayed(_)       => None
+                                               case WakeupResult.ProcessingResult.Failed(error)    =>
+                                                 logger.error(s"Wakeup processing failed", error)
+                                                 None
+                                             }
+                         newStateOpt      <- eventOpt.flatTraverse { event =>
+                                               for {
+                                                 _           <- persistEvent(event)
+                                                 newStateOpt <- engine.handleEvent(state, event).to[IO].pipe(liftIO.liftIO)
+                                                 _           <- newStateOpt.traverse_(updateState)
+                                                 _           <- handleStateChange(state, newStateOpt)
+                                               } yield newStateOpt
+                                             }
 
                        } yield newStateOpt
-                     case WakeupResult.Noop                => None.pure[F]
+                     case WakeupResult.Noop()              => None.pure[F]
                    }
     } yield ()
   }

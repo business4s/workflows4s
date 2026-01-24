@@ -13,7 +13,7 @@ import java.util.UUID
   * IT'S NOT A GENERAL-PURPOSE RUNTIME
   */
 class InMemoryRuntime[Ctx <: WorkflowContext](
-    val workflow: Initial[Ctx],
+    val workflow: Initial[IO, Ctx],
     initialState: WCState[Ctx],
     engine: WorkflowInstanceEngine,
     instances: Ref[IO, Map[String, InMemoryWorkflowInstance[Ctx]]],
@@ -45,7 +45,7 @@ class InMemoryRuntime[Ctx <: WorkflowContext](
 object InMemoryRuntime {
 
   def default[Ctx <: WorkflowContext](
-      workflow: Initial[Ctx],
+      workflow: Initial[IO, Ctx],
       initialState: WCState[Ctx],
       engine: WorkflowInstanceEngine,
       templateId: String = s"in-memory-runtime-${UUID.randomUUID().toString.take(8)}",

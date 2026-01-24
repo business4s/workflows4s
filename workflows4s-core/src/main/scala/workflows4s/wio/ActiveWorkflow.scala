@@ -1,12 +1,13 @@
 package workflows4s.wio
 
+import cats.effect.IO
 import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.wio.internal.*
 import workflows4s.wio.model.WIOExecutionProgress
 
 import java.time.Instant
 
-case class ActiveWorkflow[Ctx <: WorkflowContext](id: WorkflowInstanceId, wio: WIO.Initial[Ctx], initialState: WCState[Ctx]) {
+case class ActiveWorkflow[Ctx <: WorkflowContext](id: WorkflowInstanceId, wio: WIO.Initial[IO, Ctx], initialState: WCState[Ctx]) {
   lazy val wakeupAt: Option[Instant] = GetWakeupEvaluator.extractNearestWakeup(wio)
 
   lazy val staticState: WCState[Ctx] = GetStateEvaluator.extractLastState(wio, (), initialState).getOrElse(initialState)
@@ -21,7 +22,7 @@ case class ActiveWorkflow[Ctx <: WorkflowContext](id: WorkflowInstanceId, wio: W
     GetSignalDefsEvaluator.run(wf.wio)
   }
 
-  def handleSignal[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req): SignalResult[WCEvent[Ctx], Resp] = {
+  def handleSignal[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req): SignalResult[WCEvent[Ctx], Resp, IO] = {
     val wf = effectlessProceed
     SignalEvaluator.handleSignal(signalDef, req, wf.wio, wf.staticState)
   }
@@ -35,7 +36,7 @@ case class ActiveWorkflow[Ctx <: WorkflowContext](id: WorkflowInstanceId, wio: W
       .map(x => x.effectlessProceed)
   }
 
-  def proceed(now: Instant): WakeupResult[WCEvent[Ctx]] = {
+  def proceed(now: Instant): WakeupResult[WCEvent[Ctx], IO] = {
     val wf = effectlessProceed
     RunIOEvaluator.proceed(wf.wio, wf.staticState, now)
   }

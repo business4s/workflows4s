@@ -2,7 +2,7 @@ package workflows4s.runtime
 
 import cats.effect.unsafe.IORuntime
 import cats.effect.{IO, LiftIO}
-import cats.{Id, Monad}
+import cats.Monad
 import com.typesafe.scalalogging.StrictLogging
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.wio.*
@@ -16,7 +16,7 @@ class InMemorySyncWorkflowInstance[Ctx <: WorkflowContext](
     initialState: ActiveWorkflow[Ctx],
     protected val engine: WorkflowInstanceEngine,
 )(implicit IORuntime: IORuntime)
-    extends WorkflowInstanceBase[Id, Ctx]
+    extends WorkflowInstanceBase[cats.Id, Ctx]
     with StrictLogging {
 
   private var wf: ActiveWorkflow[Ctx]              = initialState
@@ -25,19 +25,19 @@ class InMemorySyncWorkflowInstance[Ctx <: WorkflowContext](
 
   def recover(events: Seq[WCEvent[Ctx]]): Unit = super.recover(wf, events).pipe(updateState(_, events))
 
-  override protected def liftIO: cats.effect.LiftIO[Id]                   = new LiftIO[Id] {
-    override def liftIO[A](ioa: IO[A]): Id[A] = ioa.unsafeRunSync()
+  override protected def liftIO: cats.effect.LiftIO[cats.Id]                       = new LiftIO[cats.Id] {
+    override def liftIO[A](ioa: IO[A]): cats.Id[A] = ioa.unsafeRunSync()
   }
-  override protected def fMonad: Monad[Id]                                = cats.Invariant.catsInstancesForId
-  override protected def getWorkflow: workflows4s.wio.ActiveWorkflow[Ctx] = wf
+  override protected def fMonad: Monad[cats.Id]                                    = cats.Invariant.catsInstancesForId
+  override protected def getWorkflow: cats.Id[workflows4s.wio.ActiveWorkflow[Ctx]] = wf
 
   private val lock = new Object
 
-  override protected def persistEvent(event: WCEvent[Ctx]): Id[Unit] = events += event
+  override protected def persistEvent(event: WCEvent[Ctx]): cats.Id[Unit] = events += event
 
-  override protected def updateState(newState: ActiveWorkflow[Ctx]): Id[Unit] = wf = newState
+  override protected def updateState(newState: ActiveWorkflow[Ctx]): cats.Id[Unit] = wf = newState
 
-  override protected def lockState[T](update: ActiveWorkflow[Ctx] => Id[T]): Id[T] = lock.synchronized { update(wf) }
+  override protected def lockState[T](update: ActiveWorkflow[Ctx] => cats.Id[T]): cats.Id[T] = lock.synchronized { update(wf) }
 
   private def updateState(workflow: workflows4s.wio.ActiveWorkflow[Ctx], _events: Seq[WCEvent[Ctx]]): Unit = {
     events ++= _events

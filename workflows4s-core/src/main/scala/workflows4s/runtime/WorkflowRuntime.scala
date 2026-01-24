@@ -8,6 +8,6 @@ trait WorkflowRuntime[F[_], Ctx <: WorkflowContext] {
 
   def createInstance(id: String): F[WorkflowInstance[F, WCState[Ctx]]]
 
-  def workflow: WIO.Initial[Ctx]
+  def workflow: WIO.Initial[F, Ctx]
 
 }
