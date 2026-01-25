@@ -6,9 +6,12 @@ import workflows4s.wio.WIO.HandleInterruption.InterruptionStatus
 
 object SignalEvaluator {
 
+  // Type alias to hide internal type parameters - only TopIn and OutEvent matter externally
+  type AnyMatch[TopIn, OutEvent] = SignalMatch[TopIn, OutEvent, ? <: WorkflowContext, ?, ?, ?, ?]
+
   def getExpectedSignals(wio: WIO[?, ?, ?, ?], includeRedeliverable: Boolean = false): List[SignalDef[?, ?]] = {
-    // For inspection, we don't have runtime input - rely on wio.selected for Fork
-    val visitor = new SignalVisitor(wio, runtimeInput = None)
+    // For inspection, we don't have runtime input or state
+    val visitor = new SignalVisitor(wio, runtimeInput = None, lastSeenState = None)
     visitor.run
       .filter(m => includeRedeliverable || !m.isRedeliverable)
       .distinctBy(_.innerSignalDef.id) // Deduplicate by inner signal type for inspection
@@ -21,8 +24,8 @@ object SignalEvaluator {
       wio: WIO[In, Nothing, Out, Ctx],
       state: In,
   ): SignalResult[WCEvent[Ctx], Resp] = {
-    // For handleSignal, pass the input so Fork conditions can be evaluated at runtime
-    val visitor  = new SignalVisitor(wio, Some(state))
+    // For handleSignal, pass the input and lastSeenState (same as input initially)
+    val visitor  = new SignalVisitor[Ctx, In, Nothing, Out](wio, Some(state), Some(state))
     val matches  = visitor.run
     val matching = matches.flatMap(_.tryProduce(signalDef, req, state))
     matching match {
@@ -36,144 +39,124 @@ object SignalEvaluator {
   }
 
   // SignalMatch captures everything needed to produce a result
-  // Uses existential types internally but exposes clean interface
-  sealed trait SignalMatch[TopIn, OutEvent] {
-    def signalDef: SignalDef[?, ?]
-    def innerSignalDef: SignalDef[?, ?] // The original signal def before any wrapping (for deduplication)
-    def isRedeliverable: Boolean
-    def tryProduce[Req, Resp](signalDef: SignalDef[Req, Resp], request: Req, input: TopIn): Option[SignalResult[OutEvent, Resp]]
-    def contramapInput[NewIn](f: NewIn => TopIn): SignalMatch[NewIn, OutEvent]
-    def mapEvent[NewEvent](f: OutEvent => NewEvent): SignalMatch[TopIn, NewEvent]
-    // Try to convert to redeliverable by matching the stored event
-    def toRedeliverable(storedEvt: Any): Option[SignalMatch[TopIn, OutEvent]]
-    // Add signal routing (for ForEach) - wrapper for inspection, unwrapper for execution
-    // unwrapper receives (outerSignalDef, outerRequest, input) and returns Option[innerRequest]
-    def withSignalRouting(
-        wrapper: SignalDef[?, ?] => SignalDef[?, ?],
-        unwrapper: (SignalDef[?, ?], Any, TopIn) => Option[Any],
-    ): SignalMatch[TopIn, OutEvent]
-  }
+  // Type parameters:
+  //   TopIn - input type passed from outside (to tryProduce)
+  //   OutEvent - event type produced to outside
+  //   LocalCtx - the WorkflowContext of the HandleSignal node
+  //   LocalIn - input type expected by the HandleSignal node
+  //   Req, Resp, Evt - signal handler types
+  case class SignalMatch[TopIn, OutEvent, LocalCtx <: WorkflowContext, LocalIn, Req, Resp, Evt](
+      node: WIO.HandleSignal[LocalCtx, LocalIn, ?, ?, Req, Resp, Evt],
+      inputTransform: TopIn => LocalIn,
+      eventTransform: WCEvent[LocalCtx] => OutEvent,
+      eventUnconvert: OutEvent => Option[WCEvent[LocalCtx]],  // Unconverts outer event back to local context
+      storedEvent: Option[WCEvent[LocalCtx]] = None,          // Stored event for redelivery (detected lazily in tryProduce)
+      // Signal routing for ForEach - wraps signal def for inspection, unwraps request for execution
+      signalDefWrapper: SignalDef[?, ?] => SignalDef[?, ?] = identity,
+      requestUnwrapper: (SignalDef[?, ?], Any, TopIn) => Option[Any] = (_: SignalDef[?, ?], req: Any, _: TopIn) => Some(req),
+  ) extends StrictLogging {
 
-  private object SignalMatch {
-    // Implementation with all type parameters hidden
-    // rawStoredEvent is the untyped event for inspection (isRedeliverable check)
-    // storedEvent is the typed event for execution (tryProduce)
-    case class Impl[TopIn, OutEvent, LocalIn, Req, Resp, Evt](
-        node: WIO.HandleSignal[?, LocalIn, ?, ?, Req, Resp, Evt],
-        inputTransform: TopIn => LocalIn,
-        eventTransform: Any => OutEvent, // Any because we need to handle both Evt and WCEvent types
-        storedEvent: Option[Evt],
-        rawStoredEvent: Option[Any],     // Raw event for isRedeliverable check (may not match handler type)
-        // Signal routing for ForEach - wraps signal def for inspection, unwraps request for execution
-        signalDefWrapper: SignalDef[?, ?] => SignalDef[?, ?] = identity[SignalDef[?, ?]],
-        requestUnwrapper: (SignalDef[?, ?], Any, TopIn) => Option[Any] = (_: SignalDef[?, ?], req: Any, _: TopIn) => Some(req),
-    ) extends SignalMatch[TopIn, OutEvent]
-        with StrictLogging {
+    def signalDef: SignalDef[?, ?]      = signalDefWrapper(node.sigDef)
+    def innerSignalDef: SignalDef[?, ?] = node.sigDef
+    def isRedeliverable: Boolean        = storedEvent.isDefined
 
-      def signalDef: SignalDef[?, ?]      = signalDefWrapper(node.sigDef)
-      def innerSignalDef: SignalDef[?, ?] = node.sigDef
-      def isRedeliverable: Boolean        = rawStoredEvent.isDefined
+    def contramapInput[NewIn](f: NewIn => TopIn): SignalMatch[NewIn, OutEvent, LocalCtx, LocalIn, Req, Resp, Evt] =
+      copy(
+        inputTransform = f.andThen(inputTransform),
+        requestUnwrapper = (sd, req, newIn) => requestUnwrapper(sd, req, f(newIn)),
+      )
 
-      def contramapInput[NewIn](f: NewIn => TopIn): SignalMatch[NewIn, OutEvent] =
-        copy(
-          inputTransform = f.andThen(inputTransform),
-          requestUnwrapper = (sd, req, newIn) => requestUnwrapper(sd, req, f(newIn)),
-        )
+    def mapEvent[NewEvent](f: OutEvent => NewEvent, uf: NewEvent => Option[OutEvent]): SignalMatch[TopIn, NewEvent, LocalCtx, LocalIn, Req, Resp, Evt] =
+      copy(
+        eventTransform = eventTransform.andThen(f),
+        eventUnconvert = (ne: NewEvent) => uf(ne).flatMap(eventUnconvert),
+      )
 
-      def mapEvent[NewEvent](f: OutEvent => NewEvent): SignalMatch[TopIn, NewEvent] =
-        copy(eventTransform = eventTransform.andThen(f))
+    def toRedeliverable(evt: WCEvent[LocalCtx]): SignalMatch[TopIn, OutEvent, LocalCtx, LocalIn, Req, Resp, Evt] = {
+      if isRedeliverable then return this // Already redeliverable
+      copy(storedEvent = Some(evt))
+    }
 
-      def toRedeliverable(storedEvt: Any): Option[SignalMatch[TopIn, OutEvent]] = {
-        if isRedeliverable then return Some(this) // Already redeliverable
-        // Mark as redeliverable with raw event - we'll detect type at tryProduce time
-        Some(copy(rawStoredEvent = Some(storedEvt)))
-      }
-
-      def withSignalRouting(
-          wrapper: SignalDef[?, ?] => SignalDef[?, ?],
-          unwrapper: (SignalDef[?, ?], Any, TopIn) => Option[Any],
-      ): SignalMatch[TopIn, OutEvent] =
-        copy(signalDefWrapper = wrapper, requestUnwrapper = unwrapper)
-
-      def tryProduce[Req1, Resp1](outerSignalDef: SignalDef[Req1, Resp1], request: Req1, input: TopIn): Option[SignalResult[OutEvent, Resp1]] = {
-        // Check if the outer signal def matches our (possibly wrapped) signal def
-        if outerSignalDef.id != signalDef.id then return None
-
-        // Try to unwrap the request (for ForEach routing)
-        val unwrappedReqOpt = requestUnwrapper(outerSignalDef, request, input)
-        if unwrappedReqOpt.isEmpty then return None
-
-        // Try to cast to expected type
-        val typedReqOpt = node.sigDef.reqCt.unapply(unwrappedReqOpt.get)
-        if typedReqOpt.isEmpty then {
-          logger.warn(
-            s"""Request passed to signal handler doesn't have the type expected by the handler. This should not happen, please report it as a bug.
-               |Request: ${request}
-               |Unwrapped: ${unwrappedReqOpt.get}
-               |Expected type: ${node.sigDef.reqCt}
-               |""".stripMargin,
-          )
-          return None
-        }
-        val typedReq    = typedReqOpt.get
-        val localInput  = inputTransform(input)
-
-        // Check if we have a typed stored event, or try to detect from raw
-        val typedStoredEvent: Option[Evt] = storedEvent.orElse {
-          rawStoredEvent.flatMap { rawEvt =>
-            val detectFn = node.evtHandler.detect.asInstanceOf[Any => Option[Evt]]
-            detectFn(rawEvt)
-          }
-        }
-
-        typedStoredEvent match {
-          case Some(evt) =>
-            // Redelivery - reconstruct response from stored event
-            val response = node.responseProducer(localInput, evt, typedReq)
-            Some(SignalResult.Redelivered(extractTypedResponse(outerSignalDef, response)))
-
-          case None if rawStoredEvent.isDefined =>
-            // We have a raw event but couldn't detect it - this is unexpected for redelivery
-            logger.warn(
-              s"""Stored event type doesn't match the signal handler's expected type during redelivery.
-                 |This may indicate a workflow version mismatch.
-                 |Signal: ${node.sigDef.name}""".stripMargin,
-            )
-            None
-
-          case None =>
-            // Fresh - produce new event
-            val eventIO = node.sigHandler.handle(localInput, typedReq)
-            Some(SignalResult.Processed(eventIO.map { evt =>
-              val convertedEvent = eventTransform(node.evtHandler.convert(evt))
-              val response       = node.responseProducer(localInput, evt, typedReq)
-              SignalResult.ProcessingResult(convertedEvent, extractTypedResponse(outerSignalDef, response))
-            }))
-        }
+    /** Convert to redeliverable using an outer event, unconverting it to the local context */
+    def toRedeliverableWithOuterEvent(outerEvt: OutEvent): SignalMatch[TopIn, OutEvent, LocalCtx, LocalIn, Req, Resp, Evt] = {
+      if isRedeliverable then return this // Already redeliverable
+      eventUnconvert(outerEvt) match {
+        case Some(localEvt) => copy(storedEvent = Some(localEvt))
+        case None           =>
+          // Event doesn't belong to this handler's context - shouldn't happen in well-formed workflows
+          logger.warn(s"Failed to unconvert event for signal ${node.sigDef.name} - event may be from wrong context")
+          this
       }
     }
 
+    def withSignalRouting(
+        wrapper: SignalDef[?, ?] => SignalDef[?, ?],
+        unwrapper: (SignalDef[?, ?], Any, TopIn) => Option[Any],
+    ): SignalMatch[TopIn, OutEvent, LocalCtx, LocalIn, Req, Resp, Evt] =
+      copy(signalDefWrapper = wrapper, requestUnwrapper = unwrapper)
+
+    def tryProduce[Req1, Resp1](outerSignalDef: SignalDef[Req1, Resp1], request: Req1, input: TopIn): Option[SignalResult[OutEvent, Resp1]] = {
+      // Check if the outer signal def matches our (possibly wrapped) signal def
+      if outerSignalDef.id != signalDef.id then return None
+
+      // Try to unwrap the request (for ForEach routing)
+      val unwrappedReqOpt = requestUnwrapper(outerSignalDef, request, input)
+      if unwrappedReqOpt.isEmpty then return None
+
+      // Try to cast to expected type
+      val typedReqOpt = node.sigDef.reqCt.unapply(unwrappedReqOpt.get)
+      if typedReqOpt.isEmpty then {
+        logger.warn(
+          s"""Request passed to signal handler doesn't have the type expected by the handler. This should not happen, please report it as a bug.
+             |Request: ${request}
+             |Unwrapped: ${unwrappedReqOpt.get}
+             |Expected type: ${node.sigDef.reqCt}
+             |""".stripMargin,
+        )
+        return None
+      }
+      val typedReq   = typedReqOpt.get
+      val localInput = inputTransform(input)
+
+      // Try to detect typed event from stored event
+      val typedStoredEvent: Option[Evt] = storedEvent.flatMap(node.evtHandler.detect)
+
+      storedEvent match {
+        case Some(_) if typedStoredEvent.isDefined =>
+          // Redelivery - reconstruct response from stored event
+          val response = node.responseProducer(localInput, typedStoredEvent.get, typedReq)
+          Some(SignalResult.Redelivered(extractTypedResponse(outerSignalDef, response)))
+
+        case Some(_) =>
+          // We have a stored event but couldn't detect it - this is unexpected for redelivery
+          logger.warn(
+            s"""Stored event type doesn't match the signal handler's expected type during redelivery.
+               |This may indicate a workflow version mismatch.
+               |Signal: ${node.sigDef.name}""".stripMargin,
+          )
+          None
+
+        case None =>
+          // Fresh - produce new event
+          val eventIO = node.sigHandler.handle(localInput, typedReq)
+          Some(SignalResult.Processed(eventIO.map { evt =>
+            val convertedEvent = eventTransform(node.evtHandler.convert(evt))
+            val response       = node.responseProducer(localInput, evt, typedReq)
+            SignalResult.ProcessingResult(convertedEvent, extractTypedResponse(outerSignalDef, response))
+          }))
+      }
+    }
+  }
+
+  private object SignalMatch {
     def fresh[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx], Req, Resp, Evt](
         node: WIO.HandleSignal[Ctx, In, Out, Err, Req, Resp, Evt],
-    ): SignalMatch[In, WCEvent[Ctx]] =
-      Impl[In, WCEvent[Ctx], In, Req, Resp, Evt](
+    ): SignalMatch[In, WCEvent[Ctx], Ctx, In, Req, Resp, Evt] =
+      SignalMatch[In, WCEvent[Ctx], Ctx, In, Req, Resp, Evt](
         node = node,
         inputTransform = identity,
-        eventTransform = _.asInstanceOf[WCEvent[Ctx]], // identity, but needs cast due to type erasure
-        storedEvent = None,
-        rawStoredEvent = None,
-      )
-
-    def redeliverable[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx], Req, Resp, Evt](
-        node: WIO.HandleSignal[Ctx, In, Out, Err, Req, Resp, Evt],
-        storedEvent: Evt,
-    ): SignalMatch[In, WCEvent[Ctx]] =
-      Impl[In, WCEvent[Ctx], In, Req, Resp, Evt](
-        node = node,
-        inputTransform = identity,
-        eventTransform = _.asInstanceOf[WCEvent[Ctx]],
-        storedEvent = Some(storedEvent),
-        rawStoredEvent = Some(storedEvent),
+        eventTransform = identity,
+        eventUnconvert = Some(_),  // Identity: OutEvent = WCEvent[Ctx] = WCEvent[LocalCtx]
       )
   }
 
@@ -190,10 +173,11 @@ object SignalEvaluator {
 
   private class SignalVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](
       wio: WIO[In, Err, Out, Ctx],
-      runtimeInput: Option[In] = None, // Optional input for evaluating Fork conditions at runtime
+      runtimeInput: Option[In] = None,              // Optional input for evaluating Fork conditions at runtime
+      lastSeenState: Option[WCState[Ctx]] = None,   // Last known state (for error/interruption handlers)
   ) extends Visitor[Ctx, In, Err, Out](wio)
       with StrictLogging {
-    override type Result = List[SignalMatch[In, WCEvent[Ctx]]]
+    override type Result = List[AnyMatch[In, WCEvent[Ctx]]]
 
     def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result =
       List(SignalMatch.fresh(wio))
@@ -207,23 +191,27 @@ object SignalEvaluator {
     def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): Result = Nil
 
     def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result = {
-      // Recurse into original to find signal matches
-      // Note: In1 = In at runtime since this visitor was created for a WIO[In, ...]
-      val innerMatches = new SignalVisitor(wio.original).run.map(_.contramapInput((in: In) => in.asInstanceOf[In1]))
+      // Use stored input from Executed node - no cast needed
+      val storedInput: In1 = wio.input
+      // Recurse into original with the stored input
+      val innerMatches = new SignalVisitor(wio.original, Some(storedInput), lastSeenState).run
+      // Transform input: outer In -> stored In1 (ignore outer input, use stored)
+      val transformedMatches = innerMatches.map(_.contramapInput[In](_ => storedInput))
       // Transform fresh signals based on whether event is stored
-      innerMatches.flatMap { m =>
+      transformedMatches.flatMap { m =>
         if m.isRedeliverable then {
           // Already redeliverable - keep as-is
           List(m)
         } else {
-          // Fresh signal inside Executed node
+          // Fresh signal inside Executed node - use stored event (properly typed as WCEvent[Ctx])
           wio.event match {
             case None            =>
               // No event stored - signal was executed but not redeliverable
               Nil
             case Some(storedEvt) =>
-              // Try to convert to redeliverable using the stored event
-              m.toRedeliverable(storedEvt).toList
+              // For direct HandleSignal nodes, LocalCtx = Ctx, so this is type-safe
+              // For embedded nodes, we need event unconversion (handled via eventUnconvert)
+              List(m.toRedeliverableWithOuterEvent(storedEvt))
           }
         }
       }
@@ -242,12 +230,12 @@ object SignalEvaluator {
           baseExecuted.output match {
             case Left(err) =>
               // Base failed - collect from both handler (fresh) and base (redeliverable)
-              val baseMatches    = recurse(wio.base, identity)
-              // For the handler, input is (State, Error) - we capture the error at runtime
-              val handlerMatches = new SignalVisitor(wio.handleError).run.map { m =>
-                // Transform: In => (WCState[Ctx], ErrIn)
-                // We capture the error value in the closure
-                m.contramapInput[In](in => (in.asInstanceOf[WCState[Ctx]], err)) // TODO this is wrong, we need to track last seen state
+              val baseMatches = recurse(wio.base, identity)
+              // For the handler, input is (State, Error) - use lastSeenState directly
+              val handlerInput: Option[(WCState[Ctx], ErrIn)] = lastSeenState.map(s => (s, err))
+              val handlerMatches = new SignalVisitor(wio.handleError, handlerInput, lastSeenState).run.map { m =>
+                // Transform: In => (WCState[Ctx], ErrIn) using lastSeenState
+                m.contramapInput[In](_ => (lastSeenState.get, err))
               }
               handlerMatches ++ baseMatches
             case Right(_)  =>
@@ -270,14 +258,20 @@ object SignalEvaluator {
     }
 
     def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result = {
+      // Helper to collect from a branch - branch input type is the result of condition
+      def collectFromBranch[BranchIn](branch: WIO.Branch[In, Err, Out, Ctx, BranchIn], branchInput: Option[BranchIn]): Result = {
+        // Pass lastSeenState through unchanged - branch execution doesn't change the state
+        new SignalVisitor(branch.wio, branchInput, lastSeenState).run.map { m =>
+          m.contramapInput[In](in => branch.condition(in).get)
+        }
+      }
+
       // For Fork, we need to know which branch is selected
       wio.selected match {
         case Some(idx) =>
-          val branch = wio.branches(idx)
-          // Branch is selected - recurse with input transformation
-          new SignalVisitor(branch.wio).run.map { m =>
-            m.contramapInput[In](in => branch.condition(in).get)
-          }
+          val branch      = wio.branches(idx)
+          val branchInput = runtimeInput.flatMap(in => branch.condition(in))
+          collectFromBranch(branch, branchInput)
         case None      =>
           // No branch pre-selected - try to evaluate with runtime input if available
           runtimeInput match {
@@ -285,17 +279,13 @@ object SignalEvaluator {
               // Evaluate branch conditions at runtime (like old SignalEvaluator)
               val selectedOpt = wio.branches.zipWithIndex.collectFirst {
                 case (branch, idx) if branch.condition(input).isDefined =>
-                  (branch, idx, branch.condition(input).get)
+                  (branch, idx)
               }
               selectedOpt match {
-                case Some((branch, _, branchInput)) =>
-                  // Pass None for runtimeInput - nested Forks will rely on selected being set
-                  new SignalVisitor(branch.wio).run.map { m =>
-                    m.contramapInput[In](in => branch.condition(in).get)
-                  }
-                case None                           =>
-                  // No branch matches - no signals expected
-                  Nil
+                case Some((branch, _)) =>
+                  val branchInput = branch.condition(input)
+                  collectFromBranch(branch, branchInput)
+                case None              => Nil // No branch matches - no signals expected
               }
             case None        =>
               // No runtime input and no pre-selected branch - no signals expected
@@ -314,9 +304,9 @@ object SignalEvaluator {
               recurse(wio.first, identity)
             case Right(value) =>
               // First succeeded - collect from second (fresh) and first (redeliverable)
-              val firstMatches  = recurse(wio.first, identity)
-              // Second expects Out1 as input - pass value as runtimeInput for nested Fork evaluation
-              val secondMatches = new SignalVisitor(wio.second, Some(value)).run.map { m =>
+              val firstMatches = recurse(wio.first, identity)
+              // Second expects Out1 as input - Out1 <: WCState[Ctx], so value IS the new lastSeenState
+              val secondMatches = new SignalVisitor(wio.second, Some(value), Some(value)).run.map { m =>
                 m.contramapInput[In](_ => value)
               }
               secondMatches ++ firstMatches
@@ -330,18 +320,25 @@ object SignalEvaluator {
     def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_ <: WCState[InnerCtx]] <: WCState[Ctx]](
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
     ): Result = {
-      val innerMatches: List[SignalMatch[In, WCEvent[InnerCtx]]] = new SignalVisitor(wio.inner).run
-      innerMatches.map(_.mapEvent(wio.embedding.convertEvent))
+      // For embedded, we need to convert state between contexts
+      val innerState: Option[WCState[InnerCtx]] = lastSeenState.map(wio.embedding.unconvertStateUnsafe)
+      val innerMatches: List[AnyMatch[In, WCEvent[InnerCtx]]] = new SignalVisitor(wio.inner, runtimeInput, innerState).run
+      innerMatches.map(_.mapEvent(wio.embedding.convertEvent, wio.embedding.unconvertEvent))
     }
 
     def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result = {
+      // Helper to collect from interruption flow - interruption expects WCState[Ctx] as input
+      def collectFromInterruption(): Result = {
+        new SignalVisitor(wio.interruption, lastSeenState, lastSeenState).run.map { m =>
+          // Transform: In => WCState[Ctx] using lastSeenState directly
+          m.contramapInput[In](_ => lastSeenState.get)
+        }
+      }
+
       wio.status match {
         case InterruptionStatus.Interrupted =>
           // Interruption triggered - collect from both interruption (fresh) and base (redeliverable)
-          val interruptionMatches = new SignalVisitor(wio.interruption).run.map { m =>
-            // Interruption expects WCState[Ctx] as input
-            m.contramapInput[In](_.asInstanceOf[WCState[Ctx]])
-          }
+          val interruptionMatches = collectFromInterruption()
           val baseMatches         = recurse(wio.base, identity)
           interruptionMatches ++ baseMatches
 
@@ -353,9 +350,7 @@ object SignalEvaluator {
               recurse(wio.base, identity)
             case None    =>
               // Base not completed - collect from both
-              val interruptionMatches = new SignalVisitor(wio.interruption).run.map { m =>
-                m.contramapInput[In](_.asInstanceOf[WCState[Ctx]])
-              }
+              val interruptionMatches = collectFromInterruption()
               val baseMatches         = recurse(wio.base, identity)
               interruptionMatches ++ baseMatches
           }
@@ -380,11 +375,16 @@ object SignalEvaluator {
         .getOrElse(Map.empty)
         .toList
         .flatMap { case (elemId, elemWio) =>
-          val innerMatches: List[SignalMatch[Any, WCEvent[InnerCtx]]] = new SignalVisitor(elemWio).run
+          // Inner elements use initialElemState as their state context
+          val innerState: Option[WCState[InnerCtx]] = Some(wio.initialElemState())
+          val innerMatches: List[AnyMatch[Any, WCEvent[InnerCtx]]] = new SignalVisitor(elemWio, None, innerState).run
           innerMatches.map { m =>
             m
               // Transform event from inner context to outer context
-              .mapEvent[WCEvent[Ctx]](wio.eventEmbedding.convertEvent(elemId, _))
+              .mapEvent[WCEvent[Ctx]](
+                wio.eventEmbedding.convertEvent(elemId, _),
+                (outerEvt: WCEvent[Ctx]) => wio.eventEmbedding.unconvertEvent(outerEvt).filter(_._1 == elemId).map(_._2),
+              )
               // Transform input first: In -> Unit (inner elements expect Unit as input)
               .contramapInput[In](_ => ())
               // Then add signal routing with correct input type (In)
@@ -409,10 +409,11 @@ object SignalEvaluator {
     def recurse[I1, E1, O1 <: WCState[Ctx]](
         wio: WIO[I1, E1, O1, Ctx],
         transformInput: In => I1,
-    ): List[SignalMatch[In, WCEvent[Ctx]]] = {
+    ): Result = {
       // Transform runtime input for nested Fork evaluation
-      val transformedInput                           = runtimeInput.map(transformInput)
-      val inner: List[SignalMatch[I1, WCEvent[Ctx]]] = new SignalVisitor(wio, transformedInput).run
+      val transformedInput = runtimeInput.map(transformInput)
+      // Pass lastSeenState unchanged - state tracking doesn't depend on input transformation
+      val inner = new SignalVisitor(wio, transformedInput, lastSeenState).run
       inner.map(_.contramapInput(transformInput))
     }
   }

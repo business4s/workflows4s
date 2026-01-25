@@ -49,7 +49,8 @@ trait BasicSignalRouter[Key, Elem, -Input] extends SignalRouter.Sender[Key] with
 
   def outerSignalDef[InnerReq, Resp](innerDef: SignalDef[InnerReq, Resp]): SignalDef[WrappedRequest[InnerReq, Resp], Resp] = {
     import innerDef.respCt
-    SignalDef[WrappedRequest[InnerReq, Resp], Resp](signalDefId, innerDef.name)
+    // Include inner signal ID to preserve uniqueness when wrapping different inner signals
+    SignalDef[WrappedRequest[InnerReq, Resp], Resp](signalDefId, s"${innerDef.name}(${innerDef.id})")
   }
 
   def wrap[InnerReq, Resp](key: Key, req: InnerReq, sigDef: workflows4s.wio.SignalDef[InnerReq, Resp]): SignalRouter.Wrapped[?, Resp] =
