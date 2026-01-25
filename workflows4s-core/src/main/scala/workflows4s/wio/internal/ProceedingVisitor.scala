@@ -186,11 +186,14 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
         })
       case None              =>
         selectMatching(wio, input).flatMap({ selected =>
-          recurse(selected.wio, selected.input).map({
-            case WFExecution.Complete(newWio) =>
-              WFExecution.complete(updateSelectedBranch(selected.copy(wio = newWio)), newWio.output, input, newWio.index)
-            case WFExecution.Partial(newWio)  => WFExecution.Partial(updateSelectedBranch(selected.copy(wio = newWio)))
-          })
+          recurse(selected.wio, selected.input)
+            .map({
+              case WFExecution.Complete(newWio) =>
+                WFExecution.complete(updateSelectedBranch(selected.copy(wio = newWio)), newWio.output, input, newWio.index)
+              case WFExecution.Partial(newWio)  => WFExecution.Partial(updateSelectedBranch(selected.copy(wio = newWio)))
+            })
+            .getOrElse(WFExecution.Partial(updateSelectedBranch(selected)))
+            .some
         })
     }
   }
