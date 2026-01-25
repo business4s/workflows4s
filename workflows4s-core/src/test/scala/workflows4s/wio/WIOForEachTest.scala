@@ -150,8 +150,8 @@ class WIOForEachTest extends AnyFreeSpec with Matchers with OptionValues with Ei
 
       assert(
         instance.getExpectedSignals() == List(
-          SigRouter.outerSignalDef(signalDef1),
           SigRouter.outerSignalDef(signalDef2),
+          SigRouter.outerSignalDef(signalDef1),
         ),
       )
 

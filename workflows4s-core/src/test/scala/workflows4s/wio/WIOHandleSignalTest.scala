@@ -11,7 +11,7 @@ import workflows4s.wio.WIO.HandleSignal
 
 import java.time.Instant
 import scala.util.Random
-import workflows4s.wio.internal.GetSignalDefsEvaluator
+import workflows4s.wio.internal.SignalEvaluator
 
 class WIOHandleSignalTest extends AnyFreeSpec with Matchers with EitherValues {
 
@@ -30,7 +30,7 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers with EitherValues {
         .toWorkflow("initialState")
 
       // check SignalDef list
-      GetSignalDefsEvaluator.run(wf.wio) should contain(mySignalDef)
+      SignalEvaluator.getExpectedSignals(wf.wio) should contain(mySignalDef)
 
       // Act
       val signalResult = wf.handleSignal(mySignalDef)(42).toRaw
@@ -60,7 +60,7 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers with EitherValues {
         .done
         .toWorkflow("initialState")
 
-      GetSignalDefsEvaluator.run(wf.wio) should contain(validSignalDef)
+      SignalEvaluator.getExpectedSignals(wf.wio) should contain(validSignalDef)
 
       val unexpectedSignalResult = wf.handleSignal(unexpectedSignalDef)("unexpected").toRaw
 

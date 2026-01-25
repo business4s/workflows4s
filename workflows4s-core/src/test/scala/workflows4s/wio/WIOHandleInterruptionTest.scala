@@ -106,10 +106,10 @@ class WIOHandleInterruptionTest extends AnyFreeSpec with Matchers with OptionVal
         val wf            = handleSignalC >>> handleSignalB
         val (_, instance) = TestUtils.createInstance2(wf)
 
-        // Initially only the first signal (signalC) is pending
+        // Initially only the first signal (signalC) is pending - second hasn't been reached
         instance.getExpectedSignals() should contain theSameElementsAs List(signalC)
-        // With includeRedeliverable = true, all signals in the workflow structure are returned
-        instance.getExpectedSignals(includeRedeliverable = true) should contain theSameElementsAs List(signalC, signalB)
+        // includeRedeliverable only includes executed signals, not future ones
+        instance.getExpectedSignals(includeRedeliverable = true) should contain theSameElementsAs List(signalC)
 
         // Deliver the first signal
         val signalResult = instance.deliverSignal(signalC, 42).value
@@ -118,7 +118,7 @@ class WIOHandleInterruptionTest extends AnyFreeSpec with Matchers with OptionVal
 
         // After processing the first signal, only the second signal is pending
         instance.getExpectedSignals() should contain theSameElementsAs List(signalB)
-        // With includeRedeliverable = true, both signals are still returned (signalC was executed, signalB is pending)
+        // With includeRedeliverable = true, both signals are returned (signalC is redeliverable, signalB is pending)
         instance.getExpectedSignals(includeRedeliverable = true) should contain theSameElementsAs List(signalC, signalB)
       }
 
