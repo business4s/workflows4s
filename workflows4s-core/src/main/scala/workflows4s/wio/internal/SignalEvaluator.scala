@@ -98,13 +98,16 @@ object SignalEvaluator {
 
     def tryProduce[Req1, Resp1](outerSignalDef: SignalDef[Req1, Resp1], request: Req1, input: TopIn): Option[SignalResult[OutEvent, Resp1]] =
       for {
-        _       <- Option.when(outerSignalDef.id == signalDef.id)(())
-        innerReq = unwrapRequest(request, input)
-        typedReq = verifyRequestType(innerReq)
+        _        <- Option.when(outerSignalDef.id == signalDef.id)(())
+        innerReq <- unwrapRequest(request, input)
+        typedReq =  verifyRequestType(innerReq)
       } yield produceResult(typedReq, inputTransform(input), outerSignalDef)
 
-    private def unwrapRequest(request: Any, input: TopIn): Any =
-      routing.map(_.unwrap(signalDef, request, input)).getOrElse(request)
+    private def unwrapRequest(request: Any, input: TopIn): Option[Any] =
+      routing match {
+        case Some(r) => r.unwrap(signalDef, request, input)
+        case None    => Some(request)
+      }
 
     private def verifyRequestType(request: Any): Req =
       node.sigDef.reqCt.unapply(request).getOrElse {
