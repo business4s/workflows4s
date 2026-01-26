@@ -1,7 +1,6 @@
 package workflows4s.wio
 
 import cats.effect.IO
-import cats.implicits.catsSyntaxOptionId
 import workflows4s.wio.WIO.HandleInterruption.InterruptionType
 import workflows4s.wio.WIO.Timer.DurationSource
 import workflows4s.wio.builders.AllBuilders
