@@ -18,7 +18,7 @@ private[workflows4s] object GetSignalDefsEvaluator {
     // Base cases
     override def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result = List(wio.sigDef)
     override def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result                             =
-      if (includeRedeliverable) recurse(wio.original) else Nil
+      if includeRedeliverable then recurse(wio.original) else Nil
     override def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result                               = Nil
     override def onNoop(wio: WIO.End[Ctx]): Result                                                          = Nil
     override def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                                           = Nil
@@ -39,7 +39,7 @@ private[workflows4s] object GetSignalDefsEvaluator {
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
     ): Result                                                                                         = GetSignalDefsEvaluator.run(wio.inner, includeRedeliverable)
     override def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result   =
-      if (includeRedeliverable) {
+      if includeRedeliverable then {
         recurse(wio.first) ++ recurse(wio.second)
       } else {
         wio.first.asExecuted match {
@@ -49,7 +49,7 @@ private[workflows4s] object GetSignalDefsEvaluator {
       }
 
     override def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result =
-      if (includeRedeliverable) {
+      if includeRedeliverable then {
         recurse(wio.base) ++ recurse(wio.handleError)
       } else {
         wio.base.asExecuted match {
@@ -65,7 +65,7 @@ private[workflows4s] object GetSignalDefsEvaluator {
     override def onLoop[BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx], ReturnIn](
         wio: WIO.Loop[Ctx, In, Err, Out, BodyIn, BodyOut, ReturnIn],
     ): Result                                                                                                         =
-      if (includeRedeliverable) {
+      if includeRedeliverable then {
         wio.history.flatMap(executed => recurse(executed)).toList ++ recurse(wio.current.wio)
       } else {
         recurse(wio.current.wio)

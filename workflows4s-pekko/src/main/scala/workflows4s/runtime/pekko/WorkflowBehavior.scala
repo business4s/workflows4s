@@ -50,7 +50,8 @@ object WorkflowBehavior {
     ) extends Command[Ctx]
     case class Wakeup[Ctx <: WorkflowContext](replyTo: ActorRef[StatusReply[Unit]])                       extends Command[Ctx]
     case class GetProgress[Ctx <: WorkflowContext](replyTo: ActorRef[WIOExecutionProgress[WCState[Ctx]]]) extends Command[Ctx]
-    case class GetExpectedSignals[Ctx <: WorkflowContext](replyTo: ActorRef[List[SignalDef[?, ?]]], includeRedeliverable: Boolean = false) extends Command[Ctx]
+    case class GetExpectedSignals[Ctx <: WorkflowContext](replyTo: ActorRef[List[SignalDef[?, ?]]], includeRedeliverable: Boolean = false)
+        extends Command[Ctx]
 
     case class Reply[Ctx <: WorkflowContext, T](replyTo: ActorRef[T], msg: T, unlock: Boolean) extends Command[Ctx]
     case class Persist[Ctx <: WorkflowContext](event: WCEvent[Ctx], reply: Reply[Ctx, ?])      extends Command[Ctx]

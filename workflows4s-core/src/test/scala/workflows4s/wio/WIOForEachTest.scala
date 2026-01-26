@@ -164,8 +164,8 @@ class WIOForEachTest extends AnyFreeSpec with Matchers with OptionValues with Ei
 
       val signalDef2 = SignalDef[Int, Int](id = "state-capturing-signal")
       case class SigEvent2(stateLength: Int) extends TestCtx2.Event
-      val signal2StepId  = StepId.random("signal2")
-      val signalStep2    = WIO
+      val signal2StepId = StepId.random("signal2")
+      val signalStep2   = WIO
         .handleSignal(signalDef2)
         .using[TestState]
         .purely((state, _) => SigEvent2(state.executed.length))

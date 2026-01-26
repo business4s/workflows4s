@@ -32,7 +32,10 @@ class LoggingWorkflowInstanceEngine(
       .withMDC(workflow)
   }
 
-  override def getExpectedSignals[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx], includeRedeliverable: Boolean = false): IO[List[SignalDef[?, ?]]] = {
+  override def getExpectedSignals[Ctx <: WorkflowContext](
+      workflow: ActiveWorkflow[Ctx],
+      includeRedeliverable: Boolean = false,
+  ): IO[List[SignalDef[?, ?]]] = {
     (IO(logger.trace(s"[${workflow.id}] getExpectedSignals(includeRedeliverable=$includeRedeliverable)")) *>
       delegate
         .getExpectedSignals(workflow, includeRedeliverable)

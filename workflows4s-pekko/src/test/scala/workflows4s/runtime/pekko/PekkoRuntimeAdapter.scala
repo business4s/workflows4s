@@ -74,7 +74,7 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(impli
         queryTimeout = Timeout(3.seconds),
       )
 
-    val delegate: WorkflowInstance[Id, WCState[Ctx]]                                                 = MappedWorkflowInstance(base, [t] => (x: Future[t]) => Await.result(x, 3.seconds))
+    val delegate: WorkflowInstance[Id, WCState[Ctx]]                                                  = MappedWorkflowInstance(base, [t] => (x: Future[t]) => Await.result(x, 3.seconds))
     override def getExpectedSignals(includeRedeliverable: Boolean = false): Id[List[SignalDef[?, ?]]] =
       delegate.getExpectedSignals(includeRedeliverable)
   }

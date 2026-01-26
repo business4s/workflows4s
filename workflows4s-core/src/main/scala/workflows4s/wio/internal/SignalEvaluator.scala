@@ -93,9 +93,8 @@ object SignalEvaluator {
         routing = routing.map(_.contramapState(f)),
       )
 
-    /** Retype by providing a function to derive old input/state from new input/state.
-      * Both transform and routing are updated using the same deriveInputState function,
-      * ensuring they stay in sync.
+    /** Retype by providing a function to derive old input/state from new input/state. Both transform and routing are updated using the same
+      * deriveInputState function, ensuring they stay in sync.
       */
     def retype[NewIn, NewTopState](
         deriveInputState: (NewIn, NewTopState) => (TopIn, TopState),
@@ -149,9 +148,9 @@ object SignalEvaluator {
         topState: TopState,
     ): Option[SignalResult[OutEvent, Resp1]] =
       for {
-        _        <- Option.when(outerSignalDef.id == signalDef.id)(())
-        innerReq <- unwrapRequest(request, input, topState)
-        typedReq  = verifyRequestType(innerReq)
+        _           <- Option.when(outerSignalDef.id == signalDef.id)(())
+        innerReq    <- unwrapRequest(request, input, topState)
+        typedReq     = verifyRequestType(innerReq)
         (localIn, _) = transform(input, topState)
       } yield produceResult(typedReq, localIn, outerSignalDef)
 
@@ -217,8 +216,7 @@ object SignalEvaluator {
 
   /** Traverses the WIO tree to collect signal handlers.
     *
-    * State is tracked/accumulated through the currentState function in SignalMatch,
-    * similar to how GetStateEvaluator tracks lastSeenState.
+    * State is tracked/accumulated through the currentState function in SignalMatch, similar to how GetStateEvaluator tracks lastSeenState.
     */
   private class SignalVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](
       wio: WIO[In, Err, Out, Ctx],
@@ -246,11 +244,11 @@ object SignalEvaluator {
       }
     }
 
-    override def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result = recurse(wio.base)
+    override def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result          = recurse(wio.base)
     override def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result =
       recurse(wio.base)
-    override def onRetry(wio: WIO.Retry[Ctx, In, Err, Out]): Result = recurse(wio.base)
-    override def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Result =
+    override def onRetry(wio: WIO.Retry[Ctx, In, Err, Out]): Result                                                             = recurse(wio.base)
+    override def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Result          =
       recurse(wio.base, wio.contramapInput)
 
     def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result = {
@@ -270,9 +268,9 @@ object SignalEvaluator {
                   )
                 }
               handlerMatches ++ recurse(wio.base)
-            case Right(_) => recurse(wio.base)
+            case Right(_)  => recurse(wio.base)
           }
-        case None => recurse(wio.base)
+        case None               => recurse(wio.base)
       }
     }
 
@@ -289,7 +287,7 @@ object SignalEvaluator {
         case Some(idx) =>
           val branch = wio.branches(idx)
           new SignalVisitor(branch.wio).run.map(_.contramapInput[In](in => branch.condition(in).get))
-        case None => Nil
+        case None      => Nil
       }
     }
 
@@ -297,18 +295,18 @@ object SignalEvaluator {
       wio.first.asExecuted match {
         case Some(firstExecuted) =>
           firstExecuted.output match {
-            case Left(_) => recurse(wio.first)
+            case Left(_)      => recurse(wio.first)
             case Right(value) =>
               // Second step: input is `value`, state should be computed from first's execution
               val stateFromFirst: WCState[Ctx] = value
-              val secondMatches = new SignalVisitor(wio.second).run.map { m =>
+              val secondMatches                = new SignalVisitor(wio.second).run.map { m =>
                 m.retype[In, WCState[Ctx]](
                   deriveInputState = (_, _) => (value, stateFromFirst),
                 )
               }
               secondMatches ++ recurse(wio.first)
           }
-        case None => recurse(wio.first)
+        case None                => recurse(wio.first)
       }
     }
 
@@ -370,7 +368,7 @@ object SignalEvaluator {
           )
 
           // Step 2: Add routing for signal unwrapping
-          val routing = SignalRouting.forEach(
+          val routing     = SignalRouting.forEach(
             receiver = wio.signalRouter,
             extractRouterInput = (in: In, _: WCState[Ctx]) => wio.interimState(in),
             expectedElem = elemId,
