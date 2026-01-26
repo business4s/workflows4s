@@ -157,6 +157,35 @@ class WIOForEachTest extends AnyFreeSpec with Matchers with OptionValues with Ei
 
     }
 
+    "signal handler receives updated state after partial execution within element" in {
+      // Inner workflow: signalA >>> signalB, where signalB captures state length
+      // After delivering signalA for element X, signalB for element X should see the updated state
+      val (signalDef1, signal1StepId, signalStep1) = TestUtils.signal
+
+      val signalDef2 = SignalDef[Int, Int](id = "state-capturing-signal")
+      case class SigEvent2(stateLength: Int) extends TestCtx2.Event
+      val signal2StepId  = StepId.random("signal2")
+      val signalStep2    = WIO
+        .handleSignal(signalDef2)
+        .using[TestState]
+        .purely((state, _) => SigEvent2(state.executed.length))
+        .handleEvent((st, _) => st.addExecuted(signal2StepId))
+        .produceResponse((state, _, _) => state.executed.length)
+        .done
+
+      val (_, wf)                   = createForEach(signalStep1 >>> signalStep2)
+      val elements @ List(el1, el2) = genElements(2)
+
+      val (_, instance) = TestUtils.createInstance2(wf.provideInput(elements.toSet))
+
+      // Deliver first signal to element el1
+      instance.deliverRoutedSignal(SigRouter, el1, signalDef1, 1).value
+
+      // Deliver second signal to el1 - should see state after first signal (length = 2: elem + signal1)
+      val capturedStateLength = instance.deliverRoutedSignal(SigRouter, el1, signalDef2, 99).value
+      assert(capturedStateLength === 2, "Signal handler should see state after partial execution within element")
+    }
+
   }
 
   type Elem = StepId
