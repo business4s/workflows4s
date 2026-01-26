@@ -210,8 +210,10 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers with EitherValues {
           .handleSignal(signalDef)
           .using[TestState]
           .withSideEffects { (_, req) =>
-            sideEffectCount += 1
-            IO.pure(SignalEvent(req))
+            IO({
+              sideEffectCount += 1
+              SignalEvent(req)
+            })
           }
           .handleEvent((st, _) => st.addExecuted(StepId.random("signal")))
           .produceResponse((_, evt, _) => evt.req * 10) // Response based on stored event

@@ -133,8 +133,7 @@ object SignalEvaluator {
       eventUnconvert(outerEvt) match {
         case Some(localEvt) => copy(storedEvent = Some(localEvt))
         case None           =>
-          logger.warn(s"Failed to unconvert event for signal ${node.sigDef.name} - event type mismatch")
-          this
+          throw new Exception(s"Failed to unconvert event for signal ${node.sigDef.name} - event type mismatch. This shouldn't happen.")
       }
     }
 
