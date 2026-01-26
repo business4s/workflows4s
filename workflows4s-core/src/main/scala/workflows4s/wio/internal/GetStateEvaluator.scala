@@ -9,9 +9,9 @@ object GetStateEvaluator {
       wio: WIO[In, ?, WCState[Ctx], Ctx],
       input: In,
       lastSeenState: WCState[Ctx],
-  ): Option[WCState[Ctx]] = {
+  ): WCState[Ctx] = {
     val visitor = new GetStateVisitor(wio, input, lastSeenState)
-    visitor.run
+    visitor.run.getOrElse(lastSeenState)
   }
 
   private class GetStateVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](

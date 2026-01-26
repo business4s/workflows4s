@@ -246,9 +246,9 @@ object WIO {
       index: Int,
       event: Option[WCEvent[Ctx]] = None,
   ) extends WIO[Any, Err, Out, Ctx] {
-    def lastState(prevState: WCState[Ctx]): Option[WCState[Ctx]] = output match {
+    def lastState(prevState: WCState[Ctx]): WCState[Ctx] = output match {
       case Left(_)      => GetStateEvaluator.extractLastState(original, input, prevState)
-      case Right(value) => value.some
+      case Right(value) => value
     }
   }
 
@@ -305,7 +305,7 @@ object WIO {
     def interimState(input: In): InterimState = {
       val initialElemState = this.initialElemState()
       val elemStates       =
-        state(input).view.mapValues(elemWio => GetStateEvaluator.extractLastState(elemWio, (), initialElemState).getOrElse(initialElemState)).toMap
+        state(input).view.mapValues(elemWio => GetStateEvaluator.extractLastState(elemWio, (), initialElemState)).toMap
       interimStateBuilder(input, elemStates)
     }
   }

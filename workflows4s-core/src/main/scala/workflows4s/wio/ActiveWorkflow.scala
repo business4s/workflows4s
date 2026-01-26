@@ -9,7 +9,7 @@ import java.time.Instant
 case class ActiveWorkflow[Ctx <: WorkflowContext](id: WorkflowInstanceId, wio: WIO.Initial[Ctx], initialState: WCState[Ctx]) {
   lazy val wakeupAt: Option[Instant] = GetWakeupEvaluator.extractNearestWakeup(wio)
 
-  lazy val staticState: WCState[Ctx] = GetStateEvaluator.extractLastState(wio, (), initialState).getOrElse(initialState)
+  lazy val staticState: WCState[Ctx] = GetStateEvaluator.extractLastState(wio, (), initialState)
 
   def liveState: WCState[Ctx] = {
     val wf = effectlessProceed
