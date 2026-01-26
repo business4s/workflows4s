@@ -142,42 +142,6 @@ object SignalEvaluator {
     def withRouting(r: SignalRouting[TopIn, TopState, Req]): SignalMatch[TopIn, OutEvent, LocalCtx, LocalIn, Req, Resp, Evt, TopState] =
       copy(routing = Some(r))
 
-    /** Transform for ForEach context - creates routing and transforms input/state/events for outer context.
-      *
-      * Both transform and routing now derive their data from the same (input, state) source:
-      * - transform: produces (LocalIn, LocalState) for the inner element
-      * - routing: extracts InterimState for signal unwrapping
-      *
-      * Note: elemInitialState returns Any because the LocalCtx type is existentially hidden from the caller.
-      */
-    def forEachTransform[NewIn, ElemId, OuterCtx <: WorkflowContext, InterimState](
-        router: SignalRouter.Receiver[ElemId, InterimState],
-        extractInterimState: (NewIn, WCState[OuterCtx]) => InterimState,
-        elemId: ElemId,
-        elemInitialState: (NewIn, WCState[OuterCtx]) => Any,
-        eventConvert: (ElemId, OutEvent) => WCEvent[OuterCtx],
-        eventUnconvert: WCEvent[OuterCtx] => Option[(ElemId, OutEvent)],
-    ): SignalMatch[NewIn, WCEvent[OuterCtx], LocalCtx, LocalIn, Req, Resp, Evt, WCState[OuterCtx]] = {
-      val newRouting = SignalRouting.forEach[NewIn, WCState[OuterCtx], InterimState, ElemId, Req, Resp](
-        receiver = router,
-        extractRouterInput = extractInterimState,
-        expectedElem = elemId,
-        innerSigDef = node.sigDef,
-      )
-      SignalMatch(
-        node = node,
-        transform = (in, state) => {
-          // ForEach elements have Unit input via inner transform, state is elemInitialState
-          transform.asInstanceOf[(Any, Any) => (LocalIn, WCState[LocalCtx])]((), elemInitialState(in, state))
-        },
-        eventTransform = eventTransform.andThen(eventConvert(elemId, _)),
-        eventUnconvert = (evt: WCEvent[OuterCtx]) =>
-          eventUnconvert(evt).filter(_._1 == elemId).map(_._2).flatMap(this.eventUnconvert),
-        storedEvent = storedEvent,
-        routing = Some(newRouting),
-      )
-    }
-
     def tryProduce[Req1, Resp1](
         outerSignalDef: SignalDef[Req1, Resp1],
         request: Req1,
@@ -393,16 +357,31 @@ object SignalEvaluator {
     override def onForEach[ElemId, InnerCtx <: WorkflowContext, ElemOut <: WCState[InnerCtx], InterimState <: WCState[Ctx]](
         wio: WIO.ForEach[Ctx, In, Err, Out, ElemId, InnerCtx, ElemOut, InterimState],
     ): Result = {
+      // InnerCtx is in scope here, so we can properly type elemInitialState
+      val elemInitialState: WCState[InnerCtx] = wio.initialElemState()
+
       wio.stateOpt.getOrElse(Map.empty).toList.flatMap { case (elemId, elemWio) =>
-        val innerMatches = new SignalVisitor(elemWio).run
-        innerMatches.map { m =>
-          m.forEachTransform[In, ElemId, Ctx, InterimState](
-            router = wio.signalRouter,
-            extractInterimState = (in, _) => wio.interimState(in),
-            elemId = elemId,
-            elemInitialState = (_, _) => wio.initialElemState(),
-            eventConvert = (id, evt) => wio.eventEmbedding.convertEvent(id, evt),
-            eventUnconvert = wio.eventEmbedding.unconvertEvent,
+        val innerMatches: Seq[AnyMatch[Any, WCEvent[InnerCtx], WCState[InnerCtx]]] = new SignalVisitor(elemWio).run
+        // The inner matches have TopIn = Any due to type erasure, but we know it's Unit
+        innerMatches.map { inner =>
+          // Step 1: Retype from element context (Unit, WCState[InnerCtx]) to ForEach context (In, WCState[Ctx])
+          val retyped = inner.retype[In, WCState[Ctx]](
+            deriveInputState = (_, _) => ((), elemInitialState),
+          )
+
+          // Step 2: Add routing for signal unwrapping
+          val routing = SignalRouting.forEach(
+            receiver = wio.signalRouter,
+            extractRouterInput = (in: In, _: WCState[Ctx]) => wio.interimState(in),
+            expectedElem = elemId,
+            innerSigDef = inner.node.sigDef,
+          )
+          val withRouting = retyped.withRouting(routing)
+
+          // Step 3: Transform events
+          withRouting.mapEvent(
+            f = (evt: WCEvent[InnerCtx]) => wio.eventEmbedding.convertEvent(elemId, evt),
+            uf = (evt: WCEvent[Ctx]) => wio.eventEmbedding.unconvertEvent(evt).filter(_._1 == elemId).map(_._2),
           )
         }
       }
