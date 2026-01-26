@@ -10,12 +10,6 @@ sealed trait SignalResult[+Event, +Resp] {
     case SignalResult.Redelivered(_)   => false
   }
 
-  def toRaw: Option[IO[(Event, Resp)]] = this match {
-    case SignalResult.UnexpectedSignal    => None
-    case SignalResult.Processed(resultIO) => Some(resultIO.map(x => (x.event, x.response)))
-    case SignalResult.Redelivered(_)      => None
-  }
-
   /** Get the response, whether from fresh processing or redelivery */
   def responseIO: Option[IO[Resp]] = this match {
     case SignalResult.UnexpectedSignal    => None

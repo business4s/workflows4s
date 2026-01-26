@@ -11,7 +11,7 @@ import workflows4s.wio.WIO.HandleSignal
 
 import java.time.Instant
 import scala.util.Random
-import workflows4s.wio.internal.SignalEvaluator
+import workflows4s.wio.internal.{SignalEvaluator, SignalResult}
 
 class WIOHandleSignalTest extends AnyFreeSpec with Matchers with EitherValues {
 
@@ -33,18 +33,16 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers with EitherValues {
       SignalEvaluator.getExpectedSignals(wf.wio) should contain(mySignalDef)
 
       // Act
-      val signalResult = wf.handleSignal(mySignalDef)(42).toRaw
+      val signalResult = wf.handleSignal(mySignalDef)(42)
 
       // Assert
-      signalResult should not be empty
-      assert(
-        signalResult.get.unsafeRunSync() === (
-          SimpleEvent(
-            "input: initialState, request: 42",
-          ),
-          "response(initialState, SimpleEvent(input: initialState, request: 42))",
-        ),
-      )
+      signalResult match {
+        case SignalResult.Processed(resultIO) =>
+          val result = resultIO.unsafeRunSync()
+          assert(result.event == SimpleEvent("input: initialState, request: 42"))
+          assert(result.response == "response(initialState, SimpleEvent(input: initialState, request: 42))")
+        case other                            => fail(s"Expected Processed, got $other")
+      }
     }
 
     "handle unexpected signals gracefully" in {
@@ -62,9 +60,9 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers with EitherValues {
 
       SignalEvaluator.getExpectedSignals(wf.wio) should contain(validSignalDef)
 
-      val unexpectedSignalResult = wf.handleSignal(unexpectedSignalDef)("unexpected").toRaw
+      val unexpectedSignalResult = wf.handleSignal(unexpectedSignalDef)("unexpected")
 
-      assert(unexpectedSignalResult.isEmpty)
+      assert(unexpectedSignalResult == SignalResult.UnexpectedSignal)
     }
 
     "handle event" in {
