@@ -9,26 +9,30 @@ object SignalEvaluator {
   type AnyMatch[TopIn, OutEvent, TopState] = SignalMatch[TopIn, OutEvent, ? <: WorkflowContext, ?, ?, ?, ?, TopState]
 
   // Adapts outer signal requests to inner handlers (e.g., ForEach elements receive unwrapped requests)
-  case class SignalRouting[TopIn, InnerReq](
+  // Takes (TopIn, TopState) to ensure it derives data from the same source as transform
+  case class SignalRouting[TopIn, TopState, InnerReq](
       wrappedSignalDef: SignalDef[?, ?],
-      unwrap: (SignalDef[?, ?], Any, TopIn) => Option[InnerReq],
+      unwrap: (SignalDef[?, ?], Any, TopIn, TopState) => Option[InnerReq],
   ) {
-    def contramapInput[NewIn](f: NewIn => TopIn): SignalRouting[NewIn, InnerReq] =
-      copy(unwrap = (sigDef, req, newIn) => unwrap(sigDef, req, f(newIn)))
+    def contramapInput[NewIn](f: NewIn => TopIn): SignalRouting[NewIn, TopState, InnerReq] =
+      copy(unwrap = (sigDef, req, newIn, state) => unwrap(sigDef, req, f(newIn), state))
+
+    def contramapState[NewState](f: NewState => TopState): SignalRouting[TopIn, NewState, InnerReq] =
+      copy(unwrap = (sigDef, req, in, newState) => unwrap(sigDef, req, in, f(newState)))
   }
 
   object SignalRouting {
-    def forEach[TopIn, RouterIn, Elem, InnerReq, InnerResp](
+    def forEach[TopIn, TopState, RouterIn, Elem, InnerReq, InnerResp](
         receiver: SignalRouter.Receiver[Elem, RouterIn],
-        extractRouterInput: TopIn => RouterIn,
+        extractRouterInput: (TopIn, TopState) => RouterIn,
         expectedElem: Elem,
         innerSigDef: SignalDef[InnerReq, InnerResp],
-    ): SignalRouting[TopIn, InnerReq] = SignalRouting(
+    ): SignalRouting[TopIn, TopState, InnerReq] = SignalRouting(
       wrappedSignalDef = receiver.outerSignalDef(innerSigDef),
-      unwrap = (outerDef, request, input) =>
+      unwrap = (outerDef, request, input, state) =>
         // Cast needed: outerDef and request have matching types, verified by signal ID match before unwrap is called
         receiver
-          .unwrap(outerDef.asInstanceOf[SignalDef[Any, Any]], request, extractRouterInput(input))
+          .unwrap(outerDef.asInstanceOf[SignalDef[Any, Any]], request, extractRouterInput(input, state))
           .filter(_.elem == expectedElem)
           .map(_.req.asInstanceOf[InnerReq]),
     )
@@ -68,14 +72,14 @@ object SignalEvaluator {
       eventTransform: WCEvent[LocalCtx] => OutEvent,
       eventUnconvert: OutEvent => Option[WCEvent[LocalCtx]],
       storedEvent: Option[WCEvent[LocalCtx]] = None,
-      routing: Option[SignalRouting[TopIn, Req]] = None,
+      routing: Option[SignalRouting[TopIn, TopState, Req]] = None,
   ) extends StrictLogging {
 
     def signalDef: SignalDef[?, ?]      = routing.map(_.wrappedSignalDef).getOrElse(node.sigDef)
     def innerSignalDef: SignalDef[?, ?] = node.sigDef
     def isRedeliverable: Boolean        = storedEvent.isDefined
 
-    /** Transform input type, ignoring state for the transformation */
+    /** Transform input type */
     def contramapInput[NewIn](f: NewIn => TopIn): SignalMatch[NewIn, OutEvent, LocalCtx, LocalIn, Req, Resp, Evt, TopState] =
       copy(
         transform = (newIn, state) => transform(f(newIn), state),
@@ -84,27 +88,36 @@ object SignalEvaluator {
 
     /** Transform state type */
     def contramapState[NewState](f: NewState => TopState): SignalMatch[TopIn, OutEvent, LocalCtx, LocalIn, Req, Resp, Evt, NewState] =
-      SignalMatch(
-        node = node,
+      this.copy(
         transform = (in, newState) => transform(in, f(newState)),
-        eventTransform = eventTransform,
-        eventUnconvert = eventUnconvert,
-        storedEvent = storedEvent,
-        routing = routing,
+        routing = routing.map(_.contramapState(f)),
       )
 
-    /** Retype with completely new transformation. Used when we need to change TopIn type. */
+    /** Retype by providing a function to derive old input/state from new input/state.
+      * Both transform and routing are updated using the same deriveInputState function,
+      * ensuring they stay in sync.
+      */
     def retype[NewIn, NewTopState](
-        newTransform: (NewIn, NewTopState) => (LocalIn, WCState[LocalCtx]),
-        newRouting: Option[SignalRouting[NewIn, Req]] = None,
+        deriveInputState: (NewIn, NewTopState) => (TopIn, TopState),
     ): SignalMatch[NewIn, OutEvent, LocalCtx, LocalIn, Req, Resp, Evt, NewTopState] =
       SignalMatch(
         node = node,
-        transform = newTransform,
+        transform = (newIn, newState) => {
+          val (oldIn, oldState) = deriveInputState(newIn, newState)
+          transform(oldIn, oldState)
+        },
         eventTransform = eventTransform,
         eventUnconvert = eventUnconvert,
         storedEvent = storedEvent,
-        routing = newRouting,
+        routing = routing.map { r =>
+          SignalRouting(
+            wrappedSignalDef = r.wrappedSignalDef,
+            unwrap = (sigDef, req, newIn, newState) => {
+              val (oldIn, oldState) = deriveInputState(newIn, newState)
+              r.unwrap(sigDef, req, oldIn, oldState)
+            },
+          )
+        },
       )
 
     def mapEvent[NewEvent](
@@ -126,22 +139,26 @@ object SignalEvaluator {
       }
     }
 
-    def withRouting(r: SignalRouting[TopIn, Req]): SignalMatch[TopIn, OutEvent, LocalCtx, LocalIn, Req, Resp, Evt, TopState] =
+    def withRouting(r: SignalRouting[TopIn, TopState, Req]): SignalMatch[TopIn, OutEvent, LocalCtx, LocalIn, Req, Resp, Evt, TopState] =
       copy(routing = Some(r))
 
     /** Transform for ForEach context - creates routing and transforms input/state/events for outer context.
+      *
+      * Both transform and routing now derive their data from the same (input, state) source:
+      * - transform: produces (LocalIn, LocalState) for the inner element
+      * - routing: extracts InterimState for signal unwrapping
+      *
       * Note: elemInitialState returns Any because the LocalCtx type is existentially hidden from the caller.
-      * At runtime it will be the correct WCState[LocalCtx].
       */
     def forEachTransform[NewIn, ElemId, OuterCtx <: WorkflowContext, InterimState](
         router: SignalRouter.Receiver[ElemId, InterimState],
-        extractInterimState: NewIn => InterimState,
+        extractInterimState: (NewIn, WCState[OuterCtx]) => InterimState,
         elemId: ElemId,
-        elemInitialState: () => Any,
+        elemInitialState: (NewIn, WCState[OuterCtx]) => Any,
         eventConvert: (ElemId, OutEvent) => WCEvent[OuterCtx],
         eventUnconvert: WCEvent[OuterCtx] => Option[(ElemId, OutEvent)],
     ): SignalMatch[NewIn, WCEvent[OuterCtx], LocalCtx, LocalIn, Req, Resp, Evt, WCState[OuterCtx]] = {
-      val newRouting = SignalRouting.forEach[NewIn, InterimState, ElemId, Req, Resp](
+      val newRouting = SignalRouting.forEach[NewIn, WCState[OuterCtx], InterimState, ElemId, Req, Resp](
         receiver = router,
         extractRouterInput = extractInterimState,
         expectedElem = elemId,
@@ -149,9 +166,9 @@ object SignalEvaluator {
       )
       SignalMatch(
         node = node,
-        transform = (_, _) => {
-          // ForEach elements have Unit input via inner transform
-          transform.asInstanceOf[(Any, Any) => (LocalIn, WCState[LocalCtx])]((), elemInitialState())
+        transform = (in, state) => {
+          // ForEach elements have Unit input via inner transform, state is elemInitialState
+          transform.asInstanceOf[(Any, Any) => (LocalIn, WCState[LocalCtx])]((), elemInitialState(in, state))
         },
         eventTransform = eventTransform.andThen(eventConvert(elemId, _)),
         eventUnconvert = (evt: WCEvent[OuterCtx]) =>
@@ -169,14 +186,14 @@ object SignalEvaluator {
     ): Option[SignalResult[OutEvent, Resp1]] =
       for {
         _        <- Option.when(outerSignalDef.id == signalDef.id)(())
-        innerReq <- unwrapRequest(request, input)
+        innerReq <- unwrapRequest(request, input, topState)
         typedReq  = verifyRequestType(innerReq)
         (localIn, _) = transform(input, topState)
       } yield produceResult(typedReq, localIn, outerSignalDef)
 
-    private def unwrapRequest(request: Any, input: TopIn): Option[Any] =
+    private def unwrapRequest(request: Any, input: TopIn, state: TopState): Option[Any] =
       routing match {
-        case Some(r) => r.unwrap(signalDef, request, input)
+        case Some(r) => r.unwrap(signalDef, request, input, state)
         case None    => Some(request)
       }
 
@@ -282,9 +299,9 @@ object SignalEvaluator {
               val handlerMatches = new SignalVisitor(wio.handleError).run
                 .map { m =>
                   m.retype[In, WCState[Ctx]](
-                    newTransform = (in, topState) => {
+                    deriveInputState = (in, topState) => {
                       val stateFromBase: WCState[Ctx] = GetStateEvaluator.extractLastState(wio.base, in, topState)
-                      m.transform((stateFromBase, err), stateFromBase)
+                      ((stateFromBase, err), stateFromBase)
                     },
                   )
                 }
@@ -319,9 +336,10 @@ object SignalEvaluator {
             case Left(_) => recurse(wio.first)
             case Right(value) =>
               // Second step: input is `value`, state should be computed from first's execution
+              val stateFromFirst: WCState[Ctx] = value
               val secondMatches = new SignalVisitor(wio.second).run.map { m =>
                 m.retype[In, WCState[Ctx]](
-                  newTransform = (_, _) => m.transform(value, value),
+                  deriveInputState = (_, _) => (value, stateFromFirst),
                 )
               }
               secondMatches ++ recurse(wio.first)
@@ -336,11 +354,8 @@ object SignalEvaluator {
       val innerMatches = new SignalVisitor(wio.inner).run
       innerMatches.map { m =>
         m.mapEvent(wio.embedding.convertEvent, wio.embedding.unconvertEvent)
-          .copy(
-            transform = (in: In, topState: WCState[Ctx]) => {
-              val innerState = wio.embedding.unconvertStateUnsafe(topState)
-              m.transform(in, innerState)
-            },
+          .retype[In, WCState[Ctx]](
+            deriveInputState = (in, topState) => (in, wio.embedding.unconvertStateUnsafe(topState)),
           )
       }
     }
@@ -350,9 +365,9 @@ object SignalEvaluator {
         new SignalVisitor(wio.interruption).run.map { m =>
           // Retype from WCState[Ctx] input to In input, computing state from base execution
           m.retype[In, WCState[Ctx]](
-            newTransform = (in, topState) => {
+            deriveInputState = (in, topState) => {
               val stateFromBase: WCState[Ctx] = GetStateEvaluator.extractLastState(wio.base, in, topState)
-              m.transform(stateFromBase, stateFromBase)
+              (stateFromBase, stateFromBase)
             },
           )
         }
@@ -383,9 +398,9 @@ object SignalEvaluator {
         innerMatches.map { m =>
           m.forEachTransform[In, ElemId, Ctx, InterimState](
             router = wio.signalRouter,
-            extractInterimState = (in: In) => wio.interimState(in),
+            extractInterimState = (in, _) => wio.interimState(in),
             elemId = elemId,
-            elemInitialState = () => wio.initialElemState(),
+            elemInitialState = (_, _) => wio.initialElemState(),
             eventConvert = (id, evt) => wio.eventEmbedding.convertEvent(id, evt),
             eventUnconvert = wio.eventEmbedding.unconvertEvent,
           )
