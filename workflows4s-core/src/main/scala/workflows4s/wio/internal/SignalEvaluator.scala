@@ -125,10 +125,7 @@ object SignalEvaluator {
     ): SignalMatch[TopIn, NewEvent, LocalCtx, LocalIn, Req, Resp, Evt, TopState] =
       copy(eventTransform = eventTransform.andThen(f), eventUnconvert = uf(_).flatMap(eventUnconvert))
 
-    def toRedeliverable(evt: WCEvent[LocalCtx]): SignalMatch[TopIn, OutEvent, LocalCtx, LocalIn, Req, Resp, Evt, TopState] =
-      if isRedeliverable then this else copy(storedEvent = Some(evt))
-
-    def toRedeliverableWithOuterEvent(outerEvt: OutEvent): SignalMatch[TopIn, OutEvent, LocalCtx, LocalIn, Req, Resp, Evt, TopState] = {
+    def toRedeliverable(outerEvt: OutEvent): SignalMatch[TopIn, OutEvent, LocalCtx, LocalIn, Req, Resp, Evt, TopState] = {
       if isRedeliverable then return this
       eventUnconvert(outerEvt) match {
         case Some(localEvt) => copy(storedEvent = Some(localEvt))
@@ -239,7 +236,7 @@ object SignalEvaluator {
 
       innerMatches.flatMap { m =>
         if m.isRedeliverable then List(m)
-        else wio.event.map(m.toRedeliverableWithOuterEvent).toList
+        else wio.event.map(m.toRedeliverable).toList
       }
     }
 
