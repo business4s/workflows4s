@@ -213,7 +213,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
   .settings(Revolver.enableDebugging(port = 5050))
 
 lazy val commonSettings = Seq(
-  scalaVersion      := "3.7.4",
+  scalaVersion      := "3.8.1",
   scalacOptions ++= Seq("-no-indent", "-Xmax-inlines", "64", "-explain-cyclic", "-Ydebug-cyclic"),
   libraryDependencies ++= Seq(
     "org.scalatest" %% "scalatest"       % "3.2.19" % Test,
