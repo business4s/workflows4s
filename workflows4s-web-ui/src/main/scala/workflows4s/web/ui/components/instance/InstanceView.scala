@@ -21,7 +21,14 @@ final case class InstanceView(
   override def update(msg: InstanceView.Msg): (InstanceView, Cmd[IO, InstanceView.Msg]) = msg match {
     case InstanceView.Msg.ForContent(inner) =>
       val (av, cmd) = content.update(inner)
-      this.copy(content = av) -> cmd.map(InstanceView.Msg.ForContent(_))
+      val newThis   = this.copy(content = av)
+      val mappedCmd = cmd.map(InstanceView.Msg.ForContent(_))
+      inner match {
+        case AsyncView.Msg.Propagate(InstanceView.Content.Msg.RequestRefresh) =>
+          newThis -> Cmd.Batch(mappedCmd, content.refresh.map(InstanceView.Msg.ForContent(_)))
+        case _                                                                =>
+          newThis -> mappedCmd
+      }
     case InstanceView.Msg.Refresh           =>
       this -> content.refresh.map(InstanceView.Msg.ForContent(_))
   }
@@ -55,10 +62,17 @@ object InstanceView {
         this.copy(diagramView = newDiagramView) -> cmd.map(Content.Msg.ForDiagram(_))
       case Content.Msg.ForSignalsView(msg) =>
         val (newCmp, cmd) = signalsView.update(msg)
-        this.copy(signalsView = newCmp) -> cmd.map(Content.Msg.ForSignalsView(_))
+        val newThis       = this.copy(signalsView = newCmp)
+        val mappedCmd     = cmd.map(Content.Msg.ForSignalsView(_))
+        msg match {
+          case SignalsView.Msg.RefreshInstance => newThis -> Cmd.Batch(mappedCmd, Cmd.Emit(Content.Msg.RequestRefresh))
+          case _                               => newThis -> mappedCmd
+        }
       case Content.Msg.ForJsonView(msg)    =>
         val (newJsonView, cmd) = jsonView.update(msg)
         this.copy(jsonView = newJsonView) -> cmd.map(Content.Msg.ForJsonView(_))
+      case Content.Msg.RequestRefresh      =>
+        this -> Cmd.None
     }
 
     private def sectionHeader(text: String) = h4(cls := "mt-4")(text)
@@ -93,6 +107,7 @@ object InstanceView {
       case ForDiagram(msg: MermaidDiagramView.Msg)
       case ForSignalsView(msg: SignalsView.Msg)
       case ForJsonView(msg: JsonViewMsg)
+      case RequestRefresh
     }
 
     def initial(instance: WorkflowInstance) = {
