@@ -22,6 +22,8 @@ class MermaidRendererTest extends AnyFreeSpec with Matchers {
                              |node0@{ shape: circle, label: "Start"}
                              |node1["@computation"]
                              |node0 --> node1
+                             |node2@{ shape: circle, label: "End"}
+                             |node1 --> node2
                              |""".stripMargin)
       }
 
@@ -39,6 +41,8 @@ class MermaidRendererTest extends AnyFreeSpec with Matchers {
                              |node2["@computation"]
                              |node0 --> node2
                              |end
+                             |node5@{ shape: circle, label: "End"}
+                             |node2 --> node5
                              |""".stripMargin)
       }
     }
@@ -52,6 +56,8 @@ class MermaidRendererTest extends AnyFreeSpec with Matchers {
 
         assert(rendered == """flowchart TD
                              |node0@{ shape: circle, label: "Start"}
+                             |node1@{ shape: circle, label: "End"}
+                             |node0 --> node1
                              |""".stripMargin)
       }
 
@@ -65,6 +71,8 @@ class MermaidRendererTest extends AnyFreeSpec with Matchers {
                              |node0@{ shape: circle, label: "Start"}
                              |node1@{ shape: hexagon, label: "fa:fa-wrench State Recovery"}
                              |node0 --> node1
+                             |node2@{ shape: circle, label: "End"}
+                             |node1 --> node2
                              |""".stripMargin)
       }
     }
@@ -82,7 +90,7 @@ class MermaidRendererTest extends AnyFreeSpec with Matchers {
 
       // Verify the URL contains the encoded diagram content
       val expectedContent =
-        "eyJjb2RlIjoiZmxvd2NoYXJ0IFREXG5ub2RlMEB7IHNoYXBlOiBjaXJjbGUsIGxhYmVsOiBcIlN0YXJ0XCJ9XG5ub2RlMVtcIkBjb21wdXRhdGlvblwiXVxubm9kZTAgLS0-IG5vZGUxXG4ifQ=="
+        "eyJjb2RlIjoiZmxvd2NoYXJ0IFREXG5ub2RlMEB7IHNoYXBlOiBjaXJjbGUsIGxhYmVsOiBcIlN0YXJ0XCJ9XG5ub2RlMVtcIkBjb21wdXRhdGlvblwiXVxubm9kZTAgLS0-IG5vZGUxXG5ub2RlMkB7IHNoYXBlOiBjaXJjbGUsIGxhYmVsOiBcIkVuZFwifVxubm9kZTEgLS0-IG5vZGUyXG4ifQ=="
       assert(url == s"https://mermaid.live/edit#base64:${expectedContent}")
     }
   }

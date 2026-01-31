@@ -1,0 +1,9 @@
+flowchart TD
+node0@{ shape: circle, label: "Start"}
+node1["Do Things"]
+node0 --> node1
+node2["Handle That Nasty Error"]
+node1 -.->|"fa:fa-bolt My Error"| node2
+node3@{ shape: circle, label: "End"}
+node1 --> node3
+node2 --> node3
