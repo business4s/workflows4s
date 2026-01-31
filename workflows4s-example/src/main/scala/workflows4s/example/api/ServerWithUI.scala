@@ -22,17 +22,17 @@ object ServerWithUI extends IOApp.Simple with BaseServer with StrictLogging {
       uiRoutes  = Http4sServerInterpreter[IO]().toRoutes(UiEndpoints.get(UIConfig(sttp.model.Uri.unsafeParse(apiUrl), true)))
       // Add redirect from /ui to /ui/
       redirect  = org.http4s.HttpRoutes.of[IO] {
-        case req @ org.http4s.Method.GET -> Root / "ui" =>
-          org.http4s
-            .Response[IO](org.http4s.Status.PermanentRedirect)
-            .putHeaders(org.http4s.headers.Location(req.uri / ""))
-            .pure[IO]
-        case org.http4s.Method.GET -> Root =>
-          org.http4s
-            .Response[IO](org.http4s.Status.PermanentRedirect)
-            .putHeaders(org.http4s.headers.Location(org.http4s.Uri.unsafeFromString("/ui/")))
-            .pure[IO]
-      }
+                    case req @ org.http4s.Method.GET -> Root / "ui" =>
+                      org.http4s
+                        .Response[IO](org.http4s.Status.PermanentRedirect)
+                        .putHeaders(org.http4s.headers.Location(req.uri / ""))
+                        .pure[IO]
+                    case org.http4s.Method.GET -> Root              =>
+                      org.http4s
+                        .Response[IO](org.http4s.Status.PermanentRedirect)
+                        .putHeaders(org.http4s.headers.Location(org.http4s.Uri.unsafeFromString("/ui/")))
+                        .pure[IO]
+                  }
       allRoutes = api <+> redirect <+> uiRoutes
       server   <- EmberServerBuilder
                     .default[IO]

@@ -23,7 +23,7 @@ case class InstancesFilterBar(
       this.copy(statusFilters = newFilters) -> Cmd.None
 
     case InstancesFilterBar.Msg.SortChanged(newSort) =>
-      this.copy(sortBy = Some(newSort)) -> Cmd.None
+      this.copy(sortBy = newSort) -> Cmd.None
 
     case InstancesFilterBar.Msg.PageSizeChanged(newSize) =>
       this.copy(pageSize = newSize) -> Cmd.None
@@ -46,7 +46,7 @@ case class InstancesFilterBar(
         div(cls := "control")(
           label(cls := "label is-small")("Sort"),
           div(cls := "select is-small")(
-            select(onInput(value => InstancesFilterBar.Msg.SortChanged(InstancesFilterBar.parseSortBy(value))))(
+            select(onInput(value => InstancesFilterBar.Msg.SortChanged(InstancesFilterBar.parseSortByOpt(value))))(
               option(value := "", selected(sortBy.isEmpty))("-- None --"),
               option(value := "CreatedAsc", selected(sortBy.contains(WorkflowSearchRequest.SortBy.CreatedAsc)))("Created ↑"),
               option(value := "CreatedDesc", selected(sortBy.contains(WorkflowSearchRequest.SortBy.CreatedDesc)))("Created ↓"),
@@ -104,24 +104,24 @@ object InstancesFilterBar {
   def fromQueryParams(params: Map[String, String]): InstancesFilterBar = {
     val statusFilters =
       params.get("status").map(_.split(",").flatMap(s => scala.util.Try(ExecutionStatus.valueOf(s)).toOption).toSet).getOrElse(Set.empty)
-    val sortBy        = params.get("sort").flatMap(s => scala.util.Try(parseSortBy(s)).toOption).orElse(Some(WorkflowSearchRequest.SortBy.UpdatedDesc))
+    val sortBy        = params.get("sort").flatMap(parseSortByOpt).orElse(Some(WorkflowSearchRequest.SortBy.UpdatedDesc))
     val pageSize      = params.get("limit").flatMap(_.toIntOption).filter(allowedPageSizes.contains).getOrElse(25)
     InstancesFilterBar(statusFilters, sortBy, pageSize)
   }
 
-  def parseSortBy(value: String): WorkflowSearchRequest.SortBy = value match {
-    case "CreatedAsc"  => WorkflowSearchRequest.SortBy.CreatedAsc
-    case "CreatedDesc" => WorkflowSearchRequest.SortBy.CreatedDesc
-    case "UpdatedAsc"  => WorkflowSearchRequest.SortBy.UpdatedAsc
-    case "UpdatedDesc" => WorkflowSearchRequest.SortBy.UpdatedDesc
-    case "WakeupAsc"   => WorkflowSearchRequest.SortBy.WakeupAsc
-    case "WakeupDesc"  => WorkflowSearchRequest.SortBy.WakeupDesc
-    case _             => throw new IllegalArgumentException(s"Unknown sortBy value: $value")
+  def parseSortByOpt(value: String): Option[WorkflowSearchRequest.SortBy] = value match {
+    case "CreatedAsc"  => Some(WorkflowSearchRequest.SortBy.CreatedAsc)
+    case "CreatedDesc" => Some(WorkflowSearchRequest.SortBy.CreatedDesc)
+    case "UpdatedAsc"  => Some(WorkflowSearchRequest.SortBy.UpdatedAsc)
+    case "UpdatedDesc" => Some(WorkflowSearchRequest.SortBy.UpdatedDesc)
+    case "WakeupAsc"   => Some(WorkflowSearchRequest.SortBy.WakeupAsc)
+    case "WakeupDesc"  => Some(WorkflowSearchRequest.SortBy.WakeupDesc)
+    case _             => None
   }
 
   enum Msg {
     case ToggleStatus(status: ExecutionStatus)
-    case SortChanged(sort: WorkflowSearchRequest.SortBy)
+    case SortChanged(sort: Option[WorkflowSearchRequest.SortBy])
     case PageSizeChanged(size: Int)
     case ClearFilters
   }

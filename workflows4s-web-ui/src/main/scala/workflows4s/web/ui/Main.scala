@@ -63,7 +63,8 @@ object Route {
     parts match {
       case Nil                                                           => Route.Home
       case "workflows" :: workflowId :: "definition" :: Nil              => Route.Workflow(decode(workflowId), WorkflowView.Definition)
-      case "workflows" :: workflowId :: "instances" :: instanceId :: Nil => Route.Workflow(decode(workflowId), WorkflowView.Instance(decode(instanceId)))
+      case "workflows" :: workflowId :: "instances" :: instanceId :: Nil =>
+        Route.Workflow(decode(workflowId), WorkflowView.Instance(decode(instanceId)))
       case "workflows" :: workflowId :: "instances" :: Nil               =>
         val params = parseQuery(query)
         Route.Workflow(decode(workflowId), WorkflowView.Instances(params))
@@ -166,7 +167,8 @@ object Main extends TyrianIOApp[Msg, Model] {
       }
 
       val urlCmd =
-        if selectionChange.isDefined && newRoute != model.route then Nav.pushUrl(Route.toBrowserUrl(newRoute))(using summon[Async[IO]]) else Cmd.None
+        if selectionChange.isDefined && newRoute != model.route then Nav.pushUrl(Route.toBrowserUrl(newRoute))(using summon[Async[IO]])
+        else Cmd.None
 
       val updatedModel = model.copy(
         workflows = updatedWorkflows,
@@ -226,10 +228,16 @@ object Main extends TyrianIOApp[Msg, Model] {
       (m.copy(workflows = updatedWorkflows, instances = None, route = Route.Home, pendingRoute = None), cmd.map(Msg.ForWorkflows.apply))
     }
 
-    def findDefinition(workflowId: String) =
+    def findDefinition(workflowId: String): Option[WorkflowDefinition] =
       model.workflows.state.state match {
         case AsyncView.State.Ready(selector) => selector.defs.find(_.id == workflowId)
         case _                               => None
+      }
+
+    def definitionsLoaded: Boolean =
+      model.workflows.state.state match {
+        case AsyncView.State.Ready(_) => true
+        case _                        => false
       }
 
     route match {
@@ -266,7 +274,12 @@ object Main extends TyrianIOApp[Msg, Model] {
               cmd1.map(Msg.ForInstances.apply) |+| cmd2.map(Msg.ForInstances.apply) |+| cmd3.map(Msg.ForWorkflows.apply),
             )
           case None             =>
-            (model.copy(instances = None, route = route, pendingRoute = route.some), Cmd.None)
+            if definitionsLoaded then
+            // Workflow doesn't exist, go to Home and don't retry
+            (model.copy(instances = None, route = Route.Home, pendingRoute = None), Cmd.None)
+            else
+              // Definitions not loaded yet, store as pending route to apply later
+              (model.copy(instances = None, route = route, pendingRoute = route.some), Cmd.None)
         }
     }
   }
