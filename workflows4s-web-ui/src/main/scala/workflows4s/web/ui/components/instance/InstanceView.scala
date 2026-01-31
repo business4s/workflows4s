@@ -20,12 +20,14 @@ final case class InstanceView(
 
   override def update(msg: InstanceView.Msg): (InstanceView, Cmd[IO, InstanceView.Msg]) = msg match {
     case InstanceView.Msg.ForContent(inner) =>
+      val (av, cmd) = content.update(inner)
+      val newThis   = this.copy(content = av)
+      val mappedCmd = cmd.map(InstanceView.Msg.ForContent(_))
       inner match {
         case AsyncView.Msg.Propagate(InstanceView.Content.Msg.RequestRefresh) =>
-          this -> content.refresh.map(InstanceView.Msg.ForContent(_))
+          newThis -> Cmd.Batch(mappedCmd, content.refresh.map(InstanceView.Msg.ForContent(_)))
         case _                                                                =>
-          val (av, cmd) = content.update(inner)
-          this.copy(content = av) -> cmd.map(InstanceView.Msg.ForContent(_))
+          newThis -> mappedCmd
       }
     case InstanceView.Msg.Refresh           =>
       this -> content.refresh.map(InstanceView.Msg.ForContent(_))
@@ -59,12 +61,12 @@ object InstanceView {
         val (newDiagramView, cmd) = diagramView.update(msg)
         this.copy(diagramView = newDiagramView) -> cmd.map(Content.Msg.ForDiagram(_))
       case Content.Msg.ForSignalsView(msg) =>
+        val (newCmp, cmd) = signalsView.update(msg)
+        val newThis       = this.copy(signalsView = newCmp)
+        val mappedCmd     = cmd.map(Content.Msg.ForSignalsView(_))
         msg match {
-          case SignalsView.Msg.RefreshInstance =>
-            this -> Cmd.Emit(Content.Msg.RequestRefresh)
-          case _                               =>
-            val (newCmp, cmd) = signalsView.update(msg)
-            this.copy(signalsView = newCmp) -> cmd.map(Content.Msg.ForSignalsView(_))
+          case SignalsView.Msg.RefreshInstance => newThis -> Cmd.Batch(mappedCmd, Cmd.Emit(Content.Msg.RequestRefresh))
+          case _                               => newThis -> mappedCmd
         }
       case Content.Msg.ForJsonView(msg)    =>
         val (newJsonView, cmd) = jsonView.update(msg)
