@@ -7,19 +7,26 @@ import workflows4s.web.api.model.UIConfig
 
 object UIConfig {
 
+  def detectBasePathFromLocation(pathname: String): String =
+    if pathname == "/ui" || pathname.startsWith("/ui/") then "/ui" else ""
+
+  private def configUrlFromLocation: String = {
+    val origin = dom.window.location.origin
+    val base   = detectBasePathFromLocation(dom.window.location.pathname)
+    s"$origin$base/config.json"
+  }
+
   private val _config: Deferred[IO, UIConfig] = Deferred.unsafe
 
   def get: IO[UIConfig] = _config.get
 
   def load: IO[Unit] = {
     (for {
-      // this will not work when ui if served under /ui instead of /ui/
-      // user has to ensure redirect on their side because tapir is not flexible enough to handle it
-      response <- IOFromPromise(dom.fetch("config.json"))
+      response <- IOFromPromise(dom.fetch(configUrlFromLocation))
       text     <- IOFromPromise(response.text())
       cfg      <- IO.fromEither(io.circe.parser.decode[UIConfig](text))
       _        <- _config.complete(cfg)
-      _         = println(s"UI config set to ${_config} from ${cfg}")
+      _         = println(s"UI config set to ${cfg}")
     } yield ())
       .handleErrorWith(ex => {
         println(s"Failed to fetch ui config. ${ex}")
