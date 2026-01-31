@@ -46,7 +46,7 @@ case class InstancesFilterBar(
         div(cls := "control")(
           label(cls := "label is-small")("Sort"),
           div(cls := "select is-small")(
-            select(onInput(value => InstancesFilterBar.Msg.SortChanged(parseSortBy(value))))(
+            select(onInput(value => InstancesFilterBar.Msg.SortChanged(InstancesFilterBar.parseSortBy(value))))(
               option(value := "", selected(sortBy.isEmpty))("-- None --"),
               option(value := "CreatedAsc", selected(sortBy.contains(WorkflowSearchRequest.SortBy.CreatedAsc)))("Created ↑"),
               option(value := "CreatedDesc", selected(sortBy.contains(WorkflowSearchRequest.SortBy.CreatedDesc)))("Created ↓"),
@@ -83,16 +83,7 @@ case class InstancesFilterBar(
     )(label)
   }
 
-  private def parseSortBy(value: String): WorkflowSearchRequest.SortBy = value match {
-    case "CreatedAsc"  => WorkflowSearchRequest.SortBy.CreatedAsc
-    case "CreatedDesc" => WorkflowSearchRequest.SortBy.CreatedDesc
-    case "UpdatedAsc"  => WorkflowSearchRequest.SortBy.UpdatedAsc
-    case "UpdatedDesc" => WorkflowSearchRequest.SortBy.UpdatedDesc
-    case "WakeupAsc"   => WorkflowSearchRequest.SortBy.WakeupAsc
-    case "WakeupDesc"  => WorkflowSearchRequest.SortBy.WakeupDesc
-    case _             => throw new IllegalArgumentException(s"Unknown sortBy value: $value")
-  }
-  def toQueryParams: Map[String, String]                               = {
+  def toQueryParams: Map[String, String] = {
     val params = scala.collection.mutable.Map[String, String]()
     if statusFilters.nonEmpty then params += "status" -> statusFilters.mkString(",")
     sortBy.foreach(s => params += "sort" -> s.toString)
@@ -118,7 +109,7 @@ object InstancesFilterBar {
     InstancesFilterBar(statusFilters, sortBy, pageSize)
   }
 
-  private def parseSortBy(value: String): WorkflowSearchRequest.SortBy = value match {
+  def parseSortBy(value: String): WorkflowSearchRequest.SortBy = value match {
     case "CreatedAsc"  => WorkflowSearchRequest.SortBy.CreatedAsc
     case "CreatedDesc" => WorkflowSearchRequest.SortBy.CreatedDesc
     case "UpdatedAsc"  => WorkflowSearchRequest.SortBy.UpdatedAsc

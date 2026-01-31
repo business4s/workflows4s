@@ -27,10 +27,7 @@ enum Route {
 }
 
 object Route {
-  private def detectBasePathFromLocation(pathname: String): String =
-    if pathname == "/ui" || pathname.startsWith("/ui/") then "/ui" else ""
-
-  private def currentBasePath: String = detectBasePathFromLocation(dom.window.location.pathname)
+  private def currentBasePath: String = UIConfig.detectBasePathFromLocation(dom.window.location.pathname)
 
   def normalizeInternalUrl(url: String): String = {
     val urlOrPath =
@@ -61,47 +58,43 @@ object Route {
     val noHash        = path.takeWhile(_ != '#')
     val parts         = noHash.split('/').toList.filter(_.nonEmpty)
 
+    def decode(s: String): String = scalajs.js.URIUtils.decodeURIComponent(s)
+
     parts match {
       case Nil                                                           => Route.Home
-      case "workflows" :: workflowId :: "definition" :: Nil              => Route.Workflow(workflowId, WorkflowView.Definition)
-      case "workflows" :: workflowId :: "instances" :: instanceId :: Nil => Route.Workflow(workflowId, WorkflowView.Instance(instanceId))
+      case "workflows" :: workflowId :: "definition" :: Nil              => Route.Workflow(decode(workflowId), WorkflowView.Definition)
+      case "workflows" :: workflowId :: "instances" :: instanceId :: Nil => Route.Workflow(decode(workflowId), WorkflowView.Instance(decode(instanceId)))
       case "workflows" :: workflowId :: "instances" :: Nil               =>
         val params = parseQuery(query)
-        Route.Workflow(workflowId, WorkflowView.Instances(params))
-      case "workflows" :: workflowId :: Nil                              => Route.Workflow(workflowId, WorkflowView.Definition)
+        Route.Workflow(decode(workflowId), WorkflowView.Instances(params))
+      case "workflows" :: workflowId :: Nil                              => Route.Workflow(decode(workflowId), WorkflowView.Definition)
       case _                                                             => Route.Home
     }
   }
 
-  def toInternalUrl(route: Route): String = route match {
-    case Route.Home                                                    => "/"
-    case Route.Workflow(workflowId, WorkflowView.Definition)           => s"/workflows/$workflowId/definition"
-    case Route.Workflow(workflowId, WorkflowView.Instances(params))    =>
-      val queryString =
-        if params.isEmpty then ""
-        else
-          "?" + params
-            .map { case (k, v) =>
-              s"${java.net.URLEncoder.encode(k, "UTF-8")}=${java.net.URLEncoder.encode(v, "UTF-8")}"
-            }
-            .mkString("&")
-      s"/workflows/$workflowId/instances$queryString"
-    case Route.Workflow(workflowId, WorkflowView.Instance(instanceId)) => s"/workflows/$workflowId/instances/$instanceId"
+  def toInternalUrl(route: Route): String = {
+    def encode(s: String): String = scalajs.js.URIUtils.encodeURIComponent(s)
+
+    route match {
+      case Route.Home                                                    => "/"
+      case Route.Workflow(workflowId, WorkflowView.Definition)           => s"/workflows/${encode(workflowId)}/definition"
+      case Route.Workflow(workflowId, WorkflowView.Instances(params))    =>
+        val queryString =
+          if params.isEmpty then ""
+          else "?" + new dom.URLSearchParams(scalajs.js.Dictionary(params.toSeq*)).toString
+        s"/workflows/${encode(workflowId)}/instances$queryString"
+      case Route.Workflow(workflowId, WorkflowView.Instance(instanceId)) => s"/workflows/${encode(workflowId)}/instances/${encode(instanceId)}"
+    }
   }
 
   private def parseQuery(query: String): Map[String, String] = {
     if query.isEmpty then Map.empty
-    else
-      query
-        .split('&')
-        .map { part =>
-          val eqIdx  = part.indexOf('=')
-          val (k, v) =
-            if eqIdx == -1 then part      -> ""
-            else part.substring(0, eqIdx) -> part.substring(eqIdx + 1)
-          java.net.URLDecoder.decode(k, "UTF-8") -> java.net.URLDecoder.decode(v, "UTF-8")
-        }
-        .toMap
+    else {
+      val params = new dom.URLSearchParams(query)
+      val result = scala.collection.mutable.Map[String, String]()
+      params.forEach { (value, key) => result += (key -> value) }
+      result.toMap
+    }
   }
 }
 

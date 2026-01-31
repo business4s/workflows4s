@@ -7,7 +7,7 @@ import workflows4s.web.api.model.UIConfig
 
 object UIConfig {
 
-  private def detectBasePathFromLocation(pathname: String): String =
+  def detectBasePathFromLocation(pathname: String): String =
     if pathname == "/ui" || pathname.startsWith("/ui/") then "/ui" else ""
 
   private def configUrlFromLocation: String = {
