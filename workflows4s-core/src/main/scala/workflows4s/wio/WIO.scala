@@ -1,7 +1,6 @@
 package workflows4s.wio
 
 import cats.effect.IO
-import cats.implicits.catsSyntaxOptionId
 import workflows4s.wio.WIO.HandleInterruption.InterruptionType
 import workflows4s.wio.WIO.Timer.DurationSource
 import workflows4s.wio.builders.AllBuilders
@@ -23,10 +22,11 @@ object WIO {
   // Alternatively, this could be a sealed trait extending WIO
   type IHandleSignal[-In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext] = HandleSignal[Ctx, In, Out, Err, ?, ?, ?]
 
-  case class HandleSignal[Ctx <: WorkflowContext, -In, +Out <: WCState[Ctx], +Err, Sig, Resp, Evt](
-      sigDef: SignalDef[Sig, Resp],
-      sigHandler: SignalHandler[Sig, Evt, In],
-      evtHandler: EventHandler[In, (Either[Err, Out], Resp), WCEvent[Ctx], Evt],
+  case class HandleSignal[Ctx <: WorkflowContext, -In, +Out <: WCState[Ctx], +Err, Req, Resp, Evt](
+      sigDef: SignalDef[Req, Resp],
+      sigHandler: SignalHandler[Req, Evt, In],
+      evtHandler: EventHandler[In, Either[Err, Out], WCEvent[Ctx], Evt],
+      responseProducer: (In, Evt, Req) => Resp,
       meta: HandleSignal.Meta, // TODO here and everywhere else, we could use WIOMeta directly
   ) extends WIO[In, Err, Out, Ctx] {
 
@@ -243,10 +243,11 @@ object WIO {
       output: Either[Err, Out],
       input: In,
       index: Int,
+      event: Option[WCEvent[Ctx]] = None,
   ) extends WIO[Any, Err, Out, Ctx] {
-    def lastState(prevState: WCState[Ctx]): Option[WCState[Ctx]] = output match {
+    def lastState(prevState: WCState[Ctx]): WCState[Ctx] = output match {
       case Left(_)      => GetStateEvaluator.extractLastState(original, input, prevState)
-      case Right(value) => value.some
+      case Right(value) => value
     }
   }
 
@@ -303,7 +304,7 @@ object WIO {
     def interimState(input: In): InterimState = {
       val initialElemState = this.initialElemState()
       val elemStates       =
-        state(input).view.mapValues(elemWio => GetStateEvaluator.extractLastState(elemWio, (), initialElemState).getOrElse(initialElemState)).toMap
+        state(input).view.mapValues(elemWio => GetStateEvaluator.extractLastState(elemWio, (), initialElemState)).toMap
       interimStateBuilder(input, elemStates)
     }
   }

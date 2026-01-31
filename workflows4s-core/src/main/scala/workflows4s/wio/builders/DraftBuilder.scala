@@ -21,6 +21,7 @@ object DraftBuilder {
           draftSignal,
           SignalHandler[Unit, Unit, Any]((_, _) => ???),
           dummyEventHandler,
+          (_, _, _) => (), // responseProducer
           WIO.HandleSignal.Meta(
             Option(error).map(ErrorMeta.Present(_)).getOrElse(ErrorMeta.noError),
             getEffectiveName(name, autoName),
@@ -97,6 +98,7 @@ object DraftBuilder {
             draftSignal,
             SignalHandler[Unit, Unit, WCState[Ctx]]((_, _) => ???),
             dummyEventHandler[WCEvent[Ctx], Unit],
+            (_, _, _) => (), // responseProducer
             WIO.HandleSignal.Meta(
               Option(error).map(ErrorMeta.Present(_)).getOrElse(ErrorMeta.noError),
               Option(signalName).getOrElse(getEffectiveName(null, autoName)),

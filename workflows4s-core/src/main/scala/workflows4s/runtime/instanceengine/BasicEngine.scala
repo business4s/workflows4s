@@ -29,8 +29,11 @@ trait BasicEngine extends WorkflowInstanceEngine {
 
   override def getProgress[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[WIOExecutionProgress[WCState[Ctx]]] = workflow.progress.pure[IO]
 
-  override def getExpectedSignals[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[List[SignalDef[?, ?]]] =
-    workflow.expectedSignals.pure[IO]
+  override def getExpectedSignals[Ctx <: WorkflowContext](
+      workflow: ActiveWorkflow[Ctx],
+      includeRedeliverable: Boolean = false,
+  ): IO[List[SignalDef[?, ?]]] =
+    workflow.expectedSignals(includeRedeliverable).pure[IO]
 
   override def onStateChange[Ctx <: WorkflowContext](
       oldState: ActiveWorkflow[Ctx],

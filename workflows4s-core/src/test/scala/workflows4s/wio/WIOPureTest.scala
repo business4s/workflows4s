@@ -4,6 +4,7 @@ import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 import workflows4s.testing.TestUtils
 import workflows4s.wio.WIO.Pure
+import workflows4s.wio.internal.SignalResult
 
 import java.time.Instant
 import scala.util.Random
@@ -41,8 +42,8 @@ class WIOPureTest extends AnyFreeSpec with Matchers {
     "handle signal no-op" in {
       val wf: ActiveWorkflow[Ctx] = WIO.pure("initialState").done.toWorkflow("initialState")
 
-      val resultOpt = wf.handleSignal(SignalDef[String, String]())("").toRaw
-      assert(resultOpt.isEmpty)
+      val result = wf.handleSignal(SignalDef[String, String]())("")
+      assert(result == SignalResult.UnexpectedSignal)
     }
 
     "error raising" in {
