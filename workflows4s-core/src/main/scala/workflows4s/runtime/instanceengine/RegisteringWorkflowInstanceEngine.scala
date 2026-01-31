@@ -11,7 +11,7 @@ import workflows4s.wio.internal.{SignalResult, WakeupResult}
 class RegisteringWorkflowInstanceEngine(protected val delegate: WorkflowInstanceEngine, registry: WorkflowRegistry.Agent)
     extends DelegatingWorkflowInstanceEngine {
 
-  override def triggerWakeup[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[WakeupResult[WCEvent[Ctx]]] = {
+  override def triggerWakeup[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[WakeupResult[WCEvent[Ctx], IO]] = {
     for {
       prevResult <- super.triggerWakeup(workflow)
       _          <- registeringRunningInstance(workflow, prevResult.hasEffect)
@@ -22,7 +22,7 @@ class RegisteringWorkflowInstanceEngine(protected val delegate: WorkflowInstance
       workflow: ActiveWorkflow[Ctx],
       signalDef: SignalDef[Req, Resp],
       req: Req,
-  ): IO[SignalResult[WCEvent[Ctx], Resp]] = {
+  ): IO[SignalResult[WCEvent[Ctx], Resp, IO]] = {
     for {
       prevResult <- super.handleSignal(workflow, signalDef, req)
       _          <- registeringRunningInstance(workflow, prevResult.hasEffect)

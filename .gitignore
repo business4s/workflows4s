@@ -9,8 +9,14 @@
 # sbt
 target
 project/metals.sbt
+project/project/metals.sbt
+project/project/project/metals.sbt
 
 # JS
 dist
 node_modules
 .vite
+package-lock.json
+
+# Claude Code / Kiro
+.kiro

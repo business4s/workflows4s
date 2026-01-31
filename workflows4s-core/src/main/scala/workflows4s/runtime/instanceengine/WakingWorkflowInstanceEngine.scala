@@ -13,26 +13,28 @@ class WakingWorkflowInstanceEngine(protected val delegate: WorkflowInstanceEngin
     extends DelegatingWorkflowInstanceEngine
     with StrictLogging {
 
-  override def triggerWakeup[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[WakeupResult[WCEvent[Ctx]]] =
+  override def triggerWakeup[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[WakeupResult[WCEvent[Ctx], IO]] =
     super
       .triggerWakeup(workflow)
       .map({
-        case WakeupResult.Noop               => WakeupResult.Noop
+        case WakeupResult.Noop()             => WakeupResult.Noop[WCEvent[Ctx], IO]()
         case WakeupResult.Processed(eventIO) =>
           WakeupResult.Processed(for {
             result <- eventIO
             _      <- result match {
-                        case ProcessingResult.Proceeded(_)         => IO.unit
-                        case ProcessingResult.Failed(retryTime, _) =>
-                          if workflow.wakeupAt.forall(_.isAfter(retryTime)) then updateWakeup(workflow, Some(retryTime))
+                        case ProcessingResult.Proceeded(_)  => IO.unit
+                        case ProcessingResult.Delayed(time) =>
+                          if workflow.wakeupAt.forall(_.isAfter(time)) then updateWakeup(workflow, Some(time))
                           else IO.unit
+                        case ProcessingResult.Failed(error) =>
+                          IO(logger.error("Wakeup processing failed", error))
                       }
           } yield result)
       })
   override def onStateChange[Ctx <: WorkflowContext](
       oldState: ActiveWorkflow[Ctx],
       newState: ActiveWorkflow[Ctx],
-  ): IO[Set[WorkflowInstanceEngine.PostExecCommand]]                                                                = {
+  ): IO[Set[WorkflowInstanceEngine.PostExecCommand]]                                                                    = {
     super.onStateChange(oldState, newState) <*
       IO.whenA(newState.wakeupAt != oldState.wakeupAt)(updateWakeup(newState, newState.wakeupAt))
   }

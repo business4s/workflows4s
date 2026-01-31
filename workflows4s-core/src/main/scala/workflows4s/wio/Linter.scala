@@ -1,5 +1,6 @@
 package workflows4s.wio
 
+import cats.effect.IO
 import workflows4s.wio.linter.{BusyLoopRule, ClashingEventsRule, ClashingSignalsRule, UnnecessaryErrorHandlerRule}
 
 case class LinterIssue(message: String, ruleId: String, path: List[String]) {
@@ -8,14 +9,14 @@ case class LinterIssue(message: String, ruleId: String, path: List[String]) {
 
 object Linter {
 
-  def lint(wio: WIO[?, ?, ?, ?]): List[LinterIssue] = {
+  def lint(wio: WIO[IO, ?, ?, ?, ?]): List[LinterIssue] = {
     val rules = List(ClashingSignalsRule, BusyLoopRule, UnnecessaryErrorHandlerRule, ClashingEventsRule)
     rules.flatMap(_.check(wio))
   }
 
   trait Rule {
     def id: String
-    def check(wio: WIO[?, ?, ?, ?]): List[LinterIssue]
+    def check(wio: WIO[IO, ?, ?, ?, ?]): List[LinterIssue]
   }
 
 }

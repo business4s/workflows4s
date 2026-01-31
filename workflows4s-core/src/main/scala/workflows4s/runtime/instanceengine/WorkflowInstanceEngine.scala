@@ -20,13 +20,13 @@ trait WorkflowInstanceEngine {
   // TODO this would be better if extractable from progress
   def getExpectedSignals[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[List[SignalDef[?, ?]]]
 
-  def triggerWakeup[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[WakeupResult[WCEvent[Ctx]]]
+  def triggerWakeup[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[WakeupResult[WCEvent[Ctx], IO]]
 
   def handleSignal[Ctx <: WorkflowContext, Req, Resp](
       workflow: ActiveWorkflow[Ctx],
       signalDef: SignalDef[Req, Resp],
       req: Req,
-  ): IO[SignalResult[WCEvent[Ctx], Resp]]
+  ): IO[SignalResult[WCEvent[Ctx], Resp, IO]]
 
   def handleEvent[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx], event: WCEvent[Ctx]): SyncIO[Option[ActiveWorkflow[Ctx]]]
 
