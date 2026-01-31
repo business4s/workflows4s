@@ -1,15 +1,14 @@
 package workflows4s.wio.builders
 
-import java.time.Instant
-
 import scala.jdk.DurationConverters.*
-import scala.reflect.ClassTag
-
 import workflows4s.wio.*
 import workflows4s.wio.WIO.Timer
 import workflows4s.wio.WIO.Timer.DurationSource
-import workflows4s.wio.internal.EventHandler
+import workflows4s.wio.internal.{EventHandler, TypedEventHandler}
 import workflows4s.wio.model.ModelUtils
+
+import java.time.Instant
+import scala.reflect.ClassTag
 
 object AwaitBuilder {
 
@@ -35,15 +34,16 @@ object AwaitBuilder {
       def persistStartThrough[Evt <: WCEvent[Ctx]](
           incorporate: WIO.Timer.Started => Evt,
       )(extractStartTime: Evt => Instant)(using ct: ClassTag[Evt]): Step2 = {
-        val evtHanlder: EventHandler[InOut, Unit, WCEvent[Ctx], Timer.Started] = EventHandler(
-          ct.unapply.andThen(_.map(x => Timer.Started(extractStartTime(x)))),
-          incorporate,
-          (_, _) => (),
-        )
-        Step2(evtHanlder)
+        val evtHandler: EventHandler[InOut, Unit, WCEvent[Ctx], WIO.Timer.Started] = new TypedEventHandler {
+          override def matchedClass: ClassTag[?]                         = ct
+          override def convert: WIO.Timer.Started => WCEvent[Ctx]        = incorporate
+          override def handle: (InOut, WIO.Timer.Started) => Unit        = (_, _) => ()
+          override def detect: WCEvent[Ctx] => Option[WIO.Timer.Started] = ct.unapply.andThen(_.map(x => Timer.Started(extractStartTime(x))))
+        }
+        Step2(evtHandler)
       }
 
-      case class Step2(private val startedEventHandler: EventHandler[InOut, Unit, WCEvent[Ctx], Timer.Started]) {
+      case class Step2(private val startedEventHandler: EventHandler[InOut, Unit, WCEvent[Ctx], WIO.Timer.Started]) {
 
         def persistReleaseThrough[Evt <: WCEvent[Ctx]](
             incorporate: WIO.Timer.Released => Evt,

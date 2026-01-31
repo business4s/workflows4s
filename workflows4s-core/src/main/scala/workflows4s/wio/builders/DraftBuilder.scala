@@ -21,6 +21,7 @@ object DraftBuilder {
           draftSignal,
           SignalHandler[Unit, Unit, Any]((_, _) => ???),
           dummyEventHandler,
+          (_, _, _) => (), // responseProducer
           WIO.HandleSignal.Meta(
             Option(error).map(ErrorMeta.Present(_)).getOrElse(ErrorMeta.noError),
             getEffectiveName(name, autoName),
@@ -97,6 +98,7 @@ object DraftBuilder {
             draftSignal,
             SignalHandler[Unit, Unit, WCState[Ctx]]((_, _) => ???),
             dummyEventHandler[WCEvent[Ctx], Unit],
+            (_, _, _) => (), // responseProducer
             WIO.HandleSignal.Meta(
               Option(error).map(ErrorMeta.Present(_)).getOrElse(ErrorMeta.noError),
               Option(signalName).getOrElse(getEffectiveName(null, autoName)),
@@ -147,7 +149,8 @@ object DraftBuilder {
 
   }
 
-  private def dummyEventHandler[EventBase, Evt]: EventHandler[Any, Nothing, EventBase, Evt] = EventHandler(_ => ???, _ => ???, (_, _) => ???)
+  private def dummyEventHandler[EventBase, Evt]: EventHandler[Any, Nothing, EventBase, Evt] =
+    EventHandler.apply[EventBase, Any, Nothing, Evt](_ => ???, _ => ???, (_, _) => ???)
 
   private def getEffectiveName(name: String, autoName: sourcecode.Name): String =
     Option(name).getOrElse(ModelUtils.prettifyName(autoName.value))

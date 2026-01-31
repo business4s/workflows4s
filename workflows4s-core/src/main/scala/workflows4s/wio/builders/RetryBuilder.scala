@@ -52,8 +52,7 @@ object RetryBuilder {
 
         def handleEventsWith(onEvent: EventHandlerInput => Either[RetryState, Either[Err, Out]]): WIO.Retry[Ctx, In, Err, Out] = {
           val evtHandler =
-            EventHandler[WCEvent[Ctx], (In, WCState[Ctx], Option[RetryState]), Either[RetryState, Either[Err, Out]], Event](
-              evtCt.unapply,
+            EventHandler.partial[WCEvent[Ctx], (In, WCState[Ctx], Option[RetryState]), Either[RetryState, Either[Err, Out]], Event](
               identity,
               (in, evt) => onEvent(in._1, evt, in._2, in._3),
             )

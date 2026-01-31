@@ -1,0 +1,40 @@
+---
+sidebar_position: 2.1
+---
+
+# Linting
+
+Workflows4s includes a static linter that detects common issues in workflow definitions before runtime. Run it on your workflow definition to catch problems early.
+
+## Usage
+
+```scala file=./main/scala/workflows4s/example/docs/LintingExample.scala start=start_doc end=end_doc
+```
+
+Each `LinterIssue` includes a path showing the location within your workflow tree (e.g., `root > flatMap > branch[approval]`).
+
+## Built-in Rules
+
+### `clashing-signals`
+
+Detects when the same signal is expected in multiple parallel branches or in both a base workflow and its interruption trigger. This leads to ambiguity about which branch should handle the signal.
+
+**Fix:** Ensure each signal type is only awaited in one branch at a time.
+
+### `clashing-events`
+
+Detects when the same event type can be generated in parallel branches. This causes non-deterministic recovery since the event could match multiple handlers during replay.
+
+**Fix:** Use distinct event types for parallel branches, or restructure to avoid parallel event generation.
+
+### `busy-loop`
+
+Detects loops that contain no signals or timers. Such loops would spin indefinitely without waiting for external input.
+
+**Fix:** Add a signal handler or timer inside the loop body.
+
+### `unnecessary-error-handler`
+
+Detects error handlers applied to workflows that cannot produce errors. This is harmless but indicates unnecessary complexity.
+
+**Fix:** Remove the error handler, or verify the wrapped workflow actually needs error handling.

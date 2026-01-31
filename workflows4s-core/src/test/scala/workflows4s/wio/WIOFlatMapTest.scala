@@ -26,12 +26,12 @@ class WIOFlatMapTest extends AnyFreeSpec with Matchers with EitherValues {
 
         assert(wf.queryState().executed == List())
 
-        wf.getExpectedSignals should contain theSameElementsAs (List(signalDef))
+        wf.getExpectedSignals() should contain theSameElementsAs (List(signalDef))
         val resp = wf.deliverSignal(signalDef, 1).value
         assert(resp == 1)
 
         assert(wf.queryState().executed == List(stepId1, step2Id))
-        assert(wf.getExpectedSignals.isEmpty)
+        assert(wf.getExpectedSignals().isEmpty)
       }
       "handle on second" in {
         val (step1Id, step1)            = TestUtils.pure
@@ -40,12 +40,12 @@ class WIOFlatMapTest extends AnyFreeSpec with Matchers with EitherValues {
         val (_, wf) = TestUtils.createInstance2(step1.flatMap(_ => step2))
         assert(wf.queryState().executed == List(step1Id))
 
-        wf.getExpectedSignals should contain theSameElementsAs (List(signalDef))
+        wf.getExpectedSignals() should contain theSameElementsAs (List(signalDef))
         val resp = wf.deliverSignal(signalDef, 1).value
         assert(resp == 1)
 
         assert(wf.queryState().executed == List(step1Id, stepId2))
-        assert(wf.getExpectedSignals.isEmpty)
+        assert(wf.getExpectedSignals().isEmpty)
       }
     }
     "proceed" - {

@@ -1,0 +1,3 @@
+[Sequence](no-name) 
+  - step 0: [Pure](Step1) 
+  - 2 more steps

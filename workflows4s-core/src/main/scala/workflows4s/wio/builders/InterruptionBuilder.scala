@@ -43,10 +43,10 @@ object InterruptionBuilder {
             errorMeta: ErrorMeta[Err],
         ) {
 
-          def produceResponse(f: (Input, Evt) => Resp): Step4 = Step4(f)
-          def voidResponse(using ev: Unit =:= Resp): Step4    = Step4((_, _) => ())
+          def produceResponse(f: (Input, Evt, Req) => Resp): Step4 = Step4(f)
+          def voidResponse(using ev: Unit =:= Resp): Step4         = Step4((_, _, _) => ())
 
-          class Step4(responseBuilder: (Input, Evt) => Resp) {
+          class Step4(responseBuilder: (Input, Evt, Req) => Resp) {
 
             def named(operationName: String = null, signalName: String = null): WIO.Interruption[Ctx, Err, Out] =
               WIO.Interruption(source(Option(operationName), Option(signalName)), tpe)
@@ -56,11 +56,11 @@ object InterruptionBuilder {
               WIO.Interruption(source(None, None), tpe)
 
             private def source(operationName: Option[String], signalName: Option[String]): WIO[Input, Err, Out, Ctx] = {
-              val combined: (Input, Evt) => (Either[Err, Out], Resp)                   = (s: Input, e: Evt) => (eventHandler(s, e), responseBuilder(s, e))
-              val eh: EventHandler[Input, (Either[Err, Out], Resp), WCEvent[Ctx], Evt] = EventHandler(evtCt.unapply, identity, combined)
+              val eh: EventHandler[Input, Either[Err, Out], WCEvent[Ctx], Evt]         =
+                EventHandler.partial[WCEvent[Ctx], Input, Either[Err, Out], Evt](identity, eventHandler)(using evtCt)
               val sh: SignalHandler[Req, Evt, Input]                                   = SignalHandler(signalHandler)
               val meta                                                                 = WIO.HandleSignal.Meta(errorMeta, signalName.getOrElse(ModelUtils.getPrettyNameForClass(signalDef.reqCt)), operationName)
-              val handleSignal: WIO.HandleSignal[Ctx, Input, Out, Err, Req, Resp, Evt] = WIO.HandleSignal(signalDef, sh, eh, meta)
+              val handleSignal: WIO.HandleSignal[Ctx, Input, Out, Err, Req, Resp, Evt] = WIO.HandleSignal(signalDef, sh, eh, responseBuilder, meta)
               handleSignal
             }
 

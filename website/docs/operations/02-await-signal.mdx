@@ -27,3 +27,30 @@ Technically, it is possible to constrain signals to a specific ADT, similar to h
 events are managed. However, doing so would introduce significant complexity without fully eliminating unhandled
 signals. By design, signals are only expected at specific moments in a workflow's lifecycle, meaning unhandled signals
 can still occur outside those windows.
+
+## Signal Redelivery
+
+In distributed systems, a caller may fail to receive a response even though the signal was successfully processed. For
+example, a network timeout might occur after the workflow handled the signal but before the response reached the caller.
+When the caller retries, Workflows4s automatically detects that the signal was already processed and returns the
+original response without re-executing the side effects.
+
+### How It Works
+
+1. When a signal is first delivered, the workflow executes the side effects and stores the resulting event
+2. If the same signal type is delivered again to an already-processed signal handler, Workflows4s detects this by
+   finding the stored event
+3. The response is regenerated using the stored event (via `produceResponse`), without running side effects again
+
+### Edge Cases
+
+**Multiple signal handlers of the same type:** If your workflow has multiple handlers for the same signal type (e.g., in
+a loop or sequential steps), redelivery matches the *most recently executed* handler. Use
+the [`clashing-signals` linter rule](../linting.mdx) to detect potentially ambiguous signal configurations.
+
+**Validating request identity:** The redelivery mechanism matches by signal type, not by request content. If you need to
+verify that a redelivered request matches the original, include relevant data in your event and compare it in the
+`produceResponse` function:
+
+```scala file=./main/scala/workflows4s/example/docs/SignalRedeliveryExample.scala start=start_redelivery_validation end=end_redelivery_validation
+```

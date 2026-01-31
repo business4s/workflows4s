@@ -9,16 +9,16 @@ import java.time.Instant
 case class ActiveWorkflow[Ctx <: WorkflowContext](id: WorkflowInstanceId, wio: WIO.Initial[Ctx], initialState: WCState[Ctx]) {
   lazy val wakeupAt: Option[Instant] = GetWakeupEvaluator.extractNearestWakeup(wio)
 
-  lazy val staticState: WCState[Ctx] = GetStateEvaluator.extractLastState(wio, (), initialState).getOrElse(initialState)
+  lazy val staticState: WCState[Ctx] = GetStateEvaluator.extractLastState(wio, (), initialState)
 
   def liveState: WCState[Ctx] = {
     val wf = effectlessProceed
     wf.staticState
   }
 
-  def expectedSignals: List[SignalDef[?, ?]] = {
+  def expectedSignals(includeRedeliverable: Boolean = false): List[SignalDef[?, ?]] = {
     val wf = effectlessProceed
-    GetSignalDefsEvaluator.run(wf.wio)
+    SignalEvaluator.getExpectedSignals(wf.wio, includeRedeliverable)
   }
 
   def handleSignal[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req): SignalResult[WCEvent[Ctx], Resp] = {
