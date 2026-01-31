@@ -13,7 +13,7 @@ import workflows4s.web.api.model.UIConfig
 
 object ServerWithUI extends IOApp.Simple with BaseServer with StrictLogging {
 
-  val port = 8083
+  val port = 8080
 
   def run: IO[Unit] = {
     (for {
