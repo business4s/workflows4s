@@ -167,7 +167,7 @@ object Main extends TyrianIOApp[Msg, Model] {
       }
 
       val urlCmd =
-        if selectionChange.isDefined && newRoute != model.route then Nav.pushUrl(Route.toBrowserUrl(newRoute))(using summon[Async[IO]])
+        if selectionChange.isDefined && newRoute != model.route then Nav.pushUrl[IO](Route.toBrowserUrl(newRoute))
         else Cmd.None
 
       val updatedModel = model.copy(
