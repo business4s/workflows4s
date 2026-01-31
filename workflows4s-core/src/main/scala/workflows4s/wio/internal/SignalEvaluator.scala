@@ -99,18 +99,13 @@ object SignalEvaluator {
     def retype[NewIn, NewTopState](
         deriveInputState: (NewIn, NewTopState) => (TopIn, TopState),
     ): SignalMatch[NewIn, OutEvent, LocalCtx, LocalIn, Req, Resp, Evt, NewTopState] =
-      SignalMatch(
-        node = node,
+      this.copy(
         transform = (newIn, newState) => {
           val (oldIn, oldState) = deriveInputState(newIn, newState)
           transform(oldIn, oldState)
         },
-        eventTransform = eventTransform,
-        eventUnconvert = eventUnconvert,
-        storedEvent = storedEvent,
         routing = routing.map { r =>
-          SignalRouting(
-            wrappedSignalDef = r.wrappedSignalDef,
+          r.copy(
             unwrap = (sigDef, req, newIn, newState) => {
               val (oldIn, oldState) = deriveInputState(newIn, newState)
               r.unwrap(sigDef, req, oldIn, oldState)
