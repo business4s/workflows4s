@@ -147,7 +147,16 @@ class WebUIE2ETest extends AnyFreeSpec with Matchers with BeforeAndAfterAll with
         if (inputs.nonEmpty) {
           // If there are input fields, verify they're interactive
           inputs.foreach { input =>
-            input.isDisplayed || input.getDomAttribute("type") == "hidden" shouldBe true
+            val inputType = input.getDomAttribute("type")
+            if (inputType == "hidden") {
+              // Hidden inputs are acceptable
+              succeed
+            } else {
+              // Visible inputs should be displayed and enabled (not readonly)
+              input.isDisplayed shouldBe true
+              input.isEnabled shouldBe true
+              Option(input.getDomAttribute("readonly")) should not be Some("true")
+            }
           }
         }
         // At minimum, verify the page is interactive
@@ -161,12 +170,11 @@ class WebUIE2ETest extends AnyFreeSpec with Matchers with BeforeAndAfterAll with
         val logs = driver.manage().logs().get("browser").getAll.asScala
         // Severe errors should not be present
         val severeErrors = logs.filter(_.getLevel.getName == "SEVERE")
-        // We expect some console messages but not critical failures
-        // that would prevent the UI from working
-        if (severeErrors.nonEmpty) {
-          println(s"Browser console errors: ${severeErrors.map(_.getMessage).mkString("\n")}")
+        // Assert that there are no severe errors that would prevent the UI from working
+        withClue(s"Browser console contained SEVERE errors:\n${severeErrors.map(_.getMessage).mkString("\n")}") {
+          severeErrors shouldBe empty
         }
-        // The page should still be functional
+        // The page should be functional
         driver.findElement(By.tagName("body")).isDisplayed shouldBe true
       }
     }
