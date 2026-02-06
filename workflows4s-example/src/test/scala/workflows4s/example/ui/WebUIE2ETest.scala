@@ -1,11 +1,6 @@
 package workflows4s.example.ui
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import cats.syntax.all.*
-import com.comcast.ip4s.*
-import org.http4s.ember.server.EmberServerBuilder
-import org.http4s.implicits.*
-import org.http4s.dsl.io.*
 import org.openqa.selenium.chrome.{ChromeDriver, ChromeOptions}
 import org.openqa.selenium.{By, WebDriver}
 import org.scalatest.concurrent.Eventually
@@ -13,10 +8,7 @@ import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Seconds, Span}
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Tag}
-import sttp.tapir.server.http4s.Http4sServerInterpreter
 import workflows4s.example.api.BaseServer
-import workflows4s.ui.bundle.UiEndpoints
-import workflows4s.web.api.model.UIConfig
 
 import scala.compiletime.uninitialized
 import scala.jdk.CollectionConverters.*
@@ -45,35 +37,13 @@ object E2E extends Tag("E2E")
 class WebUIE2ETest extends AnyFreeSpec with Matchers with BeforeAndAfterAll with BeforeAndAfterEach with Eventually with BaseServer {
   private val port = 8090
   private val baseUrl = s"http://localhost:$port"
+  private val workflowNames = List("Course Registration", "Pull Request", "Withdrawal")
   private var driver: WebDriver = uninitialized
   private var serverFiber: cats.effect.kernel.Fiber[IO, Throwable, Nothing] = uninitialized
   override def beforeAll(): Unit = {
     super.beforeAll()
     // start the server
-    val serverIO = (for {
-      api       <- apiRoutes
-      apiUrl     = s"http://localhost:$port"
-      uiRoutes   = Http4sServerInterpreter[IO]().toRoutes(UiEndpoints.get(UIConfig(sttp.model.Uri.unsafeParse(apiUrl), true)))
-      redirect   = org.http4s.HttpRoutes.of[IO] {
-                     case req @ org.http4s.Method.GET -> Root / "ui" =>
-                       org.http4s
-                         .Response[IO](org.http4s.Status.PermanentRedirect)
-                         .putHeaders(org.http4s.headers.Location(req.uri / ""))
-                         .pure[IO]
-                     case org.http4s.Method.GET -> Root              =>
-                       org.http4s
-                         .Response[IO](org.http4s.Status.PermanentRedirect)
-                         .putHeaders(org.http4s.headers.Location(org.http4s.Uri.unsafeFromString("/ui/")))
-                         .pure[IO]
-                   }
-      allRoutes  = api <+> redirect <+> uiRoutes
-      server    <- EmberServerBuilder
-                     .default[IO]
-                     .withHost(ipv4"0.0.0.0")
-                     .withPort(Port.fromInt(port).get)
-                     .withHttpApp(allRoutes.orNotFound)
-                     .build
-    } yield server).use { server =>
+    val serverIO = serverWithUi(port, baseUrl).use { server =>
       IO.println(s"Test server started at http://${server.address}") *>
         IO.never
     }
@@ -124,43 +94,54 @@ class WebUIE2ETest extends AnyFreeSpec with Matchers with BeforeAndAfterAll with
     }
     "should display workflow list" taggedAs(E2E) in {
       driver.get(s"$baseUrl/ui/")
-      // Wait for the page to load and check for common UI elements
+      // Wait for the page to load and verify the workflow list structure
       eventually(timeout(Span(15, Seconds))) {
-        // Look for any text content that indicates the UI has loaded
+        // Verify "Available Workflows" label is present (case-insensitive)
         val bodyText = driver.findElement(By.tagName("body")).getText
-        bodyText should not be empty
-      }
-    }
-    "should have navigation elements" taggedAs(E2E) in {
-      driver.get(s"$baseUrl/ui/")
-      eventually(timeout(Span(15, Seconds))) {
-        // Check that basic HTML structure is present
-        val htmlElements = driver.findElements(By.tagName("div"))
-        htmlElements should not be empty
+        bodyText.toUpperCase should include("AVAILABLE WORKFLOWS")
+
+        // Verify all expected workflows are displayed in the list
+        workflowNames.foreach(name => bodyText should include(name))
+
+        // Verify the workflow list structure exists (ul.menu-list)
+        val menuLists = driver.findElements(By.cssSelector("ul.menu-list"))
+        menuLists should not be empty
       }
     }
     "should be able to interact with search/filter if present" taggedAs(E2E) in {
       driver.get(s"$baseUrl/ui/")
       eventually(timeout(Span(15, Seconds))) {
-        // Try to find input fields (search, filter, etc.)
-        val inputs = driver.findElements(By.tagName("input")).asScala
-        if (inputs.nonEmpty) {
-          // If there are input fields, verify they're interactive
-          inputs.foreach { input =>
-            val inputType = input.getDomAttribute("type")
-            if (inputType == "hidden") {
-              // Hidden inputs are acceptable
-              succeed
-            } else {
-              // Visible inputs should be displayed and enabled (not readonly)
-              input.isDisplayed shouldBe true
-              input.isEnabled shouldBe true
-              Option(input.getDomAttribute("readonly")) should not be Some("true")
-            }
-          }
+        // First verify that workflow list is loaded
+        val bodyText = driver.findElement(By.tagName("body")).getText
+        bodyText.toUpperCase should include("AVAILABLE WORKFLOWS")
+
+        // Click on first workflow
+        val workflowLinks = driver.findElements(By.cssSelector("ul.menu-list li a"))
+        workflowLinks should not be empty
+        workflowLinks.get(0).click()
+      }
+
+      // Click on "Instances" tab to see filter controls
+      eventually(timeout(Span(15, Seconds))) {
+        val bodyText = driver.findElement(By.tagName("body")).getText
+        bodyText should include("Instances")
+
+        // Find and click the "Instances" tab
+        val tabs = driver.findElements(By.cssSelector("a")).asScala
+        val instancesTab = tabs.find(_.getText == "Instances")
+        instancesTab shouldBe defined
+        instancesTab.get.click()
+      }
+
+      // Now verify filter bar is present and interactive
+      eventually(timeout(Span(15, Seconds))) {
+        // Verify select elements (for sorting and page size) are present
+        val selects = driver.findElements(By.tagName("select")).asScala
+        selects should not be empty
+        selects.foreach { select =>
+          select.isDisplayed shouldBe true
+          select.isEnabled shouldBe true
         }
-        // At minimum, verify the page is interactive
-        driver.findElement(By.tagName("body")).isDisplayed shouldBe true
       }
     }
     "should handle API calls gracefully" taggedAs(E2E) in {

@@ -3,8 +3,13 @@ package workflows4s.example.api
 import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.implicits.catsSyntaxOptionId
+import cats.syntax.all.*
+import com.comcast.ip4s.*
 import io.circe.Encoder
 import org.http4s.HttpRoutes
+import org.http4s.dsl.io.*
+import org.http4s.ember.server.EmberServerBuilder
+import org.http4s.implicits.*
 import org.http4s.server.middleware.CORS
 import sttp.tapir.server.http4s.Http4sServerInterpreter
 import workflows4s.example.courseregistration.CourseRegistrationWorkflow
@@ -17,7 +22,9 @@ import workflows4s.runtime.InMemoryRuntime
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.registry.InMemoryWorkflowRegistry
 import workflows4s.runtime.wakeup.SleepingKnockerUpper
+import workflows4s.ui.bundle.UiEndpoints
 import workflows4s.web.api.server.{SignalSupport, WorkflowEntry, WorkflowServerEndpoints}
+import workflows4s.web.api.model.UIConfig
 
 trait BaseServer {
 
@@ -89,5 +96,31 @@ trait BaseServer {
                            )
       routes             = Http4sServerInterpreter[IO]().toRoutes(WorkflowServerEndpoints.get[IO](workflowEntries, registry.some))
     } yield CORS.policy.withAllowOriginAll(routes)
+  }
+
+  protected def serverWithUi(port: Int, apiUrl: String): Resource[IO, org.http4s.server.Server] = {
+    for {
+      api      <- apiRoutes
+      uiRoutes  = Http4sServerInterpreter[IO]().toRoutes(UiEndpoints.get(UIConfig(sttp.model.Uri.unsafeParse(apiUrl), true)))
+      redirect  = org.http4s.HttpRoutes.of[IO] {
+                    case req @ org.http4s.Method.GET -> Root / "ui" =>
+                      org.http4s
+                        .Response[IO](org.http4s.Status.PermanentRedirect)
+                        .putHeaders(org.http4s.headers.Location(req.uri / ""))
+                        .pure[IO]
+                    case org.http4s.Method.GET -> Root              =>
+                      org.http4s
+                        .Response[IO](org.http4s.Status.PermanentRedirect)
+                        .putHeaders(org.http4s.headers.Location(org.http4s.Uri.unsafeFromString("/ui/")))
+                        .pure[IO]
+                  }
+      allRoutes = api <+> redirect <+> uiRoutes
+      server   <- EmberServerBuilder
+                    .default[IO]
+                    .withHost(ipv4"0.0.0.0")
+                    .withPort(Port.fromInt(port).get)
+                    .withHttpApp(allRoutes.orNotFound)
+                    .build
+    } yield server
   }
 }
