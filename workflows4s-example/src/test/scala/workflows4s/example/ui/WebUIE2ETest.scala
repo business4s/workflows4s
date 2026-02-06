@@ -13,34 +13,27 @@ import workflows4s.example.api.BaseServer
 import scala.compiletime.uninitialized
 import scala.jdk.CollectionConverters.*
 import scala.util.Try
-/**
- * End-to-end tests for the Web UI using Selenium WebDriver.
- * Prerequisites:
- * - Chrome/Chromium browser must be installed
- * - ChromeDriver must be installed and available in PATH, or its location specified via system property
- *
- * To install ChromeDriver on Linux:
- *   sudo apt-get install chromium-chromedriver
- *   For Arch Linux
- *   yay -S chromedriver
- *
- * To install ChromeDriver on macOS:
- *   brew install chromedriver
- *
- * To skip these tests:
- *   sbt "testOnly * -- -l E2E"
- *
- * To run only these tests:
- *   sbt "testOnly * -- -n E2E"
- */
-object E2E extends Tag("E2E")
+
+/** End-to-end tests for the Web UI using Selenium WebDriver. Prerequisites:
+  *   - Chrome/Chromium browser must be installed
+  *   - ChromeDriver must be installed and available in PATH, or its location specified via system property
+  *
+  * To install ChromeDriver on Linux: sudo apt-get install chromium-chromedriver For Arch Linux yay -S chromedriver
+  *
+  * To install ChromeDriver on macOS: brew install chromedriver
+  *
+  * To skip these tests: sbt "testOnly * -- -l E2E"
+  *
+  * To run only these tests: sbt "testOnly * -- -n E2E"
+  */
+object E2E         extends Tag("E2E")
 class WebUIE2ETest extends AnyFreeSpec with Matchers with BeforeAndAfterAll with BeforeAndAfterEach with Eventually with BaseServer {
-  private val port = 8090
-  private val baseUrl = s"http://localhost:$port"
-  private val workflowNames = List("Course Registration", "Pull Request", "Withdrawal")
-  private var driver: WebDriver = uninitialized
+  private val port                                                          = 8090
+  private val baseUrl                                                       = s"http://localhost:$port"
+  private val workflowNames                                                 = List("Course Registration", "Pull Request", "Withdrawal")
+  private var driver: WebDriver                                             = uninitialized
   private var serverFiber: cats.effect.kernel.Fiber[IO, Throwable, Nothing] = uninitialized
-  override def beforeAll(): Unit = {
+  override def beforeAll(): Unit                                            = {
     super.beforeAll()
     // start the server
     val serverIO = serverWithUi(port, baseUrl).use { server =>
@@ -51,11 +44,11 @@ class WebUIE2ETest extends AnyFreeSpec with Matchers with BeforeAndAfterAll with
     // wait for server to be ready
     Thread.sleep(3000)
   }
-  override def afterAll(): Unit = {
+  override def afterAll(): Unit                                             = {
     Try(serverFiber.cancel.unsafeRunSync())
     super.afterAll()
   }
-  override def beforeEach(): Unit = {
+  override def beforeEach(): Unit                                           = {
     super.beforeEach()
     // initialize WebDriver with headless Chrome
     val options = new ChromeOptions()
@@ -67,12 +60,12 @@ class WebUIE2ETest extends AnyFreeSpec with Matchers with BeforeAndAfterAll with
     driver = new ChromeDriver(options)
     driver.manage().timeouts().implicitlyWait(java.time.Duration.ofSeconds(10)): Unit
   }
-  override def afterEach(): Unit = {
+  override def afterEach(): Unit                                            = {
     Try(driver.quit())
     super.afterEach()
   }
   "Web UI E2E Tests" - {
-    "should load the UI home page" taggedAs(E2E) in {
+    "should load the UI home page" taggedAs (E2E) in {
       driver.get(s"$baseUrl/ui/")
       eventually(timeout(Span(10, Seconds))) {
         driver.getTitle should not be empty
@@ -80,19 +73,19 @@ class WebUIE2ETest extends AnyFreeSpec with Matchers with BeforeAndAfterAll with
       // The page should have loaded successfully
       driver.getCurrentUrl should startWith(s"$baseUrl/ui/")
     }
-    "should redirect from root to /ui/" taggedAs(E2E) in {
+    "should redirect from root to /ui/" taggedAs (E2E) in {
       driver.get(baseUrl)
       eventually(timeout(Span(10, Seconds))) {
         driver.getCurrentUrl should startWith(s"$baseUrl/ui/")
       }
     }
-    "should redirect from /ui to /ui/" taggedAs(E2E) in {
+    "should redirect from /ui to /ui/" taggedAs (E2E) in {
       driver.get(s"$baseUrl/ui")
       eventually(timeout(Span(10, Seconds))) {
         driver.getCurrentUrl should startWith(s"$baseUrl/ui/")
       }
     }
-    "should display workflow list" taggedAs(E2E) in {
+    "should display workflow list" taggedAs (E2E) in {
       driver.get(s"$baseUrl/ui/")
       // Wait for the page to load and verify the workflow list structure
       eventually(timeout(Span(15, Seconds))) {
@@ -108,7 +101,7 @@ class WebUIE2ETest extends AnyFreeSpec with Matchers with BeforeAndAfterAll with
         menuLists should not be empty
       }
     }
-    "should be able to interact with search/filter if present" taggedAs(E2E) in {
+    "should be able to interact with search/filter if present" taggedAs (E2E) in {
       driver.get(s"$baseUrl/ui/")
       eventually(timeout(Span(15, Seconds))) {
         // First verify that workflow list is loaded
@@ -127,7 +120,7 @@ class WebUIE2ETest extends AnyFreeSpec with Matchers with BeforeAndAfterAll with
         bodyText should include("Instances")
 
         // Find and click the "Instances" tab
-        val tabs = driver.findElements(By.cssSelector("a")).asScala
+        val tabs         = driver.findElements(By.cssSelector("a")).asScala
         val instancesTab = tabs.find(_.getText == "Instances")
         instancesTab shouldBe defined
         instancesTab.get.click()
@@ -144,11 +137,11 @@ class WebUIE2ETest extends AnyFreeSpec with Matchers with BeforeAndAfterAll with
         }
       }
     }
-    "should handle API calls gracefully" taggedAs(E2E) in {
+    "should handle API calls gracefully" taggedAs (E2E) in {
       driver.get(s"$baseUrl/ui/")
       eventually(timeout(Span(15, Seconds))) {
         // Check that there are no JavaScript errors blocking the page
-        val logs = driver.manage().logs().get("browser").getAll.asScala
+        val logs         = driver.manage().logs().get("browser").getAll.asScala
         // Severe errors should not be present
         val severeErrors = logs.filter(_.getLevel.getName == "SEVERE")
         // Assert that there are no severe errors that would prevent the UI from working
