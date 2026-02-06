@@ -68,6 +68,11 @@ const config: Config = {
                     label: 'Docs',
                 },
                 {
+                    to: '/api/',
+                    position: 'left',
+                    label: 'API',
+                },
+                {
                     href: 'https://github.com/business4s/workflows4s',
                     label: 'GitHub',
                     position: 'right',
