@@ -5,8 +5,8 @@ import java.time.Instant
 import cats.effect.IO
 import workflows4s.runtime.wakeup.filesystem.FsScheduler.TaskId
 
-/** File-based task scheduler. Tasks are represented as files in a directory, with the scheduled time
-  * encoded in the filename. The `events` stream emits tasks as they become due.
+/** File-based task scheduler. Tasks are represented as files in a directory, with the scheduled time encoded in the filename. The `events` stream
+  * emits tasks as they become due.
   */
 trait FsScheduler {
 

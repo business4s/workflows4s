@@ -6,8 +6,8 @@ import workflows4s.wio.model.WIOExecutionProgress
 
 /** Handle to a single running workflow. Provides operations to query state, deliver signals, and trigger wakeups.
   *
-  * Obtained from [[WorkflowRuntime.createInstance]]. All operations are safe to call concurrently —
-  * the underlying implementation handles locking and event persistence.
+  * Obtained from [[WorkflowRuntime.createInstance]]. All operations are safe to call concurrently — the underlying implementation handles locking and
+  * event persistence.
   */
 trait WorkflowInstance[F[_], State] {
 

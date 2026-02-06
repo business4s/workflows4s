@@ -13,9 +13,9 @@ import scala.annotation.unused
 
 /** Strategy for evaluating workflow steps. Controls how signals, events, and wakeups are processed.
   *
-  * Use [[WorkflowInstanceEngine.default]] for production (includes wakeup scheduling, registry, greedy evaluation, and logging)
-  * or [[WorkflowInstanceEngine.basic]] for simpler setups without external integrations.
-  * Custom engines can be composed via [[WorkflowInstanceEngineBuilder]].
+  * Use [[WorkflowInstanceEngine.default]] for production (includes wakeup scheduling, registry, greedy evaluation, and logging) or
+  * [[WorkflowInstanceEngine.basic]] for simpler setups without external integrations. Custom engines can be composed via
+  * [[WorkflowInstanceEngineBuilder]].
   */
 trait WorkflowInstanceEngine {
 

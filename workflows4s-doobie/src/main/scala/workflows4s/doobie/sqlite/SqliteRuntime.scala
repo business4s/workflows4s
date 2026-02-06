@@ -17,8 +17,8 @@ import workflows4s.wio.{ActiveWorkflow, WCEvent, WCState, WorkflowContext}
 import java.nio.file.{Files, Path}
 import java.util.Properties
 
-/** Runtime using one SQLite database file per workflow instance. Auto-initializes the schema on first access.
-  * Suitable for embedded/single-node deployments without an external database.
+/** Runtime using one SQLite database file per workflow instance. Auto-initializes the schema on first access. Suitable for embedded/single-node
+  * deployments without an external database.
   */
 class SqliteRuntime[Ctx <: WorkflowContext](
     val workflow: Initial[Ctx],

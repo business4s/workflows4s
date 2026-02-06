@@ -2,8 +2,7 @@ package workflows4s.wio.model
 
 import cats.implicits.toTraverseOps
 
-/** Tree structure capturing both the static workflow shape and the runtime state reached at each node.
-  * Convertible to [[WIOModel]] for serialization.
+/** Tree structure capturing both the static workflow shape and the runtime state reached at each node. Convertible to [[WIOModel]] for serialization.
   */
 sealed trait WIOExecutionProgress[+State] {
   def result: WIOExecutionProgress.ExecutionResult[State]

@@ -4,8 +4,8 @@ import workflows4s.wio.builders.{AllBuilders, InterruptionBuilder}
 
 /** Defines the type-level environment for a workflow: its State and Event types.
   *
-  * Extend this trait to create a workflow context, then use the inner `WIO` object
-  * as the entry point for building workflow steps with the builder DSL.
+  * Extend this trait to create a workflow context, then use the inner `WIO` object as the entry point for building workflow steps with the builder
+  * DSL.
   *
   * {{{
   * object MyCtx extends WorkflowContext {

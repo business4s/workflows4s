@@ -6,8 +6,8 @@ case class LinterIssue(message: String, ruleId: String, path: List[String]) {
   override def toString: String = s"[${ruleId}] ${path.mkString(" > ")}: ${message}"
 }
 
-/** Static analysis of workflow definitions. Detects issues like clashing signal/event handlers,
-  * busy loops, and unreachable error handlers without executing the workflow.
+/** Static analysis of workflow definitions. Detects issues like clashing signal/event handlers, busy loops, and unreachable error handlers without
+  * executing the workflow.
   */
 object Linter {
 

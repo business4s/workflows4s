@@ -13,8 +13,7 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.util.Random
 import scala.util.chaining.scalaUtilChainingOps
 
-/** Converts a [[workflows4s.wio.model.WIOModel]] into a Camunda BPMN model that can be exported to XML
-  * and visualized in standard BPMN tools.
+/** Converts a [[workflows4s.wio.model.WIOModel]] into a Camunda BPMN model that can be exported to XML and visualized in standard BPMN tools.
   */
 object BpmnRenderer {
 

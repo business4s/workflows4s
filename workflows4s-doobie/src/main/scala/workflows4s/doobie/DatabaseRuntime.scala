@@ -9,8 +9,8 @@ import workflows4s.runtime.{MappedWorkflowInstance, WorkflowInstance, WorkflowIn
 import workflows4s.wio.WIO.Initial
 import workflows4s.wio.{ActiveWorkflow, WCEvent, WCState, WorkflowContext}
 
-/** Runtime backed by a shared database (e.g. PostgreSQL) via Doobie. Events are persisted per instance,
-  * and concurrent access is guarded by [[WorkflowStorage.lockWorkflow]].
+/** Runtime backed by a shared database (e.g. PostgreSQL) via Doobie. Events are persisted per instance, and concurrent access is guarded by
+  * [[WorkflowStorage.lockWorkflow]].
   */
 class DatabaseRuntime[Ctx <: WorkflowContext](
     val workflow: Initial[Ctx],

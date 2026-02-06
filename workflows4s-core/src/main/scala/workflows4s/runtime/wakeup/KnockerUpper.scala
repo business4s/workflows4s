@@ -9,9 +9,8 @@ import workflows4s.runtime.{WorkflowInstanceId, WorkflowRuntime}
 
 /** Schedules wakeup calls for workflows that have pending timers.
   *
-  * Named after the [[https://en.wikipedia.org/wiki/Knocker-up historical profession]].
-  * The [[Agent]] registers/cancels wakeups; the [[Process]] bridges the scheduling backend
-  * to the actual wakeup calls on workflow instances.
+  * Named after the [[https://en.wikipedia.org/wiki/Knocker-up historical profession]]. The [[Agent]] registers/cancels wakeups; the [[Process]]
+  * bridges the scheduling backend to the actual wakeup calls on workflow instances.
   */
 object KnockerUpper {
 

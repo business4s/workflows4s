@@ -10,8 +10,8 @@ trait WorkflowStorage[Event] {
   def getEvents(id: WorkflowInstanceId): fs2.Stream[ConnectionIO, Event]
   def saveEvent(id: WorkflowInstanceId, event: Event): ConnectionIO[Unit]
 
-  /** Acquires an exclusive lock for the given workflow instance. The lock is released when the Resource is finalized.
-    * This prevents concurrent processing of events for the same instance.
+  /** Acquires an exclusive lock for the given workflow instance. The lock is released when the Resource is finalized. This prevents concurrent
+    * processing of events for the same instance.
     */
   def lockWorkflow(id: WorkflowInstanceId): Resource[ConnectionIO, Unit]
 
