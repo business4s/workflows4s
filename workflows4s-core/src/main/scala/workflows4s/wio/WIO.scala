@@ -10,11 +10,25 @@ import workflows4s.wio.model.WIOMeta
 import java.time.{Duration, Instant}
 import scala.language.implicitConversions
 
+/** An event-sourced workflow computation. Describes a step (or composition of steps) that transforms
+  * input into output state, potentially producing events and side effects.
+  *
+  * WIO is a pure description — it does not execute anything until interpreted by a runtime.
+  * All side effects are captured as events, enabling replay-based recovery.
+  *
+  * @tparam In  input type (typically the current workflow state but not necessarily)
+  * @tparam Err error channel type (Nothing if the step cannot fail)
+  * @tparam Out output state type
+  * @tparam Ctx the workflow context binding State and Event types
+  */
 sealed trait WIO[-In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext] extends WIOMethods[Ctx, In, Err, Out]
 
 object WIO {
 
+  /** A fully-wired workflow that accepts any input and cannot fail. This is the type runtimes operate on. */
   type Initial[Ctx <: WorkflowContext] = WIO[Any, Nothing, WCState[Ctx], Ctx]
+
+  /** An incomplete workflow used during drafting — produces Nothing, so cannot be executed. */
   type Draft[Ctx <: WorkflowContext]   = WIO[Any, Nothing, Nothing, Ctx]
 
   // Experimental approach top exposing concrete subtypes.
