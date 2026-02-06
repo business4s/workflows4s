@@ -45,6 +45,7 @@ jobs:
         run: yarn install --frozen-lockfile --non-interactive
       - name: Generate Scaladoc
         run: sbt -batch websiteScaladocs
+        working-directory: ./
       - name: Build
         run: |
           cd ../
