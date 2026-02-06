@@ -214,7 +214,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
 
 lazy val commonSettings = Seq(
   scalaVersion      := "3.7.4",
-  scalacOptions ++= Seq("-no-indent", "-Xmax-inlines", "64", "-explain-cyclic", "-Ydebug-cyclic"),
+  scalacOptions ++= Seq("-no-indent", "-Xmax-inlines", "64", "-explain-cyclic", "-Ydebug-cyclic", "-language:experimental.modularity"),
   libraryDependencies ++= Seq(
     "org.scalatest" %% "scalatest"       % "3.2.19" % Test,
     "ch.qos.logback" % "logback-classic" % "1.5.24" % Test,
