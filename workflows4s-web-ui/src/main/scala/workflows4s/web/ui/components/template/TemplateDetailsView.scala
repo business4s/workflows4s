@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.implicits.catsSyntaxOptionId
 import tyrian.*
 import tyrian.Html.*
-import workflows4s.web.api.model.{WorkflowDefinition, WorkflowSearchRequest}
+import workflows4s.web.api.model.{WorkflowDefinition, WorkflowSearchRequest, WorkflowSearchResponse}
 import workflows4s.web.ui.Http
 import workflows4s.web.ui.components.instance.InstanceView
 import workflows4s.web.ui.components.template.TemplateDetailsView.Msg
@@ -166,8 +166,8 @@ object TemplateDetailsView {
     val filterBar              = InstancesFilterBar.default
     val searchRequest          = buildSearchRequest(definition.id, filterBar, 0)
     val (instancesTable, cmd1) = AsyncView.empty_(
-      Http.searchWorkflows(searchRequest),
-      response => InstancesTableWithPagination.fromResponse(response, filterBar.pageSize, 0),
+        if searchEnabled then Http.searchWorkflows(searchRequest) else IO.pure(WorkflowSearchResponse.empty),
+        response => InstancesTableWithPagination.fromResponse(response, filterBar.pageSize, 0),
     )
     val (definitionView, cmd2) = DefinitionView.initial(definition)
     TemplateDetailsView(
