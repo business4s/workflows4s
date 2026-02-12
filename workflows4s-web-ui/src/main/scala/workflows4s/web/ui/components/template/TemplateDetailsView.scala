@@ -166,8 +166,8 @@ object TemplateDetailsView {
     val filterBar              = InstancesFilterBar.default
     val searchRequest          = buildSearchRequest(definition.id, filterBar, 0)
     val (instancesTable, cmd1) = AsyncView.empty_(
-        if searchEnabled then Http.searchWorkflows(searchRequest) else IO.pure(WorkflowSearchResponse.empty),
-        response => InstancesTableWithPagination.fromResponse(response, filterBar.pageSize, 0),
+      if searchEnabled then Http.searchWorkflows(searchRequest) else IO.pure(WorkflowSearchResponse.empty),
+      response => InstancesTableWithPagination.fromResponse(response, filterBar.pageSize, 0),
     )
     val (definitionView, cmd2) = DefinitionView.initial(definition)
     TemplateDetailsView(
