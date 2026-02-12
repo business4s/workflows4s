@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.implicits.catsSyntaxOptionId
 import tyrian.*
 import tyrian.Html.*
-import workflows4s.web.api.model.{WorkflowDefinition, WorkflowSearchRequest}
+import workflows4s.web.api.model.{WorkflowDefinition, WorkflowSearchRequest, WorkflowSearchResponse}
 import workflows4s.web.ui.Http
 import workflows4s.web.ui.components.instance.InstanceView
 import workflows4s.web.ui.components.template.TemplateDetailsView.Msg
@@ -21,6 +21,7 @@ final case class TemplateDetailsView(
     filterBar: InstancesFilterBar,
     currentPage: Int,
     selectedTab: TemplateDetailsView.Tab,
+    isSearchEnabled: Boolean,
 ) {
 
   def update(msg: TemplateDetailsView.Msg): (TemplateDetailsView, Cmd[IO, TemplateDetailsView.Msg]) = msg match {
@@ -96,7 +97,7 @@ final case class TemplateDetailsView(
       ),
       selectedTab match {
         case TemplateDetailsView.Tab.Instances       =>
-          div(
+          if isSearchEnabled then div(
             div(cls := "level mb-2")(
               div(cls := "level-left")(),
               div(cls := "level-right")(
@@ -110,6 +111,10 @@ final case class TemplateDetailsView(
             filterBar.view.map(Msg.ForFilterBar(_)),
             instancesTableView.view.map(Msg.ForInstTableView(_)),
           )
+          else
+            div(cls := "notification has-text-centered")(
+              p("Search functionality is not available because the server does not provide a WorkflowSearch implementation."),
+            )
         case TemplateDetailsView.Tab.InstanceDetails =>
           div(
             instanceInputView,
@@ -157,11 +162,11 @@ final case class TemplateDetailsView(
 }
 
 object TemplateDetailsView {
-  def initial(definition: WorkflowDefinition): (TemplateDetailsView, Cmd[IO, Msg]) = {
+  def initial(definition: WorkflowDefinition, searchEnabled: Boolean): (TemplateDetailsView, Cmd[IO, Msg]) = {
     val filterBar              = InstancesFilterBar.default
     val searchRequest          = buildSearchRequest(definition.id, filterBar, 0)
     val (instancesTable, cmd1) = AsyncView.empty_(
-      Http.searchWorkflows(searchRequest),
+      if searchEnabled then Http.searchWorkflows(searchRequest) else IO.pure(WorkflowSearchResponse.empty),
       response => InstancesTableWithPagination.fromResponse(response, filterBar.pageSize, 0),
     )
     val (definitionView, cmd2) = DefinitionView.initial(definition)
@@ -174,6 +179,7 @@ object TemplateDetailsView {
       filterBar = filterBar,
       currentPage = 0,
       selectedTab = Tab.Definition,
+      isSearchEnabled = searchEnabled,
     ) -> Cmd.merge(cmd1.map(Msg.ForInstTableView(_)), cmd2.map(Msg.ForDefinition(_)))
   }
 

@@ -6,6 +6,7 @@ import com.typesafe.scalalogging.StrictLogging
 import sttp.tapir.server.ServerEndpoint
 import workflows4s.runtime.registry.WorkflowSearch
 import workflows4s.web.api.endpoints.WorkflowEndpoints
+import workflows4s.web.api.model.FeatureConfig
 import workflows4s.web.api.server.WorkflowEntry
 
 object WorkflowServerEndpoints extends StrictLogging {
@@ -18,6 +19,7 @@ object WorkflowServerEndpoints extends StrictLogging {
       WorkflowEndpoints.getInstance.serverLogic((workflowId, instanceId) => handleError(service.getInstance(workflowId, instanceId))),
       WorkflowEndpoints.deliverSignal.serverLogic(request => handleError(service.deliverSignal(request))),
       WorkflowEndpoints.searchWorkflows.serverLogic { query => handleError(service.searchWorkflows(query)) },
+      WorkflowEndpoints.features.serverLogic { _ => handleError(F.pure(FeatureConfig(search.nonEmpty))) },
     )
   }
 

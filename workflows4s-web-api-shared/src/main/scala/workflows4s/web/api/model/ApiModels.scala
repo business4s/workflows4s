@@ -84,3 +84,7 @@ case class WorkflowSearchResponse(
     totalCount: Int,
 ) derives Codec.AsObject,
       tapir.Schema
+
+object WorkflowSearchResponse {
+  val empty: WorkflowSearchResponse = WorkflowSearchResponse(Nil, 0)
+}
