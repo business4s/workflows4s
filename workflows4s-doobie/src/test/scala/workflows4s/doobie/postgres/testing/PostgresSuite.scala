@@ -9,11 +9,20 @@ import doobie.implicits.*
 import doobie.util.transactor.Transactor
 import org.scalatest.Suite
 
+import scala.util.Try
+
 trait PostgresSuite extends TestContainerForAll { self: Suite =>
 
   override val containerDef: PostgreSQLContainer.Def = PostgreSQLContainer.Def()
 
   var xa: Transactor[IO] = scala.compiletime.uninitialized
+
+  def isDockerAvailable: Boolean = {
+    Try {
+      org.testcontainers.DockerClientFactory.instance().client()
+      true
+    }.getOrElse(false)
+  }
 
   override def afterContainersStart(container: Containers): Unit = {
     super.afterContainersStart(container)
