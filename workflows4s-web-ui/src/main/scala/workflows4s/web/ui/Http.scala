@@ -7,6 +7,7 @@ import sttp.client4.impl.cats.FetchCatsBackend
 import sttp.tapir.PublicEndpoint
 import sttp.tapir.client.sttp4.SttpClientInterpreter
 import workflows4s.web.api.endpoints.WorkflowEndpoints
+import workflows4s.web.api.model
 import workflows4s.web.api.model.{SignalRequest, WorkflowDefinition, WorkflowInstance, WorkflowSearchRequest, WorkflowSearchResponse}
 import workflows4s.web.ui.util.UIConfig
 
@@ -18,6 +19,7 @@ object Http {
   def listDefinitions: IO[List[WorkflowDefinition]]                               = send(WorkflowEndpoints.listDefinitions)(())
   def sendSignal(req: SignalRequest): IO[Json]                                    = send(WorkflowEndpoints.deliverSignal)(req)
   def searchWorkflows(request: WorkflowSearchRequest): IO[WorkflowSearchResponse] = send(WorkflowEndpoints.searchWorkflows)(request)
+  def loadFeatures(): IO[model.FeatureConfig]                                     = send(WorkflowEndpoints.features)(())
 
   private def send[I, E, O](e: PublicEndpoint[I, E, O, Any]): I => IO[O] = { input =>
     for {
