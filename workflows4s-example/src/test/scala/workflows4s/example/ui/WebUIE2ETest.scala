@@ -70,7 +70,7 @@ class WebUIE2ETest extends WebUIE2EBase {
       driver.get(s"$baseUrl/ui/")
       eventually(timeout(Span(15, Seconds))) {
         val logs         = driver.manage().logs().get("browser").getAll.asScala
-        val severeErrors = logs.filter(_.getLevel.getName == "SEVERE")
+        val severeErrors = logs.filter(l => l.getLevel.getName == "SEVERE" && !l.getMessage.contains("favicon.ico"))
         withClue(s"Browser console contained SEVERE errors:\n${severeErrors.map(_.getMessage).mkString("\n")}") {
           severeErrors shouldBe empty
         }
