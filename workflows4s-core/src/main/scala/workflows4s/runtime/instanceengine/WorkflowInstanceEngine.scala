@@ -11,6 +11,12 @@ import workflows4s.wio.model.WIOExecutionProgress
 import java.time.Clock
 import scala.annotation.unused
 
+/** Strategy for evaluating workflow steps. Controls how signals, events, and wakeups are processed.
+  *
+  * Use [[WorkflowInstanceEngine.default]] for production (includes wakeup scheduling, registry, greedy evaluation, and logging) or
+  * [[WorkflowInstanceEngine.basic]] for simpler setups without external integrations. Custom engines can be composed via
+  * [[WorkflowInstanceEngineBuilder]].
+  */
 trait WorkflowInstanceEngine {
 
   def queryState[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[WCState[Ctx]]
@@ -18,7 +24,7 @@ trait WorkflowInstanceEngine {
   def getProgress[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[WIOExecutionProgress[WCState[Ctx]]]
 
   // TODO this would be better if extractable from progress
-  def getExpectedSignals[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[List[SignalDef[?, ?]]]
+  def getExpectedSignals[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx], includeRedeliverable: Boolean = false): IO[List[SignalDef[?, ?]]]
 
   def triggerWakeup[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[WakeupResult[WCEvent[Ctx]]]
 

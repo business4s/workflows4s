@@ -18,7 +18,7 @@ object InterruptionExample {
       .throughSignal(MySignal)
       .handleSync((state, request) => MyEvent())
       .handleEvent((state, event) => MyState(0))
-      .produceResponse((state, event) => MyResponse())
+      .produceResponse((state, event, request) => MyResponse())
       .autoNamed
       .andThen(_ >>> doB)
 

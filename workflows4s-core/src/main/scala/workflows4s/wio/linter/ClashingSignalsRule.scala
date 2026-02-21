@@ -2,7 +2,7 @@ package workflows4s.wio.linter
 
 import workflows4s.wio.Linter.Rule
 import workflows4s.wio.*
-import workflows4s.wio.internal.GetSignalDefsEvaluator
+import workflows4s.wio.internal.SignalEvaluator
 
 object ClashingSignalsRule extends Rule {
   override def id: String = "clashing-signals"
@@ -82,7 +82,7 @@ object ClashingSignalsRule extends Rule {
     }
 
     private def getExpectedSignals(wio: WIO[?, ?, ?, Ctx]): Set[SignalDef[?, ?]] = {
-      GetSignalDefsEvaluator.run(wio).toSet
+      SignalEvaluator.getExpectedSignals(wio).toSet
     }
   }
 }

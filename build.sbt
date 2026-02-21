@@ -1,7 +1,30 @@
 import org.typelevel.scalacoptions.ScalacOptions
 
+lazy val websiteScaladocs = taskKey[Unit]("Generate unified scaladoc and copy to website/static/scaladoc")
+
 lazy val `workflows4s` = (project in file("."))
+  .enablePlugins(ScalaUnidocPlugin)
   .settings(commonSettings)
+  .settings(
+    ScalaUnidoc / unidoc / unidocProjectFilter := inAnyProject -- inProjects(
+      `workflows4s-example`,
+      `workflows4s-web-ui`,
+      `workflows4s-web-ui-bundle`,
+      `workflows4s-web-api-shared`.js,
+    ),
+    websiteScaladocs := {
+      val log       = streams.value.log
+      val base      = (ThisBuild / baseDirectory).value
+      val targetDir = base / "website" / "static" / "scaladoc"
+      val _         = (Compile / unidoc).value
+      val docDir    = crossTarget.value / "unidoc"
+
+      log.info(s"Copying unified scaladoc from $docDir to $targetDir")
+      IO.delete(targetDir)
+      IO.copyDirectory(docDir, targetDir)
+      log.info(s"Unified scaladoc copied to $targetDir")
+    },
+  )
   .aggregate(
     `workflows4s-core`,
     `workflows4s-bpmn`,
@@ -186,6 +209,8 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "com.dimafeng"         %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
       "org.postgresql"        % "postgresql"                      % "42.7.8"                   % Test,
       "org.xerial"            % "sqlite-jdbc"                     % "3.51.1.0"                 % Test,
+      "org.seleniumhq.selenium" % "selenium-java"                 % "4.27.0"                   % Test,
+      "org.seleniumhq.selenium" % "selenium-chrome-driver"        % "4.27.0"                   % Test,
     ),
     Test / parallelExecution := false, // otherwise akka clusters clash
     publish / skip           := true,

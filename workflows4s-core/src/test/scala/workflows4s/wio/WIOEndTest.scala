@@ -4,6 +4,7 @@ import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.time.Instant
+import workflows4s.wio.internal.SignalResult
 
 class WIOEndTest extends AnyFreeSpec with Matchers {
 
@@ -36,8 +37,8 @@ class WIOEndTest extends AnyFreeSpec with Matchers {
     "handle signal no-op" in {
       val wf: ActiveWorkflow[Ctx] = WIO.end.toWorkflow("initialState")
 
-      val resultOpt = wf.handleSignal(SignalDef[String, String]())("")
-      assert(resultOpt.toRaw.isEmpty)
+      val result = wf.handleSignal(SignalDef[String, String]())("")
+      assert(result == SignalResult.UnexpectedSignal)
     }
   }
 }

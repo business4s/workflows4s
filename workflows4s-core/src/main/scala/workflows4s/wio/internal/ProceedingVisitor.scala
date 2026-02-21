@@ -72,7 +72,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
       case Some(baseExecuted) =>
         baseExecuted.output match {
           case Left(err)    =>
-            val state        = baseExecuted.lastState(lastSeenState).getOrElse(lastSeenState)
+            val state        = baseExecuted.lastState(lastSeenState)
             val handlerIndex = baseExecuted.index + 1
             recurse(wio.handleError, (state, err), index = handlerIndex).map(handlerResult => {
               def updateHandler(newHandler: WIO[(WCState[Ctx], ErrIn), Err, Out, Ctx]) = wio.copy(handleError = newHandler)
@@ -119,7 +119,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
   def onLoop[BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx], ReturnIn](wio: WIO.Loop[Ctx, In, Err, Out, BodyIn, BodyOut, ReturnIn]): Result = {
     // TODO all the `.provideInput` here are not good, they enlarge the graph unnecessarily.
     //  alternatively we could maybe take the input from the last history entry
-    val lastHistoryState = wio.history.flatMap(_.lastState(lastSeenState)).lastOption.getOrElse(lastSeenState)
+    val lastHistoryState = wio.history.map(_.lastState(lastSeenState)).lastOption.getOrElse(lastSeenState)
     val nextIndex        = wio.history.lastOption.map(result => result.index + 1).getOrElse(index)
     wio.current match {
       case State.Finished(_) =>
@@ -135,7 +135,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
                     WFExecution.complete(
                       wio.copy(
                         history = wio.history :+ newWio,
-                        current = WIO.Loop.State.Finished(WIO.Executed(currentWio, Right(value), input, newWio.index)),
+                        current = WIO.Loop.State.Finished(newWio),
                       ),
                       Right(value1),
                       input,
@@ -186,11 +186,14 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
         })
       case None              =>
         selectMatching(wio, input).flatMap({ selected =>
-          recurse(selected.wio, selected.input).map({
-            case WFExecution.Complete(newWio) =>
-              WFExecution.complete(updateSelectedBranch(selected.copy(wio = newWio)), newWio.output, input, newWio.index)
-            case WFExecution.Partial(newWio)  => WFExecution.Partial(updateSelectedBranch(selected.copy(wio = newWio)))
-          })
+          recurse(selected.wio, selected.input)
+            .map({
+              case WFExecution.Complete(newWio) =>
+                WFExecution.complete(updateSelectedBranch(selected.copy(wio = newWio)), newWio.output, input, newWio.index)
+              case WFExecution.Partial(newWio)  => WFExecution.Partial(updateSelectedBranch(selected.copy(wio = newWio)))
+            })
+            .getOrElse(WFExecution.Partial(updateSelectedBranch(selected)))
+            .some
         })
     }
   }
@@ -205,7 +208,7 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
 
     def runInterruption: Result = {
       val lastBaseState = GetStateEvaluator.extractLastState(wio.base, input, lastSeenState)
-      recurse(wio.interruption, lastBaseState.getOrElse(lastSeenState))
+      recurse(wio.interruption, lastBaseState)
         .map(interruptionResult => {
           val newStatus: InterruptionStatus.Interrupted.type | InterruptionStatus.TimerStarted.type =
             wio.status match {

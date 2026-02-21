@@ -2,7 +2,6 @@ package workflows4s.runtime.pekko
 
 import cats.data.Ior
 import cats.effect.IO
-import cats.implicits.catsSyntaxOptionId
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.pekko.actor.typed.scaladsl.{ActorContext, Behaviors}
 import org.apache.pekko.actor.typed.{ActorRef, Behavior}
@@ -14,6 +13,8 @@ import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine.PostExecCommand
 import workflows4s.wio.*
+import workflows4s.wio.internal.SignalResult
+import workflows4s.wio.internal.SignalResult.ProcessingResult
 import workflows4s.wio.model.WIOExecutionProgress
 
 import java.time.Instant
@@ -50,7 +51,8 @@ object WorkflowBehavior {
     ) extends Command[Ctx]
     case class Wakeup[Ctx <: WorkflowContext](replyTo: ActorRef[StatusReply[Unit]])                       extends Command[Ctx]
     case class GetProgress[Ctx <: WorkflowContext](replyTo: ActorRef[WIOExecutionProgress[WCState[Ctx]]]) extends Command[Ctx]
-    case class GetExpectedSignals[Ctx <: WorkflowContext](replyTo: ActorRef[List[SignalDef[?, ?]]])       extends Command[Ctx]
+    case class GetExpectedSignals[Ctx <: WorkflowContext](replyTo: ActorRef[List[SignalDef[?, ?]]], includeRedeliverable: Boolean = false)
+        extends Command[Ctx]
 
     case class Reply[Ctx <: WorkflowContext, T](replyTo: ActorRef[T], msg: T, unlock: Boolean) extends Command[Ctx]
     case class Persist[Ctx <: WorkflowContext](event: WCEvent[Ctx], reply: Reply[Ctx, ?])      extends Command[Ctx]
@@ -100,7 +102,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
           case x: Command.Wakeup[Ctx]              => handleWakeup(x.replyTo, processingState, actorContext, honorLock = true)
           case x: Command.FollowupWakeup[Ctx]      => handleWakeup(x.replyTo, processingState, actorContext, honorLock = false)
           case x: Command.GetProgress[Ctx]         => Effect.reply(x.replyTo)(state.workflow.progress)
-          case x: Command.GetExpectedSignals[Ctx]  => Effect.reply(x.replyTo)(state.workflow.expectedSignals)
+          case x: Command.GetExpectedSignals[Ctx]  => Effect.reply(x.replyTo)(state.workflow.expectedSignals(x.includeRedeliverable))
           case x: Command.Reply[Ctx, ?]            =>
             Effect
               .none[Event, St]
@@ -145,16 +147,30 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
       processingState: AtomicReference[ProcessingState],
       actorContext: ActorContext[Command[Ctx]],
   ): Effect[Event, St] = {
-    changeStateAsync[(WCEvent[Ctx], Resp), Either[UnexpectedSignal, Resp]](
+    changeStateAsync[Either[Resp, ProcessingResult[WCEvent[Ctx], Resp]], Either[UnexpectedSignal, Resp]](
       processingState,
       actorContext,
-      state => engine.handleSignal(state.workflow, cmd.signalDef, cmd.req).map(_.toRaw),
+      state =>
+        engine
+          .handleSignal(state.workflow, cmd.signalDef, cmd.req)
+          .map({
+            case SignalResult.UnexpectedSignal      => None
+            case SignalResult.Processed(resultIO)   => Some(resultIO.map(Right(_)))
+            case SignalResult.Redelivered(response) => Some(IO(Left(response)))
+          }),
       cmd.replyTo,
       {
-        case Some(value) => Right(value._2)
+        case Some(value) =>
+          value match {
+            case Left(resp)                       => Right(resp)
+            case Right(ProcessingResult(_, resp)) => Right(resp)
+          }
         case None        => Left(UnexpectedSignal(cmd.signalDef))
       },
-      x => x._1.some,
+      {
+        case Left(value)  => None
+        case Right(value) => Some(value.event)
+      },
     )
   }
   private def handleWakeup(

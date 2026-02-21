@@ -132,21 +132,22 @@ class WIOLoopTest extends AnyFreeSpec with Matchers with OptionValues with Eithe
         val (loopFinishedId, wf) = createLoop(signalStep, signalStepId, None, iterations)
         val (_, instance)        = TestUtils.createInstance2(wf)
 
-        instance.getExpectedSignals should contain theSameElementsAs (List(signalDef))
+        instance.getExpectedSignals() should contain theSameElementsAs (List(signalDef))
 
         val response1 = instance.deliverSignal(signalDef, 1).value
         assert(response1 == 1)
         assert(instance.queryState().executed == List(signalStepId))
 
-        instance.getExpectedSignals should contain theSameElementsAs (List(signalDef))
+        instance.getExpectedSignals() should contain theSameElementsAs (List(signalDef))
 
         // Deliver signal for second iteration
         val response2 = instance.deliverSignal(signalDef, 2).value
         assert(response2 == 2)
         assert(instance.queryState().executed == List(signalStepId, signalStepId, loopFinishedId))
 
-        // Signal should no longer be accepted
-        assert(instance.deliverSignal(signalDef, 3).isLeft)
+        // Redelivery should return the last response (state unchanged)
+        assert(instance.deliverSignal(signalDef, 3).value == 2)
+        assert(instance.queryState().executed == List(signalStepId, signalStepId, loopFinishedId))
       }
 
       "going backward" in {
@@ -157,20 +158,21 @@ class WIOLoopTest extends AnyFreeSpec with Matchers with OptionValues with Eithe
         val (loopFinishedId, wf) = createLoop(step1, step1Id, Some(signalStep), iterations)
         val (_, instance)        = TestUtils.createInstance2(wf)
 
-        instance.getExpectedSignals should contain theSameElementsAs (List(signalDef))
+        instance.getExpectedSignals() should contain theSameElementsAs (List(signalDef))
         val response1 = instance.deliverSignal(signalDef, 1).value
         assert(response1 == 1)
         assert(instance.queryState().executed == List(step1Id, signalStepId, step1Id))
 
-        instance.getExpectedSignals should contain theSameElementsAs (List(signalDef))
+        instance.getExpectedSignals() should contain theSameElementsAs (List(signalDef))
         // Deliver signal for second iteration
         val response2 = instance.deliverSignal(signalDef, 2).value
         assert(response2 == 2)
         assert(instance.queryState().executed == List(step1Id, signalStepId, step1Id, signalStepId, step1Id, loopFinishedId))
 
-        // Signal should no longer be accepted
-        instance.getExpectedSignals shouldBe empty
-        assert(instance.deliverSignal(signalDef, 3).isLeft)
+        // Redelivery should return the last response (state unchanged)
+        instance.getExpectedSignals() shouldBe empty
+        assert(instance.deliverSignal(signalDef, 3).value == 2)
+        assert(instance.queryState().executed == List(step1Id, signalStepId, step1Id, signalStepId, step1Id, loopFinishedId))
       }
     }
 

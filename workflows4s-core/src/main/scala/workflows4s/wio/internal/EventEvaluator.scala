@@ -29,9 +29,9 @@ object EventEvaluator {
     def doHandle[Evt](handler: EventHandler[In, Either[Err, Out], WCEvent[Ctx], Evt]): Result =
       handler
         .detect(event)
-        .map(x => WFExecution.complete(wio, handler.handle(input, x), input, index))
+        .map(x => WFExecution.complete(wio, handler.handle(input, x), input, index, Some(event)))
 
-    def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result = doHandle(wio.evtHandler.map(_._1))
+    def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result = doHandle(wio.evtHandler)
     def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result                               = doHandle(wio.evtHandler)
     def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result                           = doHandle(wio.releasedEventHandler)
     override def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): Result                = doHandle(wio.eventHandler.map(_.asRight))
@@ -83,7 +83,7 @@ object EventEvaluator {
             .map(x => {
               eventHandler.handle((input, lastSeenState, retryState), x) match {
                 case Left(value)  => WFExecution.Partial(wio.copy(mode = mode.copy(state = Some(value))))
-                case Right(value) => WFExecution.complete(wio, value, input, index)
+                case Right(value) => WFExecution.complete(wio, value, input, index, Some(event))
               }
             })
       }
