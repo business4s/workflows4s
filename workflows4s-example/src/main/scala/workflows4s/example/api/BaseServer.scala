@@ -2,7 +2,6 @@ package workflows4s.example.api
 
 import cats.effect.IO
 import cats.effect.kernel.Resource
-import cats.implicits.catsSyntaxOptionId
 import cats.syntax.all.*
 import com.comcast.ip4s.*
 import io.circe.Encoder
@@ -27,6 +26,9 @@ import workflows4s.web.api.server.{SignalSupport, WorkflowEntry, WorkflowServerE
 import workflows4s.web.api.model.UIConfig
 
 trait BaseServer {
+
+  /** Override to disable search functionality in the server (e.g. for testing the search-disabled UI). */
+  protected def includeSearch: Boolean = true
 
   /** Creates the API routes with CORS enabled
     */
@@ -94,7 +96,7 @@ trait BaseServer {
                                  .build,
                              ),
                            )
-      routes             = Http4sServerInterpreter[IO]().toRoutes(WorkflowServerEndpoints.get[IO](workflowEntries, registry.some))
+      routes             = Http4sServerInterpreter[IO]().toRoutes(WorkflowServerEndpoints.get[IO](workflowEntries, Option.when(includeSearch)(registry)))
     } yield CORS.policy.withAllowOriginAll(routes)
   }
 
