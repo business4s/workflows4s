@@ -10,5 +10,5 @@ addSbtPlugin("org.portable-scala" % "sbt-scalajs-crossproject" % "1.3.2")
 addSbtPlugin("com.github.sbt"     % "sbt-unidoc"               % "0.6.1")
 
 libraryDependencies ++= Seq(
-  "com.lihaoyi" %% "os-lib" % "0.11.6",
+  "com.lihaoyi" %% "os-lib" % "0.11.7",
 )
