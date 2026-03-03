@@ -12,6 +12,7 @@ import workflows4s.web.ui.util.{MermaidSupport, UIConfig}
 
 import scala.scalajs.js.annotation.*
 import workflows4s.web.api.model.WorkflowDefinition
+import workflows4s.web.ui.Msg.ApiInfoReceived
 import workflows4s.web.ui.components.instance.MermaidWebComponent
 import workflows4s.web.ui.components.template.InstancesFilterBar
 
@@ -105,6 +106,7 @@ final case class Model(
     route: Route,
     /** Stores routes that can't be applied yet (e.g., when navigating to a workflow URL before definitions are loaded). */
     pendingRoute: Option[Route],
+    searchEnabled: Option[Boolean] = None,
 )
 
 enum Msg {
@@ -113,6 +115,7 @@ enum Msg {
   case ForInstances(msg: TemplateDetailsView.Msg)
   case FollowExternalLink(str: String)
   case RouteChanged(url: String)
+  case ApiInfoReceived(enabled: Boolean)
 }
 
 @JSExportTopLevel("TyrianApp")
@@ -124,6 +127,7 @@ object Main extends TyrianIOApp[Msg, Model] {
     val (workflowsManager, workflowsCmd) = TemplatesList.initial
     val cmd: Cmd[IO, Msg]                = workflowsCmd.map(Msg.ForWorkflows(_)) |+|
       Cmd.Run(UIConfig.load.as(Msg.NoOp)) |+|
+      Cmd.Run(Http.loadFeatures().map(c => ApiInfoReceived(c.searchEnabled))) |+|
       Cmd.Run(MermaidWebComponent.register().as(Msg.NoOp)) |+|
       Cmd.Run(MermaidSupport.initialize.as(Msg.NoOp))
 
@@ -149,7 +153,7 @@ object Main extends TyrianIOApp[Msg, Model] {
       }
 
       val newInstanceManager = selectionChange match {
-        case Some(Some(wd)) => Some(TemplateDetailsView.initial(wd))
+        case Some(Some(wd)) => Some(TemplateDetailsView.initial(wd, model.searchEnabled.getOrElse(true)))
         case Some(None)     => None
         case None           => None
       }
@@ -210,6 +214,9 @@ object Main extends TyrianIOApp[Msg, Model] {
       }
 
     case Msg.FollowExternalLink(url) => model -> Nav.loadUrl(url)(using summon[Async[IO]])
+
+    case Msg.ApiInfoReceived(enabled) =>
+      (model.copy(searchEnabled = Some(enabled)), Cmd.None)
   }
 
   private def applyPendingRouteIfPossible(model: Model): (Model, Cmd[IO, Msg]) =
@@ -247,7 +254,7 @@ object Main extends TyrianIOApp[Msg, Model] {
       case Route.Workflow(workflowId, view) =>
         findDefinition(workflowId) match {
           case Some(definition) =>
-            val (baseInstances, cmd1) = TemplateDetailsView.initial(definition)
+            val (baseInstances, cmd1) = TemplateDetailsView.initial(definition, model.searchEnabled.getOrElse(true))
 
             val (finalInstances, cmd2) = view match {
               case WorkflowView.Definition           =>
