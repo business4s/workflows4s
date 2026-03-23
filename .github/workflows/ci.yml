@@ -19,7 +19,7 @@ jobs:
           node-version: 24
 
       - name: Install frontend dependencies
-        run: npm install
+        run: npm ci
         working-directory: ./workflows4s-web-ui
 
       - name: Build and Test
