@@ -54,7 +54,7 @@ class WorkflowApiServiceImpl[F[_]](
       currentState     <- workflowInstance.queryState()
       progress         <- workflowInstance.getProgress
       mermaid           = MermaidRenderer.renderWorkflow(progress)
-      signals          <- workflowInstance.getExpectedSignals
+      signals          <- workflowInstance.getExpectedSignals()
     } yield WorkflowInstance(
       id = instanceId,
       templateId = entry.id,

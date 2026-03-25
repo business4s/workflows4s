@@ -151,7 +151,13 @@ object WFExecution {
 
   case class Partial[C <: WorkflowContext, I, E, O <: WCState[C]](wio: WIO[I, E, O, C]) extends WFExecution[C, I, E, O]
 
-  def complete[Ctx <: WorkflowContext, Err, Out <: WCState[Ctx], In](original: WIO[In, ?, ?, Ctx], output: Either[Err, Out], input: In, index: Int) =
-    WFExecution.Complete(WIO.Executed(original, output, input, index))
+  def complete[Ctx <: WorkflowContext, Err, Out <: WCState[Ctx], In](
+      original: WIO[In, ?, ?, Ctx],
+      output: Either[Err, Out],
+      input: In,
+      index: Int,
+      event: Option[WCEvent[Ctx]] = None,
+  ) =
+    WFExecution.Complete(WIO.Executed(original, output, input, index, event))
 
 }

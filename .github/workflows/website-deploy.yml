@@ -43,6 +43,9 @@ jobs:
       - uses: sbt/setup-sbt@v1
       - name: Install dependencies
         run: yarn install --frozen-lockfile --non-interactive
+      - name: Generate Scaladoc
+        run: sbt -batch websiteScaladocs
+        working-directory: ./
       - name: Build
         run: |
           cd ../

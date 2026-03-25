@@ -10,8 +10,14 @@ import workflows4s.wio.{WCState, WorkflowContext}
 
 import scala.concurrent.Future
 
+/** Pekko Cluster Sharding-based runtime. Each workflow instance is backed by a persistent actor.
+  *
+  * Call [[initializeShard]] once at startup before creating instances.
+  */
 trait PekkoRuntime[Ctx <: WorkflowContext] extends WorkflowRuntime[Future, Ctx] {
   def createInstance_(id: String): WorkflowInstance[Future, WCState[Ctx]]
+
+  /** Registers the entity type with Pekko Cluster Sharding. Must be called once before any `createInstance` call. */
   def initializeShard(): Unit
 }
 

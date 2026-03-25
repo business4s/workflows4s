@@ -12,7 +12,8 @@ object TestCtx extends WorkflowContext {
       ActiveWorkflow(WorkflowInstanceId("test", "test"), wio.provideInput(state), state)
   }
 
-  def ignore[A, B, C]: (A, B) => C = (_, _) => ???
+  def ignore[A, B, C]: (A, B) => C        = (_, _) => ???
+  def ignore3[A, B, C, D]: (A, B, C) => D = (_, _, _) => ???
 
   given Conversion[String, SimpleEvent] = SimpleEvent.apply
 }

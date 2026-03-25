@@ -3,7 +3,7 @@ package workflows4s.web.api.endpoints
 import io.circe.Json
 import sttp.tapir.*
 import sttp.tapir.json.circe.*
-import workflows4s.web.api.model.{SignalRequest, WorkflowDefinition, WorkflowInstance, WorkflowSearchRequest, WorkflowSearchResponse}
+import workflows4s.web.api.model.{FeatureConfig, SignalRequest, WorkflowDefinition, WorkflowInstance, WorkflowSearchRequest, WorkflowSearchResponse}
 
 object WorkflowEndpoints {
 
@@ -44,4 +44,10 @@ object WorkflowEndpoints {
       .in(jsonBody[WorkflowSearchRequest])
       .out(jsonBody[WorkflowSearchResponse])
       .description("Search among workflow instances")
+
+  val features: PublicEndpoint[Unit, String, FeatureConfig, Any] =
+    baseEndpoint.get
+      .in("features")
+      .out(jsonBody[FeatureConfig])
+      .description("Returns a config which features are available")
 }

@@ -8,7 +8,7 @@ import org.scalatest.freespec.AnyFreeSpecLike
 import sourcecode.Text.generate
 import workflows4s.runtime.registry.InMemoryWorkflowRegistry
 import workflows4s.runtime.registry.WorkflowRegistry.ExecutionStatus
-import workflows4s.wio.{TestCtx2, TestState}
+import workflows4s.wio.{SignalDef, StepId, TestCtx2, TestState}
 
 import scala.annotation.nowarn
 
@@ -31,7 +31,6 @@ object WorkflowRuntimeTest {
       "runtime should not allow interrupting a process while another step is running" in new Fixture {
         def singleRun(i: Int): IO[Unit] = {
           IO(println(s"Running $i iteration")) *> {
-            import TestCtx2.*
 
             for {
               longRunningStartedSem  <- Semaphore[IO](0)
@@ -65,6 +64,37 @@ object WorkflowRuntimeTest {
         }
 
         (1 to 50).toList.traverse_(singleRun).unsafeRunSync()
+      }
+
+      "signal redelivery should return original response without re-running side effects" in new Fixture {
+        import TestCtx2.*
+        var sideEffectCount = 0
+
+        val signalDef = SignalDef[Int, Int](id = "redelivery-test-signal")
+        val wio       = WIO
+          .handleSignal(signalDef)
+          .using[TestState]
+          .withSideEffects { (_, req) =>
+            IO({
+              sideEffectCount += 1
+              new RedeliveryTestEvent(req)
+            })
+          }
+          .handleEvent((st, _) => st.addExecuted(StepId.random("signal")))
+          .produceResponse((_, evt: RedeliveryTestEvent, _) => evt.req * 10)
+          .done
+
+        val wf = createInstance(wio)
+
+        // First delivery - side effect runs
+        val response1 = wf.deliverSignal(signalDef, 42)
+        assert(response1 == Right(420))
+        assert(sideEffectCount == 1)
+
+        // Redelivery - side effect should NOT run again, response should be same
+        val response2 = wf.deliverSignal(signalDef, 999)
+        assert(response2 == Right(420))
+        assert(sideEffectCount == 1)
       }
 
       "workflow registry interaction" - {
@@ -136,5 +166,8 @@ object WorkflowRuntimeTest {
       .handleEvent((st, _) => st)
       .done
   }
+
+  // Must be at top level for Pekko serialization
+  class RedeliveryTestEvent(val req: Int) extends TestCtx2.Event with Serializable
 
 }

@@ -1,7 +1,6 @@
 package workflows4s.wio
 
 import cats.effect.IO
-import cats.implicits.catsSyntaxOptionId
 import workflows4s.wio.WIO.HandleInterruption.InterruptionType
 import workflows4s.wio.WIO.Timer.DurationSource
 import workflows4s.wio.builders.AllBuilders
@@ -11,22 +10,41 @@ import workflows4s.wio.model.WIOMeta
 import java.time.{Duration, Instant}
 import scala.language.implicitConversions
 
+/** An event-sourced workflow computation. Describes a step (or composition of steps) that transforms input into output state, potentially producing
+  * events and side effects.
+  *
+  * WIO is a pure description — it does not execute anything until interpreted by a runtime. All side effects are captured as events, enabling
+  * replay-based recovery.
+  *
+  * @tparam In
+  *   input type (typically the current workflow state but not necessarily)
+  * @tparam Err
+  *   error channel type (Nothing if the step cannot fail)
+  * @tparam Out
+  *   output state type
+  * @tparam Ctx
+  *   the workflow context binding State and Event types
+  */
 sealed trait WIO[-In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext] extends WIOMethods[Ctx, In, Err, Out]
 
 object WIO {
 
+  /** A fully-wired workflow that accepts any input and cannot fail. This is the type runtimes operate on. */
   type Initial[Ctx <: WorkflowContext] = WIO[Any, Nothing, WCState[Ctx], Ctx]
-  type Draft[Ctx <: WorkflowContext]   = WIO[Any, Nothing, Nothing, Ctx]
+
+  /** An incomplete workflow used during drafting — produces Nothing, so cannot be executed. */
+  type Draft[Ctx <: WorkflowContext] = WIO[Any, Nothing, Nothing, Ctx]
 
   // Experimental approach top exposing concrete subtypes.
   // We dont want to expose concrete impls because they have way too much type params.
   // Alternatively, this could be a sealed trait extending WIO
   type IHandleSignal[-In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext] = HandleSignal[Ctx, In, Out, Err, ?, ?, ?]
 
-  case class HandleSignal[Ctx <: WorkflowContext, -In, +Out <: WCState[Ctx], +Err, Sig, Resp, Evt](
-      sigDef: SignalDef[Sig, Resp],
-      sigHandler: SignalHandler[Sig, Evt, In],
-      evtHandler: EventHandler[In, (Either[Err, Out], Resp), WCEvent[Ctx], Evt],
+  case class HandleSignal[Ctx <: WorkflowContext, -In, +Out <: WCState[Ctx], +Err, Req, Resp, Evt](
+      sigDef: SignalDef[Req, Resp],
+      sigHandler: SignalHandler[Req, Evt, In],
+      evtHandler: EventHandler[In, Either[Err, Out], WCEvent[Ctx], Evt],
+      responseProducer: (In, Evt, Req) => Resp,
       meta: HandleSignal.Meta, // TODO here and everywhere else, we could use WIOMeta directly
   ) extends WIO[In, Err, Out, Ctx] {
 
@@ -243,10 +261,11 @@ object WIO {
       output: Either[Err, Out],
       input: In,
       index: Int,
+      event: Option[WCEvent[Ctx]] = None,
   ) extends WIO[Any, Err, Out, Ctx] {
-    def lastState(prevState: WCState[Ctx]): Option[WCState[Ctx]] = output match {
+    def lastState(prevState: WCState[Ctx]): WCState[Ctx] = output match {
       case Left(_)      => GetStateEvaluator.extractLastState(original, input, prevState)
-      case Right(value) => value.some
+      case Right(value) => value
     }
   }
 
@@ -303,7 +322,7 @@ object WIO {
     def interimState(input: In): InterimState = {
       val initialElemState = this.initialElemState()
       val elemStates       =
-        state(input).view.mapValues(elemWio => GetStateEvaluator.extractLastState(elemWio, (), initialElemState).getOrElse(initialElemState)).toMap
+        state(input).view.mapValues(elemWio => GetStateEvaluator.extractLastState(elemWio, (), initialElemState)).toMap
       interimStateBuilder(input, elemStates)
     }
   }

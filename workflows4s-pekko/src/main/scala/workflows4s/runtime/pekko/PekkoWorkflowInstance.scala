@@ -39,8 +39,8 @@ class PekkoWorkflowInstance[Ctx <: WorkflowContext](
     actorRef.ask(replyTo => Command.GetProgress(replyTo))
   }
 
-  override def getExpectedSignals: Future[List[SignalDef[?, ?]]] = {
+  override def getExpectedSignals(includeRedeliverable: Boolean = false): Future[List[SignalDef[?, ?]]] = {
     given Timeout = queryTimeout
-    actorRef.ask(replyTo => Command.GetExpectedSignals(replyTo))
+    actorRef.ask(replyTo => Command.GetExpectedSignals(replyTo, includeRedeliverable))
   }
 }

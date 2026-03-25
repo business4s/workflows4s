@@ -9,6 +9,9 @@ import workflows4s.runtime.wakeup.KnockerUpper
 import java.time.Instant
 import java.util.Date
 
+/** [[workflows4s.runtime.wakeup.KnockerUpper]] implementation backed by a Quartz `Scheduler`. The `dispatcher` is used to bridge Quartz's synchronous
+  * `Job.execute` callback into `IO`.
+  */
 class QuartzKnockerUpper(scheduler: Scheduler, dispatcher: Dispatcher[IO]) extends KnockerUpper.Agent with KnockerUpper.Process[IO, IO[Unit]] {
   override def updateWakeup(id: WorkflowInstanceId, at: Option[Instant]): IO[Unit] = IO {
     val jobKey = new JobKey(id.instanceId)

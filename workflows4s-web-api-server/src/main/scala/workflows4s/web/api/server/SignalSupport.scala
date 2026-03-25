@@ -12,6 +12,7 @@ import workflows4s.wio.SignalDef
 trait SignalSupport {
   def getRequestSchema(signalDef: SignalDef[?, ?]): Option[sttp.apispec.Schema]
   def getCodec(signalId: String): SignalCodec[?, ?]
+  def getRegisteredSignalIds: Set[String]
 }
 
 object SignalSupport {
@@ -20,6 +21,7 @@ object SignalSupport {
     override def getCodec(signalId: String): SignalCodec[?, ?]                = throw new Exception(
       "transformRequest executed in NoSupport SignalSupport. This should never happen.",
     )
+    override def getRegisteredSignalIds: Set[String]                          = Set.empty
   }
 
   val builder = Builder(Map())
@@ -34,6 +36,8 @@ object SignalSupport {
     }
 
     def build: SignalSupport = new SignalSupport {
+      private val registeredIds = entries.keySet
+
       override def getRequestSchema(signalDef: SignalDef[?, ?]): Option[Schema] = {
         val result = entries.get(signalDef.id)
         if result.isEmpty then logger.warn(s"Couldn't find schema for signal ${signalDef}")
@@ -46,6 +50,8 @@ object SignalSupport {
           .map(entry => SignalCodec(entry.signalDef, req => entry.reqDecoder.decodeJson(req).toTry.get, resp => entry.respEncoder.apply(resp)))
           .getOrElse(throw new Exception(s"Couldn't find schema for signal ${signalId}"))
       }
+
+      override def getRegisteredSignalIds: Set[String] = registeredIds
     }
   }
 

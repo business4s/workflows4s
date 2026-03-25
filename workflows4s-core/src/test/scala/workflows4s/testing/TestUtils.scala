@@ -115,7 +115,7 @@ object TestUtils {
       .using[TestState]
       .withSideEffects((_, req) => logic.as(SigEvent(req)))
       .handleEvent((st, _) => st.addExecuted(stepId))
-      .produceResponse((_, evt) => evt.req)
+      .produceResponse((_, evt, _) => evt.req)
       .done
     (signalDef, stepId, wio)
   }
@@ -130,7 +130,7 @@ object TestUtils {
       .using[TestState]
       .purely((_, req) => SignalErrored(req, error))
       .handleEventWithError((_, evt) => Left(evt.error))
-      .produceResponse((_, evt) => evt.req)
+      .produceResponse((_, evt, _) => evt.req)
       .done
     (signalDef, error, wio)
   }

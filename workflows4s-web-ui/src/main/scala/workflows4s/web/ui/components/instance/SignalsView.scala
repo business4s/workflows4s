@@ -25,10 +25,15 @@ case class SignalsView(workflowInstance: WorkflowInstance, modal: Option[SignalM
   def update(msg: SignalsView.Msg): (SignalsView, Cmd[IO, SignalsView.Msg]) = msg match {
     case Msg.OpenModal(signal) => (this.copy(modal = Some(SignalModal(workflowInstance, signal, true))), Cmd.None)
     case Msg.ForDetails(msg)   =>
-      this.modal.map(_.update(msg)) match {
-        case Some((newCmp, cmd)) => this.copy(modal = Some(newCmp)) -> cmd.map(Msg.ForDetails(_))
-        case None                => this                            -> Cmd.None
+      val (newThis, cmd) = this.modal.map(_.update(msg)) match {
+        case Some((newCmp, innerCmd)) => this.copy(modal = Some(newCmp)) -> innerCmd.map(Msg.ForDetails(_))
+        case None                     => this                            -> Cmd.None
       }
+      msg match {
+        case SignalModal.Msg.SignalSent => newThis -> Cmd.Batch(cmd, Cmd.Emit(Msg.RefreshInstance))
+        case _                          => newThis -> cmd
+      }
+    case Msg.RefreshInstance   => (this, Cmd.None)
   }
 
 }
@@ -38,6 +43,7 @@ object SignalsView {
   enum Msg {
     case OpenModal(signal: Signal)
     case ForDetails(msg: SignalModal.Msg)
+    case RefreshInstance
   }
 
 }

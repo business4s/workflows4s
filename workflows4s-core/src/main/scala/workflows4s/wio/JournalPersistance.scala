@@ -2,6 +2,8 @@ package workflows4s.wio
 
 import cats.effect.IO
 
+/** Event journal for workflow recovery. Events are persisted via `save` and replayed via `readEvents` to reconstruct workflow state after restarts.
+  */
 trait JournalPersistance[Event] extends JournalPersistance.Read[Event] with JournalPersistance.Write[Event]
 
 object JournalPersistance {

@@ -18,7 +18,7 @@ object HandleSignalExample {
       .using[MyState]
       .withSideEffects((state, request) => IO(MyEvent()))
       .handleEvent((state, event) => state)
-      .produceResponse((state, event) => MyResponse())
+      .produceResponse((state, event, request) => MyResponse())
       .autoNamed
   // end_withoutError
 

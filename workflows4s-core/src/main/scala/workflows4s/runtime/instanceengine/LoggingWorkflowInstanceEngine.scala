@@ -32,10 +32,13 @@ class LoggingWorkflowInstanceEngine(
       .withMDC(workflow)
   }
 
-  override def getExpectedSignals[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[List[SignalDef[?, ?]]] = {
-    (IO(logger.trace(s"[${workflow.id}] getExpectedSignals()")) *>
+  override def getExpectedSignals[Ctx <: WorkflowContext](
+      workflow: ActiveWorkflow[Ctx],
+      includeRedeliverable: Boolean = false,
+  ): IO[List[SignalDef[?, ?]]] = {
+    (IO(logger.trace(s"[${workflow.id}] getExpectedSignals(includeRedeliverable=$includeRedeliverable)")) *>
       delegate
-        .getExpectedSignals(workflow)
+        .getExpectedSignals(workflow, includeRedeliverable)
         .flatTap(signals => IO(logger.trace(s"[${workflow.id}] getExpectedSignals → [${signals.map(_.name).mkString(", ")}]")))
         .onError(e => IO(logger.error(s"[${workflow.id}] getExpectedSignals failed", e))))
       .withMDC(workflow)
@@ -90,6 +93,9 @@ class LoggingWorkflowInstanceEngine(
                     .onError(e => IO(logger.error("handleSignalEffect failed", e))),
               ),
             )
+          case SignalResult.Redelivered(resp)   =>
+            IO(logger.debug(s"[${workflow.id}] handleSignal → redelivered signal(${signalDef.name}), resp=$resp")) *>
+              SignalResult.Redelivered(resp).pure[IO]
           case SignalResult.UnexpectedSignal    =>
             IO(logger.warn(s"[${workflow.id}] handleSignal → unexpected signal(${signalDef.name})")) *>
               SignalResult.UnexpectedSignal.pure[IO]

@@ -64,11 +64,17 @@ case class SignalModal(
       response match {
         case Some(response) =>
           val (cmp, cmd) = response.update(msg)
-          (this.copy(response = Some(cmp)), cmd.map(Msg.ForResult(_)))
+          val newThis    = this.copy(response = Some(cmp))
+          msg match {
+            case AsyncView.Msg.Finished(Right(_)) =>
+              newThis -> Cmd.Batch(List(cmd.map(Msg.ForResult(_)), Cmd.Emit(Msg.SignalSent)))
+            case _                                =>
+              newThis -> cmd.map(Msg.ForResult(_))
+          }
         case None           => this -> Cmd.None
       }
-
-    case Msg.Send =>
+    case Msg.SignalSent     => (this, Cmd.None)
+    case Msg.Send           =>
       val (cmp, cmd) =
         AsyncView.empty(
           Http.sendSignal(SignalRequest(wfInstance.templateId, wfInstance.id, signal.id, formState.extractJson)),
@@ -93,6 +99,7 @@ object SignalModal {
   enum Msg {
     case Close
     case Send
+    case SignalSent
     case ForForm(msg: FormElementUpdate)
     case ForResult(msg: AsyncView.Msg[SignalResponseView])
   }

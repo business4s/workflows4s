@@ -6,6 +6,7 @@ import org.scalatest.{EitherValues, OptionValues}
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 import workflows4s.wio.WIO.RunIO
+import workflows4s.wio.internal.SignalResult
 
 import java.time.Instant
 
@@ -60,9 +61,9 @@ class WIORunIOTest extends AnyFreeSpec, Matchers, EitherValues, OptionValues {
         .done
         .toWorkflow("initialState")
 
-      val resultOpt = wf.handleSignal(SignalDef[String, String]())("").toRaw
+      val result = wf.handleSignal(SignalDef[String, String]())("")
 
-      assert(resultOpt.isEmpty)
+      assert(result == SignalResult.UnexpectedSignal)
     }
 
     "metadata attachment" - {
