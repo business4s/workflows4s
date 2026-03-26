@@ -45,7 +45,7 @@ lazy val `workflows4s-core` = (project in file("workflows4s-core"))
   .settings(
     libraryDependencies ++= Seq(
       "org.typelevel"              %% "cats-effect"     % "3.6.3",
-      "co.fs2"                     %% "fs2-core"        % "3.12.2",
+      "co.fs2"                     %% "fs2-core"        % "3.13.0",
       "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.6",
       "io.circe"                   %% "circe-core"      % circeVersion, // for model serialization
       "io.circe"                   %% "circe-generic"   % circeVersion, // for model serialization
