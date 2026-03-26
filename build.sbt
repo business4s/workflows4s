@@ -12,7 +12,7 @@ lazy val `workflows4s` = (project in file("."))
       `workflows4s-web-ui-bundle`,
       `workflows4s-web-api-shared`.js,
     ),
-    websiteScaladocs := {
+    websiteScaladocs                           := {
       val log       = streams.value.log
       val base      = (ThisBuild / baseDirectory).value
       val targetDir = base / "website" / "static" / "scaladoc"
@@ -192,24 +192,24 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.http4s"           %% "http4s-ember-server"             % "0.23.33",
-      "org.http4s"           %% "http4s-dsl"                      % "0.23.33",
-      "org.apache.pekko"     %% "pekko-http"                      % pekkoHttpVersion, // for interacting with the app
-      "org.apache.pekko"     %% "pekko-cluster-sharding-typed"    % pekkoVersion, // for realistic example and spawning actors
-      "org.apache.pekko"     %% "pekko-persistence-jdbc"          % "1.2.0", // published locally until the release is there
-      "org.apache.pekko"     %% "pekko-serialization-jackson"     % "1.4.0",
-      "com.h2database"        % "h2"                              % "2.4.240",
-      "io.r2dbc"              % "r2dbc-h2"                        % "1.1.0.RELEASE",
-      "com.github.pjfanning" %% "pekko-http-circe"                % "3.8.0",
-      "ch.qos.logback"        % "logback-classic"                 % "1.5.26",
-      "org.scalamock"        %% "scalamock"                       % "7.5.4"                    % Test,
-      "org.apache.pekko"     %% "pekko-actor-testkit-typed"       % pekkoVersion               % Test,
-      "com.dimafeng"         %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
-      "com.dimafeng"         %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
-      "org.postgresql"        % "postgresql"                      % "42.7.9"                   % Test,
-      "org.xerial"            % "sqlite-jdbc"                     % "3.51.1.0"                 % Test,
-      "org.seleniumhq.selenium" % "selenium-java"                 % "4.27.0"                   % Test,
-      "org.seleniumhq.selenium" % "selenium-chrome-driver"        % "4.27.0"                   % Test,
+      "org.http4s"             %% "http4s-ember-server"             % "0.23.33",
+      "org.http4s"             %% "http4s-dsl"                      % "0.23.33",
+      "org.apache.pekko"       %% "pekko-http"                      % pekkoHttpVersion, // for interacting with the app
+      "org.apache.pekko"       %% "pekko-cluster-sharding-typed"    % pekkoVersion, // for realistic example and spawning actors
+      "org.apache.pekko"       %% "pekko-persistence-jdbc"          % "1.2.0", // published locally until the release is there
+      "org.apache.pekko"       %% "pekko-serialization-jackson"     % "1.4.0",
+      "com.h2database"          % "h2"                              % "2.4.240",
+      "io.r2dbc"                % "r2dbc-h2"                        % "1.1.0.RELEASE",
+      "com.github.pjfanning"   %% "pekko-http-circe"                % "3.8.0",
+      "ch.qos.logback"          % "logback-classic"                 % "1.5.32",
+      "org.scalamock"          %% "scalamock"                       % "7.5.4"                    % Test,
+      "org.apache.pekko"       %% "pekko-actor-testkit-typed"       % pekkoVersion               % Test,
+      "com.dimafeng"           %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
+      "com.dimafeng"           %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
+      "org.postgresql"          % "postgresql"                      % "42.7.9"                   % Test,
+      "org.xerial"              % "sqlite-jdbc"                     % "3.51.1.0"                 % Test,
+      "org.seleniumhq.selenium" % "selenium-java"                   % "4.27.0"                   % Test,
+      "org.seleniumhq.selenium" % "selenium-chrome-driver"          % "4.27.0"                   % Test,
     ),
     Test / parallelExecution := false, // otherwise akka clusters clash
     publish / skip           := true,
@@ -242,7 +242,7 @@ lazy val commonSettings = Seq(
   scalacOptions ++= Seq("-no-indent", "-Xmax-inlines", "64", "-explain-cyclic", "-Ydebug-cyclic"),
   libraryDependencies ++= Seq(
     "org.scalatest" %% "scalatest"       % "3.2.19" % Test,
-    "ch.qos.logback" % "logback-classic" % "1.5.26" % Test,
+    "ch.qos.logback" % "logback-classic" % "1.5.32" % Test,
   ),
   // scalafix settings
   semanticdbEnabled := true, // enable SemanticDB
