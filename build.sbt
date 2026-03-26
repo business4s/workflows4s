@@ -241,7 +241,7 @@ lazy val commonSettings = Seq(
   scalaVersion      := "3.8.2",
   scalacOptions ++= Seq("-no-indent", "-Xmax-inlines", "64", "-explain-cyclic", "-Ydebug-cyclic"),
   libraryDependencies ++= Seq(
-    "org.scalatest" %% "scalatest"       % "3.2.19" % Test,
+    "org.scalatest" %% "scalatest"       % "3.2.20" % Test,
     "ch.qos.logback" % "logback-classic" % "1.5.32" % Test,
   ),
   // scalafix settings
