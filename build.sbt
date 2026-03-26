@@ -87,7 +87,7 @@ lazy val `workflows4s-doobie` = (project in file("workflows4s-doobie"))
       "org.tpolecat"  %% "doobie-core"                     % "1.0.0-RC11",
       "com.dimafeng"  %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
       "com.dimafeng"  %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
-      "org.postgresql" % "postgresql"                      % "42.7.9"                   % Test,
+      "org.postgresql" % "postgresql"                      % "42.7.10"                  % Test,
       "org.xerial"     % "sqlite-jdbc"                     % "3.51.1.0"                 % Test,
     ),
   )
@@ -206,7 +206,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "org.apache.pekko"       %% "pekko-actor-testkit-typed"       % pekkoVersion               % Test,
       "com.dimafeng"           %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
       "com.dimafeng"           %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
-      "org.postgresql"          % "postgresql"                      % "42.7.9"                   % Test,
+      "org.postgresql"          % "postgresql"                      % "42.7.10"                  % Test,
       "org.xerial"              % "sqlite-jdbc"                     % "3.51.1.0"                 % Test,
       "org.seleniumhq.selenium" % "selenium-java"                   % "4.27.0"                   % Test,
       "org.seleniumhq.selenium" % "selenium-chrome-driver"          % "4.27.0"                   % Test,
