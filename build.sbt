@@ -97,7 +97,7 @@ lazy val `workflows4s-filesystem` = (project in file("workflows4s-filesystem"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "co.fs2" %% "fs2-io" % "3.12.2",
+      "co.fs2" %% "fs2-io" % "3.13.0",
     ),
   )
   .dependsOn(`workflows4s-core` % "compile->compile;test->test")
