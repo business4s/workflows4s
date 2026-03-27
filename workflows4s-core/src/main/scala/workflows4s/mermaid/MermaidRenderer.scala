@@ -102,7 +102,13 @@ object MermaidRenderer {
                                  throw new Exception(s"""Rendering error handler didn't produce a node. This is unexpected, please report as a bug.
                                                     |Handler: ${handler}""".stripMargin),
                                )
-            _               <- handleErrors(errors, handlerStart)
+            // When no pending errors exist (base has no declared error), connect with a generic "error" edge.
+            // This mostly happens in drafting mode where the user's intent is to have an error path rendered
+            // even though the error type isn't specified yet. In real (non-draft) workflows, a base with no error
+            // would yield `Nothing` as the error type, making the handler unreachable — there is a linter rule
+            // (UnnecessaryErrorHandlerRule) that detects this specifically.
+            _               <- if errors.nonEmpty then handleErrors(errors, handlerStart)
+                               else handleErrors(baseEnds.map((nodeId, _) => (nodeId, WIOMeta.Error("error"))), handlerStart)
             _               <- State.modify[RenderState] { s => s.copy(activeNodes = baseEnds ++ s.activeNodes) }
           } yield baseStart
         case WIOExecutionProgress.End(_)                                      =>
