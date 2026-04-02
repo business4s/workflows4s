@@ -32,7 +32,7 @@ sealed trait WIO[F[_], -In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext] 
 object WIO {
 
   /** A fully-wired workflow that accepts any input and cannot fail. This is the type runtimes operate on. */
-  type Initial[Ctx <: WorkflowContext] = WIO[IO, Any, Nothing, WCState[Ctx], Ctx]
+  type Initial[F[_], Ctx <: WorkflowContext] = WIO[F, Any, Nothing, WCState[Ctx], Ctx]
 
   /** An incomplete workflow used during drafting — produces Nothing, so cannot be executed. */
   type Draft[Ctx <: WorkflowContext] = WIO[IO, Any, Nothing, Nothing, Ctx]

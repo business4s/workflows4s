@@ -7,8 +7,8 @@ import scala.annotation.nowarn
 
 object Interpreter {
 
-  sealed trait EventResponse[Ctx <: WorkflowContext] {
-    def newWorkflow: Option[WIO.Initial[Ctx]] = this match {
+  sealed trait EventResponse[F[_], Ctx <: WorkflowContext] {
+    def newWorkflow: Option[WIO.Initial[F, Ctx]] = this match {
       case EventResponse.Ok(newFlow)       => newFlow.some
       // TODO event is silently ignored here and runtimes have to log it.
       //   Would be good to commonize this behavior
@@ -17,8 +17,8 @@ object Interpreter {
   }
 
   object EventResponse {
-    case class Ok[Ctx <: WorkflowContext](newFlow: WIO.Initial[Ctx]) extends EventResponse[Ctx]
-    case class UnexpectedEvent[Ctx <: WorkflowContext]()             extends EventResponse[Ctx]
+    case class Ok[F[_], Ctx <: WorkflowContext](newFlow: WIO.Initial[F, Ctx]) extends EventResponse[F, Ctx]
+    case class UnexpectedEvent[F[_], Ctx <: WorkflowContext]()                extends EventResponse[F, Ctx]
   }
 
 }

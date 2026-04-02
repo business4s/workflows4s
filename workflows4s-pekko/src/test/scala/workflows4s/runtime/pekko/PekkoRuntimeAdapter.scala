@@ -1,6 +1,7 @@
 package workflows4s.runtime.pekko
 
 import cats.Id
+import cats.effect.IO
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.pekko.actor.typed.*
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
@@ -28,7 +29,7 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(impli
   type Cmd    = WorkflowBehavior.Command[Ctx] | Stop
 
   override def runWorkflow(
-      workflow: WIO.Initial[Ctx],
+      workflow: WIO.Initial[IO, Ctx],
       state: WCState[Ctx],
   ): Actor = {
     // we create unique type key per workflow, so we can ensure we get right actor/behavior/input

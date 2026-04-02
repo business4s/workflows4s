@@ -17,7 +17,7 @@ class SqliteRuntimeAdapter[Ctx <: WorkflowContext](workdir: Path, eventCodec: By
   type Actor = WorkflowInstance[Id, WCState[Ctx]]
 
   override def runWorkflow(
-      workflow: WIO.Initial[Ctx],
+      workflow: WIO.Initial[IO, Ctx],
       state: WCState[Ctx],
   ): Actor = {
     val id      = s"sqlruntime-workflow-${Random.nextLong()}"

@@ -1,13 +1,14 @@
 package workflows4s.runtime
 
 import cats.Id
+import cats.effect.IO
 import cats.effect.unsafe.IORuntime
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.wio.*
 import workflows4s.wio.WIO.Initial
 
 class InMemorySyncRuntime[Ctx <: WorkflowContext](
-    val workflow: Initial[Ctx],
+    val workflow: Initial[IO, Ctx],
     initialState: WCState[Ctx],
     engine: WorkflowInstanceEngine,
     val templateId: String,
@@ -29,7 +30,7 @@ class InMemorySyncRuntime[Ctx <: WorkflowContext](
 
 object InMemorySyncRuntime {
   def create[Ctx <: WorkflowContext](
-      workflow: Initial[Ctx],
+      workflow: Initial[IO, Ctx],
       initialState: WCState[Ctx],
       engine: WorkflowInstanceEngine,
       templateId: String = s"in-memory-sync-runtime-${java.util.UUID.randomUUID().toString.take(8)}",

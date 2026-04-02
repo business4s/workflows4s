@@ -1,6 +1,5 @@
 package workflows4s.wio.internal
 
-import cats.effect.IO
 import com.typesafe.scalalogging.StrictLogging
 import workflows4s.wio.*
 import workflows4s.wio.WIO.HandleInterruption.InterruptionStatus
@@ -50,13 +49,13 @@ object SignalEvaluator {
     new FullScanSignalVisitor(wio).run.distinctBy(_.id)
   }
 
-  def handleSignal[Ctx <: WorkflowContext, Req, Resp, In <: WCState[Ctx], Out <: WCState[Ctx]](
+  def handleSignal[F[_], Ctx <: WorkflowContext, Req, Resp, In <: WCState[Ctx], Out <: WCState[Ctx]](
       signalDef: SignalDef[Req, Resp],
       req: Req,
-      wio: WIO[IO, In, Nothing, Out, Ctx],
+      wio: WIO[F, In, Nothing, Out, Ctx],
       state: In,
   ): SignalResult[WCEvent[Ctx], Resp] = {
-    val matches = new SignalVisitor[IO, Ctx, In, Nothing, Out](wio).run
+    val matches = new SignalVisitor[F, Ctx, In, Nothing, Out](wio).run
       .flatMap(_.tryProduce(signalDef, req, state, state))
 
     // Fresh signals come before redeliverable ones due to traversal order

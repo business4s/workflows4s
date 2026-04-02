@@ -33,7 +33,7 @@ object WorkflowBehavior {
   def apply[Ctx <: WorkflowContext](
       instanceId: WorkflowInstanceId,
       id: PersistenceId,
-      workflow: WIO.Initial[Ctx],
+      workflow: WIO.Initial[IO, Ctx],
       initialState: WCState[Ctx],
       engine: WorkflowInstanceEngine,
   ): Behavior[Command[Ctx]] =
@@ -73,7 +73,7 @@ object WorkflowBehavior {
 private class WorkflowBehavior[Ctx <: WorkflowContext](
     instanceId: WorkflowInstanceId,
     id: PersistenceId,
-    workflow: WIO.Initial[Ctx],
+    workflow: WIO.Initial[IO, Ctx],
     initialState: WCState[Ctx],
     engine: WorkflowInstanceEngine,
 ) extends StrictLogging {
