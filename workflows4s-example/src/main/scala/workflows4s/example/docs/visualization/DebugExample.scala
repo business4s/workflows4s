@@ -11,7 +11,7 @@ import scala.annotation.nowarn
 object DebugExample {
 
   // start_doc
-  val wio: WIO[?, ?, ?, ?] = PullRequestWorkflow.workflow
+  val wio: WIO[?, ?, ?, ?, ?] = PullRequestWorkflow.workflow
   val debugString          = DebugRenderer.getCurrentStateDescription(wio.toProgress)
   // end_doc
 

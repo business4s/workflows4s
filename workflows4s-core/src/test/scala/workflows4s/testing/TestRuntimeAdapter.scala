@@ -22,7 +22,7 @@ trait TestRuntimeAdapter[Ctx <: WorkflowContext] extends StrictLogging {
   type Actor <: WorkflowInstance[Id, WCState[Ctx]]
 
   def runWorkflow(
-      workflow: WIO[Any, Nothing, WCState[Ctx], Ctx],
+      workflow: WIO[IO, Any, Nothing, WCState[Ctx], Ctx],
       state: WCState[Ctx],
   ): Actor
 

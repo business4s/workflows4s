@@ -60,7 +60,7 @@ class WIOPureTest extends AnyFreeSpec with Matchers {
       val base = WIO.pure("initialState")
 
       extension (x: WIO[?, ?, ?]) {
-        def extractMeta: Pure.Meta = x.asInstanceOf[workflows4s.wio.WIO.Pure[?, ?, ?, ?]].meta
+        def extractMeta: Pure.Meta = x.asInstanceOf[workflows4s.wio.WIO.Pure[?, ?, ?, ?, ?]].meta
       }
 
       "defaults" in {

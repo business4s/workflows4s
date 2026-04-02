@@ -1,5 +1,6 @@
 package workflows4s.wio.builders
 
+import cats.effect.IO
 import workflows4s.wio.internal.WorkflowEmbedding
 import workflows4s.wio.model.{ModelUtils, WIOMeta}
 import workflows4s.wio.*
@@ -20,13 +21,13 @@ object ForEachBuilder {
 
         case class Step2_1[InnerCtx <: WorkflowContext]() {
           def apply[Err, Out <: WCState[InnerCtx]](
-              wio: WIO[Elem, Err, Out, InnerCtx],
+              wio: WIO[IO, Elem, Err, Out, InnerCtx],
               initialState: => WCState[InnerCtx],
           ): Step3[InnerCtx, Err, Out] =
             Step3(wio, () => initialState)
 
           case class Step3[InnerCtx <: WorkflowContext, Err, ElemOut <: WCState[InnerCtx]](
-              private val forEachElem: WIO[Elem, Err, ElemOut, InnerCtx],
+              private val forEachElem: WIO[IO, Elem, Err, ElemOut, InnerCtx],
               private val initialState: () => WCState[InnerCtx],
           ) {
 
@@ -64,7 +65,7 @@ object ForEachBuilder {
 
                     def autoNamed()(using n: sourcecode.Name) = named(ModelUtils.prettifyName(n.value))
 
-                    def build(name: Option[String]): WIO.ForEach[Ctx, In, Err, Out, Elem, InnerCtx, ElemOut, InterimState] = {
+                    def build(name: Option[String]): WIO.ForEach[IO, Ctx, In, Err, Out, Elem, InnerCtx, ElemOut, InterimState] = {
                       WIO.ForEach(
                         getElements = getElements,
                         elemWorkflow = forEachElem,

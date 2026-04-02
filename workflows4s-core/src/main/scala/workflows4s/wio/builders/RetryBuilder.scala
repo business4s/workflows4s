@@ -9,13 +9,13 @@ import scala.reflect.ClassTag
 
 object RetryBuilder {
 
-  class Step0[In, Err, Out <: WCState[Ctx], Ctx <: WorkflowContext](base: WIO[In, Err, Out, Ctx]) {
+  class Step0[F[_], In, Err, Out <: WCState[Ctx], Ctx <: WorkflowContext](base: WIO[F, In, Err, Out, Ctx]) {
 
     object statelessly {
 
       type HandlerInput = (stepInput: In, error: Throwable, workflowState: WCState[Ctx])
 
-      def wakeupAt(onError: HandlerInput => IO[Option[Instant]]): WIO[In, Err, Out, Ctx] = {
+      def wakeupAt(onError: HandlerInput => IO[Option[Instant]]): WIO[F, In, Err, Out, Ctx] = {
         val mode = WIO.Retry.Mode.Stateless[Ctx, In]((in, err, state, _) =>
           onError(in, err, state).map({
             case Some(value) => WIO.Retry.Stateless.Result.ScheduleWakeup(value)
@@ -25,7 +25,7 @@ object RetryBuilder {
         WIO.Retry(base, mode)
       }
 
-      def wakeupIn(onError: PartialFunction[Throwable, Duration]): WIO[In, Err, Out, Ctx] = {
+      def wakeupIn(onError: PartialFunction[Throwable, Duration]): WIO[F, In, Err, Out, Ctx] = {
         val mode = WIO.Retry.Mode.Stateless[Ctx, In]((_, err, _, now) => {
           IO.pure(onError.lift(err) match {
             case Some(backoff) => WIO.Retry.Stateless.Result.ScheduleWakeup(now.plus(backoff))
@@ -50,7 +50,7 @@ object RetryBuilder {
 
         type EventHandlerInput = (stepInput: In, event: Event, workflowState: WCState[Ctx], retryState: Option[RetryState])
 
-        def handleEventsWith(onEvent: EventHandlerInput => Either[RetryState, Either[Err, Out]]): WIO.Retry[Ctx, In, Err, Out] = {
+        def handleEventsWith(onEvent: EventHandlerInput => Either[RetryState, Either[Err, Out]]): WIO.Retry[F, Ctx, In, Err, Out] = {
           val evtHandler =
             EventHandler.partial[WCEvent[Ctx], (In, WCState[Ctx], Option[RetryState]), Either[RetryState, Either[Err, Out]], Event](
               identity,

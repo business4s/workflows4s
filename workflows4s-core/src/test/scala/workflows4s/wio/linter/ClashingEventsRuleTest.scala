@@ -1,5 +1,6 @@
 package workflows4s.wio.linter
 
+import cats.effect.IO
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 import workflows4s.wio.{Linter, TestCtx2, TestState, WIO}
@@ -24,7 +25,7 @@ class ClashingEventsRuleTest extends AnyFreeSpec with Matchers {
 
     "should detect clashing events in interruption" in {
       val recover      = TestCtx2.WIO.recover((st: TestState, _: TestCtx2.SimpleEvent) => st)
-      val interruption = WIO.Interruption[TestCtx2.Ctx, Nothing, TestState](recover, WIO.HandleInterruption.InterruptionType.Signal)
+      val interruption = WIO.Interruption[IO, TestCtx2.Ctx, Nothing, TestState](recover, WIO.HandleInterruption.InterruptionType.Signal)
       val wf           = recover.interruptWith(interruption)
 
       val issues = Linter.lint(wf)

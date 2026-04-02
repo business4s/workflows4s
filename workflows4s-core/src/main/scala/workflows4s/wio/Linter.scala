@@ -11,14 +11,14 @@ case class LinterIssue(message: String, ruleId: String, path: List[String]) {
   */
 object Linter {
 
-  def lint(wio: WIO[?, ?, ?, ?]): List[LinterIssue] = {
+  def lint(wio: WIO[?, ?, ?, ?, ?]): List[LinterIssue] = {
     val rules = List(ClashingSignalsRule, BusyLoopRule, UnnecessaryErrorHandlerRule, ClashingEventsRule)
     rules.flatMap(_.check(wio))
   }
 
   trait Rule {
     def id: String
-    def check(wio: WIO[?, ?, ?, ?]): List[LinterIssue]
+    def check(wio: WIO[?, ?, ?, ?, ?]): List[LinterIssue]
   }
 
 }
