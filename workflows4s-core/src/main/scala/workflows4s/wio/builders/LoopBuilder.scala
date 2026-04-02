@@ -36,7 +36,11 @@ object LoopBuilder {
             private val conditionName: Option[String] = None,
         ) {
 
-          def named(conditionName: String = null, releaseBranchName: String = null, restartBranchName: String = null): WIO[IO, BodyIn, Err, Out, Ctx] =
+          def named(
+              conditionName: String = null,
+              releaseBranchName: String = null,
+              restartBranchName: String = null,
+          ): WIO[IO, BodyIn, Err, Out, Ctx] =
             this
               .copy(
                 releaseBranchName = Option(releaseBranchName).orElse(this.releaseBranchName),

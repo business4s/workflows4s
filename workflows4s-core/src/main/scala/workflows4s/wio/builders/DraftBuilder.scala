@@ -17,7 +17,7 @@ object DraftBuilder {
     val draft: DraftBuilderStep1.type = DraftBuilderStep1
 
     object DraftBuilderStep1 {
-      def signal(name: String = null, error: String = null)(using autoName: sourcecode.Name): WIO.Draft[Ctx]                                  =
+      def signal(name: String = null, error: String = null)(using autoName: sourcecode.Name): WIO.Draft[Ctx]                                      =
         WIO.HandleSignal(
           draftSignal,
           SignalHandler[Unit, Unit, Any]((_, _) => ???),
@@ -75,7 +75,10 @@ object DraftBuilder {
 
       def parallel(elements: WIO.Draft[Ctx]*): WIO.Draft[Ctx] = {
         val parallelElements = elements.map { element =>
-          WIO.Parallel.Element[IO, Ctx, Any, Nothing, WCState[Ctx], WCState[Ctx]](element.map(_ => ???), (interimState: WCState[Ctx], _: WCState[Ctx]) => interimState)
+          WIO.Parallel.Element[IO, Ctx, Any, Nothing, WCState[Ctx], WCState[Ctx]](
+            element.map(_ => ???),
+            (interimState: WCState[Ctx], _: WCState[Ctx]) => interimState,
+          )
         }
         WIO
           .Parallel[IO, Ctx, Any, Nothing, WCState[Ctx], WCState[Ctx]](

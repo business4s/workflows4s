@@ -36,7 +36,7 @@ object ExecutionProgressEvaluator {
     }
     def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[F, Ctx, In1, Err1, Out1, In, Out, Err]): Result          =
       recurse(wio.base, input.map(wio.contramapInput))
-    def onNoop(wio: WIO.End[F, Ctx]): Result                                                                               = WIOExecutionProgress.End(result)
+    def onNoop(wio: WIO.End[F, Ctx]): Result                                                                              = WIOExecutionProgress.End(result)
     def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[F, Ctx, In, Err, Out, ErrIn, TempOut]): Result = {
       WIOExecutionProgress.HandleError(
         recurse(wio.base, input, None),
@@ -85,7 +85,7 @@ object ExecutionProgressEvaluator {
 
     def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_ <: WCState[InnerCtx]] <: WCState[Ctx]](
         wio: WIO.Embedded[F, Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
-    ): Result                                                                        = {
+    ): Result                                                                           = {
       // We could express embedding in model but need a use case for it.
       val visitor = new ExecProgressVisitor(
         wio.inner,

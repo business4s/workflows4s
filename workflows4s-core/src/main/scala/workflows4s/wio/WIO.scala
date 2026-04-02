@@ -123,13 +123,14 @@ object WIO {
     sealed trait State[F[_], Ctx <: WorkflowContext, -In, +Err, BodyIn, BodyOut] {
       def wio: WIO[F, In, Err, WCState[Ctx], Ctx]
     }
-    object State                                                                  {
+    object State                                                                 {
       case class Forward[F[_], Ctx <: WorkflowContext, In, Err, BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx]](wio: WIO[F, In, Err, BodyOut, Ctx])
           extends State[F, Ctx, In, Err, BodyIn, BodyOut]
       case class Backward[F[_], Ctx <: WorkflowContext, In, Err, BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx]](wio: WIO[F, In, Err, BodyIn, Ctx])
           extends State[F, Ctx, In, Err, BodyIn, BodyOut]
-      case class Finished[F[_], Ctx <: WorkflowContext, In, Err, BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx]](wio: WIO.Executed[F, Ctx, Err, BodyOut, In])
-          extends State[F, Ctx, In, Err, BodyIn, BodyOut]
+      case class Finished[F[_], Ctx <: WorkflowContext, In, Err, BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx]](
+          wio: WIO.Executed[F, Ctx, Err, BodyOut, In],
+      ) extends State[F, Ctx, In, Err, BodyIn, BodyOut]
     }
     case class Meta(
         releaseBranchName: Option[String],

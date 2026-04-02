@@ -56,11 +56,12 @@ object InterruptionBuilder {
               WIO.Interruption(source(None, None), tpe)
 
             private def source(operationName: Option[String], signalName: Option[String]): WIO[IO, Input, Err, Out, Ctx] = {
-              val eh: EventHandler[Input, Either[Err, Out], WCEvent[Ctx], Evt]         =
+              val eh: EventHandler[Input, Either[Err, Out], WCEvent[Ctx], Evt]             =
                 EventHandler.partial[WCEvent[Ctx], Input, Either[Err, Out], Evt](identity, eventHandler)(using evtCt)
-              val sh: SignalHandler[Req, Evt, Input]                                   = SignalHandler(signalHandler)
-              val meta                                                                 = WIO.HandleSignal.Meta(errorMeta, signalName.getOrElse(ModelUtils.getPrettyNameForClass(signalDef.reqCt)), operationName)
-              val handleSignal: WIO.HandleSignal[IO, Ctx, Input, Out, Err, Req, Resp, Evt] = WIO.HandleSignal(signalDef, sh, eh, responseBuilder, meta)
+              val sh: SignalHandler[Req, Evt, Input]                                       = SignalHandler(signalHandler)
+              val meta                                                                     = WIO.HandleSignal.Meta(errorMeta, signalName.getOrElse(ModelUtils.getPrettyNameForClass(signalDef.reqCt)), operationName)
+              val handleSignal: WIO.HandleSignal[IO, Ctx, Input, Out, Err, Req, Resp, Evt] =
+                WIO.HandleSignal(signalDef, sh, eh, responseBuilder, meta)
               handleSignal
             }
 
@@ -109,7 +110,7 @@ object InterruptionBuilder {
 
           private def source(name: Option[String]): WIO[IO, Input, Nothing, WCState[Ctx], Ctx] =
             WIO.Timer(durationSource, startedEventHandler, name, releasedEventHandler)
-          private def tpe: InterruptionType                                                = InterruptionType.Timer
+          private def tpe: InterruptionType                                                    = InterruptionType.Timer
         }
       }
 

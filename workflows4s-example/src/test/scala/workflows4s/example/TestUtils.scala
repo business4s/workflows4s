@@ -22,7 +22,7 @@ object TestUtils {
     .getParent                            // workflows4s-example
     .resolve("src/test/resources")
 
-  val jsonPrinter                                           = Printer.spaces2
+  val jsonPrinter                                              = Printer.spaces2
   def renderModelToFile(wio: WIO[?, ?, ?, ?, ?], path: String) = {
     val model           = wio.toProgress.toModel
     val modelJson: Json = model.asJson

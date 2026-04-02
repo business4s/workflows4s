@@ -62,7 +62,7 @@ object TestUtils {
     val stepId = StepId.random("pure")
     (stepId, WIO.pure.makeFrom[TestState].value(_.addExecuted(stepId)).done)
   }
-  def error: (Error, WIO[IO, Any, String, Nothing, TestCtx2.Ctx])      = {
+  def error: (Error, WIO[IO, Any, String, Nothing, TestCtx2.Ctx])          = {
     import TestCtx2.*
     val error = s"error-${UUID.randomUUID()}"
     (error, WIO.pure.error(error).done)

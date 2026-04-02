@@ -62,7 +62,7 @@ trait WIOMethods[F[_], Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] 
 
   def asExecuted: Option[WIO.Executed[F, Ctx, Err, Out, ?]] = this match {
     case x: WIO.Executed[F, Ctx, Err, Out, ?] => x.some
-    case _                                     => None
+    case _                                    => None
   }
 
   type Now = Instant
