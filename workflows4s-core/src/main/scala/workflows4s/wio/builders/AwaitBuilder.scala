@@ -1,7 +1,6 @@
 package workflows4s.wio.builders
 
 import scala.jdk.DurationConverters.*
-import cats.effect.IO
 import workflows4s.wio.*
 import workflows4s.wio.WIO.Timer
 import workflows4s.wio.WIO.Timer.DurationSource
@@ -13,7 +12,7 @@ import scala.reflect.ClassTag
 
 object AwaitBuilder {
 
-  trait Step0[Ctx <: WorkflowContext]() {
+  trait Step0[F[_], Ctx <: WorkflowContext]() {
 
     def await[In <: WCState[Ctx]](duration: java.time.Duration): AwaitBuilderStep1[In]                       = AwaitBuilderStep1(DurationSource.Static(duration))
     def await[In <: WCState[Ctx]](duration: scala.concurrent.duration.FiniteDuration): AwaitBuilderStep1[In] = AwaitBuilderStep1(
@@ -21,16 +20,6 @@ object AwaitBuilder {
     )
 
     case class AwaitBuilderStep1[InOut <: WCState[Ctx]](private val durationSource: DurationSource[InOut]) {
-
-      // raw variant
-//      def persistThrough(incorporate: WIO.Timer.Started => WCEvent[Ctx], detect: WCEvent[Ctx] => Option[WIO.Timer.Started]): Step2 = {
-//        val evtHanlder: EventHandler[InOut, Unit, WCEvent[Ctx], Timer.Started] = EventHandler(
-//          detect,
-//          incorporate,
-//          (_, _) => (),
-//        )
-//        Step2(evtHanlder)
-//      }
 
       def persistStartThrough[Evt <: WCEvent[Ctx]](
           incorporate: WIO.Timer.Started => Evt,
@@ -62,12 +51,12 @@ object AwaitBuilder {
             private val name: Option[String] = None,
         ) {
 
-          def named(timerName: String): WIO.Timer[IO, Ctx, InOut, Nothing, InOut] = this.copy(name = Some(timerName)).done
+          def named(timerName: String): WIO.Timer[F, Ctx, InOut, Nothing, InOut] = this.copy(name = Some(timerName)).done
 
-          def autoNamed(using name: sourcecode.Name): WIO.Timer[IO, Ctx, InOut, Nothing, InOut] =
+          def autoNamed(using name: sourcecode.Name): WIO.Timer[F, Ctx, InOut, Nothing, InOut] =
             this.copy(name = Some(ModelUtils.prettifyName(name.value))).done
 
-          def done: WIO.Timer[IO, Ctx, InOut, Nothing, InOut] = WIO.Timer(durationSource, startedEventHandler, name, releasedEventHandler)
+          def done: WIO.Timer[F, Ctx, InOut, Nothing, InOut] = WIO.Timer(durationSource, startedEventHandler, name, releasedEventHandler)
         }
       }
 

@@ -333,7 +333,7 @@ object WIO {
 
   // -----
 
-  def build[Ctx <: WorkflowContext]: AllBuilders[Ctx] = new AllBuilders[Ctx] {}
+  def build[F[_], Ctx <: WorkflowContext]: AllBuilders[F, Ctx] = new AllBuilders[F, Ctx] {}
 
   case class Branch[F[_], -In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext, BranchIn](
       condition: In => Option[BranchIn],
