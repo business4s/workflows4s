@@ -20,7 +20,7 @@ object DraftBuilder {
       def signal(name: String = null, error: String = null)(using autoName: sourcecode.Name): WIO.Draft[Ctx]                                      =
         WIO.HandleSignal(
           draftSignal,
-          SignalHandler[Unit, Unit, Any]((_, _) => ???),
+          SignalHandler[IO, Unit, Unit, Any]((_, _) => ???),
           dummyEventHandler,
           (_, _, _) => (), // responseProducer
           WIO.HandleSignal.Meta(
@@ -100,7 +100,7 @@ object DraftBuilder {
         val draftSignalHandling: WIO[IO, WCState[Ctx], Nothing, Nothing, Ctx] = WIO
           .HandleSignal(
             draftSignal,
-            SignalHandler[Unit, Unit, WCState[Ctx]]((_, _) => ???),
+            SignalHandler[IO, Unit, Unit, WCState[Ctx]]((_, _) => ???),
             dummyEventHandler[WCEvent[Ctx], Unit],
             (_, _, _) => (), // responseProducer
             WIO.HandleSignal.Meta(
@@ -137,7 +137,7 @@ object DraftBuilder {
         WIO
           .Retry(
             base,
-            WIO.Retry.Mode.Stateless((_: Any, _: Throwable, _: WCState[Ctx], _: java.time.Instant) => ???),
+            WIO.Retry.Mode.Stateless[IO, Ctx, Any]((_: Any, _: Throwable, _: WCState[Ctx], _: java.time.Instant) => ???),
           )
       }
       def checkpoint(base: WIO.Draft[Ctx]): WIO.Draft[Ctx] = WIO.Checkpoint(base, (_, _) => ???, dummyEventHandler)

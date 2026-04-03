@@ -29,7 +29,7 @@ case class ActiveWorkflow[Ctx <: WorkflowContext](id: WorkflowInstanceId, wio: W
     SignalEvaluator.getExpectedSignals(wf.wio, includeRedeliverable)
   }
 
-  def handleSignal[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req): SignalResult[WCEvent[Ctx], Resp] = {
+  def handleSignal[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req): SignalResult[IO, WCEvent[Ctx], Resp] = {
     val wf = effectlessProceed
     SignalEvaluator.handleSignal(signalDef, req, wf.wio, wf.staticState)
   }
@@ -43,7 +43,7 @@ case class ActiveWorkflow[Ctx <: WorkflowContext](id: WorkflowInstanceId, wio: W
       .map(x => x.effectlessProceed)
   }
 
-  def proceed(now: Instant): WakeupResult[WCEvent[Ctx]] = {
+  def proceed(now: Instant): WakeupResult[IO, WCEvent[Ctx]] = {
     val wf = effectlessProceed
     RunIOEvaluator.proceed(wf.wio, wf.staticState, now)
   }

@@ -13,14 +13,14 @@ trait DelegatingWorkflowInstanceEngine extends WorkflowInstanceEngine {
   def getExpectedSignals[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx], includeRedeliverable: Boolean = false): IO[List[SignalDef[?, ?]]] =
     delegate.getExpectedSignals(workflow, includeRedeliverable)
 
-  override def triggerWakeup[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[WakeupResult[WCEvent[Ctx]]] =
+  override def triggerWakeup[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[WakeupResult[IO, WCEvent[Ctx]]] =
     delegate.triggerWakeup(workflow)
 
   override def handleSignal[Ctx <: WorkflowContext, Req, Resp](
       workflow: ActiveWorkflow[Ctx],
       signalDef: SignalDef[Req, Resp],
       req: Req,
-  ): IO[SignalResult[WCEvent[Ctx], Resp]] = delegate.handleSignal(workflow, signalDef, req)
+  ): IO[SignalResult[IO, WCEvent[Ctx], Resp]] = delegate.handleSignal(workflow, signalDef, req)
 
   override def handleEvent[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx], event: WCEvent[Ctx]): SyncIO[Option[ActiveWorkflow[Ctx]]] =
     delegate.handleEvent(workflow, event)

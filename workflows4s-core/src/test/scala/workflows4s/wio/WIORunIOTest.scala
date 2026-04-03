@@ -6,7 +6,7 @@ import org.scalatest.{EitherValues, OptionValues}
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 import workflows4s.wio.WIO.RunIO
-import workflows4s.wio.internal.SignalResult
+import workflows4s.wio.internal.{SignalResult, WakeupResult}
 
 import java.time.Instant
 
@@ -25,8 +25,8 @@ class WIORunIOTest extends AnyFreeSpec, Matchers, EitherValues, OptionValues {
 
       val resultOpt = wf.proceed(Instant.now)
 
-      assert(resultOpt.toRaw.isDefined)
-      val newEvent = resultOpt.toRaw.get.unsafeRunSync().toOption.value
+      assert(WakeupResult.toRaw(resultOpt).isDefined)
+      val newEvent = WakeupResult.toRaw(resultOpt).get.unsafeRunSync().toOption.value
       assert(newEvent == SimpleEvent("ProcessedEvent(initialState)"))
     }
 
@@ -37,7 +37,7 @@ class WIORunIOTest extends AnyFreeSpec, Matchers, EitherValues, OptionValues {
         .done
         .toWorkflow("initialState")
 
-      val Some(result) = wf.proceed(Instant.now).toRaw: @unchecked
+      val Some(result) = WakeupResult.toRaw(wf.proceed(Instant.now)): @unchecked
 
       val Left(ex) = result.attempt.unsafeRunSync(): @unchecked
       assert(ex.getMessage == "IO failed")
@@ -63,7 +63,7 @@ class WIORunIOTest extends AnyFreeSpec, Matchers, EitherValues, OptionValues {
 
       val result = wf.handleSignal(SignalDef[String, String]())("")
 
-      assert(result == SignalResult.UnexpectedSignal)
+      assert(result == SignalResult.UnexpectedSignal())
     }
 
     "metadata attachment" - {

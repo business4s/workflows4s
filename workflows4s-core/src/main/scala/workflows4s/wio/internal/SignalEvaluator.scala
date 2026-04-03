@@ -1,5 +1,6 @@
 package workflows4s.wio.internal
 
+import cats.Functor
 import com.typesafe.scalalogging.StrictLogging
 import workflows4s.wio.*
 import workflows4s.wio.WIO.HandleInterruption.InterruptionStatus
@@ -49,17 +50,17 @@ object SignalEvaluator {
     new FullScanSignalVisitor(wio).run.distinctBy(_.id)
   }
 
-  def handleSignal[F[_], Ctx <: WorkflowContext, Req, Resp, In <: WCState[Ctx], Out <: WCState[Ctx]](
+  def handleSignal[F[_]: Functor, Ctx <: WorkflowContext, Req, Resp, In <: WCState[Ctx], Out <: WCState[Ctx]](
       signalDef: SignalDef[Req, Resp],
       req: Req,
       wio: WIO[F, In, Nothing, Out, Ctx],
       state: In,
-  ): SignalResult[WCEvent[Ctx], Resp] = {
+  ): SignalResult[F, WCEvent[Ctx], Resp] = {
     val matches = new SignalVisitor[F, Ctx, In, Nothing, Out](wio).run
       .flatMap(_.tryProduce(signalDef, req, state, state))
 
     // Fresh signals come before redeliverable ones due to traversal order
-    matches.headOption.getOrElse(SignalResult.UnexpectedSignal)
+    matches.headOption.getOrElse(SignalResult.UnexpectedSignal())
   }
 
   /** Captures a signal handler location in the WIO tree plus transformations needed to execute it.
@@ -141,7 +142,7 @@ object SignalEvaluator {
         request: Req1,
         input: TopIn,
         topState: TopState,
-    ): Option[SignalResult[OutEvent, Resp1]] =
+    )(using Functor[F]): Option[SignalResult[F, OutEvent, Resp1]] =
       for {
         _           <- Option.when(outerSignalDef.id == signalDef.id)(())
         innerReq    <- unwrapRequest(request, input, topState)
@@ -160,7 +161,9 @@ object SignalEvaluator {
         throw new Exception(s"Request type mismatch for signal ${node.sigDef.name}. Expected: ${node.sigDef.reqCt}, got: $request")
       }
 
-    private def produceResult[Resp1](typedReq: Req, localInput: LocalIn, outerSignalDef: SignalDef[?, Resp1]): SignalResult[OutEvent, Resp1] =
+    private def produceResult[Resp1](typedReq: Req, localInput: LocalIn, outerSignalDef: SignalDef[?, Resp1])(using
+        Functor[F],
+    ): SignalResult[F, OutEvent, Resp1] =
       storedEvent match {
         case Some(evt) => redeliverFromStoredEvent(typedReq, localInput, evt, outerSignalDef)
         case None      => handleFreshSignal(typedReq, localInput, outerSignalDef)
@@ -171,7 +174,7 @@ object SignalEvaluator {
         localInput: LocalIn,
         evt: WCEvent[LocalCtx],
         outerSignalDef: SignalDef[?, Resp1],
-    ): SignalResult[OutEvent, Resp1] = {
+    ): SignalResult[F, OutEvent, Resp1] = {
       val typedEvent = node.evtHandler.detect(evt).getOrElse {
         throw new Exception(s"Stored event type mismatch during redelivery for signal ${node.sigDef.name}")
       }
@@ -183,8 +186,8 @@ object SignalEvaluator {
         typedReq: Req,
         localInput: LocalIn,
         outerSignalDef: SignalDef[?, Resp1],
-    ): SignalResult[OutEvent, Resp1] = {
-      SignalResult.Processed(node.sigHandler.handle(localInput, typedReq).map { evt =>
+    )(using Functor[F]): SignalResult[F, OutEvent, Resp1] = {
+      SignalResult.Processed(Functor[F].map(node.sigHandler.handle(localInput, typedReq)) { evt =>
         val convertedEvent = eventTransform(node.evtHandler.convert(evt))
         val response       = node.responseProducer(localInput, evt, typedReq)
         SignalResult.ProcessingResult(convertedEvent, extractTypedResponse(outerSignalDef, response))
