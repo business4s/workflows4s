@@ -1,11 +1,10 @@
 package workflows4s.wio.builders
 
-import cats.effect.IO
 import workflows4s.wio.{WCState, WIO, WorkflowContext}
 
 object ParallelBuilder {
 
-  trait Step0[Ctx <: WorkflowContext]() {
+  trait Step0[F[_], Ctx <: WorkflowContext]() {
 
     def parallel: ParallelStep1 = ParallelStep1()
 
@@ -20,15 +19,15 @@ object ParallelBuilder {
 
         case class Step3[Err, InterimState <: WCState[Ctx], OutAcc <: Tuple](
             protected val initial: In => InterimState,
-            protected val elems: Seq[WIO.Parallel.Element[IO, Ctx, In, Err, WCState[Ctx], InterimState]],
+            protected val elems: Seq[WIO.Parallel.Element[F, Ctx, In, Err, WCState[Ctx], InterimState]],
         ) {
 
           def withElement[Out <: WCState[Ctx], NewErr >: Err](
-              logic: WIO[IO, In, NewErr, Out, Ctx],
+              logic: WIO[F, In, NewErr, Out, Ctx],
               incorporatedWith: (InterimState, WCState[Ctx]) => InterimState,
           ): Step3[NewErr, InterimState, Out *: OutAcc] = this.copy(elems = elems.appended(WIO.Parallel.Element(logic, incorporatedWith)))
 
-          def producingOutputWith[Out <: WCState[Ctx]](f: OutAcc => Out): WIO.Parallel[IO, Ctx, In, Err, Out, InterimState] = WIO.Parallel(
+          def producingOutputWith[Out <: WCState[Ctx]](f: OutAcc => Out): WIO.Parallel[F, Ctx, In, Err, Out, InterimState] = WIO.Parallel(
             elements = elems,
             formResult = resultsSeq => f(Tuple.fromArray(resultsSeq.toArray[Any]).asInstanceOf[OutAcc]),
             initialInterimState = initial,

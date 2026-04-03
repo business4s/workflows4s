@@ -23,7 +23,7 @@ trait WorkflowContext { ctx: WorkflowContext =>
   type Ctx = WorkflowContext.AUX[State, Event]
 
   type WIO[-In, +Err, +Out <: State] = workflows4s.wio.WIO[IO, In, Err, Out, Ctx]
-  object WIO extends AllBuilders[Ctx] {
+  object WIO extends AllBuilders[IO, Ctx] {
     export workflows4s.wio.WIO.{Branch as _, Draft as _, Initial as _, Interruption as _, *}
 
     type Branch[-In, +Err, +Out <: State]  = workflows4s.wio.WIO.Branch[IO, In, Err, Out, Ctx, ?]
@@ -31,7 +31,7 @@ trait WorkflowContext { ctx: WorkflowContext =>
     type Draft                             = WIO[Any, Nothing, Nothing]
     type Initial                           = workflows4s.wio.WIO.Initial[IO, Ctx]
 
-    def interruption: InterruptionBuilder.Step0[Ctx] = InterruptionBuilder.Step0[Ctx]()
+    def interruption: InterruptionBuilder.Step0[IO, Ctx] = InterruptionBuilder.Step0[IO, Ctx]()
   }
 }
 

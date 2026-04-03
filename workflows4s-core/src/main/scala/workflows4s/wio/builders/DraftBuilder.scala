@@ -67,8 +67,9 @@ object DraftBuilder {
           onRestart: WIO.Draft[Ctx] = null,
       ): WIO.Draft[Ctx] = {
         val base: WIO[IO, WCState[Ctx], Nothing, WCState[Ctx], Ctx] = Option(onRestart) match {
-          case Some(_) => WIO.build[Ctx].repeat(body).until(_ => ???).onRestart(onRestart).named(conditionName, releaseBranchName, restartBranchName)
-          case None    => WIO.build[Ctx].repeat(body).until(_ => ???).onRestartContinue.named(conditionName, releaseBranchName, restartBranchName)
+          case Some(_) =>
+            WIO.build[IO, Ctx].repeat(body).until(_ => ???).onRestart(onRestart).named(conditionName, releaseBranchName, restartBranchName)
+          case None    => WIO.build[IO, Ctx].repeat(body).until(_ => ???).onRestartContinue.named(conditionName, releaseBranchName, restartBranchName)
         }
         base.transformInput((_: Any) => ???).map(_ => ???)
       }
