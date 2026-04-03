@@ -22,7 +22,7 @@ trait TestRuntimeAdapter[Ctx <: WorkflowContext] extends StrictLogging {
   type Actor <: WorkflowInstance[Id, WCState[Ctx]]
 
   def runWorkflow(
-      workflow: WIO[Any, Nothing, WCState[Ctx], Ctx],
+      workflow: WIO[IO, Any, Nothing, WCState[Ctx], Ctx],
       state: WCState[Ctx],
   ): Actor
 
@@ -46,7 +46,7 @@ object TestRuntimeAdapter {
   case class InMemorySync[Ctx <: WorkflowContext]() extends TestRuntimeAdapter[Ctx] {
 
     override def runWorkflow(
-        workflow: WIO.Initial[Ctx],
+        workflow: WIO.Initial[IO, Ctx],
         state: WCState[Ctx],
     ): Actor = {
       val runtime = new InMemorySyncRuntime[Ctx](workflow, state, engine, "test")(using IORuntime.global)
@@ -73,7 +73,7 @@ object TestRuntimeAdapter {
   case class InMemory[Ctx <: WorkflowContext]() extends TestRuntimeAdapter[Ctx] {
 
     override def runWorkflow(
-        workflow: WIO.Initial[Ctx],
+        workflow: WIO.Initial[IO, Ctx],
         state: WCState[Ctx],
     ): Actor = {
       val runtime = InMemoryRuntime.default[Ctx](workflow, state, engine).unsafeRunSync()

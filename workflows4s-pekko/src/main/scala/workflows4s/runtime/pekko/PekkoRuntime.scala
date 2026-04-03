@@ -1,5 +1,6 @@
 package workflows4s.runtime.pekko
 
+import cats.effect.IO
 import org.apache.pekko.actor.typed.ActorSystem
 import org.apache.pekko.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity, EntityTypeKey}
 import org.apache.pekko.persistence.typed.PersistenceId
@@ -22,7 +23,7 @@ trait PekkoRuntime[Ctx <: WorkflowContext] extends WorkflowRuntime[Future, Ctx] 
 }
 
 class PekkoRuntimeImpl[Ctx <: WorkflowContext](
-    val workflow: Initial[Ctx],
+    val workflow: Initial[IO, Ctx],
     initialState: WCState[Ctx],
     entityName: String,
     engine: WorkflowInstanceEngine,
@@ -60,14 +61,14 @@ object PekkoRuntime {
 
   def create[Ctx <: WorkflowContext](
       entityName: String,
-      workflow: Initial[Ctx],
+      workflow: Initial[IO, Ctx],
       initialState: WCState[Ctx],
       engine: WorkflowInstanceEngine,
   )(using
       system: ActorSystem[?],
   ): PekkoRuntime[Ctx] = {
     // this might need customization if you have two clusters with the same entities but workflows from both in the same knocker-upper/registry.
-    val templateId = s"pekko-runtime-$entityName}"
+    val templateId = s"pekko-runtime-$entityName"
     new PekkoRuntimeImpl(workflow, initialState, entityName, engine, templateId)
   }
 

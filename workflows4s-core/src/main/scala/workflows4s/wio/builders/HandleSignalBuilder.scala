@@ -46,16 +46,16 @@ object HandleSignalBuilder {
 
             class Step4(responseBuilder: (Input, Evt, Req) => Resp, operationName: Option[String], signalName: Option[String]) {
 
-              def named(operationName: String = null, signalName: String = null): WIO[Input, Err, Out, Ctx] =
+              def named(operationName: String = null, signalName: String = null): WIO[IO, Input, Err, Out, Ctx] =
                 Step4(
                   responseBuilder,
                   Option(operationName).orElse(this.operationName),
                   Option(signalName).orElse(this.signalName),
                 ).done
 
-              def autoNamed(using n: sourcecode.Name): WIO[Input, Err, Out, Ctx] = named(operationName = ModelUtils.prettifyName(n.value))
+              def autoNamed(using n: sourcecode.Name): WIO[IO, Input, Err, Out, Ctx] = named(operationName = ModelUtils.prettifyName(n.value))
 
-              def done: WIO.IHandleSignal[Input, Err, Out, Ctx] = {
+              def done: WIO.IHandleSignal[IO, Input, Err, Out, Ctx] = {
                 val eh: EventHandler[Input, Either[Err, Out], WCEvent[Ctx], Evt] =
                   EventHandler.partial[WCEvent[Ctx], Input, Either[Err, Out], Evt](identity, eventHandler)(using evtCt)
                 val sh: SignalHandler[Req, Evt, Input]                           = SignalHandler(signalHandler)

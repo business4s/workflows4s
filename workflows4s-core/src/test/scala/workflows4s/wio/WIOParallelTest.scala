@@ -1,5 +1,6 @@
 package workflows4s.wio
 
+import cats.effect.IO
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{EitherValues, OptionValues}
@@ -86,7 +87,7 @@ class WIOParallelTest extends AnyFreeSpec with Matchers with OptionValues with E
   def createParallel[Err](
       step1: TestCtx2.WIO[TestState, Err, TestState],
       step2: TestCtx2.WIO[TestState, Err, TestState],
-  ): (StepId, WIO[Any, Err, TestState, TestCtx2.Ctx]) = {
+  ): (StepId, WIO[IO, Any, Err, TestState, TestCtx2.Ctx]) = {
     val parStepId = StepId.random
     val wf        = TestCtx2.WIO.parallel
       .taking[TestState]

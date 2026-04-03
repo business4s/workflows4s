@@ -1,5 +1,6 @@
 package workflows4s.wio
 
+import cats.effect.IO
 import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.wio.internal.*
 import workflows4s.wio.model.WIOExecutionProgress
@@ -11,7 +12,7 @@ import java.time.Instant
   * State is derived from the WIO tree rather than stored separately — `staticState` extracts the last known state from already-executed nodes, while
   * `liveState` additionally evaluates pure (effectless) steps.
   */
-case class ActiveWorkflow[Ctx <: WorkflowContext](id: WorkflowInstanceId, wio: WIO.Initial[Ctx], initialState: WCState[Ctx]) {
+case class ActiveWorkflow[Ctx <: WorkflowContext](id: WorkflowInstanceId, wio: WIO.Initial[IO, Ctx], initialState: WCState[Ctx]) {
   lazy val wakeupAt: Option[Instant] = GetWakeupEvaluator.extractNearestWakeup(wio)
 
   /** State extracted from already-executed nodes without running any further steps. */

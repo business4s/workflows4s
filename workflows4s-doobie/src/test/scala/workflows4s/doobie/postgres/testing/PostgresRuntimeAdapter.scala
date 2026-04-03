@@ -17,7 +17,7 @@ class PostgresRuntimeAdapter[Ctx <: WorkflowContext](xa: Transactor[IO], eventCo
   type Actor = WorkflowInstance[Id, WCState[Ctx]]
 
   override def runWorkflow(
-      workflow: WIO.Initial[Ctx],
+      workflow: WIO.Initial[IO, Ctx],
       state: WCState[Ctx],
   ): Actor = {
     val storage = PostgresWorkflowStorage()(using eventCodec)

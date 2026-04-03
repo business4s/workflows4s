@@ -13,7 +13,7 @@ import workflows4s.wio.{ActiveWorkflow, WCEvent, WCState, WorkflowContext}
   * [[WorkflowStorage.lockWorkflow]].
   */
 class DatabaseRuntime[Ctx <: WorkflowContext](
-    val workflow: Initial[Ctx],
+    val workflow: Initial[IO, Ctx],
     initialState: WCState[Ctx],
     engine: WorkflowInstanceEngine,
     xa: Transactor[IO],
@@ -42,7 +42,7 @@ class DatabaseRuntime[Ctx <: WorkflowContext](
 object DatabaseRuntime {
   // TODO seems redundant, to be removed if its still the case after few months
   def create[Ctx <: WorkflowContext](
-      workflow: Initial[Ctx],
+      workflow: Initial[IO, Ctx],
       initialState: WCState[Ctx],
       transactor: Transactor[IO],
       engine: WorkflowInstanceEngine,

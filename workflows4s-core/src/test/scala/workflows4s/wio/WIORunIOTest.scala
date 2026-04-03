@@ -72,7 +72,7 @@ class WIORunIOTest extends AnyFreeSpec, Matchers, EitherValues, OptionValues {
         .handleEvent(ignore)
 
       extension (x: WIO[?, ?, ?]) {
-        def extractMeta: RunIO.Meta = x.asInstanceOf[workflows4s.wio.WIO.RunIO[?, ?, ?, ?, ?]].meta
+        def extractMeta: RunIO.Meta = x.asInstanceOf[workflows4s.wio.WIO.RunIO[?, ?, ?, ?, ?, ?]].meta
       }
 
       "defaults" in {

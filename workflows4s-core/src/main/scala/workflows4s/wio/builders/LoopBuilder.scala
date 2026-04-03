@@ -1,5 +1,6 @@
 package workflows4s.wio.builders
 
+import cats.effect.IO
 import workflows4s.wio.*
 
 import scala.util.chaining.scalaUtilChainingOps
@@ -8,11 +9,11 @@ object LoopBuilder {
 
   trait Step0[Ctx <: WorkflowContext]() {
 
-    def repeat[In <: WCState[Ctx], Err, Out <: WCState[Ctx]](action: WIO[In, Err, Out, Ctx]): LoopBuilderStep1[Err, Out, In] = LoopBuilderStep1(
+    def repeat[In <: WCState[Ctx], Err, Out <: WCState[Ctx]](action: WIO[IO, In, Err, Out, Ctx]): LoopBuilderStep1[Err, Out, In] = LoopBuilderStep1(
       action,
     )
 
-    case class LoopBuilderStep1[Err, BodyOut <: WCState[Ctx], BodyIn <: WCState[Ctx]](private val repeatAction: WIO[BodyIn, Err, BodyOut, Ctx]) {
+    case class LoopBuilderStep1[Err, BodyOut <: WCState[Ctx], BodyIn <: WCState[Ctx]](private val repeatAction: WIO[IO, BodyIn, Err, BodyOut, Ctx]) {
       def untilSome[Out <: WCState[Ctx]](f: BodyOut => Option[Out]): Step2[BodyOut, Out]                       = Step2(x => f(x).toRight(x))
       def until(f: BodyOut => Boolean): Step2[BodyOut, BodyOut]                                                = Step2(x => Either.cond(f(x), x, x))
       def untilRight[ReturnIn, Out <: WCState[Ctx]](f: BodyOut => Either[ReturnIn, Out]): Step2[ReturnIn, Out] = Step2(f)
@@ -22,20 +23,24 @@ object LoopBuilder {
           private val releaseCondition: BodyOut => Either[ReturnIn, Out],
       ) {
 
-        def onRestart(action: WIO[ReturnIn, Err, BodyIn, Ctx]): Step3 = Step3(action)
+        def onRestart(action: WIO[IO, ReturnIn, Err, BodyIn, Ctx]): Step3 = Step3(action)
 
         def onRestartContinue(using ev1: ReturnIn <:< BodyIn): Step3 = Step3(
           WIO.build[Ctx].pure.makeFrom[ReturnIn].value(_.pipe(ev1.apply)).done,
         )
 
         case class Step3(
-            private val onRestart: WIO[ReturnIn, Err, BodyIn, Ctx],
+            private val onRestart: WIO[IO, ReturnIn, Err, BodyIn, Ctx],
             private val releaseBranchName: Option[String] = None,
             private val restartBranchName: Option[String] = None,
             private val conditionName: Option[String] = None,
         ) {
 
-          def named(conditionName: String = null, releaseBranchName: String = null, restartBranchName: String = null): WIO[BodyIn, Err, Out, Ctx] =
+          def named(
+              conditionName: String = null,
+              releaseBranchName: String = null,
+              restartBranchName: String = null,
+          ): WIO[IO, BodyIn, Err, Out, Ctx] =
             this
               .copy(
                 releaseBranchName = Option(releaseBranchName).orElse(this.releaseBranchName),
@@ -44,7 +49,7 @@ object LoopBuilder {
               )
               .done
 
-          def done: WIO[BodyIn, Err, Out, Ctx] = {
+          def done: WIO[IO, BodyIn, Err, Out, Ctx] = {
             val meta = WIO.Loop.Meta(
               releaseBranchName = releaseBranchName,
               restartBranchName = restartBranchName,

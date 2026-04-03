@@ -21,7 +21,7 @@ import java.util.Properties
   * deployments without an external database.
   */
 class SqliteRuntime[Ctx <: WorkflowContext](
-    val workflow: Initial[Ctx],
+    val workflow: Initial[IO, Ctx],
     initialState: WCState[Ctx],
     engine: WorkflowInstanceEngine,
     eventCodec: ByteCodec[WCEvent[Ctx]],
@@ -93,7 +93,7 @@ class SqliteRuntime[Ctx <: WorkflowContext](
 
 object SqliteRuntime {
   def create[Ctx <: WorkflowContext](
-      workflow: Initial[Ctx],
+      workflow: Initial[IO, Ctx],
       initialState: WCState[Ctx],
       eventCodec: ByteCodec[WCEvent[Ctx]],
       engine: WorkflowInstanceEngine,

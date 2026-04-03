@@ -123,7 +123,7 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers with EitherValues {
         .handleEvent(ignore)
         .produceResponse(ignore3)
       extension (x: WIO[?, ?, ?]) {
-        def extractMeta: HandleSignal.Meta = x.asInstanceOf[workflows4s.wio.WIO.HandleSignal[?, ?, ?, ?, ?, ?, ?]].meta
+        def extractMeta: HandleSignal.Meta = x.asInstanceOf[workflows4s.wio.WIO.HandleSignal[?, ?, ?, ?, ?, ?, ?, ?]].meta
       }
       "defaults" in {
         val wio = base.done
@@ -195,8 +195,8 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers with EitherValues {
 
     "convert to interruption" in {
       import TestCtx2.*
-      val (_, _, wio: workflows4s.wio.WIO.IHandleSignal[TestState, Nothing, TestState, Ctx]) = TestUtils.signal
-      val _: WIO.Interruption[Nothing, TestState]                                            = wio.toInterruption
+      val (_, _, wio: workflows4s.wio.WIO.IHandleSignal[IO, TestState, Nothing, TestState, Ctx]) = TestUtils.signal
+      val _: WIO.Interruption[Nothing, TestState]                                                = wio.toInterruption
     }
 
     "signal redelivery" - {
