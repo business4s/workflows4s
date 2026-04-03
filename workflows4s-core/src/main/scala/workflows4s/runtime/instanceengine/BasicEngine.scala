@@ -1,7 +1,6 @@
 package workflows4s.runtime.instanceengine
 
 import cats.Applicative
-import cats.effect.SyncIO
 import cats.implicits.catsSyntaxApplicativeId
 import cats.syntax.functor.*
 import workflows4s.wio.*
@@ -24,8 +23,8 @@ trait BasicEngine[F[_]: Applicative] extends WorkflowInstanceEngine[F] {
       req: Req,
   ): F[SignalResult[F, WCEvent[Ctx], Resp]] = workflow.handleSignal(signalDef)(req).pure[F]
 
-  override def handleEvent[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx], event: WCEvent[Ctx]): SyncIO[Option[ActiveWorkflow[F, Ctx]]] =
-    workflow.handleEvent(event).pure[SyncIO]
+  override def handleEvent[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx], event: WCEvent[Ctx]): Thunk[Option[ActiveWorkflow[F, Ctx]]] =
+    Thunk.pure(workflow.handleEvent(event))
 
   override def queryState[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx]): F[WCState[Ctx]] = workflow.liveState.pure[F]
 

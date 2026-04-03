@@ -1,6 +1,6 @@
 package workflows4s.runtime.instanceengine
 
-import cats.effect.{IO, SyncIO}
+import cats.effect.IO
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine.PostExecCommand
 import workflows4s.runtime.registry.WorkflowRegistry
 import workflows4s.runtime.wakeup.KnockerUpper
@@ -34,14 +34,14 @@ trait WorkflowInstanceEngine[F[_]] {
       req: Req,
   ): F[SignalResult[F, WCEvent[Ctx], Resp]]
 
-  def handleEvent[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx], event: WCEvent[Ctx]): SyncIO[Option[ActiveWorkflow[F, Ctx]]]
+  def handleEvent[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx], event: WCEvent[Ctx]): Thunk[Option[ActiveWorkflow[F, Ctx]]]
 
   def onStateChange[Ctx <: WorkflowContext](
       @unused oldState: ActiveWorkflow[F, Ctx],
       @unused newState: ActiveWorkflow[F, Ctx],
   ): F[Set[PostExecCommand]]
 
-  def processEvent[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx], event: WCEvent[Ctx]): SyncIO[ActiveWorkflow[F, Ctx]] = this
+  def processEvent[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx], event: WCEvent[Ctx]): Thunk[ActiveWorkflow[F, Ctx]] = this
     .handleEvent(workflow, event)
     .map(_.getOrElse(workflow))
 

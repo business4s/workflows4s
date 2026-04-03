@@ -41,7 +41,7 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
                          for {
                            eventAndResp <- resultIO.pipe(liftIO.liftIO)
                            _            <- persistEvent(eventAndResp.event)
-                           newStateOpt  <- engine.handleEvent(state, eventAndResp.event).to[IO].pipe(liftIO.liftIO)
+                           newStateOpt   = engine.handleEvent(state, eventAndResp.event).unsafeRun()
                            _            <- newStateOpt.traverse_(updateState)
                            _            <- handleStateChange(state, newStateOpt)
                          } yield Right(eventAndResp._2)
@@ -83,10 +83,10 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
                                          }
                          newStateOpt  <- eventOpt.flatTraverse { event =>
                                            for {
-                                             _           <- persistEvent(event)
-                                             newStateOpt <- engine.handleEvent(state, event).to[IO].pipe(liftIO.liftIO)
-                                             _           <- newStateOpt.traverse_(updateState)
-                                             _           <- handleStateChange(state, newStateOpt)
+                                             _          <- persistEvent(event)
+                                             newStateOpt = engine.handleEvent(state, event).unsafeRun()
+                                             _          <- newStateOpt.traverse_(updateState)
+                                             _          <- handleStateChange(state, newStateOpt)
                                            } yield newStateOpt
                                          }
 
@@ -98,8 +98,7 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
 
   protected def recover(initialState: ActiveWorkflow[IO, Ctx], events: Seq[WCEvent[Ctx]]): F[ActiveWorkflow[IO, Ctx]] = {
     events
-      .foldLeftM(initialState)(engine.processEvent)
-      .to[IO]
-      .pipe(liftIO.liftIO)
+      .foldLeft(initialState)((state, event) => engine.processEvent(state, event).unsafeRun())
+      .pure[F]
   }
 }

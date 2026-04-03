@@ -1,11 +1,12 @@
 package workflows4s.runtime.instanceengine
 
-import cats.effect.Sync
+import cats.Applicative
+import workflows4s.wio.WeakSync
 
 import java.time.{Clock, Instant}
 
-class BasicJavaTimeEngine[F[_]: Sync](clock: Clock) extends BasicEngine[F] {
+class BasicJavaTimeEngine[F[_]: {Applicative, WeakSync}](clock: Clock) extends BasicEngine[F] {
 
-  override protected def now: F[Instant] = Sync[F].delay(clock.instant())
+  override protected def now: F[Instant] = WeakSync[F].delay(clock.instant())
 
 }

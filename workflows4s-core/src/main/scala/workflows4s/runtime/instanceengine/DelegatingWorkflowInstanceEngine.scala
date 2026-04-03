@@ -1,6 +1,5 @@
 package workflows4s.runtime.instanceengine
 
-import cats.effect.SyncIO
 import workflows4s.wio.model.WIOExecutionProgress
 import workflows4s.wio.*
 import workflows4s.wio.internal.{SignalResult, WakeupResult}
@@ -22,10 +21,10 @@ trait DelegatingWorkflowInstanceEngine[F[_]] extends WorkflowInstanceEngine[F] {
       req: Req,
   ): F[SignalResult[F, WCEvent[Ctx], Resp]] = delegate.handleSignal(workflow, signalDef, req)
 
-  override def handleEvent[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx], event: WCEvent[Ctx]): SyncIO[Option[ActiveWorkflow[F, Ctx]]] =
+  override def handleEvent[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx], event: WCEvent[Ctx]): Thunk[Option[ActiveWorkflow[F, Ctx]]] =
     delegate.handleEvent(workflow, event)
 
-  override def processEvent[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx], event: WCEvent[Ctx]): SyncIO[ActiveWorkflow[F, Ctx]] =
+  override def processEvent[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx], event: WCEvent[Ctx]): Thunk[ActiveWorkflow[F, Ctx]] =
     delegate.processEvent(workflow, event)
 
   override def onStateChange[Ctx <: WorkflowContext](

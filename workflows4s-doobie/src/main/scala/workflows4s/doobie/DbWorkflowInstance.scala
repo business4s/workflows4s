@@ -11,8 +11,6 @@ import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.{WorkflowInstanceBase, WorkflowInstanceId}
 import workflows4s.wio.*
 
-import scala.util.chaining.scalaUtilChainingOps
-
 private type Result[T] = Kleisli[ConnectionIO, LiftIO[ConnectionIO], T]
 
 class DbWorkflowInstance[Ctx <: WorkflowContext](
@@ -30,10 +28,10 @@ class DbWorkflowInstance[Ctx <: WorkflowContext](
   }
 
   override protected def getWorkflow: Result[ActiveWorkflow[IO, Ctx]] = {
-    Kleisli(connLifIo =>
+    Kleisli(_ =>
       storage
         .getEvents(id)
-        .evalFold(baseWorkflow)((state, event) => engine.processEvent(state, event).to[IO].pipe(connLifIo.liftIO))
+        .fold(baseWorkflow)((state, event) => engine.processEvent(state, event).unsafeRun())
         .compile
         .lastOrError,
     )

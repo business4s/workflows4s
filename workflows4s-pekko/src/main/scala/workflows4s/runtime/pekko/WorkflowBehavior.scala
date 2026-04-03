@@ -138,7 +138,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
   private def handleEvent(state: St, event: Event): State[Ctx] = {
     engine
       .processEvent(state.workflow, event)
-      .unsafeRunSync()
+      .unsafeRun()
       .pipe(State.apply)
   }
 
