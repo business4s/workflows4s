@@ -48,7 +48,7 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
                        case SignalResult.Redelivered(resp)   =>
                          // Redelivery: no event to persist, just return the reconstructed response
                          Right(resp).pure[F]
-                       case SignalResult.UnexpectedSignal    => Left(WorkflowInstance.UnexpectedSignal(signalDef)).pure[F]
+                       case SignalResult.UnexpectedSignal()  => Left(WorkflowInstance.UnexpectedSignal(signalDef)).pure[F]
                      }
       } yield result
     }
@@ -91,7 +91,7 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
                                          }
 
                        } yield newStateOpt
-                     case WakeupResult.Noop                => None.pure[F]
+                     case WakeupResult.Noop()              => None.pure[F]
                    }
     } yield ()
   }

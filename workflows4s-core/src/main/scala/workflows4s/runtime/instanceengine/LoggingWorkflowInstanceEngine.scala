@@ -46,13 +46,13 @@ class LoggingWorkflowInstanceEngine(
 
   override def triggerWakeup[Ctx <: WorkflowContext](
       workflow: ActiveWorkflow[Ctx],
-  ): IO[WakeupResult[WCEvent[Ctx]]] = {
+  ): IO[WakeupResult[IO, WCEvent[Ctx]]] = {
     (IO(logger.debug(s"[${workflow.id}] triggerWakeup()")) *>
       delegate
         .triggerWakeup(workflow)
         .flatMap({
-          case WakeupResult.Noop              =>
-            IO(logger.trace("⤷ Nothing to execute")).as(WakeupResult.Noop: WakeupResult[WCEvent[Ctx]])
+          case WakeupResult.Noop()            =>
+            IO(logger.trace("⤷ Nothing to execute")).as(WakeupResult.Noop(): WakeupResult[IO, WCEvent[Ctx]])
           case WakeupResult.Processed(result) =>
             WakeupResult
               .Processed(
@@ -76,7 +76,7 @@ class LoggingWorkflowInstanceEngine(
       workflow: ActiveWorkflow[Ctx],
       signalDef: SignalDef[Req, Resp],
       req: Req,
-  ): IO[SignalResult[WCEvent[Ctx], Resp]] = {
+  ): IO[SignalResult[IO, WCEvent[Ctx], Resp]] = {
     (IO(logger.debug(s"[${workflow.id}] handleSignal(${signalDef.name}, $req)")) *>
       delegate
         .handleSignal(workflow, signalDef, req)
@@ -95,10 +95,10 @@ class LoggingWorkflowInstanceEngine(
             )
           case SignalResult.Redelivered(resp)   =>
             IO(logger.debug(s"[${workflow.id}] handleSignal → redelivered signal(${signalDef.name}), resp=$resp")) *>
-              SignalResult.Redelivered(resp).pure[IO]
-          case SignalResult.UnexpectedSignal    =>
+              (SignalResult.Redelivered(resp): SignalResult[IO, WCEvent[Ctx], Resp]).pure[IO]
+          case SignalResult.UnexpectedSignal()  =>
             IO(logger.warn(s"[${workflow.id}] handleSignal → unexpected signal(${signalDef.name})")) *>
-              SignalResult.UnexpectedSignal.pure[IO]
+              (SignalResult.UnexpectedSignal(): SignalResult[IO, WCEvent[Ctx], Resp]).pure[IO]
         })
         .onError(e => IO(logger.error(s"[${workflow.id}] handleSignal failed for ${signalDef.name}", e))))
       .withMDC(workflow)

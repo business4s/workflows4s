@@ -13,11 +13,11 @@ class WakingWorkflowInstanceEngine(protected val delegate: WorkflowInstanceEngin
     extends DelegatingWorkflowInstanceEngine
     with StrictLogging {
 
-  override def triggerWakeup[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[WakeupResult[WCEvent[Ctx]]] =
+  override def triggerWakeup[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[WakeupResult[IO, WCEvent[Ctx]]] =
     super
       .triggerWakeup(workflow)
       .map({
-        case WakeupResult.Noop               => WakeupResult.Noop
+        case WakeupResult.Noop()             => WakeupResult.Noop()
         case WakeupResult.Processed(eventIO) =>
           WakeupResult.Processed(for {
             result <- eventIO
@@ -32,7 +32,7 @@ class WakingWorkflowInstanceEngine(protected val delegate: WorkflowInstanceEngin
   override def onStateChange[Ctx <: WorkflowContext](
       oldState: ActiveWorkflow[Ctx],
       newState: ActiveWorkflow[Ctx],
-  ): IO[Set[WorkflowInstanceEngine.PostExecCommand]]                                                                = {
+  ): IO[Set[WorkflowInstanceEngine.PostExecCommand]]                                                                    = {
     super.onStateChange(oldState, newState) <*
       IO.whenA(newState.wakeupAt != oldState.wakeupAt)(updateWakeup(newState, newState.wakeupAt))
   }

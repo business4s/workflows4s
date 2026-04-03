@@ -44,7 +44,7 @@ object WIO {
 
   case class HandleSignal[F[_], Ctx <: WorkflowContext, -In, +Out <: WCState[Ctx], +Err, Req, Resp, Evt](
       sigDef: SignalDef[Req, Resp],
-      sigHandler: SignalHandler[Req, Evt, In],
+      sigHandler: SignalHandler[F, Req, Evt, In],
       evtHandler: EventHandler[In, Either[Err, Out], WCEvent[Ctx], Evt],
       responseProducer: (In, Evt, Req) => Resp,
       meta: HandleSignal.Meta, // TODO here and everywhere else, we could use WIOMeta directly
@@ -59,7 +59,7 @@ object WIO {
   }
 
   case class RunIO[F[_], Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx], Evt](
-      buildIO: In => IO[Evt],
+      buildIO: In => F[Evt],
       evtHandler: EventHandler[In, Either[Err, Out], WCEvent[Ctx], Evt],
       meta: RunIO.Meta,
   ) extends WIO[F, In, Err, Out, Ctx]
@@ -224,7 +224,7 @@ object WIO {
 
   case class Retry[F[_], Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]](
       base: WIO[F, In, Err, Out, Ctx],
-      mode: Retry.Mode[Ctx, In, Err, Out],
+      mode: Retry.Mode[F, Ctx, In, Err, Out],
   ) extends WIO[F, In, Err, Out, Ctx]
 
   object Retry {
@@ -244,18 +244,18 @@ object WIO {
       }
     }
 
-    sealed trait Mode[Ctx <: WorkflowContext, -In, +Err, +Out]
+    sealed trait Mode[F[_], Ctx <: WorkflowContext, -In, +Err, +Out]
     object Mode {
-      case class Stateless[Ctx <: WorkflowContext, -In](errorHandler: (In, Throwable, WCState[Ctx], Instant) => IO[Retry.Stateless.Result])
-          extends Mode[Ctx, In, Nothing, Nothing]
+      case class Stateless[F[_], Ctx <: WorkflowContext, -In](errorHandler: (In, Throwable, WCState[Ctx], Instant) => F[Retry.Stateless.Result])
+          extends Mode[F, Ctx, In, Nothing, Nothing]
 
-      case class Stateful[Ctx <: WorkflowContext, Evt <: WCEvent[Ctx], -In, Err, +Out <: WCState[Ctx], RetryState](
-          errorHandler: ((stepInput: In, error: Throwable, workflowState: WCState[Ctx], retryState: Option[RetryState])) => IO[
+      case class Stateful[F[_], Ctx <: WorkflowContext, Evt <: WCEvent[Ctx], -In, Err, +Out <: WCState[Ctx], RetryState](
+          errorHandler: ((stepInput: In, error: Throwable, workflowState: WCState[Ctx], retryState: Option[RetryState])) => F[
             Retry.Stateful.Result[Evt],
           ],
           eventHandler: EventHandler[(In, WCState[Ctx], Option[RetryState]), Either[RetryState, Either[Err, Out]], WCEvent[Ctx], Evt],
           state: Option[RetryState],
-      ) extends Mode[Ctx, In, Err, Out]
+      ) extends Mode[F, Ctx, In, Err, Out]
     }
   }
 
@@ -288,7 +288,7 @@ object WIO {
   // This could also allow for raising errors.
   case class Checkpoint[F[_], Ctx <: WorkflowContext, -In, +Err, Out <: WCState[Ctx], Evt](
       base: WIO[F, In, Err, Out, Ctx],
-      genEvent: (In, Out) => IO[Evt],
+      genEvent: (In, Out) => F[Evt],
       eventHandler: EventHandler[In, Out, WCEvent[Ctx], Evt],
   ) extends WIO[F, In, Err, Out, Ctx]
 

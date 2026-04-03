@@ -13,7 +13,7 @@ import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine.PostExecCommand
 import workflows4s.wio.*
-import workflows4s.wio.internal.SignalResult
+import workflows4s.wio.internal.{SignalResult, WakeupResult}
 import workflows4s.wio.internal.SignalResult.ProcessingResult
 import workflows4s.wio.model.WIOExecutionProgress
 
@@ -154,7 +154,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
         engine
           .handleSignal(state.workflow, cmd.signalDef, cmd.req)
           .map({
-            case SignalResult.UnexpectedSignal      => None
+            case SignalResult.UnexpectedSignal()    => None
             case SignalResult.Processed(resultIO)   => Some(resultIO.map(Right(_)))
             case SignalResult.Redelivered(response) => Some(IO(Left(response)))
           }),
@@ -182,7 +182,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
     changeStateAsync[Ior[Instant, WCEvent[Ctx]], Unit](
       processingState,
       actorContext,
-      state => engine.triggerWakeup(state.workflow).map(_.toRaw),
+      state => engine.triggerWakeup(state.workflow).map(WakeupResult.toRaw(_)),
       replyTo,
       _ => (),
       x => x.toOption,

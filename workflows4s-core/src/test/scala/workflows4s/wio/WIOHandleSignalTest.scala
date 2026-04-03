@@ -62,7 +62,7 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers with EitherValues {
 
       val unexpectedSignalResult = wf.handleSignal(unexpectedSignalDef)("unexpected")
 
-      assert(unexpectedSignalResult == SignalResult.UnexpectedSignal)
+      assert(unexpectedSignalResult == SignalResult.UnexpectedSignal())
     }
 
     "handle event" in {
@@ -112,7 +112,7 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers with EitherValues {
         .toWorkflow("initialState")
 
       val resultOpt = wf.proceed(Instant.now)
-      assert(resultOpt.toRaw.isEmpty)
+      assert(!resultOpt.hasEffect)
     }
 
     "attach meta" - {
