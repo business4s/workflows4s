@@ -8,9 +8,9 @@ import workflows4s.wio.*
 
 class InMemoryWorkflowInstance[Ctx <: WorkflowContext](
     val id: WorkflowInstanceId,
-    stateCell: AtomicCell[IO, ActiveWorkflow[Ctx]],
+    stateCell: AtomicCell[IO, ActiveWorkflow[IO, Ctx]],
     eventsRef: Ref[IO, Vector[WCEvent[Ctx]]],
-    protected val engine: WorkflowInstanceEngine,
+    protected val engine: WorkflowInstanceEngine[IO],
     val lock: Semaphore[IO],
 ) extends WorkflowInstanceBase[IO, Ctx] {
 
@@ -27,12 +27,12 @@ class InMemoryWorkflowInstance[Ctx <: WorkflowContext](
   override protected def fMonad: Monad[IO]  = summon
   override protected def liftIO: LiftIO[IO] = summon
 
-  override protected def getWorkflow: IO[ActiveWorkflow[Ctx]] = stateCell.get
+  override protected def getWorkflow: IO[ActiveWorkflow[IO, Ctx]] = stateCell.get
 
   override protected def persistEvent(event: WCEvent[Ctx]): IO[Unit] = eventsRef.update(_ :+ event)
 
-  override protected def updateState(newState: ActiveWorkflow[Ctx]): IO[Unit] = stateCell.set(newState)
+  override protected def updateState(newState: ActiveWorkflow[IO, Ctx]): IO[Unit] = stateCell.set(newState)
 
-  override protected def lockState[T](update: ActiveWorkflow[Ctx] => IO[T]): IO[T] =
+  override protected def lockState[T](update: ActiveWorkflow[IO, Ctx] => IO[T]): IO[T] =
     Resource.make(lock.acquire)(_ => lock.release).use(_ => stateCell.get.flatMap(update))
 }

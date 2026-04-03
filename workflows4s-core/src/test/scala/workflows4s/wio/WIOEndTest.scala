@@ -1,5 +1,6 @@
 package workflows4s.wio
 
+import cats.effect.IO
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -13,13 +14,13 @@ class WIOEndTest extends AnyFreeSpec with Matchers {
   "WIO.End" - {
 
     "state" in {
-      val wf: ActiveWorkflow[Ctx] = WIO.end.toWorkflow("initialState")
-      val state                   = wf.liveState
+      val wf: ActiveWorkflow[IO, Ctx] = WIO.end.toWorkflow("initialState")
+      val state                       = wf.liveState
       assert(state == "initialState")
     }
 
     "proceed no-op" in {
-      val wf: ActiveWorkflow[Ctx] = WIO.end.toWorkflow("initialState")
+      val wf: ActiveWorkflow[IO, Ctx] = WIO.end.toWorkflow("initialState")
 
       val resultOpt = wf.proceed(Instant.now)
 
@@ -27,7 +28,7 @@ class WIOEndTest extends AnyFreeSpec with Matchers {
     }
 
     "event handling no-op" in {
-      val wf: ActiveWorkflow[Ctx] = WIO.end.toWorkflow("initialState")
+      val wf: ActiveWorkflow[IO, Ctx] = WIO.end.toWorkflow("initialState")
 
       val resultOpt = wf.handleEvent("my-event")
 
@@ -35,7 +36,7 @@ class WIOEndTest extends AnyFreeSpec with Matchers {
     }
 
     "handle signal no-op" in {
-      val wf: ActiveWorkflow[Ctx] = WIO.end.toWorkflow("initialState")
+      val wf: ActiveWorkflow[IO, Ctx] = WIO.end.toWorkflow("initialState")
 
       val result = wf.handleSignal(SignalDef[String, String]())("")
       assert(result == SignalResult.UnexpectedSignal())

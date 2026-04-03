@@ -14,7 +14,7 @@ object WorkflowRegistry {
   /** Called by the engine after each state change to update the registry. */
   trait Agent {
 
-    def upsertInstance(inst: ActiveWorkflow[?], executionStatus: ExecutionStatus): IO[Unit]
+    def upsertInstance(inst: ActiveWorkflow[IO, ?], executionStatus: ExecutionStatus): IO[Unit]
 
   }
 

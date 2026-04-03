@@ -20,7 +20,7 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers with EitherValues {
   "WIO.HandleSignal" - {
 
     "process valid signal" in {
-      val wf: ActiveWorkflow[Ctx] = WIO
+      val wf: ActiveWorkflow[IO, Ctx] = WIO
         .handleSignal(mySignalDef)
         .using[String]
         .withSideEffects((input, request) => IO(s"input: $input, request: $request"))
@@ -49,7 +49,7 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers with EitherValues {
       val validSignalDef      = SignalDef[Int, String]()
       val unexpectedSignalDef = SignalDef[String, String]()
 
-      val wf: ActiveWorkflow[Ctx] = WIO
+      val wf: ActiveWorkflow[IO, Ctx] = WIO
         .handleSignal(validSignalDef)
         .using[String]
         .withSideEffects(ignore)
@@ -66,7 +66,7 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers with EitherValues {
     }
 
     "handle event" in {
-      val wf: ActiveWorkflow[Ctx] = WIO
+      val wf: ActiveWorkflow[IO, Ctx] = WIO
         .handleSignal(mySignalDef)
         .using[String]
         .withSideEffects(ignore)
@@ -102,7 +102,7 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers with EitherValues {
     }
 
     "proceed should be a no-op" in {
-      val wf: ActiveWorkflow[Ctx] = WIO
+      val wf: ActiveWorkflow[IO, Ctx] = WIO
         .handleSignal(mySignalDef)
         .using[String]
         .withSideEffects(ignore)

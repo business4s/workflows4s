@@ -9,11 +9,11 @@ import workflows4s.wio.{ActiveWorkflow, WCEvent, WorkflowContext}
 
 import java.time.Instant
 
-class WakingWorkflowInstanceEngine(protected val delegate: WorkflowInstanceEngine, knockerUpper: KnockerUpper.Agent)
-    extends DelegatingWorkflowInstanceEngine
+class WakingWorkflowInstanceEngine(protected val delegate: WorkflowInstanceEngine[IO], knockerUpper: KnockerUpper.Agent)
+    extends DelegatingWorkflowInstanceEngine[IO]
     with StrictLogging {
 
-  override def triggerWakeup[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[WakeupResult[IO, WCEvent[Ctx]]] =
+  override def triggerWakeup[Ctx <: WorkflowContext](workflow: ActiveWorkflow[IO, Ctx]): IO[WakeupResult[IO, WCEvent[Ctx]]] =
     super
       .triggerWakeup(workflow)
       .map({
@@ -30,14 +30,14 @@ class WakingWorkflowInstanceEngine(protected val delegate: WorkflowInstanceEngin
           } yield result)
       })
   override def onStateChange[Ctx <: WorkflowContext](
-      oldState: ActiveWorkflow[Ctx],
-      newState: ActiveWorkflow[Ctx],
-  ): IO[Set[WorkflowInstanceEngine.PostExecCommand]]                                                                    = {
+      oldState: ActiveWorkflow[IO, Ctx],
+      newState: ActiveWorkflow[IO, Ctx],
+  ): IO[Set[WorkflowInstanceEngine.PostExecCommand]]                                                                        = {
     super.onStateChange(oldState, newState) <*
       IO.whenA(newState.wakeupAt != oldState.wakeupAt)(updateWakeup(newState, newState.wakeupAt))
   }
 
-  private def updateWakeup(workflow: ActiveWorkflow[?], time: Option[Instant]) = {
+  private def updateWakeup(workflow: ActiveWorkflow[IO, ?], time: Option[Instant]) = {
     IO(logger.debug(s"Registering wakeup for ${workflow.id} at $time")).void *>
       knockerUpper
         .updateWakeup(workflow.id, time)

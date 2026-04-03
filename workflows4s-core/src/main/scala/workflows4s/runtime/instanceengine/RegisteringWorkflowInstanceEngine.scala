@@ -8,10 +8,10 @@ import workflows4s.wio.internal.{SignalResult, WakeupResult}
 
 // TODO check how this engine interacts with non-greedy mode.
 //  What happens when there is more to execute? What is unexpected signall appers between wakeups?
-class RegisteringWorkflowInstanceEngine(protected val delegate: WorkflowInstanceEngine, registry: WorkflowRegistry.Agent)
-    extends DelegatingWorkflowInstanceEngine {
+class RegisteringWorkflowInstanceEngine(protected val delegate: WorkflowInstanceEngine[IO], registry: WorkflowRegistry.Agent)
+    extends DelegatingWorkflowInstanceEngine[IO] {
 
-  override def triggerWakeup[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[WakeupResult[IO, WCEvent[Ctx]]] = {
+  override def triggerWakeup[Ctx <: WorkflowContext](workflow: ActiveWorkflow[IO, Ctx]): IO[WakeupResult[IO, WCEvent[Ctx]]] = {
     for {
       prevResult <- super.triggerWakeup(workflow)
       _          <- registeringRunningInstance(workflow, prevResult.hasEffect)
@@ -19,7 +19,7 @@ class RegisteringWorkflowInstanceEngine(protected val delegate: WorkflowInstance
   }
 
   override def handleSignal[Ctx <: WorkflowContext, Req, Resp](
-      workflow: ActiveWorkflow[Ctx],
+      workflow: ActiveWorkflow[IO, Ctx],
       signalDef: SignalDef[Req, Resp],
       req: Req,
   ): IO[SignalResult[IO, WCEvent[Ctx], Resp]] = {
@@ -30,17 +30,17 @@ class RegisteringWorkflowInstanceEngine(protected val delegate: WorkflowInstance
   }
 
   override def onStateChange[Ctx <: WorkflowContext](
-      oldState: ActiveWorkflow[Ctx],
-      newState: ActiveWorkflow[Ctx],
+      oldState: ActiveWorkflow[IO, Ctx],
+      newState: ActiveWorkflow[IO, Ctx],
   ): IO[Set[WorkflowInstanceEngine.PostExecCommand]] = {
     super.onStateChange(oldState, newState) <* registerNotRunningInstance(newState)
   }
 
-  private def registeringRunningInstance(workflow: ActiveWorkflow[?], hasFollowup: Boolean) =
+  private def registeringRunningInstance(workflow: ActiveWorkflow[IO, ?], hasFollowup: Boolean) =
     if hasFollowup then registry.upsertInstance(workflow, WorkflowRegistry.ExecutionStatus.Running)
     else registerNotRunningInstance(workflow)
 
-  private def registerNotRunningInstance(workflow: ActiveWorkflow[?]): IO[Unit] = {
+  private def registerNotRunningInstance(workflow: ActiveWorkflow[IO, ?]): IO[Unit] = {
     val status =
       if workflow.wio.asExecuted.isDefined then ExecutionStatus.Finished
       else ExecutionStatus.Awaiting

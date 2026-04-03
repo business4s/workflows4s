@@ -35,7 +35,7 @@ object WorkflowBehavior {
       id: PersistenceId,
       workflow: WIO.Initial[IO, Ctx],
       initialState: WCState[Ctx],
-      engine: WorkflowInstanceEngine,
+      engine: WorkflowInstanceEngine[IO],
   ): Behavior[Command[Ctx]] =
     new WorkflowBehavior(instanceId, id, workflow, initialState, engine).behavior
 
@@ -60,7 +60,7 @@ object WorkflowBehavior {
     case class FollowupWakeup[Ctx <: WorkflowContext](replyTo: ActorRef[StatusReply[Unit]])    extends Command[Ctx]
   }
 
-  final case class State[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx])
+  final case class State[Ctx <: WorkflowContext](workflow: ActiveWorkflow[IO, Ctx])
 
   sealed trait SignalResponse[+Resp]
   object SignalResponse {
@@ -75,7 +75,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
     id: PersistenceId,
     workflow: WIO.Initial[IO, Ctx],
     initialState: WCState[Ctx],
-    engine: WorkflowInstanceEngine,
+    engine: WorkflowInstanceEngine[IO],
 ) extends StrictLogging {
   import WorkflowBehavior.*
 
@@ -91,7 +91,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
   val behavior: Behavior[Cmd] = Behaviors.setup { actorContext =>
     // doesn't have to be atomic but its what we have in stdlib
     val processingState: AtomicReference[ProcessingState] = new AtomicReference(ProcessingState.Free)
-    val initialWf: ActiveWorkflow[Ctx]                    = ActiveWorkflow(instanceId, workflow, initialState)
+    val initialWf: ActiveWorkflow[IO, Ctx]                = ActiveWorkflow(instanceId, workflow, initialState)
     EventSourcedBehavior[Cmd, Event, St](
       persistenceId = id,
       emptyState = State(initialWf),
@@ -138,7 +138,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
   private def handleEvent(state: St, event: Event): State[Ctx] = {
     engine
       .processEvent(state.workflow, event)
-      .unsafeRunSync()
+      .unsafeRun()
       .pipe(State.apply)
   }
 

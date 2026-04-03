@@ -1,6 +1,6 @@
 package workflows4s.runtime.instanceengine
 
-import cats.effect.{IO, Sync, SyncIO}
+import cats.MonadThrow
 import cats.syntax.all.*
 import com.typesafe.scalalogging.StrictLogging
 import org.slf4j.MDC
@@ -10,133 +10,150 @@ import workflows4s.wio.model.WIOExecutionProgress
 import workflows4s.wio.*
 import workflows4s.wio.internal.{SignalResult, WakeupResult}
 
-class LoggingWorkflowInstanceEngine(
-    override protected val delegate: WorkflowInstanceEngine,
-) extends DelegatingWorkflowInstanceEngine
+class LoggingWorkflowInstanceEngine[F[_]: {MonadThrow, WeakSync}](
+    override protected val delegate: WorkflowInstanceEngine[F],
+) extends DelegatingWorkflowInstanceEngine[F]
     with StrictLogging {
 
-  override def queryState[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[WCState[Ctx]] = {
-    (IO(logger.trace(s"[${workflow.id}] queryState()")) *>
+  private def logF(body: => Unit): F[Unit] = WeakSync[F].delay(body)
+
+  override def queryState[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx]): F[WCState[Ctx]] = {
+    (logF(logger.trace(s"[${workflow.id}] queryState()")) *>
       delegate
         .queryState(workflow)
-        .flatTap(state => IO(logger.trace(s"[${workflow.id}] queryState → $state")))
-        .onError(e => IO(logger.error(s"[${workflow.id}] queryState failed", e)))).withMDC(workflow)
+        .flatTap(state => logF(logger.trace(s"[${workflow.id}] queryState → $state")))
+        .onError(e => logF(logger.error(s"[${workflow.id}] queryState failed", e)))).withMDC(workflow)
   }
 
-  override def getProgress[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[WIOExecutionProgress[WCState[Ctx]]] = {
-    (IO(logger.trace(s"[${workflow.id}] getProgress()")) *>
+  override def getProgress[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx]): F[WIOExecutionProgress[WCState[Ctx]]] = {
+    (logF(logger.trace(s"[${workflow.id}] getProgress()")) *>
       delegate
         .getProgress(workflow)
-        .flatTap(prog => IO(logger.trace(s"[${workflow.id}] getProgress → $prog")))
-        .onError(e => IO(logger.error(s"[${workflow.id}] getProgress failed", e))))
+        .flatTap(prog => logF(logger.trace(s"[${workflow.id}] getProgress → $prog")))
+        .onError(e => logF(logger.error(s"[${workflow.id}] getProgress failed", e))))
       .withMDC(workflow)
   }
 
   override def getExpectedSignals[Ctx <: WorkflowContext](
-      workflow: ActiveWorkflow[Ctx],
+      workflow: ActiveWorkflow[F, Ctx],
       includeRedeliverable: Boolean = false,
-  ): IO[List[SignalDef[?, ?]]] = {
-    (IO(logger.trace(s"[${workflow.id}] getExpectedSignals(includeRedeliverable=$includeRedeliverable)")) *>
+  ): F[List[SignalDef[?, ?]]] = {
+    (logF(logger.trace(s"[${workflow.id}] getExpectedSignals(includeRedeliverable=$includeRedeliverable)")) *>
       delegate
         .getExpectedSignals(workflow, includeRedeliverable)
-        .flatTap(signals => IO(logger.trace(s"[${workflow.id}] getExpectedSignals → [${signals.map(_.name).mkString(", ")}]")))
-        .onError(e => IO(logger.error(s"[${workflow.id}] getExpectedSignals failed", e))))
+        .flatTap(signals => logF(logger.trace(s"[${workflow.id}] getExpectedSignals → [${signals.map(_.name).mkString(", ")}]")))
+        .onError(e => logF(logger.error(s"[${workflow.id}] getExpectedSignals failed", e))))
       .withMDC(workflow)
   }
 
   override def triggerWakeup[Ctx <: WorkflowContext](
-      workflow: ActiveWorkflow[Ctx],
-  ): IO[WakeupResult[IO, WCEvent[Ctx]]] = {
-    (IO(logger.debug(s"[${workflow.id}] triggerWakeup()")) *>
+      workflow: ActiveWorkflow[F, Ctx],
+  ): F[WakeupResult[F, WCEvent[Ctx]]] = {
+    (logF(logger.debug(s"[${workflow.id}] triggerWakeup()")) *>
       delegate
         .triggerWakeup(workflow)
         .flatMap({
           case WakeupResult.Noop()            =>
-            IO(logger.trace("⤷ Nothing to execute")).as(WakeupResult.Noop(): WakeupResult[IO, WCEvent[Ctx]])
+            logF(logger.trace("⤷ Nothing to execute")).as(WakeupResult.Noop(): WakeupResult[F, WCEvent[Ctx]])
           case WakeupResult.Processed(result) =>
             WakeupResult
               .Processed(
-                IO(logger.trace(s"[${workflow.id}] ⤷ wakeupEffect starting")) *>
+                logF(logger.trace(s"[${workflow.id}] ⤷ wakeupEffect starting")) *>
                   result
                     .flatTap({
                       case ProcessingResult.Proceeded(event)     =>
-                        IO(logger.debug(s"[${workflow.id}] ⤷ wakeupEffect returned event: $event"))
+                        logF(logger.debug(s"[${workflow.id}] ⤷ wakeupEffect returned event: $event"))
                       case ProcessingResult.Failed(retry, event) =>
-                        IO(logger.debug(s"[${workflow.id}] ⤷ wakeupEffect failed with retry at $retry, event: $event"))
+                        logF(logger.debug(s"[${workflow.id}] ⤷ wakeupEffect failed with retry at $retry, event: $event"))
                     })
-                    .onError(e => IO(logger.error("wakeupEffect failed", e))),
+                    .onError(e => logF(logger.error("wakeupEffect failed", e))),
               )
-              .pure[IO]
+              .pure[F]
         })
-        .onError(e => IO(logger.error(s"[${workflow.id}] triggerWakeup failed", e))))
+        .onError(e => logF(logger.error(s"[${workflow.id}] triggerWakeup failed", e))))
       .withMDC(workflow)
   }
 
   override def handleSignal[Ctx <: WorkflowContext, Req, Resp](
-      workflow: ActiveWorkflow[Ctx],
+      workflow: ActiveWorkflow[F, Ctx],
       signalDef: SignalDef[Req, Resp],
       req: Req,
-  ): IO[SignalResult[IO, WCEvent[Ctx], Resp]] = {
-    (IO(logger.debug(s"[${workflow.id}] handleSignal(${signalDef.name}, $req)")) *>
+  ): F[SignalResult[F, WCEvent[Ctx], Resp]] = {
+    (logF(logger.debug(s"[${workflow.id}] handleSignal(${signalDef.name}, $req)")) *>
       delegate
         .handleSignal(workflow, signalDef, req)
         .flatMap({
           case SignalResult.Processed(resultIO) =>
-            IO(logger.debug(s"[${workflow.id}] handleSignal → effect returned")).as(
-              SignalResult.Processed(
-                IO(logger.trace(s"[${workflow.id}] ⤷ handleSignalEffect start")) *>
-                  resultIO
-                    .flatMap(result =>
-                      IO(logger.debug(s"[${workflow.id}] ⤷ handleSignalEffect result: event=${result.event}, resp=${result.response}"))
-                        .as(result),
-                    )
-                    .onError(e => IO(logger.error("handleSignalEffect failed", e))),
-              ),
-            )
+            logF(logger.debug(s"[${workflow.id}] handleSignal → effect returned"))
+              .as(
+                SignalResult.Processed(
+                  logF(logger.trace(s"[${workflow.id}] ⤷ handleSignalEffect start")) *>
+                    resultIO
+                      .flatMap(result =>
+                        logF(logger.debug(s"[${workflow.id}] ⤷ handleSignalEffect result: event=${result.event}, resp=${result.response}"))
+                          .as(result),
+                      )
+                      .onError(e => logF(logger.error("handleSignalEffect failed", e))),
+                ),
+              )
           case SignalResult.Redelivered(resp)   =>
-            IO(logger.debug(s"[${workflow.id}] handleSignal → redelivered signal(${signalDef.name}), resp=$resp")) *>
-              (SignalResult.Redelivered(resp): SignalResult[IO, WCEvent[Ctx], Resp]).pure[IO]
+            logF(logger.debug(s"[${workflow.id}] handleSignal → redelivered signal(${signalDef.name}), resp=$resp")) *>
+              (SignalResult.Redelivered(resp): SignalResult[F, WCEvent[Ctx], Resp]).pure[F]
           case SignalResult.UnexpectedSignal()  =>
-            IO(logger.warn(s"[${workflow.id}] handleSignal → unexpected signal(${signalDef.name})")) *>
-              (SignalResult.UnexpectedSignal(): SignalResult[IO, WCEvent[Ctx], Resp]).pure[IO]
+            logF(logger.warn(s"[${workflow.id}] handleSignal → unexpected signal(${signalDef.name})")) *>
+              (SignalResult.UnexpectedSignal(): SignalResult[F, WCEvent[Ctx], Resp]).pure[F]
         })
-        .onError(e => IO(logger.error(s"[${workflow.id}] handleSignal failed for ${signalDef.name}", e))))
+        .onError(e => logF(logger.error(s"[${workflow.id}] handleSignal failed for ${signalDef.name}", e))))
       .withMDC(workflow)
   }
 
   override def handleEvent[Ctx <: WorkflowContext](
-      workflow: ActiveWorkflow[Ctx],
+      workflow: ActiveWorkflow[F, Ctx],
       event: WCEvent[Ctx],
-  ): SyncIO[Option[ActiveWorkflow[Ctx]]] = {
-    (SyncIO(logger.debug(s"[${workflow.id}] handleEvent(event = $event)")) *>
+  ): Thunk[Option[ActiveWorkflow[F, Ctx]]] = {
+    (Thunk(logger.debug(s"[${workflow.id}] handleEvent(event = $event)")) *>
       delegate
         .handleEvent(workflow, event)
         .flatMap {
-          case Some(newWf) => SyncIO(logger.debug(s"[${workflow.id}] handleEvent → new state")) *> SyncIO.pure(Some(newWf))
-          case None        => SyncIO(logger.warn(s"[${workflow.id}] handleEvent → no state change")) *> SyncIO.pure(None)
+          case Some(newWf) => Thunk(logger.debug(s"[${workflow.id}] handleEvent → new state")) *> Thunk.pure(Some(newWf))
+          case None        => Thunk(logger.warn(s"[${workflow.id}] handleEvent → no state change")) *> Thunk.pure(None)
         }
-        .onError(e => SyncIO(logger.error(s"[${workflow.id}] handleEvent failed", e)))).withMDC(workflow)
+        .onError(e => Thunk(logger.error(s"[${workflow.id}] handleEvent failed", e)))).withThunkMDC(workflow)
   }
 
   override def onStateChange[Ctx <: WorkflowContext](
-      oldState: ActiveWorkflow[Ctx],
-      newState: ActiveWorkflow[Ctx],
-  ): IO[Set[PostExecCommand]] = {
-    (IO(logger.debug(s"""[${oldState.id}] onStateChange:
-                        |old state: ${oldState.liveState}
-                        |new state: ${newState.liveState}""".stripMargin)) *>
+      oldState: ActiveWorkflow[F, Ctx],
+      newState: ActiveWorkflow[F, Ctx],
+  ): F[Set[PostExecCommand]] = {
+    (logF(logger.debug(s"""[${oldState.id}] onStateChange:
+                          |old state: ${oldState.liveState}
+                          |new state: ${newState.liveState}""".stripMargin)) *>
       delegate
         .onStateChange(oldState, newState)
-        .flatTap(cmds => IO(logger.trace(s"[${oldState.id}] onStateChange → commands: $cmds")))
-        .onError(e => IO(logger.error(s"[${oldState.id}] onStateChange failed", e)))).withMDC(newState)
+        .flatTap(cmds => logF(logger.trace(s"[${oldState.id}] onStateChange → commands: $cmds")))
+        .onError(e => logF(logger.error(s"[${oldState.id}] onStateChange failed", e)))).withMDC(newState)
   }
 
-  extension [F[_]: {Sync as fSync}, A](ioa: F[A]) {
-    def withMDC(activeWorkflow: ActiveWorkflow[? <: WorkflowContext]): F[A] = {
-      fSync.delay {
+  extension [A](fa: F[A]) {
+    def withMDC(activeWorkflow: ActiveWorkflow[?, ? <: WorkflowContext]): F[A] = {
+      logF {
         MDC.put("workflow_instance_id", activeWorkflow.id.instanceId)
         MDC.put("workflow_template_id", activeWorkflow.id.templateId)
-      } *> fSync.guarantee(ioa, fSync.delay(MDC.clear()))
+      } *> fa
+        .flatTap(_ => logF(MDC.clear()))
+        .onError(_ => logF(MDC.clear()))
+    }
+  }
+
+  extension [A](thunk: Thunk[A]) {
+    def withThunkMDC(activeWorkflow: ActiveWorkflow[?, ? <: WorkflowContext]): Thunk[A] = {
+      Thunk {
+        MDC.put("workflow_instance_id", activeWorkflow.id.instanceId)
+        MDC.put("workflow_template_id", activeWorkflow.id.templateId)
+      } *> Thunk {
+        try thunk.unsafeRun()
+        finally MDC.clear()
+      }
     }
   }
 
