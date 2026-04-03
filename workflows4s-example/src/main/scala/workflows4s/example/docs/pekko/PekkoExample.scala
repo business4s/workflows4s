@@ -4,6 +4,7 @@ import scala.concurrent.Future
 import cats.effect.unsafe.IORuntime
 import org.apache.pekko.actor.typed.ActorSystem
 import workflows4s.runtime.WorkflowInstance
+import cats.effect.IO
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.pekko.PekkoRuntime
 import workflows4s.wio.WorkflowContext
@@ -18,10 +19,10 @@ object PekkoExample {
 
   // doc_start
   import MyWorkflowCtx.*
-  given IORuntime                    = ???
-  given ActorSystem[?]               = ???
-  val engine: WorkflowInstanceEngine = ???
-  val workflow: WIO.Initial          = ???
+  given IORuntime                        = ???
+  given ActorSystem[?]                   = ???
+  val engine: WorkflowInstanceEngine[IO] = ???
+  val workflow: WIO.Initial              = ???
 
   val runtime: PekkoRuntime[Ctx] = PekkoRuntime.create("my-workflow", workflow, InitialState(), engine)
 

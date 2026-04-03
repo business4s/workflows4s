@@ -1,5 +1,6 @@
 package workflows4s.runtime.registry
 
+import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
@@ -65,5 +66,5 @@ class InMemoryWorkflowRegistryTest extends AnyFreeSpec with Matchers {
   }
 
   type DummyCtx = WorkflowContext { type State = Null; type Event = Nothing }
-  def dummyAW(id: WorkflowInstanceId): ActiveWorkflow[DummyCtx] = ActiveWorkflow(id, WIO.End[cats.effect.IO, DummyCtx](), null)
+  def dummyAW(id: WorkflowInstanceId): ActiveWorkflow[IO, DummyCtx] = ActiveWorkflow(id, WIO.End[IO, DummyCtx](), null)
 }

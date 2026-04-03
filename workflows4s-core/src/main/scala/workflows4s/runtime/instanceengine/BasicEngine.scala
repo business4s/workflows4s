@@ -1,42 +1,45 @@
 package workflows4s.runtime.instanceengine
 
-import cats.effect.{IO, SyncIO}
+import cats.Applicative
+import cats.effect.SyncIO
 import cats.implicits.catsSyntaxApplicativeId
+import cats.syntax.functor.*
 import workflows4s.wio.*
 import workflows4s.wio.internal.{SignalResult, WakeupResult}
 import workflows4s.wio.model.WIOExecutionProgress
 
 import java.time.Instant
 
-trait BasicEngine extends WorkflowInstanceEngine {
+trait BasicEngine[F[_]: Applicative] extends WorkflowInstanceEngine[F] {
 
-  protected def now: IO[Instant]
+  protected def now: F[Instant]
 
-  override def triggerWakeup[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[WakeupResult[IO, WCEvent[Ctx]]] = {
+  override def triggerWakeup[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx]): F[WakeupResult[F, WCEvent[Ctx]]] = {
     now.map(workflow.proceed)
   }
 
   override def handleSignal[Ctx <: WorkflowContext, Req, Resp](
-      workflow: ActiveWorkflow[Ctx],
+      workflow: ActiveWorkflow[F, Ctx],
       signalDef: SignalDef[Req, Resp],
       req: Req,
-  ): IO[SignalResult[IO, WCEvent[Ctx], Resp]] = workflow.handleSignal(signalDef)(req).pure[IO]
+  ): F[SignalResult[F, WCEvent[Ctx], Resp]] = workflow.handleSignal(signalDef)(req).pure[F]
 
-  override def handleEvent[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx], event: WCEvent[Ctx]): SyncIO[Option[ActiveWorkflow[Ctx]]] =
+  override def handleEvent[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx], event: WCEvent[Ctx]): SyncIO[Option[ActiveWorkflow[F, Ctx]]] =
     workflow.handleEvent(event).pure[SyncIO]
 
-  override def queryState[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[WCState[Ctx]] = workflow.liveState.pure[IO]
+  override def queryState[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx]): F[WCState[Ctx]] = workflow.liveState.pure[F]
 
-  override def getProgress[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): IO[WIOExecutionProgress[WCState[Ctx]]] = workflow.progress.pure[IO]
+  override def getProgress[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx]): F[WIOExecutionProgress[WCState[Ctx]]] =
+    workflow.progress.pure[F]
 
   override def getExpectedSignals[Ctx <: WorkflowContext](
-      workflow: ActiveWorkflow[Ctx],
+      workflow: ActiveWorkflow[F, Ctx],
       includeRedeliverable: Boolean = false,
-  ): IO[List[SignalDef[?, ?]]] =
-    workflow.expectedSignals(includeRedeliverable).pure[IO]
+  ): F[List[SignalDef[?, ?]]] =
+    workflow.expectedSignals(includeRedeliverable).pure[F]
 
   override def onStateChange[Ctx <: WorkflowContext](
-      oldState: ActiveWorkflow[Ctx],
-      newState: ActiveWorkflow[Ctx],
-  ): IO[Set[WorkflowInstanceEngine.PostExecCommand]] = IO.pure(Set.empty)
+      oldState: ActiveWorkflow[F, Ctx],
+      newState: ActiveWorkflow[F, Ctx],
+  ): F[Set[WorkflowInstanceEngine.PostExecCommand]] = Set.empty[WorkflowInstanceEngine.PostExecCommand].pure[F]
 }

@@ -18,12 +18,12 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
   protected given liftIO: LiftIO[F]
 
   protected def persistEvent(event: WCEvent[Ctx]): F[Unit]
-  protected def updateState(newState: ActiveWorkflow[Ctx]): F[Unit]
+  protected def updateState(newState: ActiveWorkflow[IO, Ctx]): F[Unit]
 
-  protected def lockState[T](update: ActiveWorkflow[Ctx] => F[T]): F[T]
+  protected def lockState[T](update: ActiveWorkflow[IO, Ctx] => F[T]): F[T]
   // this could theoretically be implemented in terms of `updateState` but we dont want to lock anything unnecessarly
-  protected def getWorkflow: F[ActiveWorkflow[Ctx]]
-  protected def engine: WorkflowInstanceEngine
+  protected def getWorkflow: F[ActiveWorkflow[IO, Ctx]]
+  protected def engine: WorkflowInstanceEngine[IO]
 
   override def queryState(): F[WCState[Ctx]] = getWorkflow.flatMap(x => engine.queryState(x).pipe(liftIO.liftIO))
 
@@ -33,7 +33,7 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
     getWorkflow.flatMap(x => engine.getExpectedSignals(x, includeRedeliverable).pipe(liftIO.liftIO))
 
   override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): F[Either[WorkflowInstance.UnexpectedSignal, Resp]] = {
-    def processSignal(state: ActiveWorkflow[Ctx]): F[Either[WorkflowInstance.UnexpectedSignal, Resp]] = {
+    def processSignal(state: ActiveWorkflow[IO, Ctx]): F[Either[WorkflowInstance.UnexpectedSignal, Resp]] = {
       for {
         resultOpt <- engine.handleSignal(state, signalDef, req).pipe(liftIO.liftIO)
         result    <- resultOpt match {
@@ -57,7 +57,7 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
 
   override def wakeup(): F[Unit] = lockState(processWakeup)
 
-  private def handleStateChange(oldState: ActiveWorkflow[Ctx], newStateOpt: Option[ActiveWorkflow[Ctx]]): F[Unit] = {
+  private def handleStateChange(oldState: ActiveWorkflow[IO, Ctx], newStateOpt: Option[ActiveWorkflow[IO, Ctx]]): F[Unit] = {
     newStateOpt match {
       case Some(newState) =>
         for {
@@ -70,7 +70,7 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
     }
   }
 
-  private def processWakeup(state: ActiveWorkflow[Ctx]) = {
+  private def processWakeup(state: ActiveWorkflow[IO, Ctx]) = {
     for {
       resultOpt <- engine.triggerWakeup(state).pipe(liftIO.liftIO)
       _         <- resultOpt match {
@@ -96,7 +96,7 @@ trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstanc
     } yield ()
   }
 
-  protected def recover(initialState: ActiveWorkflow[Ctx], events: Seq[WCEvent[Ctx]]): F[ActiveWorkflow[Ctx]] = {
+  protected def recover(initialState: ActiveWorkflow[IO, Ctx], events: Seq[WCEvent[Ctx]]): F[ActiveWorkflow[IO, Ctx]] = {
     events
       .foldLeftM(initialState)(engine.processEvent)
       .to[IO]

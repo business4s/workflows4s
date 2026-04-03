@@ -17,7 +17,7 @@ trait TestRuntimeAdapter[Ctx <: WorkflowContext] extends StrictLogging {
   val clock: TestClock                   = TestClock()
   val registry: InMemoryWorkflowRegistry = InMemoryWorkflowRegistry(clock).unsafeRunSync()
 
-  val engine: WorkflowInstanceEngine = WorkflowInstanceEngine.default(knockerUpper, registry, clock)
+  val engine: WorkflowInstanceEngine[IO] = WorkflowInstanceEngine.default(knockerUpper, registry, clock)
 
   type Actor <: WorkflowInstance[Id, WCState[Ctx]]
 

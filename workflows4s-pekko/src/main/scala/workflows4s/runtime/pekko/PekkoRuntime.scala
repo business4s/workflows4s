@@ -26,7 +26,7 @@ class PekkoRuntimeImpl[Ctx <: WorkflowContext](
     val workflow: Initial[IO, Ctx],
     initialState: WCState[Ctx],
     entityName: String,
-    engine: WorkflowInstanceEngine,
+    engine: WorkflowInstanceEngine[IO],
     val templateId: String,
 )(using system: ActorSystem[?])
     extends PekkoRuntime[Ctx] {
@@ -63,7 +63,7 @@ object PekkoRuntime {
       entityName: String,
       workflow: Initial[IO, Ctx],
       initialState: WCState[Ctx],
-      engine: WorkflowInstanceEngine,
+      engine: WorkflowInstanceEngine[IO],
   )(using
       system: ActorSystem[?],
   ): PekkoRuntime[Ctx] = {

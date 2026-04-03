@@ -17,9 +17,9 @@ private type Result[T] = Kleisli[ConnectionIO, LiftIO[ConnectionIO], T]
 
 class DbWorkflowInstance[Ctx <: WorkflowContext](
     val id: WorkflowInstanceId,
-    baseWorkflow: ActiveWorkflow[Ctx],
+    baseWorkflow: ActiveWorkflow[IO, Ctx],
     storage: WorkflowStorage[WCEvent[Ctx]],
-    protected val engine: WorkflowInstanceEngine,
+    protected val engine: WorkflowInstanceEngine[IO],
 ) extends WorkflowInstanceBase[Result, Ctx]
     with StrictLogging {
 
@@ -29,7 +29,7 @@ class DbWorkflowInstance[Ctx <: WorkflowContext](
     override def apply[A](fa: ConnectionIO[A]): Result[A] = Kleisli(_ => fa)
   }
 
-  override protected def getWorkflow: Result[ActiveWorkflow[Ctx]] = {
+  override protected def getWorkflow: Result[ActiveWorkflow[IO, Ctx]] = {
     Kleisli(connLifIo =>
       storage
         .getEvents(id)
@@ -45,8 +45,8 @@ class DbWorkflowInstance[Ctx <: WorkflowContext](
 
   override protected def persistEvent(event: WCEvent[Ctx]): Result[Unit] = Kleisli(_ => storage.saveEvent(id, event))
 
-  override protected def updateState(newState: ActiveWorkflow[Ctx]): Result[Unit] = fMonad.unit
+  override protected def updateState(newState: ActiveWorkflow[IO, Ctx]): Result[Unit] = fMonad.unit
 
-  override protected def lockState[T](update: ActiveWorkflow[Ctx] => Result[T]): Result[T] =
+  override protected def lockState[T](update: ActiveWorkflow[IO, Ctx] => Result[T]): Result[T] =
     storage.lockWorkflow(id).mapK(connIOToResult).use(_ => getWorkflow.flatMap(update))
 }

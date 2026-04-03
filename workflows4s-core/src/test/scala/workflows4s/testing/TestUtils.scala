@@ -14,7 +14,7 @@ class TestRuntime {
   val clock        = TestClock()
   val knockerUpper = RecordingKnockerUpper()
 
-  val engine: WorkflowInstanceEngine =
+  val engine: WorkflowInstanceEngine[IO] =
     WorkflowInstanceEngine.builder
       .withJavaTime(clock)
       .withWakeUps(knockerUpper)

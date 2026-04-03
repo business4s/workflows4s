@@ -38,7 +38,7 @@ object InMemoryWorkflowRegistry {
   ) extends InMemoryWorkflowRegistry
       with StrictLogging {
 
-    override def upsertInstance(inst: ActiveWorkflow[?], executionStatus: ExecutionStatus): IO[Unit] = {
+    override def upsertInstance(inst: ActiveWorkflow[IO, ?], executionStatus: ExecutionStatus): IO[Unit] = {
       val id = inst.id
       for {
         now <- IO(Instant.now(clock))
@@ -55,7 +55,7 @@ object InMemoryWorkflowRegistry {
       } yield ()
     }
 
-    private def getTags(instance: ActiveWorkflow[?]) = {
+    private def getTags(instance: ActiveWorkflow[IO, ?]) = {
       taggers
         .get(instance.id.templateId)
         .map(_.getTags(instance.id, instance.liveState.asInstanceOf))
