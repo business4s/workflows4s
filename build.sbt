@@ -27,6 +27,7 @@ lazy val `workflows4s` = (project in file("."))
   )
   .aggregate(
     `workflows4s-core`,
+    `workflows4s-cats-effect`,
     `workflows4s-bpmn`,
     `workflows4s-pekko`,
     `workflows4s-example`,
@@ -54,6 +55,15 @@ lazy val `workflows4s-core` = (project in file("workflows4s-core"))
     ),
     Test / parallelExecution := false,
   )
+
+lazy val `workflows4s-cats-effect` = (project in file("workflows4s-cats-effect"))
+  .settings(commonSettings)
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.typelevel" %% "cats-effect" % "3.7.0",
+    ),
+  )
+  .dependsOn(`workflows4s-core` % "compile->compile;test->test")
 
 lazy val `workflows4s-bpmn` = (project in file("workflows4s-bpmn"))
   .settings(commonSettings)
@@ -215,10 +225,11 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
     publish / skip           := true,
   )
   .dependsOn(
-    `workflows4s-core`   % "compile->compile;test->test",
+    `workflows4s-core`        % "compile->compile;test->test",
+    `workflows4s-cats-effect` % "compile->compile;test->test",
     `workflows4s-bpmn`,
-    `workflows4s-pekko`  % "compile->compile;test->test",
-    `workflows4s-doobie` % "compile->compile;test->test",
+    `workflows4s-pekko`       % "compile->compile;test->test",
+    `workflows4s-doobie`      % "compile->compile;test->test",
     `workflows4s-filesystem`,
     `workflows4s-quartz`,
     `workflows4s-web-api-server`,

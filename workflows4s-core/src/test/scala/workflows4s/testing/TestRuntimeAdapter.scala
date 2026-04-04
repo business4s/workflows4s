@@ -2,7 +2,6 @@ package workflows4s.testing
 
 import cats.Id
 import cats.effect.IO
-import cats.effect.unsafe.IORuntime
 import cats.effect.unsafe.implicits.global
 import com.typesafe.scalalogging.StrictLogging
 import workflows4s.runtime.*
@@ -49,54 +48,26 @@ object TestRuntimeAdapter {
         workflow: WIO.Initial[IO, Ctx],
         state: WCState[Ctx],
     ): Actor = {
-      val runtime = new InMemorySyncRuntime[Ctx](workflow, state, engine, "test")(using IORuntime.global)
+      val runtime = InMemorySynchronizedRuntime.create[IO, Ctx](workflow, state, engine, "test")
       Actor(List(), runtime)
     }
 
     override def recover(first: Actor): Actor = Actor(first.getEvents, first.runtime)
 
-    case class Actor(events: Seq[WCEvent[Ctx]], runtime: InMemorySyncRuntime[Ctx])
+    case class Actor(events: Seq[WCEvent[Ctx]], runtime: InMemorySynchronizedRuntime[IO, Ctx])
         extends DelegateWorkflowInstance[Id, WCState[Ctx]]
         with EventIntrospection[WCEvent[Ctx]] {
-      val delegate: InMemorySyncWorkflowInstance[Ctx] = {
-        val inst = runtime.createInstance("")
-        inst.recover(events)
-        inst
-      }
-
-      override def getEvents: Seq[WCEvent[Ctx]]                                                         = delegate.getEvents
-      override def getExpectedSignals(includeRedeliverable: Boolean = false): Id[List[SignalDef[?, ?]]] =
-        delegate.getExpectedSignals(includeRedeliverable)
-    }
-  }
-
-  case class InMemory[Ctx <: WorkflowContext]() extends TestRuntimeAdapter[Ctx] {
-
-    override def runWorkflow(
-        workflow: WIO.Initial[IO, Ctx],
-        state: WCState[Ctx],
-    ): Actor = {
-      val runtime = InMemoryRuntime.default[Ctx](workflow, state, engine).unsafeRunSync()
-      Actor(List(), runtime)
-    }
-
-    override def recover(first: Actor): Actor = Actor(first.getEvents, first.runtime)
-
-    case class Actor(events: Seq[WCEvent[Ctx]], runtime: InMemoryRuntime[Ctx])
-        extends DelegateWorkflowInstance[Id, WCState[Ctx]]
-        with EventIntrospection[WCEvent[Ctx]] {
-      val base: InMemoryWorkflowInstance[Ctx]          = {
+      private val sync: SynchronizedWorkflowInstance[Ctx] = {
         val inst = runtime.createInstance("").unsafeRunSync()
         inst.recover(events).unsafeRunSync()
-        inst
+        new SynchronizedWorkflowInstance(inst)
       }
-      val delegate: WorkflowInstance[Id, WCState[Ctx]] = MappedWorkflowInstance(base, [t] => (x: IO[t]) => x.unsafeRunSync())
+      val delegate: WorkflowInstance[Id, WCState[Ctx]]    = sync
 
-      override def getEvents: Seq[WCEvent[Ctx]]                                                         = base.getEvents.unsafeRunSync()
+      override def getEvents: Seq[WCEvent[Ctx]]                                                         = sync.getEvents
       override def getExpectedSignals(includeRedeliverable: Boolean = false): Id[List[SignalDef[?, ?]]] =
-        delegate.getExpectedSignals(includeRedeliverable)
+        sync.getExpectedSignals(includeRedeliverable)
     }
-
   }
 
 }

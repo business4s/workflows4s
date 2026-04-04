@@ -16,6 +16,7 @@ import scala.concurrent.Future
   * Call [[initializeShard]] once at startup before creating instances.
   */
 trait PekkoRuntime[Ctx <: WorkflowContext] extends WorkflowRuntime[Future, Ctx] {
+  override type WorkflowEffect[A] = IO[A]
   def createInstance_(id: String): WorkflowInstance[Future, WCState[Ctx]]
 
   /** Registers the entity type with Pekko Cluster Sharding. Must be called once before any `createInstance` call. */

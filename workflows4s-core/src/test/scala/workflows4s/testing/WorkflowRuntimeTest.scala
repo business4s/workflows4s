@@ -12,17 +12,6 @@ import workflows4s.wio.{SignalDef, StepId, TestCtx2, TestState}
 
 import scala.annotation.nowarn
 
-class WorkflowRuntimeTest extends WorkflowRuntimeTest.Suite {
-
-  "in-memory" - {
-    workflowTests(TestRuntimeAdapter.InMemory[TestCtx2.Ctx]())
-  }
-  "in-memory-sync" - {
-    workflowTests(TestRuntimeAdapter.InMemorySync[TestCtx2.Ctx]())
-  }
-
-}
-
 object WorkflowRuntimeTest {
   trait Suite extends AnyFreeSpecLike {
 
