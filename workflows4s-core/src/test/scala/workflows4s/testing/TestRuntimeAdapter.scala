@@ -62,9 +62,9 @@ object TestRuntimeAdapter {
         inst.recover(events).unsafeRunSync()
         new SynchronizedWorkflowInstance(inst)
       }
-      val delegate: WorkflowInstance[Id, WCState[Ctx]] = sync
+      val delegate: WorkflowInstance[Id, WCState[Ctx]]    = sync
 
-      override def getEvents: Seq[WCEvent[Ctx]]                                                       = sync.getEvents
+      override def getEvents: Seq[WCEvent[Ctx]]                                                         = sync.getEvents
       override def getExpectedSignals(includeRedeliverable: Boolean = false): Id[List[SignalDef[?, ?]]] =
         sync.getExpectedSignals(includeRedeliverable)
     }

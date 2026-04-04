@@ -4,7 +4,14 @@ import cats.Id
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
-import workflows4s.runtime.{DelegateWorkflowInstance, InMemorySynchronizedRuntime, InMemorySynchronizedWorkflowInstance, MappedWorkflowInstance, WorkflowInstance, WorkflowInstanceId}
+import workflows4s.runtime.{
+  DelegateWorkflowInstance,
+  InMemorySynchronizedRuntime,
+  InMemorySynchronizedWorkflowInstance,
+  MappedWorkflowInstance,
+  WorkflowInstance,
+  WorkflowInstanceId,
+}
 import workflows4s.wio.*
 
 import java.time.Instant
@@ -15,9 +22,9 @@ import scala.util.Random
 class SynchronizedWorkflowInstance[Ctx <: WorkflowContext](
     val base: InMemorySynchronizedWorkflowInstance[IO, Ctx],
 ) extends DelegateWorkflowInstance[Id, WCState[Ctx]] {
-  val delegate: WorkflowInstance[Id, WCState[Ctx]]                              = MappedWorkflowInstance(base, [t] => (x: IO[t]) => x.unsafeRunSync())
-  def getEvents: Seq[WCEvent[Ctx]]                                              = base.getEvents
-  def recover(events: Seq[WCEvent[Ctx]]): Unit                                  = base.recover(events).unsafeRunSync()
+  val delegate: WorkflowInstance[Id, WCState[Ctx]]                                          = MappedWorkflowInstance(base, [t] => (x: IO[t]) => x.unsafeRunSync())
+  def getEvents: Seq[WCEvent[Ctx]]                                                          = base.getEvents
+  def recover(events: Seq[WCEvent[Ctx]]): Unit                                              = base.recover(events).unsafeRunSync()
   override def getExpectedSignals(includeRedeliverable: Boolean): Id[List[SignalDef[?, ?]]] =
     delegate.getExpectedSignals(includeRedeliverable)
 }
@@ -53,7 +60,7 @@ object TestUtils {
   type Error = String
 
   def createInstance2(wio: WIO[IO, TestState, Nothing, TestState, TestCtx2.Ctx]): (TestClock, SynchronizedWorkflowInstance[TestCtx2.Ctx]) = {
-    val clock = new TestClock()
+    val clock   = new TestClock()
     val runtime = InMemorySynchronizedRuntime.create[IO, TestCtx2.Ctx](
       wio.provideInput(TestState.empty),
       TestState.empty,

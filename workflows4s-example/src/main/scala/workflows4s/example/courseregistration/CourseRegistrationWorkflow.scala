@@ -129,7 +129,9 @@ object CourseRegistrationWorkflow {
     wfInstance.deliverSignal(Signals.startBrowsing, Signals.BrowsingRequest("student-123", "spring-2024")).unsafeRunSync()
     println(wfInstance.queryState().unsafeRunSync())
 
-    wfInstance.deliverSignal(Signals.setPriorities, Signals.PriorityRequest("CR1", List("CS101-Smith", "CS101-Johnson", "CS101-Davis"))).unsafeRunSync()
+    wfInstance
+      .deliverSignal(Signals.setPriorities, Signals.PriorityRequest("CR1", List("CS101-Smith", "CS101-Johnson", "CS101-Davis")))
+      .unsafeRunSync()
     println(wfInstance.queryState().unsafeRunSync())
     // end_execution
 

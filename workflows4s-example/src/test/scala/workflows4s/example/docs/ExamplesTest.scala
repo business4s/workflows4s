@@ -64,7 +64,7 @@ class ExamplesTest extends AnyFreeSpec {
   }
 
   "render progress" in {
-    val instance = PullRequestWorkflow.run
+    val instance     = PullRequestWorkflow.run
     val syncInstance = MappedWorkflowInstance(instance, [t] => (x: cats.effect.IO[t]) => x.unsafeRunSync(): cats.Id[t])
     TestUtils.renderDocsProgressExample(syncInstance, "pull-request-completed")
   }
