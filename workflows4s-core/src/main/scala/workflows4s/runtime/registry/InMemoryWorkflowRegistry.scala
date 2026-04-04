@@ -8,7 +8,7 @@ import workflows4s.wio.ActiveWorkflow
 
 import java.time.{Clock, Instant}
 
-trait InMemoryWorkflowRegistry extends WorkflowRegistry.Agent with WorkflowSearch[IO] {
+trait InMemoryWorkflowRegistry extends WorkflowRegistry.Agent[IO] with WorkflowSearch[IO] {
 
   def getWorkflows(): IO[List[InMemoryWorkflowRegistry.Data]]
 

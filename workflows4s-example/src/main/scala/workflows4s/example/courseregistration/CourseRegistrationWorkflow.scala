@@ -120,7 +120,7 @@ object CourseRegistrationWorkflow {
     // end_render
 
     // start_execution
-    val engine     = WorkflowInstanceEngine.basic()
+    val engine     = WorkflowInstanceEngine.basic[IO]()
     val runtime    = InMemorySyncRuntime.create[Context.Ctx](workflow, RegistrationState.Empty, engine)
     val wfInstance = runtime.createInstance("student-123")
 

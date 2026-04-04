@@ -1,5 +1,6 @@
 package workflows4s.example.docs.pullrequest
 
+import cats.effect.IO
 import workflows4s.mermaid.MermaidRenderer
 import workflows4s.runtime.InMemorySyncRuntime
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
@@ -19,7 +20,7 @@ object MinimalWorkflow {
 
     println(MermaidRenderer.renderWorkflow(workflow.toProgress).toViewUrl)
 
-    val engine     = WorkflowInstanceEngine.basic()
+    val engine     = WorkflowInstanceEngine.basic[IO]()
     val runtime    = InMemorySyncRuntime.create[Context.Ctx](workflow, "", engine)
     val wfInstance = runtime.createInstance("id")
 
