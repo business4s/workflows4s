@@ -1,7 +1,9 @@
 package workflows4s.example.docs
 
+import cats.effect.unsafe.implicits.global
 import org.scalatest.freespec.AnyFreeSpec
 import workflows4s.example.TestUtils
+import workflows4s.runtime.MappedWorkflowInstance
 import workflows4s.example.docs.draft.{
   DraftCheckpointExample,
   DraftForkExample,
@@ -63,7 +65,8 @@ class ExamplesTest extends AnyFreeSpec {
 
   "render progress" in {
     val instance = PullRequestWorkflow.run
-    TestUtils.renderDocsProgressExample(instance, "pull-request-completed")
+    val syncInstance = MappedWorkflowInstance(instance, [t] => (x: cats.effect.IO[t]) => x.unsafeRunSync(): cats.Id[t])
+    TestUtils.renderDocsProgressExample(syncInstance, "pull-request-completed")
   }
 
 }

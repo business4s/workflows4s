@@ -6,7 +6,7 @@ import cats.syntax.all.*
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.wio.*
 
-class InMemoryWorkflowInstance[F[_]: Sync, Ctx <: WorkflowContext](
+class InMemoryConcurrentWorkflowInstance[F[_]: Sync, Ctx <: WorkflowContext](
     val id: WorkflowInstanceId,
     stateCell: AtomicCell[F, ActiveWorkflow[F, Ctx]],
     eventsRef: Ref[F, Vector[WCEvent[Ctx]]],
@@ -24,7 +24,7 @@ class InMemoryWorkflowInstance[F[_]: Sync, Ctx <: WorkflowContext](
       } yield newState -> ()
     }
 
-  override protected def fMonad: cats.Monad[F]        = Sync[F]
+  override protected def fMonad: cats.Monad[F]      = Sync[F]
   override protected def liftG: [A] => F[A] => F[A] = [A] => (fa: F[A]) => fa
 
   override protected def getWorkflow: F[ActiveWorkflow[F, Ctx]] = stateCell.get

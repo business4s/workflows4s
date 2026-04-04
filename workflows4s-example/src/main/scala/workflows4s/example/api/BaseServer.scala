@@ -17,7 +17,7 @@ import workflows4s.example.docs.pullrequest.PullRequestWorkflow.PRState
 import workflows4s.example.pekko.DummyWithdrawalService
 import workflows4s.example.withdrawal.checks.ChecksEngine
 import workflows4s.example.withdrawal.{WithdrawalData, WithdrawalWorkflow}
-import workflows4s.runtime.InMemoryRuntime
+import workflows4s.runtime.InMemoryConcurrentRuntime
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.registry.InMemoryWorkflowRegistry
 import workflows4s.runtime.wakeup.SleepingKnockerUpper
@@ -37,7 +37,7 @@ trait BaseServer {
       knockerUpper     <- SleepingKnockerUpper.create()
       registry         <- InMemoryWorkflowRegistry().toResource
       engine            = WorkflowInstanceEngine.default(knockerUpper, registry)
-      courseRegRuntime <- InMemoryRuntime
+      courseRegRuntime <- InMemoryConcurrentRuntime
                             .default[IO, CourseRegistrationWorkflow.Context.Ctx](
                               workflow = CourseRegistrationWorkflow.workflow,
                               initialState = CourseRegistrationWorkflow.RegistrationState.Empty,
@@ -45,7 +45,7 @@ trait BaseServer {
                             )
                             .toResource
 
-      pullReqRuntime <- InMemoryRuntime
+      pullReqRuntime <- InMemoryConcurrentRuntime
                           .default[IO, PullRequestWorkflow.Context.Ctx](
                             workflow = PullRequestWorkflow.workflow,
                             initialState = PullRequestWorkflow.PRState.Empty,
@@ -54,7 +54,7 @@ trait BaseServer {
                           .toResource
 
       withdrawalWf       = WithdrawalWorkflow(DummyWithdrawalService, ChecksEngine)
-      withdrawalRuntime <- InMemoryRuntime
+      withdrawalRuntime <- InMemoryConcurrentRuntime
                              .default[IO, WithdrawalWorkflow.Context.Ctx](
                                workflow = withdrawalWf.workflowDeclarative,
                                initialState = WithdrawalData.Empty,

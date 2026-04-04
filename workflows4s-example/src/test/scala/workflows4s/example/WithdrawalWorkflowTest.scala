@@ -14,7 +14,7 @@ import workflows4s.example.withdrawal.*
 import workflows4s.example.withdrawal.WithdrawalService.{ExecutionResponse, Fee, Iban}
 import workflows4s.example.withdrawal.WithdrawalSignal.CreateWithdrawal
 import workflows4s.example.withdrawal.checks.*
-import workflows4s.testing.{InMemoryTestRuntimeAdapter, TestRuntimeAdapter}
+import workflows4s.testing.{InMemoryConcurrentTestRuntimeAdapter, TestRuntimeAdapter}
 
 import scala.annotation.unused
 import scala.concurrent.duration.*
@@ -27,7 +27,7 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory with Withdrawa
     withdrawalTests(TestRuntimeAdapter.InMemorySync())
   }
   "in-memory" - {
-    withdrawalTests(InMemoryTestRuntimeAdapter())
+    withdrawalTests(InMemoryConcurrentTestRuntimeAdapter())
   }
 
   "render model" in {

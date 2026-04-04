@@ -2,10 +2,10 @@ package workflows4s.testing
 
 import workflows4s.wio.TestCtx2
 
-class InMemoryWorkflowRuntimeTest extends WorkflowRuntimeTest.Suite {
+class InMemoryConcurrentWorkflowRuntimeTest extends WorkflowRuntimeTest.Suite {
 
-  "in-memory" - {
-    workflowTests(InMemoryTestRuntimeAdapter[TestCtx2.Ctx]())
+  "in-memory-concurrent" - {
+    workflowTests(InMemoryConcurrentTestRuntimeAdapter[TestCtx2.Ctx]())
   }
 
 }

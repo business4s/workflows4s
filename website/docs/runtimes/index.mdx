@@ -66,12 +66,13 @@ Below is an overview of the available runtimes, with their strengths and limitat
         </td>
     </tr>
     <tr>
-        <td><a href="in-memory"><code>InMemoryRuntime</code></a></td>
-        <td>Based on Cats Effect; keeps state in memory without persistence.</td>
+        <td><a href="in-memory"><code>InMemoryConcurrentRuntime</code></a></td>
+        <td>Fiber-safe, cancellation-safe. Uses cats-effect primitives (Ref, Semaphore). No persistence.</td>
         <td>
             <ul>
                 <li>Fast execution</li>
                 <li>Ephemeral workflows</li>
+                <li>Concurrent access</li>
             </ul>
         </td>
         <td>
@@ -82,18 +83,18 @@ Below is an overview of the available runtimes, with their strengths and limitat
         </td>
     </tr>
     <tr>
-        <td><a href="in-memory"><code>InMemorySyncRuntime</code></a></td>
-        <td>Vanilla Scala implementation, not thread-safe and lacks persistence.</td>
+        <td><a href="in-memory"><code>InMemorySynchronizedRuntime</code></a></td>
+        <td>Thread-safe via JVM synchronization. No cats-effect dependency. No persistence.</td>
         <td>
             <ul>
                 <li>Simple workflows</li>
                 <li>Experimentation</li>
-                <li>Single-threaded scenarios</li>
                 <li>Testing</li>
             </ul>
         </td>
         <td>
             <ul>
+                <li>Concurrent fiber access</li>
                 <li>Production use cases</li>
             </ul>
         </td>

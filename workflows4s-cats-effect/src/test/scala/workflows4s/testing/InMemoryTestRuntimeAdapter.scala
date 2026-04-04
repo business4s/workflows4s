@@ -6,22 +6,22 @@ import cats.effect.unsafe.implicits.global
 import workflows4s.runtime.*
 import workflows4s.wio.*
 
-case class InMemoryTestRuntimeAdapter[Ctx <: WorkflowContext]() extends TestRuntimeAdapter[Ctx] {
+case class InMemoryConcurrentTestRuntimeAdapter[Ctx <: WorkflowContext]() extends TestRuntimeAdapter[Ctx] {
 
   override def runWorkflow(
       workflow: WIO.Initial[IO, Ctx],
       state: WCState[Ctx],
   ): Actor = {
-    val runtime = InMemoryRuntime.default[IO, Ctx](workflow, state, engine).unsafeRunSync()
+    val runtime = InMemoryConcurrentRuntime.default[IO, Ctx](workflow, state, engine).unsafeRunSync()
     Actor(List(), runtime)
   }
 
   override def recover(first: Actor): Actor = Actor(first.getEvents, first.runtime)
 
-  case class Actor(events: Seq[WCEvent[Ctx]], runtime: InMemoryRuntime[IO, Ctx])
+  case class Actor(events: Seq[WCEvent[Ctx]], runtime: InMemoryConcurrentRuntime[IO, Ctx])
       extends DelegateWorkflowInstance[Id, WCState[Ctx]]
       with TestRuntimeAdapter.EventIntrospection[WCEvent[Ctx]] {
-    val base: InMemoryWorkflowInstance[IO, Ctx] = {
+    val base: InMemoryConcurrentWorkflowInstance[IO, Ctx] = {
       val inst = runtime.createInstance("").unsafeRunSync()
       inst.recover(events).unsafeRunSync()
       inst
