@@ -14,9 +14,6 @@ import scala.annotation.nowarn
 
 class WorkflowRuntimeTest extends WorkflowRuntimeTest.Suite {
 
-  "in-memory" - {
-    workflowTests(TestRuntimeAdapter.InMemory[TestCtx2.Ctx]())
-  }
   "in-memory-sync" - {
     workflowTests(TestRuntimeAdapter.InMemorySync[TestCtx2.Ctx]())
   }

@@ -14,6 +14,7 @@ class InMemorySyncRuntime[Ctx <: WorkflowContext](
     val templateId: String,
 )(using IORuntime)
     extends WorkflowRuntime[Id, Ctx] {
+  override type WorkflowEffect[A] = IO[A]
   val instances = new java.util.concurrent.ConcurrentHashMap[String, InMemorySyncWorkflowInstance[Ctx]]()
 
   override def createInstance(id: String): InMemorySyncWorkflowInstance[Ctx] = {

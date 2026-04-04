@@ -20,6 +20,7 @@ class DatabaseRuntime[Ctx <: WorkflowContext](
     storage: WorkflowStorage[WCEvent[Ctx]],
     val templateId: String,
 ) extends WorkflowRuntime[IO, Ctx] {
+  override type WorkflowEffect[A] = IO[A]
 
   override def createInstance(id: String): IO[WorkflowInstance[IO, WCState[Ctx]]] = {
     val instanceId = WorkflowInstanceId(templateId, id)

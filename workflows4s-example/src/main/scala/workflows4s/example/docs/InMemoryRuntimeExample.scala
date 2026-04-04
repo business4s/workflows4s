@@ -20,10 +20,10 @@ object InMemoryRuntimeExample {
     import MyWorkflowCtx.*
     val workflow: WIO.Initial                         = ???
     val engine: WorkflowInstanceEngine[IO]            = ???
-    val runtime: InMemoryRuntime[Ctx]                 = InMemoryRuntime
+    val runtime: InMemoryRuntime[IO, Ctx]                 = InMemoryRuntime
       .default(workflow, InitialState(), engine)
       .unsafeRunSync()
-    val wfInstance: IO[InMemoryWorkflowInstance[Ctx]] = runtime.createInstance("my-workflow-1")
+    val wfInstance: IO[InMemoryWorkflowInstance[IO, Ctx]] = runtime.createInstance("my-workflow-1")
     // async_doc_end
   }
 
