@@ -13,7 +13,7 @@ import workflows4s.wio.*
 // Adapt various runtimes to a single interface for tests
 trait TestRuntimeAdapter[Ctx <: WorkflowContext] extends StrictLogging {
 
-  protected val knockerUpper             = RecordingKnockerUpper()
+  protected val knockerUpper             = RecordingKnockerUpper[IO]()
   val clock: TestClock                   = TestClock()
   val registry: InMemoryWorkflowRegistry = InMemoryWorkflowRegistry(clock).unsafeRunSync()
 

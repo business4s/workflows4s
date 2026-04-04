@@ -12,7 +12,7 @@ import scala.util.Random
 
 class TestRuntime {
   val clock        = TestClock()
-  val knockerUpper = RecordingKnockerUpper()
+  val knockerUpper = RecordingKnockerUpper[IO]()
 
   val engine: WorkflowInstanceEngine[IO] =
     WorkflowInstanceEngine.builder

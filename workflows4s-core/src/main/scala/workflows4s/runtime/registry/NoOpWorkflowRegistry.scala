@@ -1,13 +1,13 @@
 package workflows4s.runtime.registry
 
-import cats.effect.IO
+import cats.Applicative
 import workflows4s.runtime.registry.WorkflowRegistry.ExecutionStatus
 import workflows4s.wio.ActiveWorkflow
 
 object NoOpWorkflowRegistry {
 
-  object Agent extends WorkflowRegistry.Agent {
-    override def upsertInstance(inst: ActiveWorkflow[IO, ?], executionStatus: ExecutionStatus): IO[Unit] = IO.unit
+  def agent[F[_]: Applicative]: WorkflowRegistry.Agent[F] = new WorkflowRegistry.Agent[F] {
+    override def upsertInstance(inst: ActiveWorkflow[F, ?], executionStatus: ExecutionStatus): F[Unit] = Applicative[F].unit
   }
 
 }

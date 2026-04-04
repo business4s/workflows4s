@@ -8,8 +8,8 @@ import workflows4s.runtime.wakeup.KnockerUpper
 object EngineExample {
 
   // doc_start
-  val knockerUpper: KnockerUpper.Agent = ???
-  val registry: WorkflowRegistry.Agent = ???
+  val knockerUpper: KnockerUpper.Agent[IO] = ???
+  val registry: WorkflowRegistry.Agent[IO] = ???
 
   val engine: WorkflowInstanceEngine[IO] = WorkflowInstanceEngine.builder
     .withJavaTime()
