@@ -18,7 +18,7 @@ class DbWorkflowInstance[Ctx <: WorkflowContext](
     baseWorkflow: ActiveWorkflow[IO, Ctx],
     storage: WorkflowStorage[WCEvent[Ctx]],
     protected val engine: WorkflowInstanceEngine[IO],
-) extends WorkflowInstanceBase[Result, Ctx]
+) extends WorkflowInstanceBase[Result, IO, Ctx]
     with StrictLogging {
 
   override protected def fMonad: Monad[Result] = summon
@@ -37,9 +37,7 @@ class DbWorkflowInstance[Ctx <: WorkflowContext](
     )
   }
 
-  override protected def liftIO: LiftIO[Result] = new LiftIO[Result] {
-    override def liftIO[A](ioa: IO[A]): Result[A] = Kleisli(liftIO => liftIO.liftIO(ioa))
-  }
+  override protected def liftG: [A] => IO[A] => Result[A] = [A] => (ioa: IO[A]) => Kleisli(liftIO => liftIO.liftIO(ioa))
 
   override protected def persistEvent(event: WCEvent[Ctx]): Result[Unit] = Kleisli(_ => storage.saveEvent(id, event))
 
