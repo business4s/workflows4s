@@ -6,7 +6,6 @@ import cats.effect.{IO, Ref}
 import cats.syntax.all.*
 import org.scalatest.freespec.AnyFreeSpecLike
 import sourcecode.Text.generate
-import workflows4s.runtime.registry.InMemoryWorkflowRegistry
 import workflows4s.runtime.registry.WorkflowRegistry.ExecutionStatus
 import workflows4s.wio.{SignalDef, StepId, TestCtx2, TestState}
 
@@ -132,8 +131,7 @@ object WorkflowRuntimeTest {
       }
 
       trait Fixture {
-        val runtime  = getRuntime
-        val registry = InMemoryWorkflowRegistry(runtime.clock).unsafeRunSync()
+        val runtime = getRuntime
 
         def expectRegistryEntry(status: ExecutionStatus)                     = {
           val registeredWorkflows = runtime.registry.getWorkflows().unsafeRunSync()

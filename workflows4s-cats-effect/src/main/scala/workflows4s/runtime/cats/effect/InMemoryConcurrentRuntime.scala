@@ -1,8 +1,9 @@
-package workflows4s.runtime
+package workflows4s.runtime.cats.effect
 
-import cats.effect.std.{AtomicCell, Semaphore}
-import cats.effect.{Async, Ref}
-import cats.syntax.all.*
+import _root_.cats.effect.std.{AtomicCell, Semaphore}
+import _root_.cats.effect.{Async, Ref}
+import _root_.cats.syntax.all.*
+import workflows4s.runtime.*
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.wio.*
 import workflows4s.wio.WIO.Initial

@@ -13,7 +13,8 @@ import workflows4s.example.withdrawal.checks.ChecksEngine
 import workflows4s.example.withdrawal.{WithdrawalData, WithdrawalWorkflow}
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.pekko.PekkoRuntime
-import workflows4s.runtime.wakeup.SleepingKnockerUpper
+import workflows4s.runtime.wakeup.cats.effect.SleepingKnockerUpper
+import workflows4s.wio.cats.effect.WeakSyncInstances.given
 
 object Main extends IOApp {
   override def run(args: List[String]): IO[ExitCode] = {

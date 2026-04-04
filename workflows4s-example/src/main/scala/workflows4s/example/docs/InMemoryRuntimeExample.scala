@@ -2,14 +2,14 @@ package workflows4s.example.docs
 
 import cats.effect.IO
 import workflows4s.runtime.{
-  InMemoryConcurrentRuntime,
-  InMemoryConcurrentWorkflowInstance,
   InMemorySynchronizedRuntime,
   InMemorySynchronizedWorkflowInstance,
 }
+import workflows4s.runtime.cats.effect.{InMemoryConcurrentRuntime, InMemoryConcurrentWorkflowInstance}
 import workflows4s.wio.WorkflowContext
 import cats.effect.unsafe.implicits.global
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
+import workflows4s.wio.cats.effect.WeakSyncInstances.given
 
 object InMemorySynchronizedRuntimeExample {
 

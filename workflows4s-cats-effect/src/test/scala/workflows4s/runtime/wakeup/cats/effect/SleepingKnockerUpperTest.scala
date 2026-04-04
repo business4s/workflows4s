@@ -1,7 +1,7 @@
-package workflows4s.runtime.wakeup
+package workflows4s.runtime.wakeup.cats.effect
 
-import cats.effect.IO
-import cats.effect.unsafe.implicits.global
+import _root_.cats.effect.IO
+import _root_.cats.effect.unsafe.implicits.global
 import org.scalatest.freespec.AnyFreeSpec
 import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.testing.TestUtils

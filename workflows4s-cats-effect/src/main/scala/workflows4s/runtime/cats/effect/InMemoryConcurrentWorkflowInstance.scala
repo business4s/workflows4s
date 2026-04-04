@@ -1,8 +1,9 @@
-package workflows4s.runtime
+package workflows4s.runtime.cats.effect
 
-import cats.effect.std.{AtomicCell, Semaphore}
-import cats.effect.{Ref, Resource, Sync}
-import cats.syntax.all.*
+import _root_.cats.effect.std.{AtomicCell, Semaphore}
+import _root_.cats.effect.{Ref, Resource, Sync}
+import _root_.cats.syntax.all.*
+import workflows4s.runtime.*
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.wio.*
 
@@ -24,7 +25,7 @@ class InMemoryConcurrentWorkflowInstance[F[_]: Sync, Ctx <: WorkflowContext](
       } yield newState -> ()
     }
 
-  override protected def fMonad: cats.Monad[F]      = Sync[F]
+  override protected def fMonad: _root_.cats.Monad[F]      = Sync[F]
   override protected def liftG: [A] => F[A] => F[A] = [A] => (fa: F[A]) => fa
 
   override protected def getWorkflow: F[ActiveWorkflow[F, Ctx]] = stateCell.get

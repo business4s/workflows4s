@@ -3,6 +3,10 @@ package workflows4s.wio
 import cats.effect.IO
 import workflows4s.runtime.WorkflowInstanceId
 
+given WeakSync[IO] with {
+  override def delay[A](body: => A): IO[A] = IO(body)
+}
+
 object TestCtx extends WorkflowContext {
   trait Event
   case class SimpleEvent(value: String) extends Event

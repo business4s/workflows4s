@@ -6,6 +6,7 @@ import cats.effect.unsafe.implicits.global
 import workflows4s.runtime.InMemorySynchronizedRuntime
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.wio.WorkflowContext
+import workflows4s.wio.cats.effect.WeakSyncInstances.given
 
 object MinimalWorkflow {
 

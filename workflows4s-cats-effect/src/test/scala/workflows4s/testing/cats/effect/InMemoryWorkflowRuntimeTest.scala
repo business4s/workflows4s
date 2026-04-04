@@ -1,5 +1,6 @@
-package workflows4s.testing
+package workflows4s.testing.cats.effect
 
+import workflows4s.testing.WorkflowRuntimeTest
 import workflows4s.wio.TestCtx2
 
 class InMemoryConcurrentWorkflowRuntimeTest extends WorkflowRuntimeTest.Suite {

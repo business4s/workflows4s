@@ -8,7 +8,8 @@ import org.scalatest.freespec.{AnyFreeSpec, AnyFreeSpecLike}
 import workflows4s.example.TestUtils
 import workflows4s.example.withdrawal.checks.*
 import workflows4s.runtime.WorkflowInstance
-import workflows4s.testing.{InMemoryConcurrentTestRuntimeAdapter, TestRuntimeAdapter}
+import workflows4s.testing.TestRuntimeAdapter
+import workflows4s.testing.cats.effect.InMemoryConcurrentTestRuntimeAdapter
 import workflows4s.wio.WCState
 
 import scala.annotation.nowarn

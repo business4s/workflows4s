@@ -9,6 +9,7 @@ import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import cats.effect.unsafe.implicits.global
 import workflows4s.runtime.{InMemorySynchronizedRuntime, InMemorySynchronizedWorkflowInstance}
 import workflows4s.wio.{SignalDef, WorkflowContext}
+import workflows4s.wio.cats.effect.WeakSyncInstances.given
 
 import java.nio.file.Files
 import scala.annotation.nowarn

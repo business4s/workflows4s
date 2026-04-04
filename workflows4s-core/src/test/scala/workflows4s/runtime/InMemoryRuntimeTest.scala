@@ -4,6 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import org.scalatest.freespec.AnyFreeSpec
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
+import workflows4s.wio.given
 
 class InMemorySynchronizedRuntimeTest extends AnyFreeSpec {
 

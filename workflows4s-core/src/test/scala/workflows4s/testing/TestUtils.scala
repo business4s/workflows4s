@@ -13,6 +13,7 @@ import workflows4s.runtime.{
   WorkflowInstanceId,
 }
 import workflows4s.wio.*
+import workflows4s.wio.given
 
 import java.time.Instant
 import java.util.UUID

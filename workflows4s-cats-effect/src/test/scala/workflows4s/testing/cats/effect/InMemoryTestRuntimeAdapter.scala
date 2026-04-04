@@ -1,9 +1,11 @@
-package workflows4s.testing
+package workflows4s.testing.cats.effect
 
 import cats.Id
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import workflows4s.runtime.*
+import workflows4s.runtime.cats.effect.{InMemoryConcurrentRuntime, InMemoryConcurrentWorkflowInstance}
+import workflows4s.testing.TestRuntimeAdapter
 import workflows4s.wio.*
 
 case class InMemoryConcurrentTestRuntimeAdapter[Ctx <: WorkflowContext]() extends TestRuntimeAdapter[Ctx] {
