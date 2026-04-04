@@ -1,7 +1,6 @@
 package workflows4s.runtime.instanceengine
 
 import cats.MonadThrow
-import cats.effect.IO
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine.PostExecCommand
 import workflows4s.runtime.registry.WorkflowRegistry
 import workflows4s.runtime.wakeup.KnockerUpper
@@ -49,12 +48,12 @@ trait WorkflowInstanceEngine[F[_]] {
 }
 
 object WorkflowInstanceEngine {
-  val builder                                                             = WorkflowInstanceEngineBuilder
+  val builder                                                                                          = WorkflowInstanceEngineBuilder
   def default[F[_]: {MonadThrow, WeakSync}](
       knockerUpper: KnockerUpper.Agent[F],
       registry: WorkflowRegistry.Agent[F],
       clock: Clock = Clock.systemUTC(),
-  )                                                                       =
+  )                                                                                                    =
     builder
       .withJavaTime[F](clock)
       .withWakeUps(knockerUpper)
@@ -62,8 +61,8 @@ object WorkflowInstanceEngine {
       .withGreedyEvaluation
       .withLogging
       .get
-  def basic(clock: Clock = Clock.systemUTC()): WorkflowInstanceEngine[IO] = builder
-    .withJavaTime[IO](clock)
+  def basic[F[_]: {MonadThrow, WeakSync}](clock: Clock = Clock.systemUTC()): WorkflowInstanceEngine[F] = builder
+    .withJavaTime[F](clock)
     .withoutWakeUps
     .withoutRegistering
     .withGreedyEvaluation
