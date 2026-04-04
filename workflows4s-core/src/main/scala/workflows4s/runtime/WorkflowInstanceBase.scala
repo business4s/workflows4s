@@ -51,10 +51,10 @@ trait WorkflowInstanceBase[F[_], G[_], Ctx <: WorkflowContext] extends WorkflowI
                            _            <- newStateOpt.traverse_(updateState)
                            _            <- handleStateChange(state, newStateOpt)
                          } yield Right(eventAndResp._2)
-                       case SignalResult.Redelivered(resp)   =>
+                       case SignalResult.Redelivered(resp)  =>
                          // Redelivery: no event to persist, just return the reconstructed response
                          Right(resp).pure[F]
-                       case SignalResult.UnexpectedSignal()  => Left(WorkflowInstance.UnexpectedSignal(signalDef)).pure[F]
+                       case SignalResult.UnexpectedSignal() => Left(WorkflowInstance.UnexpectedSignal(signalDef)).pure[F]
                      }
       } yield result
     }
@@ -89,15 +89,15 @@ trait WorkflowInstanceBase[F[_], G[_], Ctx <: WorkflowContext] extends WorkflowI
                                          }
                          newStateOpt  <- eventOpt.flatTraverse { event =>
                                            for {
-                                             _           <- persistEvent(event)
-                                             newStateOpt  = engine.handleEvent(state, event).unsafeRun()
-                                             _           <- newStateOpt.traverse_(updateState)
-                                             _           <- handleStateChange(state, newStateOpt)
+                                             _          <- persistEvent(event)
+                                             newStateOpt = engine.handleEvent(state, event).unsafeRun()
+                                             _          <- newStateOpt.traverse_(updateState)
+                                             _          <- handleStateChange(state, newStateOpt)
                                            } yield newStateOpt
                                          }
 
                        } yield newStateOpt
-                     case WakeupResult.Noop()              => None.pure[F]
+                     case WakeupResult.Noop()             => None.pure[F]
                    }
     } yield ()
   }

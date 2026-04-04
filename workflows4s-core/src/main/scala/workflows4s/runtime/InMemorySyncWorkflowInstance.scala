@@ -25,7 +25,7 @@ class InMemorySyncWorkflowInstance[Ctx <: WorkflowContext](
 
   def recover(events: Seq[WCEvent[Ctx]]): Unit = super.recover(wf, events).pipe(updateState(_, events))
 
-  override protected def liftG: [A] => IO[A] => Id[A] = [A] => (ioa: IO[A]) => ioa.unsafeRunSync()
+  override protected def liftG: [A] => IO[A] => Id[A]                         = [A] => (ioa: IO[A]) => ioa.unsafeRunSync()
   override protected def fMonad: Monad[Id]                                    = cats.Invariant.catsInstancesForId
   override protected def getWorkflow: workflows4s.wio.ActiveWorkflow[IO, Ctx] = wf
 

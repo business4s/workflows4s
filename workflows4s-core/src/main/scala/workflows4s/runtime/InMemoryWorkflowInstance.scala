@@ -24,7 +24,7 @@ class InMemoryWorkflowInstance[Ctx <: WorkflowContext](
       } yield newState -> ()
     }
 
-  override protected def fMonad: Monad[IO]               = summon
+  override protected def fMonad: Monad[IO]            = summon
   override protected def liftG: [A] => IO[A] => IO[A] = [A] => (fa: IO[A]) => fa
 
   override protected def getWorkflow: IO[ActiveWorkflow[IO, Ctx]] = stateCell.get
