@@ -1,7 +1,7 @@
 package workflows4s.runtime
 
+import cats.effect.IO
 import cats.effect.unsafe.IORuntime
-import cats.effect.{IO, LiftIO}
 import cats.{Id, Monad}
 import com.typesafe.scalalogging.StrictLogging
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
@@ -16,7 +16,7 @@ class InMemorySyncWorkflowInstance[Ctx <: WorkflowContext](
     initialState: ActiveWorkflow[IO, Ctx],
     protected val engine: WorkflowInstanceEngine[IO],
 )(implicit IORuntime: IORuntime)
-    extends WorkflowInstanceBase[Id, Ctx]
+    extends WorkflowInstanceBase[Id, IO, Ctx]
     with StrictLogging {
 
   private var wf: ActiveWorkflow[IO, Ctx]          = initialState
@@ -25,9 +25,7 @@ class InMemorySyncWorkflowInstance[Ctx <: WorkflowContext](
 
   def recover(events: Seq[WCEvent[Ctx]]): Unit = super.recover(wf, events).pipe(updateState(_, events))
 
-  override protected def liftIO: cats.effect.LiftIO[Id]                       = new LiftIO[Id] {
-    override def liftIO[A](ioa: IO[A]): Id[A] = ioa.unsafeRunSync()
-  }
+  override protected def liftG: [A] => IO[A] => Id[A]                         = [A] => (ioa: IO[A]) => ioa.unsafeRunSync()
   override protected def fMonad: Monad[Id]                                    = cats.Invariant.catsInstancesForId
   override protected def getWorkflow: workflows4s.wio.ActiveWorkflow[IO, Ctx] = wf
 
