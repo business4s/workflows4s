@@ -7,37 +7,37 @@ import workflows4s.wio.model.WIOExecutionProgress.ExecutedResult
 import workflows4s.wio.model.{WIOExecutionProgress, WIOMeta}
 object ExecutionProgressEvaluator {
 
-  def run[F[_], Ctx <: WorkflowContext, In](
-      wio: WIO[F, In, ?, ?, Ctx],
+  def run[Ctx <: WorkflowContext, In](
+      wio: WIO[In, ?, ?, Ctx],
       input: Option[In],
       lastSeenState: Option[WCState[Ctx]],
   ): WIOExecutionProgress[WCState[Ctx]] = {
     new ExecProgressVisitor(wio, None, lastSeenState, input).run
   }
 
-  private class ExecProgressVisitor[F[_], Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](
-      wio: WIO[F, In, Err, Out, Ctx],
+  private class ExecProgressVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](
+      wio: WIO[In, Err, Out, Ctx],
       result: WIOExecutionProgress.ExecutionResult[WCState[Ctx]],
       lastSeenState: Option[WCState[Ctx]],
       input: Option[In],
-  ) extends Visitor[F, Ctx, In, Err, Out](wio) {
+  ) extends Visitor[Ctx, In, Err, Out](wio) {
     override type Result = WIOExecutionProgress[WCState[Ctx]]
 
-    def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[F, Ctx, In, Out, Err, Sig, Resp, Evt]): Result                     = {
+    def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result                     = {
       val meta = WIOMeta.HandleSignal(wio.meta.signalName, wio.meta.operationName, wio.meta.error.toModel)
       WIOExecutionProgress.HandleSignal(meta, result)
     }
-    def onRunIO[Evt](wio: WIO.RunIO[F, Ctx, In, Err, Out, Evt]): Result                                                   = {
+    def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result                                                   = {
       val meta = WIOMeta.RunIO(wio.meta.name, wio.meta.error.toModel, wio.meta.description)
       WIOExecutionProgress.RunIO(meta, result)
     }
-    def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[F, Ctx, Err1, Err, Out1, Out, In]): Result          = {
+    def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result          = {
       WIOExecutionProgress.Sequence(Seq(recurse(wio.base, input, None), WIOExecutionProgress.Dynamic(WIOMeta.Dynamic(wio.errorMeta.toModel))))
     }
-    def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[F, Ctx, In1, Err1, Out1, In, Out, Err]): Result          =
+    def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Result          =
       recurse(wio.base, input.map(wio.contramapInput))
-    def onNoop(wio: WIO.End[F, Ctx]): Result                                                                              = WIOExecutionProgress.End(result)
-    def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[F, Ctx, In, Err, Out, ErrIn, TempOut]): Result = {
+    def onNoop(wio: WIO.End[Ctx]): Result                                                                              = WIOExecutionProgress.End(result)
+    def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result = {
       WIOExecutionProgress.HandleError(
         recurse(wio.base, input, None),
         WIOExecutionProgress.Dynamic(WIOMeta.Dynamic(wio.newErrorMeta.toModel)),
@@ -45,7 +45,7 @@ object ExecutionProgressEvaluator {
         result,
       )
     }
-    def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[F, Ctx, In, ErrIn, Out, Err]): Result                           = {
+    def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result                           = {
       WIOExecutionProgress.HandleError(
         recurse(wio.base, input, result = None),
         recurse(wio.handleError, None, result = None),
@@ -53,7 +53,7 @@ object ExecutionProgressEvaluator {
         result,
       )
     }
-    def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[F, Ctx, In, Err, Out1, Out]): Result                             = {
+    def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result                             = {
       (recurse(wio.first, None, result = None), recurse(wio.second, None, result = None)) match {
         case (WIOExecutionProgress.Sequence(steps1), WIOExecutionProgress.Sequence(steps2)) => WIOExecutionProgress.Sequence(steps1 ++ steps2)
         case (x, WIOExecutionProgress.Sequence(steps2))                                     => WIOExecutionProgress.Sequence(List(x) ++ steps2)
@@ -62,8 +62,8 @@ object ExecutionProgressEvaluator {
       }
     }
 
-    def onPure(wio: WIO.Pure[F, Ctx, In, Err, Out]): Result                                                                                       = WIOExecutionProgress.Pure(WIOMeta.Pure(wio.meta.name, wio.meta.error.toModel), result)
-    def onLoop[BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx], ReturnIn](wio: WIO.Loop[F, Ctx, In, Err, Out, BodyIn, BodyOut, ReturnIn]): Result = {
+    def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                                                                                       = WIOExecutionProgress.Pure(WIOMeta.Pure(wio.meta.name, wio.meta.error.toModel), result)
+    def onLoop[BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx], ReturnIn](wio: WIO.Loop[Ctx, In, Err, Out, BodyIn, BodyOut, ReturnIn]): Result = {
       WIOExecutionProgress.Loop(
         recurse(wio.body, None, result = None).toModel,
         recurse(wio.onRestart, None, result = None).toModel.some,
@@ -75,7 +75,7 @@ object ExecutionProgressEvaluator {
       )
     }
 
-    def onFork(wio: WIO.Fork[F, Ctx, In, Err, Out]): Result = {
+    def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result = {
       WIOExecutionProgress.Fork(
         wio.branches.map(x => recurse(x.wio, input.flatMap(x.condition), result = None)),
         WIOMeta.Fork(wio.name, wio.branches.map(x => WIOMeta.Branch(x.name))),
@@ -84,7 +84,7 @@ object ExecutionProgressEvaluator {
     }
 
     def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_ <: WCState[InnerCtx]] <: WCState[Ctx]](
-        wio: WIO.Embedded[F, Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
+        wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
     ): Result                                                                           = {
       // We could express embedding in model but need a use case for it.
       val visitor = new ExecProgressVisitor(
@@ -97,7 +97,7 @@ object ExecutionProgressEvaluator {
       // but it should always be present.
       // if we got state inside, also the last seen state should be correct
     }
-    def onHandleInterruption(wio: WIO.HandleInterruption[F, Ctx, In, Err, Out]): Result = {
+    def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result = {
       val (trigger, rest) = extractFirstInterruption(recurse(wio.interruption, lastSeenState, result = None))
         .getOrElse(throw new Exception(s"""Couldn't extract interruption from the interruption path. This is a bug, please report it.
                                           |Workflow: $wio""".stripMargin))
@@ -109,7 +109,7 @@ object ExecutionProgressEvaluator {
       )
     }
 
-    def onTimer(wio: WIO.Timer[F, Ctx, In, Err, Out]): Result = WIOExecutionProgress.Timer(
+    def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result = WIOExecutionProgress.Timer(
       WIOMeta
         .Timer(
           wio.duration match {
@@ -122,30 +122,30 @@ object ExecutionProgressEvaluator {
       result,
     )
 
-    def onAwaitingTime(wio: WIO.AwaitingTime[F, Ctx, In, Err, Out]): Result =
+    def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result =
       WIOExecutionProgress.Timer(WIOMeta.Timer(None, wio.resumeAt.some, None), result) // TODO persist duration and name
-    def onExecuted[In1](wio: WIO.Executed[F, Ctx, Err, Out, In1]): Result = {
+    def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result = {
       val result = ExecutedResult(wio.output, wio.index).some
       recurse(wio.original, wio.input.some, result)
     }
-    def onDiscarded[In](wio: WIO.Discarded[F, Ctx, In]): Result           = recurse(wio.original, wio.input.some, None)
+    def onDiscarded[In](wio: WIO.Discarded[Ctx, In]): Result           = recurse(wio.original, wio.input.some, None)
 
-    override def onRetry(wio: WIO.Retry[F, Ctx, In, Err, Out]): WIOExecutionProgress[WCState[Ctx]] =
+    override def onRetry(wio: WIO.Retry[Ctx, In, Err, Out]): WIOExecutionProgress[WCState[Ctx]] =
       WIOExecutionProgress.Retried(recurse(wio.base, input))
 
-    def onParallel[InterimState <: workflows4s.wio.WorkflowContext.State[Ctx]](wio: WIO.Parallel[F, Ctx, In, Err, Out, InterimState]): Result = {
+    def onParallel[InterimState <: workflows4s.wio.WorkflowContext.State[Ctx]](wio: WIO.Parallel[Ctx, In, Err, Out, InterimState]): Result = {
       WIOExecutionProgress.Parallel(wio.elements.map(elem => recurse(elem.wio, input, result = None)), result)
     }
 
-    override def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[F, Ctx, In, Err, Out1, Evt]): WIOExecutionProgress[WCState[Ctx]] = {
+    override def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): WIOExecutionProgress[WCState[Ctx]] = {
       WIOExecutionProgress.Checkpoint(recurse(wio.base, input, result = None), result)
     }
 
-    override def onRecovery[Evt](wio: WIO.Recovery[F, Ctx, In, Err, Out, Evt]): WIOExecutionProgress[WCState[Ctx]] =
+    override def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): WIOExecutionProgress[WCState[Ctx]] =
       WIOExecutionProgress.Recovery(result)
 
     override def onForEach[ElemId, InnerCtx <: WorkflowContext, ElemOut <: WCState[InnerCtx], InterimState <: WCState[Ctx]](
-        wio: WIO.ForEach[F, Ctx, In, Err, Out, ElemId, InnerCtx, ElemOut, InterimState],
+        wio: WIO.ForEach[Ctx, In, Err, Out, ElemId, InnerCtx, ElemOut, InterimState],
     ): WIOExecutionProgress[WCState[Ctx]] = {
       val elemModel     = ExecProgressVisitor(wio.elemWorkflow, None, None, None).run.toModel
       val subProgresses = input
@@ -165,7 +165,7 @@ object ExecutionProgressEvaluator {
     }
 
     def recurse[I1, E1, O1 <: WCState[Ctx]](
-        wio: WIO[?, I1, E1, O1, Ctx],
+        wio: WIO[I1, E1, O1, Ctx],
         input: Option[I1],
         result: WIOExecutionProgress.ExecutionResult[WCState[Ctx]] = this.result,
     ): WIOExecutionProgress[WCState[Ctx]] = {

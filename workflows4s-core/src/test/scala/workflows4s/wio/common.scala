@@ -8,13 +8,13 @@ given WeakSync[IO] with {
 }
 
 object TestCtx extends WorkflowContext {
-  type Effect = IO
+  type Effect[T] = IO[T]
   trait Event
   case class SimpleEvent(value: String) extends Event
   type State = String
 
   extension [In, Out <: WCState[Ctx]](wio: WIO[In, Nothing, Out]) {
-    def toWorkflow[In1 <: In & WCState[Ctx]](state: In1): ActiveWorkflow[IO, Ctx] =
+    def toWorkflow[In1 <: In & WCState[Ctx]](state: In1): ActiveWorkflow[Ctx] =
       ActiveWorkflow(WorkflowInstanceId("test", "test"), wio.provideInput(state), state)
   }
 

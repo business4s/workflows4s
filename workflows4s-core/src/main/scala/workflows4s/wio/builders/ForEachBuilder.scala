@@ -6,7 +6,7 @@ import workflows4s.wio.*
 
 object ForEachBuilder {
 
-  trait Step0[F[_], Ctx <: WorkflowContext]() {
+  trait Step0[Ctx <: WorkflowContext]() {
 
     def forEach[In]: ForEachStep1[In] = ForEachStep1()
 
@@ -20,13 +20,13 @@ object ForEachBuilder {
 
         case class Step2_1[InnerCtx <: WorkflowContext]() {
           def apply[Err, Out <: WCState[InnerCtx]](
-              wio: WIO[F, Elem, Err, Out, InnerCtx],
+              wio: WIO[Elem, Err, Out, InnerCtx],
               initialState: => WCState[InnerCtx],
           ): Step3[InnerCtx, Err, Out] =
             Step3(wio, () => initialState)
 
           case class Step3[InnerCtx <: WorkflowContext, Err, ElemOut <: WCState[InnerCtx]](
-              private val forEachElem: WIO[F, Elem, Err, ElemOut, InnerCtx],
+              private val forEachElem: WIO[Elem, Err, ElemOut, InnerCtx],
               private val initialState: () => WCState[InnerCtx],
           ) {
 
@@ -64,7 +64,7 @@ object ForEachBuilder {
 
                     def autoNamed()(using n: sourcecode.Name) = named(ModelUtils.prettifyName(n.value))
 
-                    def build(name: Option[String]): WIO.ForEach[F, Ctx, In, Err, Out, Elem, InnerCtx, ElemOut, InterimState] = {
+                    def build(name: Option[String]): WIO.ForEach[Ctx, In, Err, Out, Elem, InnerCtx, ElemOut, InterimState] = {
                       WIO.ForEach(
                         getElements = getElements,
                         elemWorkflow = forEachElem,

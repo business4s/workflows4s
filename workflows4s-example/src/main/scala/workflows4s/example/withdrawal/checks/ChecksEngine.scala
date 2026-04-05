@@ -24,7 +24,7 @@ object ChecksEngine extends ChecksEngine with StrictLogging {
     val review: SignalDef[ReviewDecision, Unit] = SignalDef()
   }
 
-  import Context.WIO
+  import Context.*
 
   def runChecks: WIO[ChecksInput, Nothing, ChecksState.Decided] =
     (refreshChecksUntilAllComplete >>> getDecision)
