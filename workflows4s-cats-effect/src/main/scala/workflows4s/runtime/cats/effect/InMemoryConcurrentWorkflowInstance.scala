@@ -25,8 +25,8 @@ class InMemoryConcurrentWorkflowInstance[F[_]: Sync, Ctx <: WorkflowContext](
       } yield newState -> ()
     }
 
-  override protected def fMonad: _root_.cats.Monad[F]      = Sync[F]
-  override protected def liftG: [A] => F[A] => F[A] = [A] => (fa: F[A]) => fa
+  override protected def fMonad: _root_.cats.Monad[F] = Sync[F]
+  override protected def liftG: [A] => F[A] => F[A]   = [A] => (fa: F[A]) => fa
 
   override protected def getWorkflow: F[ActiveWorkflow[F, Ctx]] = stateCell.get
 

@@ -9,7 +9,8 @@ object common {
 
   trait MyWorkflowId
   trait MyWorkflowCtx extends WorkflowContext {
-    type State = String
+    type Effect = IO
+    type State  = String
   }
 
   // docs_start

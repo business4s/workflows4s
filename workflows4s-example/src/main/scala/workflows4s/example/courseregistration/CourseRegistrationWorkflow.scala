@@ -57,8 +57,9 @@ object CourseRegistrationWorkflow {
 
   // start_context
   object Context extends WorkflowContext {
-    override type Event = RegistrationEvent
-    override type State = CourseRegistrationState
+    override type Effect = IO
+    override type Event  = RegistrationEvent
+    override type State  = CourseRegistrationState
   }
   import Context.*
   // end_context

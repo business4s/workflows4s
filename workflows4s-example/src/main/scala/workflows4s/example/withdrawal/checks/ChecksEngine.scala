@@ -16,6 +16,7 @@ object ChecksEngine extends ChecksEngine with StrictLogging {
 
   type Context = Context.Ctx
   object Context extends WorkflowContext {
+    type Effect         = cats.effect.IO
     override type Event = ChecksEvent
     override type State = ChecksState
   }

@@ -39,6 +39,7 @@ class PostgresRuntimeTest extends AnyFreeSpec with PostgresSuite with WorkflowRu
   }
 
   object TestCtx extends WorkflowContext {
+    type Effect = cats.effect.IO
     case class State()
     case class Event()
   }

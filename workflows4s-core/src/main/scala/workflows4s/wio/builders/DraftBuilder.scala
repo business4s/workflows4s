@@ -151,8 +151,8 @@ object DraftBuilder {
 
       object syntax {
         extension (base: WIO.Draft[F, Ctx]) {
-          def draftCheckpointed: WIO.Draft[F, Ctx] = checkpoint(base)
-          def draftRetry: WIO[F, Any, Nothing, Nothing, Ctx]        = retry(base)
+          def draftCheckpointed: WIO.Draft[F, Ctx]           = checkpoint(base)
+          def draftRetry: WIO[F, Any, Nothing, Nothing, Ctx] = retry(base)
         }
       }
 

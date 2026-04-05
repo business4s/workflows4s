@@ -14,6 +14,7 @@ import scala.annotation.nowarn
 object DatabaseExample {
 
   object MyWorkflowCtx extends WorkflowContext {
+    type Effect = cats.effect.IO
     sealed trait State
     case class InitialState() extends State
     sealed trait Event

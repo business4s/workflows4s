@@ -12,6 +12,7 @@ import workflows4s.wio.WorkflowContext
 object PekkoExample {
 
   object MyWorkflowCtx extends WorkflowContext {
+    type Effect = cats.effect.IO
     sealed trait State
     case class InitialState() extends State
     sealed trait Event

@@ -58,6 +58,7 @@ object PullRequestWorkflow {
 
   // start_context
   object Context extends WorkflowContext {
+    type Effect         = IO
     override type Event = PREvent
     override type State = PRState
   }

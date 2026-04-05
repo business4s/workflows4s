@@ -8,6 +8,7 @@ given WeakSync[IO] with {
 }
 
 object TestCtx extends WorkflowContext {
+  type Effect = IO
   trait Event
   case class SimpleEvent(value: String) extends Event
   type State = String
@@ -46,6 +47,7 @@ object TestState {
 }
 
 object TestCtx2 extends WorkflowContext {
+  type Effect = IO
   trait Event
   case class TimerStarted(inner: WIO.Timer.Started)   extends Event
   case class TimerReleased(inner: WIO.Timer.Released) extends Event

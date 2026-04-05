@@ -12,6 +12,7 @@ object MinimalWorkflow {
 
   def main(args: Array[String]): Unit = {
     object Context extends WorkflowContext {
+      type Effect         = IO
       override type State = String
     }
     import Context.*
