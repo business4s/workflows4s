@@ -23,6 +23,6 @@ trait WorkflowRuntime[F[_], Ctx <: WorkflowContext] {
   /** Creates (or recovers) a workflow instance with the given id. If events exist for this id, the instance is recovered from them. */
   def createInstance(id: String): F[WorkflowInstance[F, WCState[Ctx]]]
 
-  def workflow: WIO.Initial[WorkflowEffect, Ctx]
+  def workflow: WIO.Initial[Ctx]
 
 }

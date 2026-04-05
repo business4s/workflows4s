@@ -58,7 +58,7 @@ object WithdrawalWorkflow {
 
 class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine) {
 
-  import WithdrawalWorkflow.Context.WIO
+  import WithdrawalWorkflow.Context.*
 
   val workflow: WIO[WithdrawalData.Empty, Nothing, WithdrawalData.Completed] =
     (for {

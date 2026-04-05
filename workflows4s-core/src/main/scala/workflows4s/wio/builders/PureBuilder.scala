@@ -6,7 +6,7 @@ import workflows4s.wio.{ErrorMeta, WCState, WIO, WorkflowContext}
 
 object PureBuilder {
 
-  trait Step0[F[_], Ctx <: WorkflowContext]() {
+  trait Step0[Ctx <: WorkflowContext]() {
 
     def pure: Step1 = Step1()
 
@@ -32,11 +32,11 @@ object PureBuilder {
 
       case class Step2[In, Err, Out <: WCState[Ctx]](f: In => Either[Err, Out], name: Option[String])(using em: ErrorMeta[Err]) {
 
-        def named(name: String): WIO[F, In, Err, Out, Ctx] = this.copy(name = Some(name)).done
+        def named(name: String): WIO[In, Err, Out, Ctx] = this.copy(name = Some(name)).done
 
-        def autoNamed(using name: sourcecode.Name): WIO[F, In, Err, Out, Ctx] = this.copy(name = Some(ModelUtils.prettifyName(name.value))).done
+        def autoNamed(using name: sourcecode.Name): WIO[In, Err, Out, Ctx] = this.copy(name = Some(ModelUtils.prettifyName(name.value))).done
 
-        def done: WIO[F, In, Err, Out, Ctx] = WIO.Pure(f, WIO.Pure.Meta(em, name))
+        def done: WIO[In, Err, Out, Ctx] = WIO.Pure(f, WIO.Pure.Meta(em, name))
       }
     }
 

@@ -19,29 +19,29 @@ import scala.annotation.unused
   */
 trait WorkflowInstanceEngine[F[_]] {
 
-  def queryState[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx]): F[WCState[Ctx]]
+  def queryState[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): F[WCState[Ctx]]
 
-  def getProgress[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx]): F[WIOExecutionProgress[WCState[Ctx]]]
+  def getProgress[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): F[WIOExecutionProgress[WCState[Ctx]]]
 
   // TODO this would be better if extractable from progress
-  def getExpectedSignals[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx], includeRedeliverable: Boolean = false): F[List[SignalDef[?, ?]]]
+  def getExpectedSignals[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx], includeRedeliverable: Boolean = false): F[List[SignalDef[?, ?]]]
 
-  def triggerWakeup[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx]): F[WakeupResult[F, WCEvent[Ctx]]]
+  def triggerWakeup[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): F[WakeupResult[WCEffect[Ctx], WCEvent[Ctx]]]
 
   def handleSignal[Ctx <: WorkflowContext, Req, Resp](
-      workflow: ActiveWorkflow[F, Ctx],
+      workflow: ActiveWorkflow[Ctx],
       signalDef: SignalDef[Req, Resp],
       req: Req,
-  ): F[SignalResult[F, WCEvent[Ctx], Resp]]
+  ): F[SignalResult[WCEffect[Ctx], WCEvent[Ctx], Resp]]
 
-  def handleEvent[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx], event: WCEvent[Ctx]): Thunk[Option[ActiveWorkflow[F, Ctx]]]
+  def handleEvent[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx], event: WCEvent[Ctx]): Thunk[Option[ActiveWorkflow[Ctx]]]
 
   def onStateChange[Ctx <: WorkflowContext](
-      @unused oldState: ActiveWorkflow[F, Ctx],
-      @unused newState: ActiveWorkflow[F, Ctx],
+      @unused oldState: ActiveWorkflow[Ctx],
+      @unused newState: ActiveWorkflow[Ctx],
   ): F[Set[PostExecCommand]]
 
-  def processEvent[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx], event: WCEvent[Ctx]): Thunk[ActiveWorkflow[F, Ctx]] = this
+  def processEvent[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx], event: WCEvent[Ctx]): Thunk[ActiveWorkflow[Ctx]] = this
     .handleEvent(workflow, event)
     .map(_.getOrElse(workflow))
 

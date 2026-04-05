@@ -12,7 +12,7 @@ import workflows4s.wio.internal.{SignalResult, WakeupResult}
 class RegisteringWorkflowInstanceEngine[F[_]: Monad](protected val delegate: WorkflowInstanceEngine[F], registry: WorkflowRegistry.Agent[F])
     extends DelegatingWorkflowInstanceEngine[F] {
 
-  override def triggerWakeup[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx]): F[WakeupResult[F, WCEvent[Ctx]]] = {
+  override def triggerWakeup[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): F[WakeupResult[WCEffect[Ctx], WCEvent[Ctx]]] = {
     for {
       prevResult <- super.triggerWakeup(workflow)
       _          <- registeringRunningInstance(workflow, prevResult.hasEffect)
@@ -20,10 +20,10 @@ class RegisteringWorkflowInstanceEngine[F[_]: Monad](protected val delegate: Wor
   }
 
   override def handleSignal[Ctx <: WorkflowContext, Req, Resp](
-      workflow: ActiveWorkflow[F, Ctx],
+      workflow: ActiveWorkflow[Ctx],
       signalDef: SignalDef[Req, Resp],
       req: Req,
-  ): F[SignalResult[F, WCEvent[Ctx], Resp]] = {
+  ): F[SignalResult[WCEffect[Ctx], WCEvent[Ctx], Resp]] = {
     for {
       prevResult <- super.handleSignal(workflow, signalDef, req)
       _          <- registeringRunningInstance(workflow, prevResult.hasEffect)
@@ -31,17 +31,17 @@ class RegisteringWorkflowInstanceEngine[F[_]: Monad](protected val delegate: Wor
   }
 
   override def onStateChange[Ctx <: WorkflowContext](
-      oldState: ActiveWorkflow[F, Ctx],
-      newState: ActiveWorkflow[F, Ctx],
+      oldState: ActiveWorkflow[Ctx],
+      newState: ActiveWorkflow[Ctx],
   ): F[Set[WorkflowInstanceEngine.PostExecCommand]] = {
     super.onStateChange(oldState, newState) <* registerNotRunningInstance(newState)
   }
 
-  private def registeringRunningInstance(workflow: ActiveWorkflow[F, ?], hasFollowup: Boolean) =
+  private def registeringRunningInstance(workflow: ActiveWorkflow[?], hasFollowup: Boolean) =
     if hasFollowup then registry.upsertInstance(workflow, WorkflowRegistry.ExecutionStatus.Running)
     else registerNotRunningInstance(workflow)
 
-  private def registerNotRunningInstance(workflow: ActiveWorkflow[F, ?]): F[Unit] = {
+  private def registerNotRunningInstance(workflow: ActiveWorkflow[?]): F[Unit] = {
     val status =
       if workflow.wio.asExecuted.isDefined then ExecutionStatus.Finished
       else ExecutionStatus.Awaiting

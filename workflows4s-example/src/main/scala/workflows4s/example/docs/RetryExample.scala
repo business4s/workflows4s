@@ -3,7 +3,7 @@ package workflows4s.example.docs
 import cats.effect.IO
 import cats.implicits.catsSyntaxEitherId
 import workflows4s.example.docs
-import workflows4s.example.docs.Context.WIO
+import workflows4s.example.docs.Context.*
 
 import java.net.UnknownHostException
 import java.time.{Duration, Instant}

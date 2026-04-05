@@ -80,8 +80,8 @@ class MermaidRendererTest extends AnyFreeSpec with Matchers {
     }
 
     "should render error handler with generic edge when base has no declared error" in {
-      val step: Draft[IO, Ctx]       = WIO.draft.step("My step")
-      val errHandler: Draft[IO, Ctx] = WIO.draft.step("Handle error")
+      val step: Draft[Ctx]       = WIO.draft.step("My step")
+      val errHandler: Draft[Ctx] = WIO.draft.step("Handle error")
       val wio                        = step.handleErrorWith(errHandler)
 
       val flowchart = MermaidRenderer.renderWorkflow(wio.toProgress)
@@ -100,8 +100,8 @@ class MermaidRendererTest extends AnyFreeSpec with Matchers {
     }
 
     "should render error handler with specific error edge when base has declared error" in {
-      val step: Draft[IO, Ctx]       = WIO.draft.step("My step", error = "My error")
-      val errHandler: Draft[IO, Ctx] = WIO.draft.step("Handle error")
+      val step: Draft[Ctx]       = WIO.draft.step("My step", error = "My error")
+      val errHandler: Draft[Ctx] = WIO.draft.step("Handle error")
       val wio                        = step.handleErrorWith(errHandler)
 
       val flowchart = MermaidRenderer.renderWorkflow(wio.toProgress)
