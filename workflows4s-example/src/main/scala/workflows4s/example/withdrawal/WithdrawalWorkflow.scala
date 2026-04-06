@@ -1,5 +1,6 @@
 package workflows4s.example.withdrawal
 
+import cats.MonadThrow
 import cats.effect.IO
 import cats.implicits.{catsSyntaxApplicativeId, catsSyntaxEitherId}
 import workflows4s.example.withdrawal.WithdrawalEvent.{MoneyLocked, WithdrawalAccepted, WithdrawalRejected}
@@ -9,7 +10,7 @@ import workflows4s.example.withdrawal.WithdrawalWorkflow.{Signals, checksEmbeddi
 import workflows4s.example.withdrawal.checks.*
 import workflows4s.wio
 import workflows4s.wio.internal.WorkflowEmbedding
-import workflows4s.wio.{SignalDef, WorkflowContext}
+import workflows4s.wio.{LiftWorkflowEffect, MonadThrowContainer, SignalDef, WCEffect, WorkflowContext}
 
 import java.time.Duration
 object WithdrawalWorkflow {
@@ -17,7 +18,7 @@ object WithdrawalWorkflow {
   val executionRetryDelay = Duration.ofMinutes(2)
 
   object Context extends WorkflowContext {
-    type Effect         = IO
+    type Effect[T]      = IO[T]
     override type Event = WithdrawalEvent
     override type State = WithdrawalData
   }
@@ -52,6 +53,11 @@ object WithdrawalWorkflow {
       case x: WithdrawalData.Checked   => Some(x.checkResults)
       case _                           => None
     }
+
+    override def innerMonadThrow: MonadThrow[WCEffect[ChecksEngine.Context.Ctx]]                                              =
+      summon[MonadThrowContainer[ChecksEngine.Context.Ctx]].instance
+    override def liftInnerEffect: [A] => WCEffect[ChecksEngine.Context.Ctx][A] => WCEffect[WithdrawalWorkflow.Context.Ctx][A] =
+      summon[LiftWorkflowEffect.Between[ChecksEngine.Context.Ctx, WithdrawalWorkflow.Context.Ctx]].asPoly
   }
 
 }

@@ -33,9 +33,9 @@ object WorkflowBehavior {
   def apply[Ctx <: WorkflowContext](
       instanceId: WorkflowInstanceId,
       id: PersistenceId,
-      workflow: WIO.Initial[IO, Ctx],
+      workflow: WIO.Initial[Ctx],
       initialState: WCState[Ctx],
-      engine: WorkflowInstanceEngine[IO],
+      engine: WorkflowInstanceEngine[IO, Ctx],
   ): Behavior[Command[Ctx]] =
     new WorkflowBehavior(instanceId, id, workflow, initialState, engine).behavior
 
@@ -60,7 +60,7 @@ object WorkflowBehavior {
     case class FollowupWakeup[Ctx <: WorkflowContext](replyTo: ActorRef[StatusReply[Unit]])    extends Command[Ctx]
   }
 
-  final case class State[Ctx <: WorkflowContext](workflow: ActiveWorkflow[IO, Ctx])
+  final case class State[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx])
 
   sealed trait SignalResponse[+Resp]
   object SignalResponse {
@@ -73,11 +73,14 @@ object WorkflowBehavior {
 private class WorkflowBehavior[Ctx <: WorkflowContext](
     instanceId: WorkflowInstanceId,
     id: PersistenceId,
-    workflow: WIO.Initial[IO, Ctx],
+    workflow: WIO.Initial[Ctx],
     initialState: WCState[Ctx],
-    engine: WorkflowInstanceEngine[IO],
+    engine: WorkflowInstanceEngine[IO, Ctx],
 ) extends StrictLogging {
   import WorkflowBehavior.*
+
+  private given cats.MonadThrow[WCEffect[Ctx]]               = engine.wcEffectMonadThrow
+  private def liftWCEffect: [A] => WCEffect[Ctx][A] => IO[A] = engine.liftWCEffect
 
   private type Event = WCEvent[Ctx]
   private type Cmd   = Command[Ctx]
@@ -91,7 +94,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
   val behavior: Behavior[Cmd] = Behaviors.setup { actorContext =>
     // doesn't have to be atomic but its what we have in stdlib
     val processingState: AtomicReference[ProcessingState] = new AtomicReference(ProcessingState.Free)
-    val initialWf: ActiveWorkflow[IO, Ctx]                = ActiveWorkflow(instanceId, workflow, initialState)
+    val initialWf: ActiveWorkflow[Ctx]                    = ActiveWorkflow(instanceId, workflow, initialState)
     EventSourcedBehavior[Cmd, Event, St](
       persistenceId = id,
       emptyState = State(initialWf),
@@ -155,7 +158,9 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
           .handleSignal(state.workflow, cmd.signalDef, cmd.req)
           .map({
             case SignalResult.UnexpectedSignal()    => None
-            case SignalResult.Processed(resultIO)   => Some(resultIO.map(Right(_)))
+            case SignalResult.Processed(resultWCE)  =>
+              val resultIO = liftWCEffect(resultWCE)
+              Some(resultIO.map(Right(_)))
             case SignalResult.Redelivered(response) => Some(IO(Left(response)))
           }),
       cmd.replyTo,
@@ -182,7 +187,23 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
     changeStateAsync[Ior[Instant, WCEvent[Ctx]], Unit](
       processingState,
       actorContext,
-      state => engine.triggerWakeup(state.workflow).map(WakeupResult.toRaw(_)),
+      state =>
+        engine
+          .triggerWakeup(state.workflow)
+          .map(r => {
+            given cats.Functor[WCEffect[Ctx]] = engine.wcEffectMonadThrow
+            WakeupResult
+              .toRaw(r)
+              .map(raw =>
+                liftWCEffect(raw).flatMap { ior =>
+                  ior match {
+                    case Ior.Left(retryTime)    => engine.scheduleRetry(state.workflow, retryTime).as(ior)
+                    case Ior.Both(retryTime, _) => engine.scheduleRetry(state.workflow, retryTime).as(ior)
+                    case _                      => IO.pure(ior)
+                  }
+                },
+              )
+          }),
       replyTo,
       _ => (),
       x => x.toOption,
