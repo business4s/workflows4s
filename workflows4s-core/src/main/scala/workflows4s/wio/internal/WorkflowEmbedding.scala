@@ -1,6 +1,5 @@
 package workflows4s.wio.internal
 
-import cats.MonadThrow
 import workflows4s.wio.{WCEffect, WCEvent, WCState, WorkflowContext}
 
 trait WorkflowEmbedding[Inner <: WorkflowContext, Outer <: WorkflowContext, -Input] extends WorkflowEmbedding.Event[WCEvent[Inner], WCEvent[Outer]] {
@@ -12,7 +11,6 @@ trait WorkflowEmbedding[Inner <: WorkflowContext, Outer <: WorkflowContext, -Inp
   // This is asymmetric because currently there is no way to ensure the upper bound of state within a workflow
   def unconvertState(outerState: WCState[Outer]): Option[WCState[Inner]]
 
-  def innerMonadThrow: MonadThrow[WCEffect[Inner]]
   def liftInnerEffect: [A] => WCEffect[Inner][A] => WCEffect[Outer][A]
 
   def unconvertStateUnsafe(outerState: WCState[Outer]): WCState[Inner] = unconvertState(outerState)
@@ -31,7 +29,6 @@ trait WorkflowEmbedding[Inner <: WorkflowContext, Outer <: WorkflowContext, -Inp
       type OutputState[In <: WCState[Inner]] = self.OutputState[In]
       def convertState[In <: WCState[Inner]](innerState: In, input: NewInput): OutputState[In] = self.convertState(innerState, f(input))
       def unconvertState(outerState: WCState[Outer]): Option[WCState[Inner]]                   = self.unconvertState(outerState)
-      def innerMonadThrow: MonadThrow[WCEffect[Inner]]                                         = self.innerMonadThrow
       def liftInnerEffect: [A] => WCEffect[Inner][A] => WCEffect[Outer][A]                     = self.liftInnerEffect
     }
 }

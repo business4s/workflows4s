@@ -37,7 +37,7 @@ object Main extends IOApp {
                 .withoutRegistering
                 .withGreedyEvaluation
                 .withLogging
-                .get[WithdrawalWorkflow.Context.Ctx](WithdrawalWorkflow.Context.liftWCEffectToEffect, WithdrawalWorkflow.Context.wcEffectMonadThrow),
+                .get[WithdrawalWorkflow.Context.Ctx],
             )
           _                        <- IO(runtime.initializeShard())
           _                        <- knockerUpper.initialize(wokeup => IO.println(s"Woke up! $wokeup"))

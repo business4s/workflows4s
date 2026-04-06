@@ -74,7 +74,6 @@ object DraftBuilder {
           None,
           null,
           WIOMeta.ForEach(effName),
-          innerMonadThrow = null,
           liftInnerEffect = null,
         )
       }

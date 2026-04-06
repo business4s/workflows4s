@@ -47,7 +47,7 @@ case class ActiveWorkflow[Ctx <: WorkflowContext](id: WorkflowInstanceId, wio: W
 
   def proceed(now: Instant): WakeupResult[WCEffect[Ctx], WCEvent[Ctx]] = {
     val wf = effectlessProceed
-    RunIOEvaluator.proceed(wf.wio, wf.staticState, now)
+    RunIOEvaluator.proceed(wf.wio, wf.staticState, now, [A] => (fa: WCEffect[Ctx][A]) => fa)
   }
 
   def progress: WIOExecutionProgress[WCState[Ctx]] = effectlessProceed.wio.toProgress

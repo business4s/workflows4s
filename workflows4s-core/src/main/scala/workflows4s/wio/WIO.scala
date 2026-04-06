@@ -315,6 +315,7 @@ object WIO {
       stateOpt: Option[Map[Elem, WIO[Any, Err, ElemOut, InnerCtx]]],
       signalRouter: SignalRouter.Receiver[Elem, InterimState],
       meta: WIOMeta.ForEach,
+      liftInnerEffect: [A] => WCEffect[InnerCtx][A] => WCEffect[Ctx][A],
   ) extends WIO[In, Err, Out, Ctx] {
     def state(input: In): Map[Elem, WIO[Any, Err, ElemOut, InnerCtx]] =
       stateOpt.getOrElse(getElements(input).map(elemId => elemId -> elemWorkflow.provideInput(elemId)).toMap)
