@@ -9,36 +9,38 @@ import workflows4s.wio.model.WIOExecutionProgress
 
 import java.time.Instant
 
-trait BasicEngine[F[_]: Applicative] extends WorkflowInstanceEngine[F] {
+trait BasicEngine[F[_]: Applicative, Ctx <: WorkflowContext] extends WorkflowInstanceEngine[F, Ctx] {
 
   protected def now: F[Instant]
 
-  override def triggerWakeup[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): F[WakeupResult[WCEffect[Ctx], WCEvent[Ctx]]] = {
+  override def triggerWakeup(workflow: ActiveWorkflow[Ctx]): F[WakeupResult[WCEffect[Ctx], WCEvent[Ctx]]] = {
     now.map(workflow.proceed)
   }
 
-  override def handleSignal[Ctx <: WorkflowContext, Req, Resp](
+  override def handleSignal[Req, Resp](
       workflow: ActiveWorkflow[Ctx],
       signalDef: SignalDef[Req, Resp],
       req: Req,
   ): F[SignalResult[WCEffect[Ctx], WCEvent[Ctx], Resp]] =
     workflow.handleSignal(signalDef)(req).pure[F]
 
-  override def handleEvent[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx], event: WCEvent[Ctx]): Thunk[Option[ActiveWorkflow[Ctx]]] =
+  override def handleEvent(workflow: ActiveWorkflow[Ctx], event: WCEvent[Ctx]): Thunk[Option[ActiveWorkflow[Ctx]]] =
     Thunk.pure(workflow.handleEvent(event))
 
-  override def queryState[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): F[WCState[Ctx]] = workflow.liveState.pure[F]
+  override def queryState(workflow: ActiveWorkflow[Ctx]): F[WCState[Ctx]] = workflow.liveState.pure[F]
 
-  override def getProgress[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): F[WIOExecutionProgress[WCState[Ctx]]] =
+  override def getProgress(workflow: ActiveWorkflow[Ctx]): F[WIOExecutionProgress[WCState[Ctx]]] =
     workflow.progress.pure[F]
 
-  override def getExpectedSignals[Ctx <: WorkflowContext](
+  override def getExpectedSignals(
       workflow: ActiveWorkflow[Ctx],
       includeRedeliverable: Boolean = false,
   ): F[List[SignalDef[?, ?]]] =
     workflow.expectedSignals(includeRedeliverable).pure[F]
 
-  override def onStateChange[Ctx <: WorkflowContext](
+  override def scheduleRetry(workflow: ActiveWorkflow[Ctx], retryTime: java.time.Instant): F[Unit] = Applicative[F].unit
+
+  override def onStateChange(
       oldState: ActiveWorkflow[Ctx],
       newState: ActiveWorkflow[Ctx],
   ): F[Set[WorkflowInstanceEngine.PostExecCommand]] = Set.empty[WorkflowInstanceEngine.PostExecCommand].pure[F]
