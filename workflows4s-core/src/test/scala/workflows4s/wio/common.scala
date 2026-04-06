@@ -47,7 +47,7 @@ object TestState {
 }
 
 object TestCtx2 extends WorkflowContext {
-  type Effect = IO
+  type Effect[T] = IO[T]
   trait Event
   case class TimerStarted(inner: WIO.Timer.Started)   extends Event
   case class TimerReleased(inner: WIO.Timer.Released) extends Event

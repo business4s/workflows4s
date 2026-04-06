@@ -1,5 +1,6 @@
 package workflows4s.wio.builders
 
+import cats.MonadThrow
 import workflows4s.wio.internal.WorkflowEmbedding
 import workflows4s.wio.model.{ModelUtils, WIOMeta}
 import workflows4s.wio.*
@@ -22,12 +23,14 @@ object ForEachBuilder {
           def apply[Err, Out <: WCState[InnerCtx]](
               wio: WIO[Elem, Err, Out, InnerCtx],
               initialState: => WCState[InnerCtx],
-          ): Step3[InnerCtx, Err, Out] =
-            Step3(wio, () => initialState)
+          )(using wcEffectMonadThrow: MonadThrowContainer[InnerCtx], ev: LiftWorkflowEffect[InnerCtx, WCEffect[Ctx]]): Step3[InnerCtx, Err, Out] =
+            Step3(wio, () => initialState, wcEffectMonadThrow.instance, ev.asPoly)
 
           case class Step3[InnerCtx <: WorkflowContext, Err, ElemOut <: WCState[InnerCtx]](
               private val forEachElem: WIO[Elem, Err, ElemOut, InnerCtx],
               private val initialState: () => WCState[InnerCtx],
+              private val innerMonadThrow: MonadThrow[WCEffect[InnerCtx]],
+              private val liftInnerEffect: [A] => WCEffect[InnerCtx][A] => WCEffect[Ctx][A],
           ) {
 
             def withEventsEmbeddedThrough(embedding: WorkflowEmbedding.Event[(Elem, WCEvent[InnerCtx]), WCEvent[Ctx]]): Step4 = Step4(embedding)
@@ -75,6 +78,8 @@ object ForEachBuilder {
                         stateOpt = None,
                         signalRouter = signalRouter,
                         meta = WIOMeta.ForEach(name),
+                        innerMonadThrow = innerMonadThrow,
+                        liftInnerEffect = liftInnerEffect,
                       )
                     }
                   }
