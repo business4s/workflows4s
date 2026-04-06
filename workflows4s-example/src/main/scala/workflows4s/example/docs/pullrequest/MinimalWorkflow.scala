@@ -23,7 +23,7 @@ object MinimalWorkflow {
 
     println(MermaidRenderer.renderWorkflow(workflow.toProgress).toViewUrl)
 
-    val engine     = WorkflowInstanceEngine.basic[IO]()
+    val engine     = WorkflowInstanceEngine.basic[IO, Context.Ctx]()
     val runtime    = InMemorySynchronizedRuntime.create[IO, Context.Ctx](workflow, "", engine)
     val wfInstance = runtime.createInstance("id").unsafeRunSync()
 

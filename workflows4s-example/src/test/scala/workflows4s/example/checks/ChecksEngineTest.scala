@@ -39,7 +39,7 @@ object ChecksEngineTest {
 
   trait Suite extends AnyFreeSpecLike {
 
-    def checkEngineTests(getRuntime: => TestRuntimeAdapter[ChecksEngine.Context]) = {
+    def checkEngineTests(getRuntime: => TestRuntimeAdapter[ChecksEngine.Context.Ctx]) = {
 
       "re-run pending checks until complete" in new Fixture {
         val check: Check[Unit] { def runNum: Int } = new Check[Unit] {
@@ -176,7 +176,7 @@ object ChecksEngineTest {
     }
   }
 
-  class ChecksActor[Actor <: WorkflowInstance[Id, WCState[ChecksEngine.Context]]](val wf: Actor, val checks: List[Check[Unit]]) {
+  class ChecksActor[Actor <: WorkflowInstance[Id, WCState[ChecksEngine.Context.Ctx]]](val wf: Actor, val checks: List[Check[Unit]]) {
     def run(): Unit                            = wf.wakeup()
     def state: ChecksState                     = wf.queryState()
     def review(decision: ReviewDecision): Unit = {

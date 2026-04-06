@@ -7,20 +7,21 @@ import doobie.{ConnectionIO, WeakAsync}
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.{MappedWorkflowInstance, WorkflowInstance, WorkflowInstanceId, WorkflowRuntime}
 import workflows4s.wio.WIO.Initial
-import workflows4s.wio.{ActiveWorkflow, WCEvent, WCState, WorkflowContext}
+import workflows4s.wio.{ActiveWorkflow, WCEffect, WCEvent, WCState, WorkflowContext}
 
 /** Runtime backed by a shared database (e.g. PostgreSQL) via Doobie. Events are persisted per instance, and concurrent access is guarded by
   * [[WorkflowStorage.lockWorkflow]].
   */
 class DatabaseRuntime[Ctx <: WorkflowContext](
-    val workflow: Initial[IO, Ctx],
+    val workflow: Initial[Ctx],
     initialState: WCState[Ctx],
-    engine: WorkflowInstanceEngine[IO],
+    engine: WorkflowInstanceEngine[IO, Ctx],
     xa: Transactor[IO],
     storage: WorkflowStorage[WCEvent[Ctx]],
     val templateId: String,
 ) extends WorkflowRuntime[IO, Ctx] {
   override type WorkflowEffect[A] = IO[A]
+  private given cats.MonadThrow[WCEffect[Ctx]] = engine.wcEffectMonadThrow
 
   override def createInstance(id: String): IO[WorkflowInstance[IO, WCState[Ctx]]] = {
     val instanceId = WorkflowInstanceId(templateId, id)
@@ -43,10 +44,10 @@ class DatabaseRuntime[Ctx <: WorkflowContext](
 object DatabaseRuntime {
   // TODO seems redundant, to be removed if its still the case after few months
   def create[Ctx <: WorkflowContext](
-      workflow: Initial[IO, Ctx],
+      workflow: Initial[Ctx],
       initialState: WCState[Ctx],
       transactor: Transactor[IO],
-      engine: WorkflowInstanceEngine[IO],
+      engine: WorkflowInstanceEngine[IO, Ctx],
       storage: WorkflowStorage[WCEvent[Ctx]],
       templateId: String, // this has to be explicit, as it will be saved in the database and has to be consistent across runtimes
   ): DatabaseRuntime[Ctx] = {

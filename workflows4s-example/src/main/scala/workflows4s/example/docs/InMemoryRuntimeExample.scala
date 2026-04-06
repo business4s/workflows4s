@@ -22,7 +22,7 @@ object InMemorySynchronizedRuntimeExample {
     // async_doc_start
     import MyWorkflowCtx.*
     val workflow: WIO.Initial                                       = ???
-    val engine: WorkflowInstanceEngine[IO]                          = ???
+    val engine: WorkflowInstanceEngine[IO, Ctx]                     = ???
     val runtime: InMemoryConcurrentRuntime[IO, Ctx]                 = InMemoryConcurrentRuntime
       .default(workflow, InitialState(), engine)
       .unsafeRunSync()
@@ -34,7 +34,7 @@ object InMemorySynchronizedRuntimeExample {
     // ssync_doc_start
     import MyWorkflowCtx.*
     val workflow: WIO.Initial                                         = ???
-    val engine: WorkflowInstanceEngine[IO]                            = ???
+    val engine: WorkflowInstanceEngine[IO, Ctx]                       = ???
     val runtime: InMemorySynchronizedRuntime[IO, Ctx]                 = InMemorySynchronizedRuntime.create(workflow, InitialState(), engine)
     val wfInstance: IO[InMemorySynchronizedWorkflowInstance[IO, Ctx]] = runtime.createInstance("my-workflow-1")
     // ssync_doc_end

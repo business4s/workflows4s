@@ -12,7 +12,7 @@ object MermaidExample {
 
   // start_doc
   val wio: WIO[?, ?, ?, ?] = PullRequestWorkflow.workflow
-  val mermaidString           = MermaidRenderer.renderWorkflow(wio.toProgress)
+  val mermaidString        = MermaidRenderer.renderWorkflow(wio.toProgress)
   // end_doc
 
   {

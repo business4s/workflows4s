@@ -37,12 +37,11 @@ trait BaseServer {
     for {
       knockerUpper     <- SleepingKnockerUpper.create()
       registry          = InMemoryWorkflowRegistry[IO]()
-      engine            = WorkflowInstanceEngine.default(knockerUpper, registry)
       courseRegRuntime <- InMemoryConcurrentRuntime
                             .default[IO, CourseRegistrationWorkflow.Context.Ctx](
                               workflow = CourseRegistrationWorkflow.workflow,
                               initialState = CourseRegistrationWorkflow.RegistrationState.Empty,
-                              engine = engine,
+                              engine = WorkflowInstanceEngine.default(knockerUpper, registry),
                             )
                             .toResource
 
@@ -50,7 +49,7 @@ trait BaseServer {
                           .default[IO, PullRequestWorkflow.Context.Ctx](
                             workflow = PullRequestWorkflow.workflow,
                             initialState = PullRequestWorkflow.PRState.Empty,
-                            engine = engine,
+                            engine = WorkflowInstanceEngine.default(knockerUpper, registry),
                           )
                           .toResource
 
@@ -59,7 +58,7 @@ trait BaseServer {
                              .default[IO, WithdrawalWorkflow.Context.Ctx](
                                workflow = withdrawalWf.workflowDeclarative,
                                initialState = WithdrawalData.Empty,
-                               engine = engine,
+                               engine = WorkflowInstanceEngine.default(knockerUpper, registry),
                              )
                              .toResource
       workflowEntries    = List[WorkflowEntry[IO, ?]](

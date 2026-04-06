@@ -9,17 +9,19 @@ import workflows4s.wio.internal.{SignalResult, WakeupResult}
 
 // TODO check how this engine interacts with non-greedy mode.
 //  What happens when there is more to execute? What is unexpected signall appers between wakeups?
-class RegisteringWorkflowInstanceEngine[F[_]: Monad](protected val delegate: WorkflowInstanceEngine[F], registry: WorkflowRegistry.Agent[F])
-    extends DelegatingWorkflowInstanceEngine[F] {
+class RegisteringWorkflowInstanceEngine[F[_]: Monad, Ctx <: WorkflowContext](
+    protected val delegate: WorkflowInstanceEngine[F, Ctx],
+    registry: WorkflowRegistry.Agent[F],
+) extends DelegatingWorkflowInstanceEngine[F, Ctx] {
 
-  override def triggerWakeup[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): F[WakeupResult[WCEffect[Ctx], WCEvent[Ctx]]] = {
+  override def triggerWakeup(workflow: ActiveWorkflow[Ctx]): F[WakeupResult[WCEffect[Ctx], WCEvent[Ctx]]] = {
     for {
       prevResult <- super.triggerWakeup(workflow)
       _          <- registeringRunningInstance(workflow, prevResult.hasEffect)
     } yield prevResult
   }
 
-  override def handleSignal[Ctx <: WorkflowContext, Req, Resp](
+  override def handleSignal[Req, Resp](
       workflow: ActiveWorkflow[Ctx],
       signalDef: SignalDef[Req, Resp],
       req: Req,
@@ -30,7 +32,7 @@ class RegisteringWorkflowInstanceEngine[F[_]: Monad](protected val delegate: Wor
     } yield prevResult
   }
 
-  override def onStateChange[Ctx <: WorkflowContext](
+  override def onStateChange(
       oldState: ActiveWorkflow[Ctx],
       newState: ActiveWorkflow[Ctx],
   ): F[Set[WorkflowInstanceEngine.PostExecCommand]] = {

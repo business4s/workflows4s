@@ -15,13 +15,14 @@ import java.util.UUID
   * IT'S NOT A GENERAL-PURPOSE RUNTIME
   */
 class InMemoryConcurrentRuntime[F[+_]: Async, Ctx <: WorkflowContext](
-    val workflow: Initial[F, Ctx],
+    val workflow: Initial[Ctx],
     initialState: WCState[Ctx],
-    engine: WorkflowInstanceEngine[F],
+    engine: WorkflowInstanceEngine[F, Ctx],
     instances: Ref[F, Map[String, InMemoryConcurrentWorkflowInstance[F, Ctx]]],
     val templateId: String,
 ) extends WorkflowRuntime[F, Ctx] {
   override type WorkflowEffect[A] = F[A]
+  private given _root_.cats.MonadThrow[WCEffect[Ctx]] = engine.wcEffectMonadThrow
 
   def createInstance(id: String): F[InMemoryConcurrentWorkflowInstance[F, Ctx]] = {
     instances.access.flatMap({ (map, update) =>
@@ -47,9 +48,9 @@ class InMemoryConcurrentRuntime[F[+_]: Async, Ctx <: WorkflowContext](
 object InMemoryConcurrentRuntime {
 
   def default[F[+_]: Async, Ctx <: WorkflowContext](
-      workflow: Initial[F, Ctx],
+      workflow: Initial[Ctx],
       initialState: WCState[Ctx],
-      engine: WorkflowInstanceEngine[F],
+      engine: WorkflowInstanceEngine[F, Ctx],
       templateId: String = s"in-memory-concurrent-${UUID.randomUUID().toString.take(8)}",
   ): F[InMemoryConcurrentRuntime[F, Ctx]] = {
     Ref

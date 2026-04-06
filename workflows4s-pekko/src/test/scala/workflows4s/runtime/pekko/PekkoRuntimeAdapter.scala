@@ -9,17 +9,24 @@ import org.apache.pekko.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity
 import org.apache.pekko.persistence.typed.PersistenceId
 import org.apache.pekko.util.Timeout
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
+import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.{DelegateWorkflowInstance, MappedWorkflowInstance, WorkflowInstance, WorkflowInstanceId}
 import workflows4s.testing.TestRuntimeAdapter
 import workflows4s.wio.*
+import workflows4s.wio.given
 
 import java.time.Clock
 import java.util.UUID
 import scala.concurrent.{Await, Future}
 
-class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(implicit actorSystem: ActorSystem[?])
+class PekkoRuntimeAdapter[Ctx <: WorkflowContext](
+    entityKeyPrefix: String,
+)(using actorSystem: ActorSystem[?], wcEffectMonadThrow: MonadThrowContainer[Ctx], ev: LiftWorkflowEffect[Ctx, IO])
     extends TestRuntimeAdapter[Ctx]
     with StrictLogging {
+
+  override val engine: WorkflowInstanceEngine[cats.effect.IO, Ctx] =
+    WorkflowInstanceEngine.default(knockerUpper, registry, clock)
 
   val sharding = ClusterSharding(actorSystem)
 
@@ -29,7 +36,7 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](entityKeyPrefix: String)(impli
   type Cmd    = WorkflowBehavior.Command[Ctx] | Stop
 
   override def runWorkflow(
-      workflow: WIO.Initial[IO, Ctx],
+      workflow: WIO.Initial[Ctx],
       state: WCState[Ctx],
   ): Actor = {
     // we create unique type key per workflow, so we can ensure we get right actor/behavior/input

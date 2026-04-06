@@ -13,9 +13,9 @@ class WIODraftTest extends AnyFreeSpec with Matchers with OptionValues with Eith
   "WIO.draft" - {
     "should create a sequence of steps with correct names" in {
       val step1: Draft[Ctx] = WIO.draft.step("readCSVFile")
-      val step2                 = WIO.draft.step("parseCSVFile")
-      val wio                   = step1 >>> step2
-      val model                 = wio.toProgress.toModel
+      val step2             = WIO.draft.step("parseCSVFile")
+      val wio               = step1 >>> step2
+      val model             = wio.toProgress.toModel
       model.toEmptyProgress
 
       assert(
@@ -30,9 +30,9 @@ class WIODraftTest extends AnyFreeSpec with Matchers with OptionValues with Eith
 
     "should create a sequence of steps with auto-generated names when not provided" in {
       val step1: Draft[Ctx] = WIO.draft.step()
-      val step2                 = WIO.draft.step()
-      val wio                   = step1 >>> step2
-      val model                 = wio.toProgress.toModel
+      val step2             = WIO.draft.step()
+      val wio               = step1 >>> step2
+      val model             = wio.toProgress.toModel
 
       assert(
         model == WIOModel.Sequence(
@@ -46,9 +46,9 @@ class WIODraftTest extends AnyFreeSpec with Matchers with OptionValues with Eith
 
     "should create a sequence of steps with error messages when provided" in {
       val step1: Draft[Ctx] = WIO.draft.step("readCSVFile", error = "path not found")
-      val step2                 = WIO.draft.step("parseCSVFile", error = "File format not supported")
-      val wio                   = step1 >>> step2
-      val model                 = wio.toProgress.toModel
+      val step2             = WIO.draft.step("parseCSVFile", error = "File format not supported")
+      val wio               = step1 >>> step2
+      val model             = wio.toProgress.toModel
 
       assert(
         model == WIOModel.Sequence(
@@ -62,7 +62,7 @@ class WIODraftTest extends AnyFreeSpec with Matchers with OptionValues with Eith
 
     "should create a signal step with correct name" in {
       val signal: Draft[Ctx] = WIO.draft.signal("CR Approved")
-      val model                  = signal.toProgress.toModel
+      val model              = signal.toProgress.toModel
 
       model match {
         case WIOModel.HandleSignal(meta) =>
@@ -75,8 +75,8 @@ class WIODraftTest extends AnyFreeSpec with Matchers with OptionValues with Eith
     "should create a sequence with both step and signal" in {
       val step: Draft[Ctx]   = WIO.draft.step("TransformData")
       val signal: Draft[Ctx] = WIO.draft.signal("run migration")
-      val wio                    = step >>> signal
-      val model                  = wio.toProgress.toModel
+      val wio                = step >>> signal
+      val model              = wio.toProgress.toModel
 
       model match {
         case WIOModel.Sequence(steps) =>
@@ -114,7 +114,7 @@ class WIODraftTest extends AnyFreeSpec with Matchers with OptionValues with Eith
       val step2: Draft[Ctx]    = WIO.draft.step("task2")
       val step3: Draft[Ctx]    = WIO.draft.step("task3")
       val parallel: Draft[Ctx] = WIO.draft.parallel(step1, step2, step3)
-      val model                    = parallel.toProgress.toModel
+      val model                = parallel.toProgress.toModel
 
       model match {
         case WIOModel.Parallel(elements) =>

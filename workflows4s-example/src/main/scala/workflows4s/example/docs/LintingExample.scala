@@ -6,7 +6,7 @@ object LintingExample {
 
   // start_doc
   val workflow: WIO[?, ?, ?, ?] = ???
-  val issues: List[LinterIssue]    = Linter.lint(workflow)
+  val issues: List[LinterIssue] = Linter.lint(workflow)
   // Each issue contains: message, ruleId, and path
   // end_doc
 

@@ -18,7 +18,7 @@ object Interpreter {
 
   object EventResponse {
     case class Ok[Ctx <: WorkflowContext](newFlow: WIO.Initial[Ctx]) extends EventResponse[Ctx]
-    case class UnexpectedEvent[Ctx <: WorkflowContext]()                extends EventResponse[Ctx]
+    case class UnexpectedEvent[Ctx <: WorkflowContext]()             extends EventResponse[Ctx]
   }
 
 }

@@ -17,12 +17,12 @@ trait TestRuntimeAdapter[Ctx <: WorkflowContext] extends StrictLogging {
   val clock: TestClock                       = TestClock()
   val registry: InMemoryWorkflowRegistry[IO] = InMemoryWorkflowRegistry[IO](clock)
 
-  val engine: WorkflowInstanceEngine[IO] = WorkflowInstanceEngine.default(knockerUpper, registry, clock)
+  def engine: WorkflowInstanceEngine[IO, Ctx]
 
   type Actor <: WorkflowInstance[Id, WCState[Ctx]]
 
   def runWorkflow(
-      workflow: WIO[IO, Any, Nothing, WCState[Ctx], Ctx],
+      workflow: WIO[Any, Nothing, WCState[Ctx], Ctx],
       state: WCState[Ctx],
   ): Actor
 
@@ -43,12 +43,13 @@ object TestRuntimeAdapter {
     def getEvents: Seq[Event]
   }
 
-  case class InMemorySync[Ctx <: WorkflowContext]() extends TestRuntimeAdapter[Ctx] {
+  case class InMemorySync[Ctx <: WorkflowContext]()(using wcEffectMonadThrow: MonadThrowContainer[Ctx], ev: LiftWorkflowEffect[Ctx, IO])
+      extends TestRuntimeAdapter[Ctx] {
 
-    override def runWorkflow(
-        workflow: WIO.Initial[IO, Ctx],
-        state: WCState[Ctx],
-    ): Actor = {
+    override val engine: WorkflowInstanceEngine[IO, Ctx] =
+      WorkflowInstanceEngine.default(knockerUpper, registry, clock)
+
+    override def runWorkflow(workflow: WIO.Initial[Ctx], state: WCState[Ctx]): Actor = {
       val runtime = InMemorySynchronizedRuntime.create[IO, Ctx](workflow, state, engine, "test")
       Actor(List(), runtime)
     }

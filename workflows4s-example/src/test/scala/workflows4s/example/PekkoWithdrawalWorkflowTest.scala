@@ -25,7 +25,7 @@ class PekkoWithdrawalWorkflowTest
   }
 
   "pekko" - {
-    withdrawalTests(new PekkoRuntimeAdapter("withdrawal")(using testKit.system))
+    withdrawalTests(new PekkoRuntimeAdapter("withdrawal"))
   }
 
 }

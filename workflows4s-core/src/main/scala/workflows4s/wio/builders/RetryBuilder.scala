@@ -43,7 +43,9 @@ object RetryBuilder {
 
       type OnErrorInput = (stepInput: In, error: Throwable, workflowState: WCState[Ctx], retryState: Option[RetryState])
 
-      def onError[Event <: WCEvent[Ctx]](onError: OnErrorInput => WCEffect[Ctx][WIO.Retry.Stateful.Result[Event]])(using ClassTag[Event]): Step1[Event] =
+      def onError[Event <: WCEvent[Ctx]](onError: OnErrorInput => WCEffect[Ctx][WIO.Retry.Stateful.Result[Event]])(using
+          ClassTag[Event],
+      ): Step1[Event] =
         new Step1[Event](onError)
 
       class Step1[Event <: WCEvent[Ctx]](onError: OnErrorInput => WCEffect[Ctx][WIO.Retry.Stateful.Result[Event]])(using evtCt: ClassTag[Event]) {

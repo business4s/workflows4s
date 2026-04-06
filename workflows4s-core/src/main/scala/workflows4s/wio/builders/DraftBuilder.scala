@@ -64,7 +64,19 @@ object DraftBuilder {
           autoName: sourcecode.Name,
       ): WIO[Any, Nothing, Nothing, Ctx] = {
         val effName = getEffectiveName(name, autoName).some
-        WIO.ForEach(_ => ???, forEach, () => ???, null, (_, _) => ???, (_, _) => ???, None, null, WIOMeta.ForEach(effName))
+        WIO.ForEach(
+          _ => ???,
+          forEach,
+          () => ???,
+          null,
+          (_, _) => ???,
+          (_, _) => ???,
+          None,
+          null,
+          WIOMeta.ForEach(effName),
+          innerMonadThrow = null,
+          liftInnerEffect = null,
+        )
       }
 
       def repeat(conditionName: String = null, releaseBranchName: String = null, restartBranchName: String = null)(
@@ -151,7 +163,7 @@ object DraftBuilder {
 
       object syntax {
         extension (base: WIO.Draft[Ctx]) {
-          def draftCheckpointed: WIO.Draft[Ctx]          = checkpoint(base)
+          def draftCheckpointed: WIO.Draft[Ctx]           = checkpoint(base)
           def draftRetry: WIO[Any, Nothing, Nothing, Ctx] = retry(base)
         }
       }

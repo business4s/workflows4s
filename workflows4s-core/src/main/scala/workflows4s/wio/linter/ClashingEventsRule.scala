@@ -41,7 +41,7 @@ object ClashingEventsRule extends Rule {
       recurse(wio.base, "base") ++ recurse(wio.handleError, "handler")
     override def onLoop[BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx], ReturnIn](
         wio: WIO.Loop[Ctx, In, Err, Out, BodyIn, BodyOut, ReturnIn],
-    ): List[LinterIssue]                                                                                                                      =
+    ): List[LinterIssue]                                                                                                                   =
       recurse(wio.body, "loopBody") ++ recurse(wio.onRestart, "onRestart")
     override def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): List[LinterIssue]                                                               =
       wio.branches.zipWithIndex.flatMap { case (branch, idx) => recurse(branch.wio, s"branch[${branch.name.getOrElse(idx.toString)}]") }.toList
@@ -49,7 +49,7 @@ object ClashingEventsRule extends Rule {
       recurse(wio.first, "first") ++ recurse(wio.second, "second")
     override def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_ <: WCState[InnerCtx]] <: WCState[Ctx]](
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
-    ): List[LinterIssue]                                                                                                                      = {
+    ): List[LinterIssue]                                                                                                                   = {
       new ClashingEventsVisitor(wio.inner, path :+ "embedded").run
     }
 
@@ -146,13 +146,13 @@ object ClashingEventsRule extends Rule {
       recurse(wio.base) ++ recurse(wio.handleError)
     override def onLoop[BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx], ReturnIn](
         wio: WIO.Loop[Ctx, In, Err, Out, BodyIn, BodyOut, ReturnIn],
-    ): List[ClassTag[?]]                                                                                                                      = recurse(wio.body) ++ recurse(wio.onRestart)
+    ): List[ClassTag[?]]                                                                                                                   = recurse(wio.body) ++ recurse(wio.onRestart)
     override def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): List[ClassTag[?]]                                                               = wio.branches.flatMap(b => recurse(b.wio)).toList
     override def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): List[ClassTag[?]]                             =
       recurse(wio.first) ++ recurse(wio.second)
     override def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_ <: WCState[InnerCtx]] <: WCState[Ctx]](
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
-    ): List[ClassTag[?]]                                                                                                                      = new ExpectedEventsVisitor(wio.inner).run
+    ): List[ClassTag[?]]                                                                                                                   = new ExpectedEventsVisitor(wio.inner).run
     override def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): List[ClassTag[?]]                                   =
       recurse(wio.base) ++ recurse(wio.interruption)
     override def onParallel[InterimState <: WCState[Ctx]](wio: WIO.Parallel[Ctx, In, Err, Out, InterimState]): List[ClassTag[?]]           =
@@ -161,7 +161,7 @@ object ClashingEventsRule extends Rule {
       recurse(wio.base) ++ extractMatchedClass(wio.eventHandler)
     override def onForEach[Elem, InnerCtx <: WorkflowContext, ElemOut <: WCState[InnerCtx], InterimState <: WCState[Ctx]](
         wio: WIO.ForEach[Ctx, In, Err, Out, Elem, InnerCtx, ElemOut, InterimState],
-    ): List[ClassTag[?]]                                                                                                                      = new ExpectedEventsVisitor(wio.elemWorkflow).run
+    ): List[ClassTag[?]]                                                                                                                   = new ExpectedEventsVisitor(wio.elemWorkflow).run
 
     private def extractMatchedClass(eh: EventHandler[?, ?, ?, ?]): List[ClassTag[?]] = eh match {
       case te: TypedEventHandler[?, ?, ?, ?] => List(te.matchedClass)

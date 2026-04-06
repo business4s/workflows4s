@@ -12,7 +12,9 @@ import java.time.Instant
   * State is derived from the WIO tree rather than stored separately — `staticState` extracts the last known state from already-executed nodes, while
   * `liveState` additionally evaluates pure (effectless) steps.
   */
-case class ActiveWorkflow[Ctx <: WorkflowContext](id: WorkflowInstanceId, wio: WIO.Initial[Ctx], initialState: WCState[Ctx])(using val monaddThrow: MonadThrow[WCEffect[Ctx]]) {
+case class ActiveWorkflow[Ctx <: WorkflowContext](id: WorkflowInstanceId, wio: WIO.Initial[Ctx], initialState: WCState[Ctx])(using
+    val monaddThrow: MonadThrow[WCEffect[Ctx]],
+) {
   lazy val wakeupAt: Option[Instant] = GetWakeupEvaluator.extractNearestWakeup(wio)
 
   /** State extracted from already-executed nodes without running any further steps. */

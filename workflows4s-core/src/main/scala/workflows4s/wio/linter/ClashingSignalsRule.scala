@@ -39,7 +39,7 @@ object ClashingSignalsRule extends Rule {
       recurse(wio.base, "base") ++ recurse(wio.handleError, "handler")
     override def onLoop[BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx], ReturnIn](
         wio: WIO.Loop[Ctx, In, Err, Out, BodyIn, BodyOut, ReturnIn],
-    ): List[LinterIssue]                                                                                                                      =
+    ): List[LinterIssue]                                                                                                                   =
       recurse(wio.body, "loopBody") ++ recurse(wio.onRestart, "onRestart")
     override def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): List[LinterIssue]                                                               =
       wio.branches.zipWithIndex.flatMap { case (branch, idx) => recurse(branch.wio, s"branch[${branch.name.getOrElse(idx.toString)}]") }.toList
@@ -47,7 +47,7 @@ object ClashingSignalsRule extends Rule {
       recurse(wio.first, "first") ++ recurse(wio.second, "second")
     override def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_ <: WCState[InnerCtx]] <: WCState[Ctx]](
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
-    ): List[LinterIssue]                                                                                                                      =
+    ): List[LinterIssue]                                                                                                                   =
       new ClashingSignalsVisitor(wio.inner, path :+ "embedded").run
 
     override def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): List[LinterIssue] = {

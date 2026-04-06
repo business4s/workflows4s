@@ -11,12 +11,12 @@ import scala.collection.mutable.ListBuffer
 
 class InMemorySynchronizedWorkflowInstance[F[_]: {MonadThrow, WeakSync}, Ctx <: WorkflowContext](
     val id: WorkflowInstanceId,
-    initialState: ActiveWorkflow[F, Ctx],
-    protected val engine: WorkflowInstanceEngine[F],
+    initialState: ActiveWorkflow[Ctx],
+    protected val engine: WorkflowInstanceEngine[F, Ctx],
 ) extends WorkflowInstanceBase[F, F, Ctx]
     with StrictLogging {
 
-  private var wf: ActiveWorkflow[F, Ctx]           = initialState
+  private var wf: ActiveWorkflow[Ctx]              = initialState
   private val events: mutable.Buffer[WCEvent[Ctx]] = ListBuffer[WCEvent[Ctx]]()
   def getEvents: Seq[WCEvent[Ctx]]                 = events.toList
 
@@ -28,17 +28,17 @@ class InMemorySynchronizedWorkflowInstance[F[_]: {MonadThrow, WeakSync}, Ctx <: 
       }
     }
 
-  override protected def liftG: [A] => F[A] => F[A]             = [A] => (fa: F[A]) => fa
-  override protected given fMonad: Monad[F]                     = MonadThrow[F]
-  override protected def getWorkflow: F[ActiveWorkflow[F, Ctx]] = WeakSync[F].delay(wf)
+  override protected def liftG: [A] => F[A] => F[A]          = [A] => (fa: F[A]) => fa
+  override protected given fMonad: Monad[F]                  = MonadThrow[F]
+  override protected def getWorkflow: F[ActiveWorkflow[Ctx]] = WeakSync[F].delay(wf)
 
   private val lock = new java.util.concurrent.Semaphore(1)
 
   override protected def persistEvent(event: WCEvent[Ctx]): F[Unit] = WeakSync[F].delay { events += event }
 
-  override protected def updateState(newState: ActiveWorkflow[F, Ctx]): F[Unit] = WeakSync[F].delay { wf = newState }
+  override protected def updateState(newState: ActiveWorkflow[Ctx]): F[Unit] = WeakSync[F].delay { wf = newState }
 
-  override protected def lockState[T](update: ActiveWorkflow[F, Ctx] => F[T]): F[T] =
+  override protected def lockState[T](update: ActiveWorkflow[Ctx] => F[T]): F[T] =
     for {
       currentWf <- WeakSync[F].delay { lock.acquire(); wf }
       result    <- MonadThrow[F].attempt(update(currentWf))
