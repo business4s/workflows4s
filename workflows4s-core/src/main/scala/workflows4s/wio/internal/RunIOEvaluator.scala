@@ -25,7 +25,8 @@ object RunIOEvaluator {
       input: In,
       lastSeenState: WCState[Ctx],
       now: Instant,
-  )(using MonadThrow[WCEffect[Ctx]]) extends Visitor[Ctx, In, Err, Out](wio) {
+  )(using MonadThrow[WCEffect[Ctx]])
+      extends Visitor[Ctx, In, Err, Out](wio) {
     override type Result = Option[WCEffect[Ctx][Ior[Instant, WCEvent[Ctx]]]]
 
     def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result                             = None
@@ -77,9 +78,10 @@ object RunIOEvaluator {
     def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_ <: WCState[InnerCtx]] <: WCState[Ctx]](
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
     ): Result = {
-      val newState: WCState[InnerCtx] = wio.embedding.unconvertStateUnsafe(lastSeenState)
+      val newState: WCState[InnerCtx]      = wio.embedding.unconvertStateUnsafe(lastSeenState)
+      given MonadThrow[WCEffect[InnerCtx]] = wio.embedding.innerMonadThrow
       new RunIOVisitor(wio.inner, input, newState, now).run
-        .map(_.map(_.map(wio.embedding.convertEvent)))
+        .map(innerEffect => wio.embedding.liftInnerEffect(innerEffect.map(_.map(wio.embedding.convertEvent))))
     }
 
     // proceed on interruption will be needed for timeouts
@@ -151,10 +153,11 @@ object RunIOEvaluator {
     override def onForEach[ElemId, InnerCtx <: WorkflowContext, ElemOut <: WCState[InnerCtx], InterimState <: WCState[Ctx]](
         wio: WIO.ForEach[Ctx, In, Err, Out, ElemId, InnerCtx, ElemOut, InterimState],
     ): Result = {
-      val state = wio.state(input)
+      given MonadThrow[WCEffect[InnerCtx]] = wio.innerMonadThrow
+      val state                            = wio.state(input)
       state.toList
         .collectFirstSome((elemId, elemWio) => new RunIOVisitor(elemWio, input, wio.initialElemState(), now).run.tupleLeft(elemId))
-        .map { case (elemId, io) => io.map(_.map(wio.eventEmbedding.convertEvent(elemId, _))) }
+        .map { case (elemId, io) => wio.liftInnerEffect(io.map(_.map(wio.eventEmbedding.convertEvent(elemId, _)))) }
     }
 
     private def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], s: I1): Option[WCEffect[Ctx][Ior[Instant, WCEvent[Ctx]]]] =
