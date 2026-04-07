@@ -39,8 +39,6 @@ trait BasicEngine[F[_]: MonadThrow, Ctx <: WorkflowContext] extends WorkflowInst
   ): F[List[SignalDef[?, ?]]] =
     workflow.expectedSignals(includeRedeliverable).pure[F]
 
-  override def scheduleRetry(workflow: ActiveWorkflow[Ctx], retryTime: java.time.Instant): F[Unit] = MonadThrow[F].unit
-
   override def onStateChange(
       oldState: ActiveWorkflow[Ctx],
       newState: ActiveWorkflow[Ctx],

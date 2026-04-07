@@ -11,7 +11,7 @@ import workflows4s.wio.*
 import workflows4s.wio.cats.effect.WeakSyncInstances.given
 
 case class InMemoryConcurrentTestRuntimeAdapter[Ctx <: WorkflowContext](
-)(using wcEffectMonadThrow: MonadThrowContainer[Ctx], ev: LiftWorkflowEffect[Ctx, IO])
+)(using ev: LiftWorkflowEffect[Ctx, IO])
     extends TestRuntimeAdapter[Ctx] {
 
   override val engine: WorkflowInstanceEngine[IO, Ctx] =

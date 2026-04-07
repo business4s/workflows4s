@@ -8,7 +8,7 @@ import workflows4s.wio.*
 import workflows4s.wio.internal.{SignalResult, WakeupResult}
 import workflows4s.wio.model.WIOExecutionProgress
 
-import java.time.{Clock, Instant}
+import java.time.Clock
 import scala.annotation.unused
 
 /** Strategy for evaluating workflow steps. Controls how signals, events, and wakeups are processed.
@@ -44,8 +44,6 @@ trait WorkflowInstanceEngine[F[_], Ctx <: WorkflowContext] {
       @unused oldState: ActiveWorkflow[Ctx],
       @unused newState: ActiveWorkflow[Ctx],
   ): F[Set[PostExecCommand]]
-
-  def scheduleRetry(workflow: ActiveWorkflow[Ctx], retryTime: Instant): F[Unit]
 
   def processEvent(workflow: ActiveWorkflow[Ctx], event: WCEvent[Ctx]): Thunk[ActiveWorkflow[Ctx]] = this
     .handleEvent(workflow, event)

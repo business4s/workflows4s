@@ -43,9 +43,9 @@ trait WorkflowInstanceBase[F[_], G[_], Ctx <: WorkflowContext] extends WorkflowI
       for {
         resultOpt <- liftG(engine.handleSignal(state, signalDef, req))
         result    <- resultOpt match {
-                       case SignalResult.Processed(resultWCE) =>
+                       case SignalResult.Processed(resultG) =>
                          for {
-                           eventAndResp <- liftWCEffect(resultWCE)
+                           eventAndResp <- liftG(resultG)
                            _            <- persistEvent(eventAndResp.event)
                            newStateOpt   = engine.handleEvent(state, eventAndResp.event).unsafeRun()
                            _            <- newStateOpt.traverse_(updateState)
@@ -80,13 +80,9 @@ trait WorkflowInstanceBase[F[_], G[_], Ctx <: WorkflowContext] extends WorkflowI
     for {
       resultOpt <- liftG(engine.triggerWakeup(state))
       _         <- resultOpt match {
-                     case WakeupResult.Processed(resultWCE) =>
+                     case WakeupResult.Processed(resultG) =>
                        for {
-                         retryOrEvent <- liftWCEffect(resultWCE)
-                         _            <- retryOrEvent match {
-                                           case WakeupResult.ProcessingResult.Failed(retryTime, _) => liftG(engine.scheduleRetry(state, retryTime))
-                                           case WakeupResult.ProcessingResult.Proceeded(_)         => fMonad.unit
-                                         }
+                         retryOrEvent <- liftG(resultG)
                          eventOpt      = retryOrEvent match {
                                            case WakeupResult.ProcessingResult.Failed(_, event) => event
                                            case WakeupResult.ProcessingResult.Proceeded(event) => event.some
@@ -111,6 +107,4 @@ trait WorkflowInstanceBase[F[_], G[_], Ctx <: WorkflowContext] extends WorkflowI
       .foldLeft(initialState)((state, event) => engine.processEvent(state, event).unsafeRun())
       .pure[F]
   }
-
-  private def liftWCEffect[A](fa: WCEffect[Ctx][A]): F[A] = liftG(engine.liftWCEffect(fa))
 }

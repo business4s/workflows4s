@@ -21,7 +21,7 @@ import scala.concurrent.{Await, Future}
 
 class PekkoRuntimeAdapter[Ctx <: WorkflowContext](
     entityKeyPrefix: String,
-)(using actorSystem: ActorSystem[?], wcEffectMonadThrow: MonadThrowContainer[Ctx], ev: LiftWorkflowEffect[Ctx, IO])
+)(using actorSystem: ActorSystem[?], ev: LiftWorkflowEffect[Ctx, IO])
     extends TestRuntimeAdapter[Ctx]
     with StrictLogging {
 

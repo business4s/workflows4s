@@ -186,19 +186,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
       state =>
         engine
           .triggerWakeup(state.workflow)
-          .map(r => {
-            WakeupResult
-              .toRaw(r)
-              .map(raw =>
-                raw.flatMap { ior =>
-                  ior match {
-                    case Ior.Left(retryTime)    => engine.scheduleRetry(state.workflow, retryTime).as(ior)
-                    case Ior.Both(retryTime, _) => engine.scheduleRetry(state.workflow, retryTime).as(ior)
-                    case _                      => IO.pure(ior)
-                  }
-                },
-              )
-          }),
+          .map(WakeupResult.toRaw(_)),
       replyTo,
       _ => (),
       x => x.toOption,

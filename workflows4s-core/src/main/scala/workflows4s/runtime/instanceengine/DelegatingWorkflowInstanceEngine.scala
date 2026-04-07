@@ -29,9 +29,6 @@ trait DelegatingWorkflowInstanceEngine[F[_], Ctx <: WorkflowContext] extends Wor
   override def processEvent(workflow: ActiveWorkflow[Ctx], event: WCEvent[Ctx]): Thunk[ActiveWorkflow[Ctx]] =
     delegate.processEvent(workflow, event)
 
-  override def scheduleRetry(workflow: ActiveWorkflow[Ctx], retryTime: java.time.Instant): F[Unit] =
-    delegate.scheduleRetry(workflow, retryTime)
-
   override def onStateChange(
       oldState: ActiveWorkflow[Ctx],
       newState: ActiveWorkflow[Ctx],
