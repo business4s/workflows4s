@@ -14,7 +14,7 @@ import scala.annotation.nowarn
 object WorkflowRuntimeTest {
   trait Suite extends AnyFreeSpecLike {
 
-    def workflowTests(getRuntime: => TestRuntimeAdapter[TestCtx2.Ctx]) = {
+    def workflowTests[F[_]](getRuntime: => TestRuntimeAdapter[F, TestCtx2.Ctx]) = {
 
       "runtime should not allow interrupting a process while another step is running" in new Fixture {
         def singleRun(i: Int): IO[Unit] = {
@@ -134,7 +134,7 @@ object WorkflowRuntimeTest {
         val runtime = getRuntime
 
         def expectRegistryEntry(status: ExecutionStatus)                     = {
-          val registeredWorkflows = runtime.registry.getWorkflows().unsafeRunSync()
+          val registeredWorkflows = runtime.runSync(runtime.registry.getWorkflows())
           assert(registeredWorkflows.size == 1)
           assert(registeredWorkflows.head.status == status)
         }

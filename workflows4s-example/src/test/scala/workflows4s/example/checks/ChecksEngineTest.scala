@@ -9,6 +9,7 @@ import workflows4s.example.TestUtils
 import workflows4s.example.withdrawal.checks.*
 import workflows4s.runtime.WorkflowInstance
 import workflows4s.testing.TestRuntimeAdapter
+import workflows4s.wio.given
 import workflows4s.testing.cats.effect.InMemoryConcurrentTestRuntimeAdapter
 import workflows4s.wio.WCState
 
@@ -18,11 +19,16 @@ import scala.reflect.Selectable.reflectiveSelectable
 class ChecksEngineTest extends AnyFreeSpec with ChecksEngineTest.Suite {
 
   "in-memory-sync" - {
-    checkEngineTests(TestRuntimeAdapter.InMemorySync())
+    checkEngineTests(
+      TestRuntimeAdapter.InMemorySync[IO, ChecksEngine.Context.Ctx]([A] =>
+        (fa: IO[A]) => { import cats.effect.unsafe.implicits.global; fa.unsafeRunSync() },
+      ),
+    )
   }
 
   "in-memory" - {
-    checkEngineTests(InMemoryConcurrentTestRuntimeAdapter())
+    import cats.effect.unsafe.implicits.global
+    checkEngineTests(InMemoryConcurrentTestRuntimeAdapter[IO, ChecksEngine.Context.Ctx]([A] => (fa: IO[A]) => fa.unsafeRunSync()))
   }
 
   "render bpmn model" in {
@@ -39,7 +45,7 @@ object ChecksEngineTest {
 
   trait Suite extends AnyFreeSpecLike {
 
-    def checkEngineTests(getRuntime: => TestRuntimeAdapter[ChecksEngine.Context.Ctx]) = {
+    def checkEngineTests[F[_]](getRuntime: => TestRuntimeAdapter[F, ChecksEngine.Context.Ctx]) = {
 
       "re-run pending checks until complete" in new Fixture {
         val check: Check[Unit] { def runNum: Int } = new Check[Unit] {
