@@ -29,7 +29,7 @@ class InMemoryWorkflowRegistry[F[_]: WeakSync](
       (_, existing) =>
         Option(existing) match {
           case Some(ex) if ex.updatedAt.isAfter(now) => ex
-          case Some(ex)                              => ex.copy(updatedAt = now, status = executionStatus)
+          case Some(ex)                              => ex.copy(updatedAt = now, status = executionStatus, wakeupAt = inst.wakeupAt, tags = getTags(inst))
           case None                                  => Data(id, now, now, executionStatus, inst.wakeupAt, getTags(inst))
         },
     ): Unit

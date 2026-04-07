@@ -1,7 +1,7 @@
 package workflows4s.example.docs
 
 import cats.effect.IO
-import workflows4s.example.docs.`package`.Context.*
+import workflows4s.example.docs.Context.*
 import workflows4s.wio.SignalDef
 
 import scala.annotation.nowarn
