@@ -1,9 +1,10 @@
-package workflows4s.runtime
+package workflows4s.runtime.cats.effect
 
-import cats.effect.IO
-import cats.effect.unsafe.implicits.global
+import _root_.cats.effect.IO
+import _root_.cats.effect.unsafe.implicits.global
 import org.scalatest.freespec.AnyFreeSpec
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
+import workflows4s.wio.cats.effect.WeakSyncInstances.given
 
 class InMemoryConcurrentRuntimeTest extends AnyFreeSpec {
 

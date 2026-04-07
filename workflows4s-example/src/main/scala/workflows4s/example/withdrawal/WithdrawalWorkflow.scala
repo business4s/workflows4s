@@ -17,6 +17,7 @@ object WithdrawalWorkflow {
   val executionRetryDelay = Duration.ofMinutes(2)
 
   object Context extends WorkflowContext {
+    type Effect         = IO
     override type Event = WithdrawalEvent
     override type State = WithdrawalData
   }

@@ -4,6 +4,7 @@ import cats.effect.IO
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.registry.WorkflowRegistry
 import workflows4s.runtime.wakeup.KnockerUpper
+import workflows4s.wio.cats.effect.WeakSyncInstances.given
 
 object EngineExample {
 

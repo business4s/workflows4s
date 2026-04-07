@@ -1,15 +1,15 @@
 package workflows4s.wio
 
-import cats.effect.IO
 import workflows4s.wio.builders.AllBuilders
 
-/** Defines the type-level environment for a workflow: its State and Event types.
+/** Defines the type-level environment for a workflow: its State, Event, and effect types.
   *
   * Extend this trait to create a workflow context, then use the inner `WIO` object as the entry point for building workflow steps with the builder
   * DSL.
   *
   * {{{
   * object MyCtx extends WorkflowContext {
+  *   type Effect = IO
   *   type Event = MyEvent
   *   type State = MyState
   * }
@@ -18,18 +18,19 @@ import workflows4s.wio.builders.AllBuilders
   * }}}
   */
 trait WorkflowContext { ctx: WorkflowContext =>
+  type Effect[_]
   type Event
   type State
   type Ctx = WorkflowContext.AUX[State, Event]
 
-  type WIO[-In, +Err, +Out <: State] = workflows4s.wio.WIO[IO, In, Err, Out, Ctx]
-  object WIO extends AllBuilders[IO, Ctx] {
+  type WIO[-In, +Err, +Out <: State] = workflows4s.wio.WIO[Effect, In, Err, Out, Ctx]
+  object WIO extends AllBuilders[Effect, Ctx] {
     export workflows4s.wio.WIO.{Branch as _, Draft as _, Initial as _, Interruption as _, build as _, *}
 
-    type Branch[-In, +Err, +Out <: State]  = workflows4s.wio.WIO.Branch[IO, In, Err, Out, Ctx, ?]
-    type Interruption[+Err, +Out <: State] = workflows4s.wio.WIO.Interruption[IO, Ctx, Err, Out]
+    type Branch[-In, +Err, +Out <: State]  = workflows4s.wio.WIO.Branch[Effect, In, Err, Out, Ctx, ?]
+    type Interruption[+Err, +Out <: State] = workflows4s.wio.WIO.Interruption[Effect, Ctx, Err, Out]
     type Draft                             = WIO[Any, Nothing, Nothing]
-    type Initial                           = workflows4s.wio.WIO.Initial[IO, Ctx]
+    type Initial                           = workflows4s.wio.WIO.Initial[Effect, Ctx]
 
   }
 }

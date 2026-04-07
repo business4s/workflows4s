@@ -6,11 +6,13 @@ import cats.effect.unsafe.implicits.global
 import workflows4s.runtime.InMemorySynchronizedRuntime
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.wio.WorkflowContext
+import workflows4s.wio.cats.effect.WeakSyncInstances.given
 
 object MinimalWorkflow {
 
   def main(args: Array[String]): Unit = {
     object Context extends WorkflowContext {
+      type Effect         = IO
       override type State = String
     }
     import Context.*

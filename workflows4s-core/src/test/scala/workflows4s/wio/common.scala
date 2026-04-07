@@ -3,7 +3,12 @@ package workflows4s.wio
 import cats.effect.IO
 import workflows4s.runtime.WorkflowInstanceId
 
+given WeakSync[IO] with {
+  override def delay[A](body: => A): IO[A] = IO(body)
+}
+
 object TestCtx extends WorkflowContext {
+  type Effect = IO
   trait Event
   case class SimpleEvent(value: String) extends Event
   type State = String
@@ -42,6 +47,7 @@ object TestState {
 }
 
 object TestCtx2 extends WorkflowContext {
+  type Effect = IO
   trait Event
   case class TimerStarted(inner: WIO.Timer.Started)   extends Event
   case class TimerReleased(inner: WIO.Timer.Released) extends Event

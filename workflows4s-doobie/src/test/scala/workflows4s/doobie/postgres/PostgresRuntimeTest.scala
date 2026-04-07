@@ -8,6 +8,7 @@ import workflows4s.doobie.postgres.testing.{JavaSerdeEventCodec, PostgresRuntime
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.testing.WorkflowRuntimeTest
 import workflows4s.wio.{TestCtx2, WorkflowContext}
+import workflows4s.wio.given
 
 import scala.concurrent.duration.DurationInt
 import scala.util.Try
@@ -38,6 +39,7 @@ class PostgresRuntimeTest extends AnyFreeSpec with PostgresSuite with WorkflowRu
   }
 
   object TestCtx extends WorkflowContext {
+    type Effect = cats.effect.IO
     case class State()
     case class Event()
   }

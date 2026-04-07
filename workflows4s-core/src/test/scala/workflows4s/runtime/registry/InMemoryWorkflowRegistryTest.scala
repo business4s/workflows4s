@@ -8,6 +8,7 @@ import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.runtime.registry.WorkflowRegistry.ExecutionStatus
 import workflows4s.testing.{TestClock, TestUtils}
 import workflows4s.wio.{ActiveWorkflow, WIO, WorkflowContext}
+import workflows4s.wio.given
 
 import scala.concurrent.duration.DurationInt
 
@@ -16,7 +17,7 @@ class InMemoryWorkflowRegistryTest extends AnyFreeSpec with Matchers {
   "InMemoryWorkflowRegistry" - {
     "should store and retrieve workflow instances" in {
       val clock    = TestClock()
-      val registry = InMemoryWorkflowRegistry(clock).unsafeRunSync()
+      val registry = InMemoryWorkflowRegistry[IO](clock)
 
       val List(id1, id2, id3) = List.fill(3)(TestUtils.randomWfId())
 
@@ -27,7 +28,7 @@ class InMemoryWorkflowRegistryTest extends AnyFreeSpec with Matchers {
         workflows <- registry.getWorkflows()
       } yield {
         assert(
-          workflows == List(
+          workflows.toSet == Set(
             InMemoryWorkflowRegistry.Data(id1, clock.instant, clock.instant, ExecutionStatus.Running, None, Map()),
             InMemoryWorkflowRegistry.Data(id2, clock.instant, clock.instant, ExecutionStatus.Awaiting, None, Map()),
             InMemoryWorkflowRegistry.Data(id3, clock.instant, clock.instant, ExecutionStatus.Finished, None, Map()),
@@ -38,7 +39,7 @@ class InMemoryWorkflowRegistryTest extends AnyFreeSpec with Matchers {
 
     "should update existing workflow instances" in {
       val clock    = TestClock()
-      val registry = InMemoryWorkflowRegistry(clock).unsafeRunSync()
+      val registry = InMemoryWorkflowRegistry[IO](clock)
 
       val List(id1, id2) = List.fill(2)(TestUtils.randomWfId())
       val initialTime    = clock.instant
@@ -47,7 +48,7 @@ class InMemoryWorkflowRegistryTest extends AnyFreeSpec with Matchers {
       registry.upsertInstance(dummyAW(id2), ExecutionStatus.Running).unsafeRunSync()
 
       assert(
-        registry.getWorkflows().unsafeRunSync() == List(
+        registry.getWorkflows().unsafeRunSync().toSet == Set(
           InMemoryWorkflowRegistry.Data(id1, initialTime, initialTime, ExecutionStatus.Running, None, Map()),
           InMemoryWorkflowRegistry.Data(id2, initialTime, initialTime, ExecutionStatus.Running, None, Map()),
         ),
@@ -57,7 +58,7 @@ class InMemoryWorkflowRegistryTest extends AnyFreeSpec with Matchers {
       registry.upsertInstance(dummyAW(id1), ExecutionStatus.Finished).unsafeRunSync()
 
       assert(
-        registry.getWorkflows().unsafeRunSync() == List(
+        registry.getWorkflows().unsafeRunSync().toSet == Set(
           InMemoryWorkflowRegistry.Data(id1, initialTime, clock.instant, ExecutionStatus.Finished, None, Map()),
           InMemoryWorkflowRegistry.Data(id2, initialTime, initialTime, ExecutionStatus.Running, None, Map()),
         ),

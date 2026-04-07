@@ -20,6 +20,7 @@ object ForEachExample {
     case class SubWorkflowState()
     case class SubWorkflowEvent()
     object SubWorkflowContext extends WorkflowContext {
+      type Effect         = cats.effect.IO
       override type State = SubWorkflowState
       override type Event = SubWorkflowEvent
     }

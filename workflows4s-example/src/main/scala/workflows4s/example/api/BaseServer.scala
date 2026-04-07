@@ -17,13 +17,14 @@ import workflows4s.example.docs.pullrequest.PullRequestWorkflow.PRState
 import workflows4s.example.pekko.DummyWithdrawalService
 import workflows4s.example.withdrawal.checks.ChecksEngine
 import workflows4s.example.withdrawal.{WithdrawalData, WithdrawalWorkflow}
-import workflows4s.runtime.InMemoryConcurrentRuntime
+import workflows4s.runtime.cats.effect.InMemoryConcurrentRuntime
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.registry.InMemoryWorkflowRegistry
-import workflows4s.runtime.wakeup.SleepingKnockerUpper
+import workflows4s.runtime.wakeup.cats.effect.SleepingKnockerUpper
 import workflows4s.ui.bundle.UiEndpoints
 import workflows4s.web.api.server.{SignalSupport, WorkflowEntry, WorkflowServerEndpoints}
 import workflows4s.web.api.model.UIConfig
+import workflows4s.wio.cats.effect.WeakSyncInstances.given
 
 trait BaseServer {
 
@@ -35,7 +36,7 @@ trait BaseServer {
   protected def apiRoutes: Resource[IO, HttpRoutes[IO]] = {
     for {
       knockerUpper     <- SleepingKnockerUpper.create()
-      registry         <- InMemoryWorkflowRegistry().toResource
+      registry          = InMemoryWorkflowRegistry[IO]()
       engine            = WorkflowInstanceEngine.default(knockerUpper, registry)
       courseRegRuntime <- InMemoryConcurrentRuntime
                             .default[IO, CourseRegistrationWorkflow.Context.Ctx](

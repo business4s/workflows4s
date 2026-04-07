@@ -14,7 +14,8 @@ import workflows4s.example.withdrawal.*
 import workflows4s.example.withdrawal.WithdrawalService.{ExecutionResponse, Fee, Iban}
 import workflows4s.example.withdrawal.WithdrawalSignal.CreateWithdrawal
 import workflows4s.example.withdrawal.checks.*
-import workflows4s.testing.{InMemoryConcurrentTestRuntimeAdapter, TestRuntimeAdapter}
+import workflows4s.testing.TestRuntimeAdapter
+import workflows4s.testing.cats.effect.InMemoryConcurrentTestRuntimeAdapter
 
 import scala.annotation.unused
 import scala.concurrent.duration.*

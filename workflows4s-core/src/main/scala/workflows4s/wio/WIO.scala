@@ -1,6 +1,5 @@
 package workflows4s.wio
 
-import cats.effect.IO
 import workflows4s.wio.WIO.HandleInterruption.InterruptionType
 import workflows4s.wio.WIO.Timer.DurationSource
 import workflows4s.wio.builders.AllBuilders
@@ -35,7 +34,7 @@ object WIO {
   type Initial[F[_], Ctx <: WorkflowContext] = WIO[F, Any, Nothing, WCState[Ctx], Ctx]
 
   /** An incomplete workflow used during drafting — produces Nothing, so cannot be executed. */
-  type Draft[Ctx <: WorkflowContext] = WIO[IO, Any, Nothing, Nothing, Ctx]
+  type Draft[F[_], Ctx <: WorkflowContext] = WIO[F, Any, Nothing, Nothing, Ctx]
 
   // Experimental approach top exposing concrete subtypes.
   // We dont want to expose concrete impls because they have way too much type params.

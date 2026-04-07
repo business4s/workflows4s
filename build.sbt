@@ -45,12 +45,12 @@ lazy val `workflows4s-core` = (project in file("workflows4s-core"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel"              %% "cats-effect"     % "3.7.0",
-      "co.fs2"                     %% "fs2-core"        % "3.13.0",
+      "org.typelevel"              %% "cats-core"       % "2.13.0",
       "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.6",
       "io.circe"                   %% "circe-core"      % circeVersion, // for model serialization
       "io.circe"                   %% "circe-generic"   % circeVersion, // for model serialization
       "com.lihaoyi"                %% "sourcecode"      % "0.4.4", // for auto naming
+      "org.typelevel"              %% "cats-effect"     % "3.7.0"  % Test,
       "ch.qos.logback"              % "logback-classic" % "1.5.18" % Test,
     ),
     Test / parallelExecution := false,
@@ -78,6 +78,7 @@ lazy val `workflows4s-pekko` = (project in file("workflows4s-pekko"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
+      "org.typelevel"    %% "cats-effect"                   % "3.7.0",
       "org.apache.pekko" %% "pekko-persistence-typed"      % pekkoVersion,
       "org.apache.pekko" %% "pekko-cluster-typed"          % pekkoVersion,
       "org.apache.pekko" %% "pekko-cluster-sharding-typed" % pekkoVersion,
@@ -116,7 +117,8 @@ lazy val `workflows4s-quartz` = (project in file("workflows4s-quartz"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.quartz-scheduler" % "quartz" % "2.5.2",
+      "org.typelevel"        %% "cats-effect" % "3.7.0",
+      "org.quartz-scheduler"  % "quartz"      % "2.5.2",
     ),
   )
   .dependsOn(`workflows4s-core` % "compile->compile;test->test")
