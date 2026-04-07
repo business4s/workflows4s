@@ -6,7 +6,7 @@ import workflows4s.wio.*
 
 trait EffectMatrixTest extends AnyFreeSpecLike {
 
-  // tests defined to support verifying be«havior across different effect types
+  // tests defined to support verifying behavior across different effect types
   def matrixTests(ctx: TestContextBase)(
       mkAdapter: => TestRuntimeAdapter[?, ctx.Ctx],
   ): Unit = {
