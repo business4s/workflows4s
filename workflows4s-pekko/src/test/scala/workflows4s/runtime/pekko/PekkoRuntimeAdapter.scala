@@ -2,6 +2,7 @@ package workflows4s.runtime.pekko
 
 import cats.Id
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.pekko.actor.typed.*
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
@@ -10,8 +11,9 @@ import org.apache.pekko.persistence.typed.PersistenceId
 import org.apache.pekko.util.Timeout
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
+import workflows4s.runtime.registry.InMemoryWorkflowRegistry
 import workflows4s.runtime.{DelegateWorkflowInstance, MappedWorkflowInstance, WorkflowInstance, WorkflowInstanceId}
-import workflows4s.testing.TestRuntimeAdapter
+import workflows4s.testing.{RecordingKnockerUpper, TestClock, TestRuntimeAdapter}
 import workflows4s.wio.*
 import workflows4s.wio.given
 
@@ -22,11 +24,15 @@ import scala.concurrent.{Await, Future}
 class PekkoRuntimeAdapter[Ctx <: WorkflowContext](
     entityKeyPrefix: String,
 )(using actorSystem: ActorSystem[?], ev: LiftWorkflowEffect[Ctx, IO])
-    extends TestRuntimeAdapter[Ctx]
+    extends TestRuntimeAdapter[IO, Ctx]
     with StrictLogging {
 
-  override val engine: WorkflowInstanceEngine[cats.effect.IO, Ctx] =
+  override protected val knockerUpper: RecordingKnockerUpper[IO] = RecordingKnockerUpper[IO]()
+  override val clock: TestClock                                  = TestClock()
+  override val registry: InMemoryWorkflowRegistry[IO]            = InMemoryWorkflowRegistry[IO](clock)
+  override val engine: WorkflowInstanceEngine[IO, Ctx]           =
     WorkflowInstanceEngine.default(knockerUpper, registry, clock)
+  override def runSync[A](fa: IO[A]): A                          = fa.unsafeRunSync()
 
   val sharding = ClusterSharding(actorSystem)
 

@@ -6,8 +6,9 @@ import cats.effect.unsafe.implicits.global
 import workflows4s.doobie.ByteCodec
 import workflows4s.doobie.sqlite.SqliteRuntime
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
+import workflows4s.runtime.registry.InMemoryWorkflowRegistry
 import workflows4s.runtime.{MappedWorkflowInstance, WorkflowInstance}
-import workflows4s.testing.TestRuntimeAdapter
+import workflows4s.testing.{RecordingKnockerUpper, TestClock, TestRuntimeAdapter}
 import workflows4s.wio.*
 import workflows4s.wio.given
 
@@ -18,10 +19,14 @@ class SqliteRuntimeAdapter[Ctx <: WorkflowContext](
     workdir: Path,
     eventCodec: ByteCodec[WCEvent[Ctx]],
 )(using ev: LiftWorkflowEffect[Ctx, IO])
-    extends TestRuntimeAdapter[Ctx] {
+    extends TestRuntimeAdapter[IO, Ctx] {
 
-  override val engine: WorkflowInstanceEngine[IO, Ctx] =
+  override protected val knockerUpper: RecordingKnockerUpper[IO] = RecordingKnockerUpper[IO]()
+  override val clock: TestClock                                  = TestClock()
+  override val registry: InMemoryWorkflowRegistry[IO]            = InMemoryWorkflowRegistry[IO](clock)
+  override val engine: WorkflowInstanceEngine[IO, Ctx]           =
     WorkflowInstanceEngine.default(knockerUpper, registry, clock)
+  override def runSync[A](fa: IO[A]): A                          = fa.unsafeRunSync()
 
   type Actor = WorkflowInstance[Id, WCState[Ctx]]
 
