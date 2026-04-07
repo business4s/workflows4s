@@ -1,6 +1,6 @@
 package workflows4s.wio
 
-import cats.{Applicative, Functor, MonadThrow}
+import cats.Applicative
 import workflows4s.wio.builders.AllBuilders
 
 /** Defines the type-level environment for a workflow: its State, Event, and effect types.
@@ -34,6 +34,13 @@ trait WorkflowContext { ctx: WorkflowContext =>
     type Initial                           = workflows4s.wio.WIO.Initial[Ctx]
 
   }
+
+  // Bridge: WCEffect[Ctx] is always Effect at runtime, but the Scala 3 match type system fails to reduce our AUX.
+  // These bridges provide:
+  // 1. Typeclass instances for WCEffect[Ctx] derived from Effect instances
+  // 2. Implicit conversions between Effect and WCEffect[Ctx]
+  implicit def wcEffectApplicative(implicit a: Applicative[Effect]): Applicative[WCEffect[Ctx]] = a.asInstanceOf[Applicative[WCEffect[Ctx]]]
+  implicit def effectToWCEffect[A](fa: Effect[A]): WCEffect[Ctx][A]                             = fa.asInstanceOf[WCEffect[Ctx][A]]
 }
 
 object WorkflowContext {
@@ -51,4 +58,25 @@ object WorkflowContext {
   }
 
   type AUX[St, Evt, Eff[_]] = WorkflowContext { type State = St; type Event = Evt; type Effect[T] = Eff[T] }
+}
+
+trait LiftWorkflowEffect[Ctx <: WorkflowContext, F2[_]] {
+  def apply[A](fa: WCEffect[Ctx][A]): F2[A]
+
+  def asPoly: WCEffectLift[Ctx, F2] = [a] => (fa: WCEffect[Ctx][a]) => apply(fa)
+}
+
+object LiftWorkflowEffect {
+
+  type Between[Ctx1 <: WorkflowContext, Ctx2 <: WorkflowContext] = LiftWorkflowEffect[Ctx1, WCEffect[Ctx2]]
+
+  given [Eff[_], Ctx <: WorkflowContext.AuxEff[Eff]]: LiftWorkflowEffect[Ctx, Eff] = new LiftWorkflowEffect[Ctx, Eff] {
+    override def apply[A](fa: WCEffect[Ctx][A]): Eff[A] = fa.asInstanceOf[Eff[A]]
+  }
+
+  given [Eff[_], Ctx1 <: WorkflowContext.AuxEff[Eff], Ctx2 <: WorkflowContext.AuxEff[Eff]]: LiftWorkflowEffect[Ctx1, WCEffect[Ctx2]] =
+    new LiftWorkflowEffect[Ctx1, WCEffect[Ctx2]] {
+      override def apply[A](fa: WCEffect[Ctx1][A]): WCEffect[Ctx2][A] = fa.asInstanceOf[WCEffect[Ctx2][A]]
+    }
+
 }
