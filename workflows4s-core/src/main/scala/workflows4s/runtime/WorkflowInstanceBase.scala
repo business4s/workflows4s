@@ -12,16 +12,13 @@ import workflows4s.wio.model.WIOExecutionProgress
 /** Base implementation of [[WorkflowInstance]] that handles signal delivery, wakeups, event persistence and recovery.
   *
   * @tparam F
-  *   the runtime effect (persistence, locking) - e.g. `IO`, `Id`, `Kleisli[ConnectionIO, ...]`
-  * @tparam G
-  *   the workflow/engine effect (signal handlers, wakeups) - e.g. `IO`
+  *   the effect type for both runtime operations and engine operations
+  * @tparam Ctx
+  *   the workflow context
   */
-trait WorkflowInstanceBase[F[_], G[_], Ctx <: WorkflowContext] extends WorkflowInstance[F, WCState[Ctx]] with StrictLogging {
+trait WorkflowInstanceBase[F[_], Ctx <: WorkflowContext] extends WorkflowInstance[F, WCState[Ctx]] with StrictLogging {
 
   protected given fMonad: Monad[F]
-
-  /** Natural transformation that lifts engine results into the runtime effect. */
-  protected def liftG: [A] => G[A] => F[A]
 
   protected def persistEvent(event: WCEvent[Ctx]): F[Unit]
   protected def updateState(newState: ActiveWorkflow[Ctx]): F[Unit]
@@ -29,32 +26,31 @@ trait WorkflowInstanceBase[F[_], G[_], Ctx <: WorkflowContext] extends WorkflowI
   protected def lockState[T](update: ActiveWorkflow[Ctx] => F[T]): F[T]
   // this could theoretically be implemented in terms of `updateState` but we dont want to lock anything unnecessarly
   protected def getWorkflow: F[ActiveWorkflow[Ctx]]
-  protected def engine: WorkflowInstanceEngine[G, Ctx]
+  protected def engine: WorkflowInstanceEngine[F, Ctx]
 
-  override def queryState(): F[WCState[Ctx]] = getWorkflow.flatMap(x => liftG(engine.queryState(x)))
+  override def queryState(): F[WCState[Ctx]] = getWorkflow.flatMap(engine.queryState)
 
-  override def getProgress: F[WIOExecutionProgress[WCState[Ctx]]] = getWorkflow.flatMap(x => liftG(engine.getProgress(x)))
+  override def getProgress: F[WIOExecutionProgress[WCState[Ctx]]] = getWorkflow.flatMap(engine.getProgress)
 
   override def getExpectedSignals(includeRedeliverable: Boolean = false): F[List[SignalDef[?, ?]]] =
-    getWorkflow.flatMap(x => liftG(engine.getExpectedSignals(x, includeRedeliverable)))
+    getWorkflow.flatMap(engine.getExpectedSignals(_, includeRedeliverable))
 
   override def deliverSignal[Req, Resp](signalDef: SignalDef[Req, Resp], req: Req): F[Either[WorkflowInstance.UnexpectedSignal, Resp]] = {
     def processSignal(state: ActiveWorkflow[Ctx]): F[Either[WorkflowInstance.UnexpectedSignal, Resp]] = {
       for {
-        resultOpt <- liftG(engine.handleSignal(state, signalDef, req))
+        resultOpt <- engine.handleSignal(state, signalDef, req)
         result    <- resultOpt match {
-                       case SignalResult.Processed(resultG) =>
+                       case SignalResult.Processed(resultF) =>
                          for {
-                           eventAndResp <- liftG(resultG)
+                           eventAndResp <- resultF
                            _            <- persistEvent(eventAndResp.event)
                            newStateOpt   = engine.handleEvent(state, eventAndResp.event).unsafeRun()
                            _            <- newStateOpt.traverse_(updateState)
                            _            <- handleStateChange(state, newStateOpt)
                          } yield Right(eventAndResp._2)
-                       case SignalResult.Redelivered(resp)    =>
-                         // Redelivery: no event to persist, just return the reconstructed response
+                       case SignalResult.Redelivered(resp)  =>
                          Right(resp).pure[F]
-                       case SignalResult.UnexpectedSignal()   => Left(WorkflowInstance.UnexpectedSignal(signalDef)).pure[F]
+                       case SignalResult.UnexpectedSignal() => Left(WorkflowInstance.UnexpectedSignal(signalDef)).pure[F]
                      }
       } yield result
     }
@@ -67,7 +63,7 @@ trait WorkflowInstanceBase[F[_], G[_], Ctx <: WorkflowContext] extends WorkflowI
     newStateOpt match {
       case Some(newState) =>
         for {
-          cmds <- liftG(engine.onStateChange(oldState, newState))
+          cmds <- engine.onStateChange(oldState, newState)
           _    <- cmds.toList.traverse({ case PostExecCommand.WakeUp =>
                     processWakeup(newState)
                   })
@@ -78,11 +74,11 @@ trait WorkflowInstanceBase[F[_], G[_], Ctx <: WorkflowContext] extends WorkflowI
 
   private def processWakeup(state: ActiveWorkflow[Ctx]) = {
     for {
-      resultOpt <- liftG(engine.triggerWakeup(state))
+      resultOpt <- engine.triggerWakeup(state)
       _         <- resultOpt match {
-                     case WakeupResult.Processed(resultG) =>
+                     case WakeupResult.Processed(resultF) =>
                        for {
-                         retryOrEvent <- liftG(resultG)
+                         retryOrEvent <- resultF
                          eventOpt      = retryOrEvent match {
                                            case WakeupResult.ProcessingResult.Failed(_, event) => event
                                            case WakeupResult.ProcessingResult.Proceeded(event) => event.some
@@ -97,7 +93,7 @@ trait WorkflowInstanceBase[F[_], G[_], Ctx <: WorkflowContext] extends WorkflowI
                                          }
 
                        } yield newStateOpt
-                     case WakeupResult.Noop()               => None.pure[F]
+                     case WakeupResult.Noop()             => None.pure[F]
                    }
     } yield ()
   }

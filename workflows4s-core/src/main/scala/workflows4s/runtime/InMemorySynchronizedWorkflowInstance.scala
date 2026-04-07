@@ -13,7 +13,7 @@ class InMemorySynchronizedWorkflowInstance[F[_]: {MonadThrow, WeakSync}, Ctx <: 
     val id: WorkflowInstanceId,
     initialState: ActiveWorkflow[Ctx],
     protected val engine: WorkflowInstanceEngine[F, Ctx],
-) extends WorkflowInstanceBase[F, F, Ctx]
+) extends WorkflowInstanceBase[F, Ctx]
     with StrictLogging {
 
   private var wf: ActiveWorkflow[Ctx]              = initialState
@@ -28,7 +28,6 @@ class InMemorySynchronizedWorkflowInstance[F[_]: {MonadThrow, WeakSync}, Ctx <: 
       }
     }
 
-  override protected def liftG: [A] => F[A] => F[A]          = [A] => (fa: F[A]) => fa
   override protected given fMonad: Monad[F]                  = MonadThrow[F]
   override protected def getWorkflow: F[ActiveWorkflow[Ctx]] = WeakSync[F].delay(wf)
 

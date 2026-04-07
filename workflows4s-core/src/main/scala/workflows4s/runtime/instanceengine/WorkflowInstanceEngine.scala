@@ -49,10 +49,13 @@ trait WorkflowInstanceEngine[F[_], Ctx <: WorkflowContext] {
     .handleEvent(workflow, event)
     .map(_.getOrElse(workflow))
 
+  def mapK[G[_]: cats.Functor](nat: [A] => F[A] => G[A]): WorkflowInstanceEngine[G, Ctx] =
+    MappedWorkflowInstanceEngine(this, nat)
+
 }
 
 object WorkflowInstanceEngine {
-  val builder                                                                            = WorkflowInstanceEngineBuilder
+  val builder                                                             = WorkflowInstanceEngineBuilder
   def default[F[_]: {MonadThrow, WeakSync}, Ctx <: WorkflowContext](
       knockerUpper: KnockerUpper.Agent[F],
       registry: WorkflowRegistry.Agent[F],

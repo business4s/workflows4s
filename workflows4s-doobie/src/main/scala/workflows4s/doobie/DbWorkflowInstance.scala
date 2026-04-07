@@ -17,11 +17,13 @@ class DbWorkflowInstance[Ctx <: WorkflowContext](
     val id: WorkflowInstanceId,
     baseWorkflow: ActiveWorkflow[Ctx],
     storage: WorkflowStorage[WCEvent[Ctx]],
-    protected val engine: WorkflowInstanceEngine[IO, Ctx],
-) extends WorkflowInstanceBase[Result, IO, Ctx]
+    ioEngine: WorkflowInstanceEngine[IO, Ctx],
+) extends WorkflowInstanceBase[Result, Ctx]
     with StrictLogging {
 
   override protected def fMonad: Monad[Result] = summon
+
+  override protected val engine: WorkflowInstanceEngine[Result, Ctx] = ioEngine.mapK([A] => ioa => Kleisli(liftIO => liftIO.liftIO(ioa)))
 
   private val connIOToResult: ConnectionIO ~> Result = new FunctionK {
     override def apply[A](fa: ConnectionIO[A]): Result[A] = Kleisli(_ => fa)
@@ -36,8 +38,6 @@ class DbWorkflowInstance[Ctx <: WorkflowContext](
         .lastOrError,
     )
   }
-
-  override protected def liftG: [A] => IO[A] => Result[A] = [A] => (ioa: IO[A]) => Kleisli(liftIO => liftIO.liftIO(ioa))
 
   override protected def persistEvent(event: WCEvent[Ctx]): Result[Unit] = Kleisli(_ => storage.saveEvent(id, event))
 

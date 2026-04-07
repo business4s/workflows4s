@@ -175,7 +175,9 @@ object SignalEvaluator {
         throw new Exception(s"Request type mismatch for signal ${node.sigDef.name}. Expected: ${node.sigDef.reqCt}, got: $request")
       }
 
-    private def produceResult[Resp1](typedReq: Req, localInput: LocalIn, outerSignalDef: SignalDef[?, Resp1])(using Functor[F]): SignalResult[F, OutEvent, Resp1] =
+    private def produceResult[Resp1](typedReq: Req, localInput: LocalIn, outerSignalDef: SignalDef[?, Resp1])(using
+        Functor[F],
+    ): SignalResult[F, OutEvent, Resp1] =
       storedEvent match {
         case Some(evt) => redeliverFromStoredEvent(typedReq, localInput, evt, outerSignalDef)
         case None      => handleFreshSignal(typedReq, localInput, outerSignalDef)
@@ -327,7 +329,7 @@ object SignalEvaluator {
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
     ): Result = {
       val innerLift: WCEffectLift[InnerCtx, F] = [A] => (fa: WCEffect[InnerCtx][A]) => liftEffect(wio.embedding.liftInnerEffect(fa))
-      val innerMatches                                     = new SignalVisitor(wio.inner, innerLift).run
+      val innerMatches                         = new SignalVisitor(wio.inner, innerLift).run
       innerMatches.map { m =>
         m.mapEvent(wio.embedding.convertEvent, wio.embedding.unconvertEvent)
           .retype[In, WCState[Ctx]](

@@ -29,7 +29,11 @@ case class ActiveWorkflow[Ctx <: WorkflowContext](id: WorkflowInstanceId, wio: W
     SignalEvaluator.getExpectedSignals(wf.wio, includeRedeliverable)
   }
 
-  def handleSignal[F[_]: Functor, Req, Resp](signalDef: SignalDef[Req, Resp], req: Req, liftEffect: WCEffectLift[Ctx, F]): SignalResult[F, WCEvent[Ctx], Resp] = {
+  def handleSignal[F[_]: Functor, Req, Resp](
+      signalDef: SignalDef[Req, Resp],
+      req: Req,
+      liftEffect: WCEffectLift[Ctx, F],
+  ): SignalResult[F, WCEvent[Ctx], Resp] = {
     val wf = effectlessProceed
     SignalEvaluator.handleSignal(signalDef, req, wf.wio, wf.staticState, liftEffect)
   }

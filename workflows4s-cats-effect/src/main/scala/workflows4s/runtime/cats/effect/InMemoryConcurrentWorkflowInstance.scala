@@ -13,7 +13,7 @@ class InMemoryConcurrentWorkflowInstance[F[_]: Sync, Ctx <: WorkflowContext](
     eventsRef: Ref[F, Vector[WCEvent[Ctx]]],
     protected val engine: WorkflowInstanceEngine[F, Ctx],
     val lock: Semaphore[F],
-) extends WorkflowInstanceBase[F, F, Ctx] {
+) extends WorkflowInstanceBase[F, Ctx] {
 
   def getEvents: F[Vector[WCEvent[Ctx]]] = eventsRef.get
 
@@ -26,7 +26,6 @@ class InMemoryConcurrentWorkflowInstance[F[_]: Sync, Ctx <: WorkflowContext](
     }
 
   override protected def fMonad: _root_.cats.Monad[F] = Sync[F]
-  override protected def liftG: [A] => F[A] => F[A]   = [A] => (fa: F[A]) => fa
 
   override protected def getWorkflow: F[ActiveWorkflow[Ctx]] = stateCell.get
 

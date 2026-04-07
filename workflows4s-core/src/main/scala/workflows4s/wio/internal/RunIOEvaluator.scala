@@ -57,7 +57,7 @@ object RunIOEvaluator {
         case None               => recurse(wio.base, input)
       }
     }
-    def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result = {
+    def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result                             = {
       wio.first.asExecuted match {
         case Some(firstExecuted) =>
           firstExecuted.output match {
@@ -80,7 +80,7 @@ object RunIOEvaluator {
     def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_ <: WCState[InnerCtx]] <: WCState[Ctx]](
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
     ): Result = {
-      val newState: WCState[InnerCtx]                                    = wio.embedding.unconvertStateUnsafe(lastSeenState)
+      val newState: WCState[InnerCtx]          = wio.embedding.unconvertStateUnsafe(lastSeenState)
       val innerLift: WCEffectLift[InnerCtx, F] = [A] => (fa: WCEffect[InnerCtx][A]) => liftEffect(wio.embedding.liftInnerEffect(fa))
       new RunIOVisitor(wio.inner, input, newState, now, innerLift).run
         .map(_.map(_.map(wio.embedding.convertEvent)))
