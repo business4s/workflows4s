@@ -20,10 +20,10 @@ object PekkoExample {
 
   // doc_start
   import MyWorkflowCtx.*
-  given IORuntime                        = ???
-  given ActorSystem[?]                   = ???
-  val engine: WorkflowInstanceEngine[IO] = ???
-  val workflow: WIO.Initial              = ???
+  given IORuntime                             = ???
+  given ActorSystem[?]                        = ???
+  val engine: WorkflowInstanceEngine[IO, Ctx] = ???
+  val workflow: WIO.Initial                   = ???
 
   val runtime: PekkoRuntime[Ctx] = PekkoRuntime.create("my-workflow", workflow, InitialState(), engine)
 

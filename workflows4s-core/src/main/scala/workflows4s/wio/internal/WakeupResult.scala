@@ -10,6 +10,11 @@ sealed trait WakeupResult[F[_], +Event] {
     case WakeupResult.Noop()       => false
     case WakeupResult.Processed(_) => true
   }
+
+  def mapK[G[_]](nat: [A] => F[A] => G[A]): WakeupResult[G, Event] = this match {
+    case WakeupResult.Noop()            => WakeupResult.Noop()
+    case WakeupResult.Processed(result) => WakeupResult.Processed(nat(result))
+  }
 }
 
 object WakeupResult {

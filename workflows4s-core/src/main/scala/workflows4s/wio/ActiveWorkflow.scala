@@ -1,6 +1,6 @@
 package workflows4s.wio
 
-import cats.MonadThrow
+import cats.{Functor, MonadThrow}
 import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.wio.internal.*
 import workflows4s.wio.model.WIOExecutionProgress
@@ -12,7 +12,7 @@ import java.time.Instant
   * State is derived from the WIO tree rather than stored separately — `staticState` extracts the last known state from already-executed nodes, while
   * `liveState` additionally evaluates pure (effectless) steps.
   */
-case class ActiveWorkflow[F[_]: MonadThrow, Ctx <: WorkflowContext](id: WorkflowInstanceId, wio: WIO.Initial[F, Ctx], initialState: WCState[Ctx]) {
+case class ActiveWorkflow[Ctx <: WorkflowContext](id: WorkflowInstanceId, wio: WIO.Initial[Ctx], initialState: WCState[Ctx]) {
   lazy val wakeupAt: Option[Instant] = GetWakeupEvaluator.extractNearestWakeup(wio)
 
   /** State extracted from already-executed nodes without running any further steps. */
@@ -29,12 +29,16 @@ case class ActiveWorkflow[F[_]: MonadThrow, Ctx <: WorkflowContext](id: Workflow
     SignalEvaluator.getExpectedSignals(wf.wio, includeRedeliverable)
   }
 
-  def handleSignal[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req): SignalResult[F, WCEvent[Ctx], Resp] = {
+  def handleSignal[F[_]: Functor, Req, Resp](
+      signalDef: SignalDef[Req, Resp],
+      req: Req,
+      liftEffect: WCEffectLift[Ctx, F],
+  ): SignalResult[F, WCEvent[Ctx], Resp] = {
     val wf = effectlessProceed
-    SignalEvaluator.handleSignal(signalDef, req, wf.wio, wf.staticState)
+    SignalEvaluator.handleSignal(signalDef, req, wf.wio, wf.staticState, liftEffect)
   }
 
-  def handleEvent(event: WCEvent[Ctx]): Option[ActiveWorkflow[F, Ctx]] = {
+  def handleEvent(event: WCEvent[Ctx]): Option[ActiveWorkflow[Ctx]] = {
     val wf = effectlessProceed
     EventEvaluator
       .handleEvent(event, wf.wio, initialState)
@@ -43,15 +47,15 @@ case class ActiveWorkflow[F[_]: MonadThrow, Ctx <: WorkflowContext](id: Workflow
       .map(x => x.effectlessProceed)
   }
 
-  def proceed(now: Instant): WakeupResult[F, WCEvent[Ctx]] = {
+  def proceed[F[_]: MonadThrow](now: Instant, liftEffect: WCEffectLift[Ctx, F]): WakeupResult[F, WCEvent[Ctx]] = {
     val wf = effectlessProceed
-    RunIOEvaluator.proceed(wf.wio, wf.staticState, now)
+    RunIOEvaluator.proceed(wf.wio, wf.staticState, now, liftEffect)
   }
 
   def progress: WIOExecutionProgress[WCState[Ctx]] = effectlessProceed.wio.toProgress
 
   // moves forward as far as possible
-  private def effectlessProceed: ActiveWorkflow[F, Ctx] =
+  private def effectlessProceed: ActiveWorkflow[Ctx] =
     ProceedEvaluator
       .proceed(wio, initialState)
       .newFlow

@@ -31,7 +31,13 @@ object Main extends IOApp {
               "withdrawal",
               workflow.workflowDeclarative,
               WithdrawalData.Empty,
-              WorkflowInstanceEngine.builder.withJavaTime().withWakeUps(knockerUpper).withoutRegistering.withGreedyEvaluation.withLogging.get,
+              WorkflowInstanceEngine.builder
+                .withJavaTime[IO]()
+                .withWakeUps(knockerUpper)
+                .withoutRegistering
+                .withGreedyEvaluation
+                .withLogging
+                .get[WithdrawalWorkflow.Context.Ctx],
             )
           _                        <- IO(runtime.initializeShard())
           _                        <- knockerUpper.initialize(wokeup => IO.println(s"Woke up! $wokeup"))

@@ -1,6 +1,5 @@
 package workflows4s.wio
 
-import cats.effect.IO
 import cats.implicits.catsSyntaxOptionId
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
@@ -232,7 +231,7 @@ class WIOLoopTest extends AnyFreeSpec with Matchers with OptionValues with Eithe
       bodyId: StepId,
       onReturn: Option[TestCtx2.WIO[TestState, Err, TestState]],
       maxIterations: Int,
-  ): (StepId, WIO[IO, TestState, Err, TestState, TestCtx2.Ctx]) = {
+  ): (StepId, WIO[TestState, Err, TestState, TestCtx2.Ctx]) = {
     val (finishedStepId, finishedStep) = TestUtils.pure
 
     val loop = TestCtx2.WIO

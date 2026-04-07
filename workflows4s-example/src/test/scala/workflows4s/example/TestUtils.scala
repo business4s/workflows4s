@@ -22,15 +22,15 @@ object TestUtils {
     .getParent                            // workflows4s-example
     .resolve("src/test/resources")
 
-  val jsonPrinter                                              = Printer.spaces2
-  def renderModelToFile(wio: WIO[?, ?, ?, ?, ?], path: String) = {
+  val jsonPrinter                                           = Printer.spaces2
+  def renderModelToFile(wio: WIO[?, ?, ?, ?], path: String) = {
     val model           = wio.toProgress.toModel
     val modelJson: Json = model.asJson
     val outputPath      = basePath.resolve(path)
     ensureFileContentMatchesOrUpdate(jsonPrinter.print(modelJson), outputPath)
   }
 
-  def renderBpmnToFile(wio: WIO[?, ?, ?, ?, ?], path: String) = {
+  def renderBpmnToFile(wio: WIO[?, ?, ?, ?], path: String) = {
     val model       = wio.toProgress.toModel
     val bpmnModel   = BpmnRenderer.renderWorkflow(model, "process")
     val outputPath  = basePath.resolve(path)
@@ -53,7 +53,7 @@ object TestUtils {
     ensureFileContentMatchesOrUpdate(debugString, outputPath)
   }
 
-  def renderDocsExample(wio: WIO[?, ?, ?, ?, ?], name: String, technical: Boolean = false) = {
+  def renderDocsExample(wio: WIO[?, ?, ?, ?], name: String, technical: Boolean = false) = {
     renderModelToFile(wio, s"docs/${name}/model.json")
     renderBpmnToFile(wio, s"docs/${name}/diagram.bpmn")
     renderMermaidToFile(wio.toProgress, s"docs/${name}/diagram.mermaid", technical)

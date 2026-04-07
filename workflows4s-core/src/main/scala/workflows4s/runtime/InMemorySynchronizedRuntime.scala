@@ -6,12 +6,11 @@ import workflows4s.wio.*
 import workflows4s.wio.WIO.Initial
 
 class InMemorySynchronizedRuntime[F[+_]: {MonadThrow, WeakSync}, Ctx <: WorkflowContext](
-    val workflow: Initial[F, Ctx],
+    val workflow: Initial[Ctx],
     initialState: WCState[Ctx],
-    engine: WorkflowInstanceEngine[F],
+    engine: WorkflowInstanceEngine[F, Ctx],
     val templateId: String,
 ) extends WorkflowRuntime[F, Ctx] {
-  override type WorkflowEffect[A] = F[A]
   private val instances = new java.util.concurrent.ConcurrentHashMap[String, InMemorySynchronizedWorkflowInstance[F, Ctx]]()
 
   override def createInstance(id: String): F[InMemorySynchronizedWorkflowInstance[F, Ctx]] = {
@@ -30,10 +29,11 @@ class InMemorySynchronizedRuntime[F[+_]: {MonadThrow, WeakSync}, Ctx <: Workflow
 
 object InMemorySynchronizedRuntime {
   def create[F[+_]: {MonadThrow, WeakSync}, Ctx <: WorkflowContext](
-      workflow: Initial[F, Ctx],
+      workflow: Initial[Ctx],
       initialState: WCState[Ctx],
-      engine: WorkflowInstanceEngine[F],
+      engine: WorkflowInstanceEngine[F, Ctx],
       templateId: String = s"in-memory-synchronized-${java.util.UUID.randomUUID().toString.take(8)}",
-  ): InMemorySynchronizedRuntime[F, Ctx] =
+  ): InMemorySynchronizedRuntime[F, Ctx] = {
     new InMemorySynchronizedRuntime[F, Ctx](workflow, initialState, engine, templateId)
+  }
 }

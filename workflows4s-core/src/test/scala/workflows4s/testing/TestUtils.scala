@@ -34,7 +34,7 @@ class TestRuntime {
   val clock        = TestClock()
   val knockerUpper = RecordingKnockerUpper[IO]()
 
-  val engine: WorkflowInstanceEngine[IO] =
+  val engine: WorkflowInstanceEngine[IO, TestCtx2.Ctx] =
     WorkflowInstanceEngine.builder
       .withJavaTime(clock)
       .withWakeUps(knockerUpper)
@@ -43,7 +43,7 @@ class TestRuntime {
       .withLogging
       .get
 
-  def createInstance(wio: WIO[IO, TestState, Nothing, TestState, TestCtx2.Ctx]): SynchronizedWorkflowInstance[TestCtx2.Ctx] = {
+  def createInstance(wio: WIO[TestState, Nothing, TestState, TestCtx2.Ctx]): SynchronizedWorkflowInstance[TestCtx2.Ctx] = {
     val runtime = InMemorySynchronizedRuntime.create[IO, TestCtx2.Ctx](
       wio.provideInput(TestState.empty),
       TestState.empty,
@@ -60,33 +60,34 @@ object TestUtils {
 
   type Error = String
 
-  def createInstance2(wio: WIO[IO, TestState, Nothing, TestState, TestCtx2.Ctx]): (TestClock, SynchronizedWorkflowInstance[TestCtx2.Ctx]) = {
+  def createInstance2(wio: WIO[TestState, Nothing, TestState, TestCtx2.Ctx]): (TestClock, SynchronizedWorkflowInstance[TestCtx2.Ctx]) = {
     val clock   = new TestClock()
+    val engine  = WorkflowInstanceEngine.basic[IO, TestCtx2.Ctx](clock)
     val runtime = InMemorySynchronizedRuntime.create[IO, TestCtx2.Ctx](
       wio.provideInput(TestState.empty),
       TestState.empty,
-      WorkflowInstanceEngine.basic[IO](clock),
+      engine,
       "test",
     )
     (clock, new SynchronizedWorkflowInstance(runtime.createInstance(UUID.randomUUID().toString).unsafeRunSync()))
   }
 
-  def pure: (StepId, WIO[IO, TestState, Nothing, TestState, TestCtx2.Ctx]) = {
+  def pure: (StepId, WIO[TestState, Nothing, TestState, TestCtx2.Ctx]) = {
     import TestCtx2.*
     val stepId = StepId.random("pure")
     (stepId, WIO.pure.makeFrom[TestState].value(_.addExecuted(stepId)).done)
   }
-  def error: (Error, WIO[IO, Any, String, Nothing, TestCtx2.Ctx])          = {
+  def error: (Error, WIO[Any, String, Nothing, TestCtx2.Ctx])          = {
     import TestCtx2.*
     val error = s"error-${UUID.randomUUID()}"
     (error, WIO.pure.error(error).done)
   }
 
-  def runIO: (StepId, WIO[IO, TestState, Nothing, TestState, TestCtx2.Ctx]) = {
+  def runIO: (StepId, WIO[TestState, Nothing, TestState, TestCtx2.Ctx]) = {
     runIOCustom(IO.unit)
   }
 
-  def errorIO: (Error, WIO[IO, Any, String, Nothing, TestCtx2.Ctx]) = {
+  def errorIO: (Error, WIO[Any, String, Nothing, TestCtx2.Ctx]) = {
     import TestCtx2.*
     val error = s"error-${UUID.randomUUID()}"
     case class RunIOErrored(error: String) extends TestCtx2.Event
@@ -97,7 +98,7 @@ object TestUtils {
     (error, wio)
   }
 
-  def runIOCustom(logic: IO[Unit]): (StepId, WIO[IO, TestState, Nothing, TestState, TestCtx2.Ctx]) = {
+  def runIOCustom(logic: IO[Unit]): (StepId, WIO[TestState, Nothing, TestState, TestCtx2.Ctx]) = {
     import TestCtx2.*
     case class RunIODone(stepId: StepId) extends TestCtx2.Event
     val stepId = StepId.random
@@ -108,16 +109,16 @@ object TestUtils {
     (stepId, wio)
   }
 
-  def errorHandler: WIO[IO, (TestState, Error), Nothing, TestState, TestCtx2.Ctx] = {
+  def errorHandler: WIO[(TestState, Error), Nothing, TestState, TestCtx2.Ctx] = {
     import TestCtx2.*
     WIO.pure.makeFrom[(TestState, String)].value((st, err) => st.addError(err)).done
   }
 
   // inline assures two calls get different events
-  inline def signal: (SignalDef[Int, Int], StepId, WIO.IHandleSignal[IO, TestState, Nothing, TestState, TestCtx2.Ctx]) = signalCustom(IO.unit)
+  inline def signal: (SignalDef[Int, Int], StepId, WIO.IHandleSignal[TestState, Nothing, TestState, TestCtx2.Ctx]) = signalCustom(IO.unit)
 
   // inline assures two calls get different events
-  inline def signalCustom(logic: IO[Unit]): (SignalDef[Int, Int], StepId, WIO.IHandleSignal[IO, TestState, Nothing, TestState, TestCtx2.Ctx]) = {
+  inline def signalCustom(logic: IO[Unit]): (SignalDef[Int, Int], StepId, WIO.IHandleSignal[TestState, Nothing, TestState, TestCtx2.Ctx]) = {
     import TestCtx2.*
     val signalDef = SignalDef[Int, Int](id = UUID.randomUUID().toString)
     class SigEvent(val req: Int) extends TestCtx2.Event with Serializable {
@@ -134,7 +135,7 @@ object TestUtils {
     (signalDef, stepId, wio)
   }
 
-  def signalError: (SignalDef[Int, Int], Error, WIO.IHandleSignal[IO, TestState, Error, TestState, TestCtx2.Ctx]) = {
+  def signalError: (SignalDef[Int, Int], Error, WIO.IHandleSignal[TestState, Error, TestState, TestCtx2.Ctx]) = {
     import TestCtx2.*
     val signalDef = SignalDef[Int, Int](id = UUID.randomUUID().toString)
     case class SignalErrored(req: Int, error: String) extends TestCtx2.Event
@@ -149,7 +150,7 @@ object TestUtils {
     (signalDef, error, wio)
   }
 
-  def timer(secs: Int = Random.nextInt(10) + 1): (FiniteDuration, WIO.Timer[IO, TestCtx2.Ctx, TestState, Nothing, TestState]) = {
+  def timer(secs: Int = Random.nextInt(10) + 1): (FiniteDuration, WIO.Timer[TestCtx2.Ctx, TestState, Nothing, TestState]) = {
     import TestCtx2.*
     case class Started(instant: Instant)  extends Event
     case class Released(instant: Instant) extends Event

@@ -25,7 +25,7 @@ class PostgresRuntimeTest extends AnyFreeSpec with PostgresSuite with WorkflowRu
         .done
 
       val storage          = PostgresWorkflowStorage()(using noopCodec(Event()))
-      val engine           = WorkflowInstanceEngine.basic[IO]()
+      val engine           = WorkflowInstanceEngine.basic[IO, TestCtx.Ctx]()
       val runtime          = DatabaseRuntime.create(wio, State(), xa, engine, storage, "workflow")
       val workflowInstance = runtime.createInstance("1").unsafeRunSync()
 

@@ -9,11 +9,11 @@ import workflows4s.wio.*
 
 class InMemoryConcurrentWorkflowInstance[F[_]: Sync, Ctx <: WorkflowContext](
     val id: WorkflowInstanceId,
-    stateCell: AtomicCell[F, ActiveWorkflow[F, Ctx]],
+    stateCell: AtomicCell[F, ActiveWorkflow[Ctx]],
     eventsRef: Ref[F, Vector[WCEvent[Ctx]]],
-    protected val engine: WorkflowInstanceEngine[F],
+    protected val engine: WorkflowInstanceEngine[F, Ctx],
     val lock: Semaphore[F],
-) extends WorkflowInstanceBase[F, F, Ctx] {
+) extends WorkflowInstanceBase[F, Ctx] {
 
   def getEvents: F[Vector[WCEvent[Ctx]]] = eventsRef.get
 
@@ -26,14 +26,13 @@ class InMemoryConcurrentWorkflowInstance[F[_]: Sync, Ctx <: WorkflowContext](
     }
 
   override protected def fMonad: _root_.cats.Monad[F] = Sync[F]
-  override protected def liftG: [A] => F[A] => F[A]   = [A] => (fa: F[A]) => fa
 
-  override protected def getWorkflow: F[ActiveWorkflow[F, Ctx]] = stateCell.get
+  override protected def getWorkflow: F[ActiveWorkflow[Ctx]] = stateCell.get
 
   override protected def persistEvent(event: WCEvent[Ctx]): F[Unit] = eventsRef.update(_ :+ event)
 
-  override protected def updateState(newState: ActiveWorkflow[F, Ctx]): F[Unit] = stateCell.set(newState)
+  override protected def updateState(newState: ActiveWorkflow[Ctx]): F[Unit] = stateCell.set(newState)
 
-  override protected def lockState[T](update: ActiveWorkflow[F, Ctx] => F[T]): F[T] =
+  override protected def lockState[T](update: ActiveWorkflow[Ctx] => F[T]): F[T] =
     Resource.make(lock.acquire)(_ => lock.release).use(_ => stateCell.get.flatMap(update))
 }

@@ -10,7 +10,7 @@ import workflows4s.example.withdrawal.checks.ChecksEngine
 class SqliteChecksEngineTest extends AnyFreeSpec with SqliteWorkdirSuite with ChecksEngineTest.Suite {
 
   "postgres" - {
-    checkEngineTests(new SqliteRuntimeAdapter[ChecksEngine.Context](workdir, eventCodec))
+    checkEngineTests(new SqliteRuntimeAdapter(workdir, eventCodec))
   }
 
   lazy val eventCodec: ByteCodec[ChecksEngine.Context.Event] = CirceEventCodec.get()

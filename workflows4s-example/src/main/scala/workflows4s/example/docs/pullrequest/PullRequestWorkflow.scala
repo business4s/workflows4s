@@ -58,7 +58,7 @@ object PullRequestWorkflow {
 
   // start_context
   object Context extends WorkflowContext {
-    type Effect         = IO
+    type Effect[T]      = IO[T]
     override type Event = PREvent
     override type State = PRState
   }
@@ -126,7 +126,7 @@ object PullRequestWorkflow {
     // end_render
 
     // start_execution
-    val engine     = WorkflowInstanceEngine.basic[IO]()
+    val engine     = WorkflowInstanceEngine.basic[IO, Context.Ctx]()
     val runtime    = InMemorySynchronizedRuntime.create[IO, Context.Ctx](workflow, PRState.Empty, engine)
     val wfInstance = runtime.createInstance("id").unsafeRunSync()
 

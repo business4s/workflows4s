@@ -21,16 +21,14 @@ import java.util.Properties
   * deployments without an external database.
   */
 class SqliteRuntime[Ctx <: WorkflowContext](
-    val workflow: Initial[IO, Ctx],
+    val workflow: Initial[Ctx],
     initialState: WCState[Ctx],
-    engine: WorkflowInstanceEngine[IO],
+    engine: WorkflowInstanceEngine[IO, Ctx],
     eventCodec: ByteCodec[WCEvent[Ctx]],
     workdir: Path,
     val templateId: String,
 ) extends WorkflowRuntime[IO, Ctx]
     with StrictLogging {
-  override type WorkflowEffect[A] = IO[A]
-
   private val storage = SqliteWorkflowStorage[WCEvent[Ctx]](eventCodec)
 
   override def createInstance(id: String): IO[WorkflowInstance[IO, State[Ctx]]] = {
@@ -94,14 +92,13 @@ class SqliteRuntime[Ctx <: WorkflowContext](
 
 object SqliteRuntime {
   def create[Ctx <: WorkflowContext](
-      workflow: Initial[IO, Ctx],
+      workflow: Initial[Ctx],
       initialState: WCState[Ctx],
       eventCodec: ByteCodec[WCEvent[Ctx]],
-      engine: WorkflowInstanceEngine[IO],
+      engine: WorkflowInstanceEngine[IO, Ctx],
       workdir: Path,
       templateId: String = s"sqlite-runtime-${java.util.UUID.randomUUID().toString.take(8)}",
   ): IO[SqliteRuntime[Ctx]] = {
-
     for {
       _ <- IO(Files.createDirectories(workdir))
     } yield new SqliteRuntime[Ctx](

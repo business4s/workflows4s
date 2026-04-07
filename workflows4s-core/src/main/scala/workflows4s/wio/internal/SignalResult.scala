@@ -6,6 +6,12 @@ sealed trait SignalResult[F[_], +Event, +Resp] {
     case _: SignalResult.Processed[?, ?, ?]  => true
     case _: SignalResult.Redelivered[?, ?]   => false
   }
+
+  def mapK[G[_]](nat: [A] => F[A] => G[A]): SignalResult[G, Event, Resp] = this match {
+    case SignalResult.UnexpectedSignal()    => SignalResult.UnexpectedSignal()
+    case SignalResult.Processed(resultIO)   => SignalResult.Processed(nat(resultIO))
+    case SignalResult.Redelivered(response) => SignalResult.Redelivered(response)
+  }
 }
 
 object SignalResult {

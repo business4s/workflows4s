@@ -20,7 +20,7 @@ class InMemoryWorkflowRegistry[F[_]: WeakSync](
 
   private val state = new ConcurrentHashMap[WorkflowInstanceId, Data]()
 
-  override def upsertInstance(inst: ActiveWorkflow[F, ?], executionStatus: ExecutionStatus): F[Unit] = WeakSync[F].delay {
+  override def upsertInstance(inst: ActiveWorkflow[?], executionStatus: ExecutionStatus): F[Unit] = WeakSync[F].delay {
     val id  = inst.id
     val now = Instant.now(clock)
     logger.info(s"Updating workflow registry for ${id} to status $executionStatus at $now")
@@ -29,13 +29,13 @@ class InMemoryWorkflowRegistry[F[_]: WeakSync](
       (_, existing) =>
         Option(existing) match {
           case Some(ex) if ex.updatedAt.isAfter(now) => ex
-          case Some(ex)                              => ex.copy(updatedAt = now, status = executionStatus)
+          case Some(ex)                              => ex.copy(updatedAt = now, status = executionStatus, wakeupAt = inst.wakeupAt, tags = getTags(inst))
           case None                                  => Data(id, now, now, executionStatus, inst.wakeupAt, getTags(inst))
         },
     ): Unit
   }
 
-  private def getTags(instance: ActiveWorkflow[F, ?]): Map[String, String] =
+  private def getTags(instance: ActiveWorkflow[?]): Map[String, String] =
     taggers
       .get(instance.id.templateId)
       .map(_.getTags(instance.id, instance.liveState.asInstanceOf))

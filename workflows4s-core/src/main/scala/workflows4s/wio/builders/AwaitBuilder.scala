@@ -12,7 +12,7 @@ import scala.reflect.ClassTag
 
 object AwaitBuilder {
 
-  trait Step0[F[_], Ctx <: WorkflowContext]() {
+  trait Step0[Ctx <: WorkflowContext]() {
 
     def await[In <: WCState[Ctx]](duration: java.time.Duration): AwaitBuilderStep1[In]                       = AwaitBuilderStep1(DurationSource.Static(duration))
     def await[In <: WCState[Ctx]](duration: scala.concurrent.duration.FiniteDuration): AwaitBuilderStep1[In] = AwaitBuilderStep1(
@@ -51,12 +51,12 @@ object AwaitBuilder {
             private val name: Option[String] = None,
         ) {
 
-          def named(timerName: String): WIO.Timer[F, Ctx, InOut, Nothing, InOut] = this.copy(name = Some(timerName)).done
+          def named(timerName: String): WIO.Timer[Ctx, InOut, Nothing, InOut] = this.copy(name = Some(timerName)).done
 
-          def autoNamed(using name: sourcecode.Name): WIO.Timer[F, Ctx, InOut, Nothing, InOut] =
+          def autoNamed(using name: sourcecode.Name): WIO.Timer[Ctx, InOut, Nothing, InOut] =
             this.copy(name = Some(ModelUtils.prettifyName(name.value))).done
 
-          def done: WIO.Timer[F, Ctx, InOut, Nothing, InOut] = WIO.Timer(durationSource, startedEventHandler, name, releasedEventHandler)
+          def done: WIO.Timer[Ctx, InOut, Nothing, InOut] = WIO.Timer(durationSource, startedEventHandler, name, releasedEventHandler)
         }
       }
 

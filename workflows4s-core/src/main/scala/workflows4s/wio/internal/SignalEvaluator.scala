@@ -39,24 +39,33 @@ object SignalEvaluator {
     )
   }
 
-  def getExpectedSignals(wio: WIO[?, ?, ?, ?, ?], includeRedeliverable: Boolean = false): List[SignalDef[?, ?]] = {
-    new SignalVisitor(wio).run
+  def getExpectedSignals(wio: WIO[?, ?, ?, ?], includeRedeliverable: Boolean = false): List[SignalDef[?, ?]] = {
+    getExpectedSignalsImpl(wio, includeRedeliverable)
+  }
+
+  private def getExpectedSignalsImpl[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](
+      wio: WIO[In, Err, Out, Ctx],
+      includeRedeliverable: Boolean,
+  ): List[SignalDef[?, ?]] = {
+    // liftEffect is never invoked — only signalDef/isRedeliverable are read from matches
+    new SignalVisitor[WCEffect[Ctx], Ctx, In, Err, Out](wio, [A] => (fa: WCEffect[Ctx][A]) => fa).run
       .filter(m => includeRedeliverable || !m.isRedeliverable)
       .distinctBy(_.innerSignalDef.id)
       .map(_.signalDef)
   }
 
-  def getAllSignalDefs(wio: WIO[?, ?, ?, ?, ?]): List[SignalDef[?, ?]] = {
+  def getAllSignalDefs(wio: WIO[?, ?, ?, ?]): List[SignalDef[?, ?]] = {
     new FullScanSignalVisitor(wio).run.distinctBy(_.id)
   }
 
   def handleSignal[F[_]: Functor, Ctx <: WorkflowContext, Req, Resp, In <: WCState[Ctx], Out <: WCState[Ctx]](
       signalDef: SignalDef[Req, Resp],
       req: Req,
-      wio: WIO[F, In, Nothing, Out, Ctx],
+      wio: WIO[In, Nothing, Out, Ctx],
       state: In,
+      liftEffect: WCEffectLift[Ctx, F],
   ): SignalResult[F, WCEvent[Ctx], Resp] = {
-    val matches = new SignalVisitor[F, Ctx, In, Nothing, Out](wio).run
+    val matches = new SignalVisitor[F, Ctx, In, Nothing, Out](wio, liftEffect).run
       .flatMap(_.tryProduce(signalDef, req, state, state))
 
     // Fresh signals come before redeliverable ones due to traversal order
@@ -66,16 +75,18 @@ object SignalEvaluator {
   /** Captures a signal handler location in the WIO tree plus transformations needed to execute it.
     *
     * Type parameters:
+    *   - F: The effect type
     *   - TopIn/TopState: The input/state types at the level where tryProduce will be called
     *   - OutEvent: The event type after transformation
     *   - LocalCtx/LocalIn: The context and input types of the actual signal handler
     *   - Req/Resp/Evt: Signal handler types
     */
   case class SignalMatch[F[_], TopIn, OutEvent, LocalCtx <: WorkflowContext, LocalIn, Req, Resp, Evt, TopState](
-      node: WIO.HandleSignal[F, LocalCtx, LocalIn, ?, ?, Req, Resp, Evt],
+      node: WIO.HandleSignal[LocalCtx, LocalIn, ?, ?, Req, Resp, Evt],
       transform: (TopIn, TopState) => (LocalIn, WCState[LocalCtx]),
       eventTransform: WCEvent[LocalCtx] => OutEvent,
       eventUnconvert: OutEvent => Option[WCEvent[LocalCtx]],
+      liftEffect: WCEffectLift[LocalCtx, F],
       storedEvent: Option[WCEvent[LocalCtx]] = None,
       routing: Option[SignalRouting[TopIn, TopState, Req]] = None,
   ) extends StrictLogging {
@@ -137,6 +148,9 @@ object SignalEvaluator {
     def withRouting(r: SignalRouting[TopIn, TopState, Req]): SignalMatch[F, TopIn, OutEvent, LocalCtx, LocalIn, Req, Resp, Evt, TopState] =
       copy(routing = Some(r))
 
+    def mapEffect[G[_]](f: [A] => F[A] => G[A]): SignalMatch[G, TopIn, OutEvent, LocalCtx, LocalIn, Req, Resp, Evt, TopState] =
+      this.copy(liftEffect = [A] => (fa: WCEffect[LocalCtx][A]) => f(liftEffect(fa)))
+
     def tryProduce[Req1, Resp1](
         outerSignalDef: SignalDef[Req1, Resp1],
         request: Req1,
@@ -187,7 +201,7 @@ object SignalEvaluator {
         localInput: LocalIn,
         outerSignalDef: SignalDef[?, Resp1],
     )(using Functor[F]): SignalResult[F, OutEvent, Resp1] = {
-      SignalResult.Processed(Functor[F].map(node.sigHandler.handle(localInput, typedReq)) { evt =>
+      SignalResult.Processed(Functor[F].map(liftEffect(node.sigHandler.handle(localInput, typedReq))) { evt =>
         val convertedEvent = eventTransform(node.evtHandler.convert(evt))
         val response       = node.responseProducer(localInput, evt, typedReq)
         SignalResult.ProcessingResult(convertedEvent, extractTypedResponse(outerSignalDef, response))
@@ -197,13 +211,15 @@ object SignalEvaluator {
 
   private object SignalMatch {
     def fresh[F[_], Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx], Req, Resp, Evt](
-        node: WIO.HandleSignal[F, Ctx, In, Out, Err, Req, Resp, Evt],
+        node: WIO.HandleSignal[Ctx, In, Out, Err, Req, Resp, Evt],
+        liftEffect: WCEffectLift[Ctx, F],
     ): SignalMatch[F, In, WCEvent[Ctx], Ctx, In, Req, Resp, Evt, WCState[Ctx]] =
       SignalMatch(
         node,
         transform = (in, state) => (in, state),
         eventTransform = identity,
         eventUnconvert = Some(_),
+        liftEffect = liftEffect,
       )
   }
 
@@ -217,23 +233,24 @@ object SignalEvaluator {
     * State is tracked/accumulated through the currentState function in SignalMatch, similar to how GetStateEvaluator tracks lastSeenState.
     */
   private class SignalVisitor[F[_], Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](
-      wio: WIO[F, In, Err, Out, Ctx],
-  ) extends Visitor[F, Ctx, In, Err, Out](wio)
+      wio: WIO[In, Err, Out, Ctx],
+      liftEffect: WCEffectLift[Ctx, F],
+  ) extends Visitor[Ctx, In, Err, Out](wio)
       with StrictLogging {
     override type Result = List[AnyMatch[F, In, WCEvent[Ctx], WCState[Ctx]]]
 
-    def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[F, Ctx, In, Out, Err, Sig, Resp, Evt]): Result = List(SignalMatch.fresh(wio))
+    def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result = List(SignalMatch.fresh(wio, liftEffect))
 
-    def onRunIO[Evt](wio: WIO.RunIO[F, Ctx, In, Err, Out, Evt]): Result       = Nil
-    def onNoop(wio: WIO.End[F, Ctx]): Result                                  = Nil
-    def onPure(wio: WIO.Pure[F, Ctx, In, Err, Out]): Result                   = Nil
-    def onTimer(wio: WIO.Timer[F, Ctx, In, Err, Out]): Result                 = Nil
-    def onAwaitingTime(wio: WIO.AwaitingTime[F, Ctx, In, Err, Out]): Result   = Nil
-    def onDiscarded[In1](wio: WIO.Discarded[F, Ctx, In1]): Result             = Nil
-    def onRecovery[Evt](wio: WIO.Recovery[F, Ctx, In, Err, Out, Evt]): Result = Nil
+    def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result       = Nil
+    def onNoop(wio: WIO.End[Ctx]): Result                                  = Nil
+    def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                   = Nil
+    def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result                 = Nil
+    def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result   = Nil
+    def onDiscarded[In1](wio: WIO.Discarded[Ctx, In1]): Result             = Nil
+    def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): Result = Nil
 
-    def onExecuted[In1](wio: WIO.Executed[F, Ctx, Err, Out, In1]): Result = {
-      val innerMatches = new SignalVisitor(wio.original).run
+    def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result = {
+      val innerMatches = new SignalVisitor(wio.original, liftEffect).run
         .map(_.contramapInput[In](_ => wio.input))
 
       innerMatches.flatMap { m =>
@@ -242,21 +259,21 @@ object SignalEvaluator {
       }
     }
 
-    override def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[F, Ctx, Err1, Err, Out1, Out, In]): Result          = recurse(wio.base)
-    override def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[F, Ctx, In, Err, Out, ErrIn, TempOut]): Result =
+    override def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result          = recurse(wio.base)
+    override def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result =
       recurse(wio.base)
-    override def onRetry(wio: WIO.Retry[F, Ctx, In, Err, Out]): Result                                                             = recurse(wio.base)
-    override def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[F, Ctx, In1, Err1, Out1, In, Out, Err]): Result          =
+    override def onRetry(wio: WIO.Retry[Ctx, In, Err, Out]): Result                                                             = recurse(wio.base)
+    override def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Result          =
       recurse(wio.base, wio.contramapInput)
 
-    def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[F, Ctx, In, ErrIn, Out, Err]): Result = {
+    def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result = {
       wio.base.asExecuted match {
         case Some(baseExecuted) =>
           baseExecuted.output match {
             case Left(err) =>
               // Error handler receives (lastState, error) as input
               // State should be extracted from base execution
-              val handlerMatches = new SignalVisitor(wio.handleError).run
+              val handlerMatches = new SignalVisitor(wio.handleError, liftEffect).run
                 .map { m =>
                   m.retype[In, WCState[Ctx]](
                     deriveInputState = (in, topState) => {
@@ -273,23 +290,23 @@ object SignalEvaluator {
     }
 
     def onLoop[BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx], ReturnIn](
-        wio: WIO.Loop[F, Ctx, In, Err, Out, BodyIn, BodyOut, ReturnIn],
+        wio: WIO.Loop[Ctx, In, Err, Out, BodyIn, BodyOut, ReturnIn],
     ): Result = {
       // Current iteration first (fresh), then history reversed (most recent redeliverable first)
       recurse(wio.current.wio) ++ wio.history.reverse.flatMap(recurse(_)).toList
     }
 
-    def onFork(wio: WIO.Fork[F, Ctx, In, Err, Out]): Result = {
+    def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result = {
       // Only selected branch has active signals
       wio.selected match {
         case Some(idx) =>
           val branch = wio.branches(idx)
-          new SignalVisitor(branch.wio).run.map(_.contramapInput[In](in => branch.condition(in).get))
+          new SignalVisitor(branch.wio, liftEffect).run.map(_.contramapInput[In](in => branch.condition(in).get))
         case None      => Nil
       }
     }
 
-    def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[F, Ctx, In, Err, Out1, Out]): Result = {
+    def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result = {
       wio.first.asExecuted match {
         case Some(firstExecuted) =>
           firstExecuted.output match {
@@ -297,7 +314,7 @@ object SignalEvaluator {
             case Right(value) =>
               // Second step: input is `value`, state should be computed from first's execution
               val stateFromFirst: WCState[Ctx] = value
-              val secondMatches                = new SignalVisitor(wio.second).run.map { m =>
+              val secondMatches                = new SignalVisitor(wio.second, liftEffect).run.map { m =>
                 m.retype[In, WCState[Ctx]](
                   deriveInputState = (_, _) => (value, stateFromFirst),
                 )
@@ -309,9 +326,10 @@ object SignalEvaluator {
     }
 
     def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_ <: WCState[InnerCtx]] <: WCState[Ctx]](
-        wio: WIO.Embedded[F, Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
+        wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
     ): Result = {
-      val innerMatches = new SignalVisitor(wio.inner).run
+      val innerLift: WCEffectLift[InnerCtx, F] = [A] => (fa: WCEffect[InnerCtx][A]) => liftEffect(wio.embedding.liftInnerEffect(fa))
+      val innerMatches                         = new SignalVisitor(wio.inner, innerLift).run
       innerMatches.map { m =>
         m.mapEvent(wio.embedding.convertEvent, wio.embedding.unconvertEvent)
           .retype[In, WCState[Ctx]](
@@ -320,9 +338,9 @@ object SignalEvaluator {
       }
     }
 
-    def onHandleInterruption(wio: WIO.HandleInterruption[F, Ctx, In, Err, Out]): Result = {
+    def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result = {
       def interruptionMatches(): Result =
-        new SignalVisitor(wio.interruption).run.map { m =>
+        new SignalVisitor(wio.interruption, liftEffect).run.map { m =>
           // Retype from WCState[Ctx] input to In input, computing state from base execution
           m.retype[In, WCState[Ctx]](
             deriveInputState = (in, topState) => {
@@ -343,21 +361,23 @@ object SignalEvaluator {
       }
     }
 
-    def onParallel[InterimState <: WCState[Ctx]](wio: WIO.Parallel[F, Ctx, In, Err, Out, InterimState]): Result =
+    def onParallel[InterimState <: WCState[Ctx]](wio: WIO.Parallel[Ctx, In, Err, Out, InterimState]): Result =
       wio.elements.flatMap(elem => recurse(elem.wio)).toList
 
-    override def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[F, Ctx, In, Err, Out1, Evt]): Result =
+    override def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): Result =
       recurse(wio.base)
 
     // No deduplication here - each element needs its own match; getExpectedSignals deduplicates for inspection
     override def onForEach[ElemId, InnerCtx <: WorkflowContext, ElemOut <: WCState[InnerCtx], InterimState <: WCState[Ctx]](
-        wio: WIO.ForEach[F, Ctx, In, Err, Out, ElemId, InnerCtx, ElemOut, InterimState],
+        wio: WIO.ForEach[Ctx, In, Err, Out, ElemId, InnerCtx, ElemOut, InterimState],
     ): Result = {
       // InnerCtx is in scope here, so we can properly type elemInitialState
       val elemInitialState: WCState[InnerCtx] = wio.initialElemState()
 
+      val innerLift: WCEffectLift[InnerCtx, F] = [A] => (fa: WCEffect[InnerCtx][A]) => liftEffect(wio.liftInnerEffect(fa))
+
       wio.stateOpt.getOrElse(Map.empty).toList.flatMap { case (elemId, elemWio) =>
-        val innerMatches: Seq[AnyMatch[F, Any, WCEvent[InnerCtx], WCState[InnerCtx]]] = new SignalVisitor(elemWio).run
+        val innerMatches: Seq[AnyMatch[F, Any, WCEvent[InnerCtx], WCState[InnerCtx]]] = new SignalVisitor(elemWio, innerLift).run
         // The inner matches have TopIn = Any due to type erasure, but we know it's Unit
         innerMatches.map { inner =>
           // Step 1: Retype from element context (Unit, WCState[InnerCtx]) to ForEach context (In, WCState[Ctx])
@@ -375,86 +395,87 @@ object SignalEvaluator {
           val withRouting = retyped.withRouting(routing)
 
           // Step 3: Transform events
-          withRouting.mapEvent(
-            f = (evt: WCEvent[InnerCtx]) => wio.eventEmbedding.convertEvent(elemId, evt),
-            uf = (evt: WCEvent[Ctx]) => wio.eventEmbedding.unconvertEvent(evt).filter(_._1 == elemId).map(_._2),
-          )
+          withRouting
+            .mapEvent(
+              f = (evt: WCEvent[InnerCtx]) => wio.eventEmbedding.convertEvent(elemId, evt),
+              uf = (evt: WCEvent[Ctx]) => wio.eventEmbedding.unconvertEvent(evt).filter(_._1 == elemId).map(_._2),
+            )
         }
       }
     }
 
-    private def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[F, I1, E1, O1, Ctx], transformInput: In => I1): Result =
-      new SignalVisitor(wio).run.map(_.contramapInput(transformInput))
+    private def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], transformInput: In => I1): Result =
+      new SignalVisitor(wio, liftEffect).run.map(_.contramapInput(transformInput))
 
-    private def recurse[E1, O1 <: WCState[Ctx]](wio: WIO[F, In, E1, O1, Ctx]): Result =
-      new SignalVisitor(wio).run
+    private def recurse[E1, O1 <: WCState[Ctx]](wio: WIO[In, E1, O1, Ctx]): Result =
+      new SignalVisitor(wio, liftEffect).run
   }
 
-  private class FullScanSignalVisitor[F[_], Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](
-      wio: WIO[F, In, Err, Out, Ctx],
-  ) extends Visitor[F, Ctx, In, Err, Out](wio) {
+  private class FullScanSignalVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](
+      wio: WIO[In, Err, Out, Ctx],
+  ) extends Visitor[Ctx, In, Err, Out](wio) {
     override type Result = List[SignalDef[?, ?]]
 
-    def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[F, Ctx, In, Out, Err, Sig, Resp, Evt]): Result = List(wio.sigDef)
+    def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result = List(wio.sigDef)
 
-    def onRunIO[Evt](wio: WIO.RunIO[F, Ctx, In, Err, Out, Evt]): Result       = Nil
-    def onNoop(wio: WIO.End[F, Ctx]): Result                                  = Nil
-    def onPure(wio: WIO.Pure[F, Ctx, In, Err, Out]): Result                   = Nil
-    def onTimer(wio: WIO.Timer[F, Ctx, In, Err, Out]): Result                 = Nil
-    def onAwaitingTime(wio: WIO.AwaitingTime[F, Ctx, In, Err, Out]): Result   = Nil
-    def onDiscarded[In1](wio: WIO.Discarded[F, Ctx, In1]): Result             = Nil
-    def onRecovery[Evt](wio: WIO.Recovery[F, Ctx, In, Err, Out, Evt]): Result = Nil
+    def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result       = Nil
+    def onNoop(wio: WIO.End[Ctx]): Result                                  = Nil
+    def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                   = Nil
+    def onTimer(wio: WIO.Timer[Ctx, In, Err, Out]): Result                 = Nil
+    def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result   = Nil
+    def onDiscarded[In1](wio: WIO.Discarded[Ctx, In1]): Result             = Nil
+    def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): Result = Nil
 
-    def onExecuted[In1](wio: WIO.Executed[F, Ctx, Err, Out, In1]): Result =
+    def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result =
       new FullScanSignalVisitor(wio.original).run
 
-    override def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[F, Ctx, Err1, Err, Out1, Out, In]): Result =
+    override def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result =
       recurse(wio.base)
 
-    override def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[F, Ctx, In, Err, Out, ErrIn, TempOut]): Result =
+    override def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Result =
       recurse(wio.base)
 
-    override def onRetry(wio: WIO.Retry[F, Ctx, In, Err, Out]): Result = recurse(wio.base)
+    override def onRetry(wio: WIO.Retry[Ctx, In, Err, Out]): Result = recurse(wio.base)
 
-    override def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[F, Ctx, In1, Err1, Out1, In, Out, Err]): Result =
+    override def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Result =
       recurse(wio.base)
 
-    def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[F, Ctx, In, ErrIn, Out, Err]): Result =
+    def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Result =
       recurse(wio.base) ++ recurse(wio.handleError)
 
     def onLoop[BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx], ReturnIn](
-        wio: WIO.Loop[F, Ctx, In, Err, Out, BodyIn, BodyOut, ReturnIn],
+        wio: WIO.Loop[Ctx, In, Err, Out, BodyIn, BodyOut, ReturnIn],
     ): Result =
       recurse(wio.current.wio) ++ recurse(wio.onRestart) ++ wio.history.flatMap(h => recurse(h)).toList
 
-    def onFork(wio: WIO.Fork[F, Ctx, In, Err, Out]): Result =
+    def onFork(wio: WIO.Fork[Ctx, In, Err, Out]): Result =
       wio.branches.flatMap(branch => new FullScanSignalVisitor(branch.wio).run).toList
 
-    def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[F, Ctx, In, Err, Out1, Out]): Result =
+    def onAndThen[Out1 <: WCState[Ctx]](wio: WIO.AndThen[Ctx, In, Err, Out1, Out]): Result =
       recurse(wio.first) ++ recurse(wio.second)
 
     def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_ <: WCState[InnerCtx]] <: WCState[Ctx]](
-        wio: WIO.Embedded[F, Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
+        wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
     ): Result =
       new FullScanSignalVisitor(wio.inner).run
 
-    def onHandleInterruption(wio: WIO.HandleInterruption[F, Ctx, In, Err, Out]): Result =
+    def onHandleInterruption(wio: WIO.HandleInterruption[Ctx, In, Err, Out]): Result =
       recurse(wio.base) ++ recurse(wio.interruption)
 
-    def onParallel[InterimState <: WCState[Ctx]](wio: WIO.Parallel[F, Ctx, In, Err, Out, InterimState]): Result =
+    def onParallel[InterimState <: WCState[Ctx]](wio: WIO.Parallel[Ctx, In, Err, Out, InterimState]): Result =
       wio.elements.flatMap(elem => recurse(elem.wio)).toList
 
-    override def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[F, Ctx, In, Err, Out1, Evt]): Result =
+    override def onCheckpoint[Evt, Out1 <: Out](wio: WIO.Checkpoint[Ctx, In, Err, Out1, Evt]): Result =
       recurse(wio.base)
 
     override def onForEach[ElemId, InnerCtx <: WorkflowContext, ElemOut <: WCState[InnerCtx], InterimState <: WCState[Ctx]](
-        wio: WIO.ForEach[F, Ctx, In, Err, Out, ElemId, InnerCtx, ElemOut, InterimState],
+        wio: WIO.ForEach[Ctx, In, Err, Out, ElemId, InnerCtx, ElemOut, InterimState],
     ): Result = {
       val innerDefs = new FullScanSignalVisitor(wio.elemWorkflow).run
       innerDefs.map(wio.signalRouter.outerSignalDef(_))
     }
 
-    private def recurse(wio: WIO[?, ?, ?, ?, ?]): List[SignalDef[?, ?]] =
+    private def recurse(wio: WIO[?, ?, ?, ?]): List[SignalDef[?, ?]] =
       new FullScanSignalVisitor(wio).run
   }
 

@@ -18,11 +18,11 @@ object SQLiteExample {
   import workflows4s.example.docs.Context.*
   {
     // sqlite_start
-    val workflow: WIO.Initial              = ???
-    val initialState: MyState              = ???
-    val engine: WorkflowInstanceEngine[IO] = ???
-    val eventCodec: ByteCodec[MyEventBase] = ???
-    val workdir: Path                      = ??? // Directory where database files will be created
+    val workflow: WIO.Initial                   = ???
+    val initialState: MyState                   = ???
+    val engine: WorkflowInstanceEngine[IO, Ctx] = ???
+    val eventCodec: ByteCodec[MyEventBase]      = ???
+    val workdir: Path                           = ??? // Directory where database files will be created
 
     val runtime: SqliteRuntime[Ctx]                        = SqliteRuntime.create(workflow, initialState, eventCodec, engine, workdir).unsafeRunSync()
     val wfInstance: IO[WorkflowInstance[IO, WCState[Ctx]]] = runtime.createInstance("my-instance-1")

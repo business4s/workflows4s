@@ -1,6 +1,5 @@
 package workflows4s.wio
 
-import cats.effect.IO
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -11,7 +10,7 @@ class WIOTransformTest extends AnyFreeSpec with Matchers {
   "WIO.Transform" - {
 
     "map" in {
-      val wf: ActiveWorkflow[IO, TestCtx.Ctx] = WIO
+      val wf: ActiveWorkflow[TestCtx.Ctx] = WIO
         .pure("myValue")
         .done
         .map(_.toUpperCase)
@@ -22,7 +21,7 @@ class WIOTransformTest extends AnyFreeSpec with Matchers {
     }
 
     "transformInput" in {
-      val wf: ActiveWorkflow[IO, TestCtx.Ctx] = WIO.pure
+      val wf: ActiveWorkflow[TestCtx.Ctx] = WIO.pure
         .makeFrom[String]
         .value(identity)
         .done

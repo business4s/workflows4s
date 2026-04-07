@@ -5,19 +5,28 @@ import cats.effect.IO
 import doobie.util.transactor.Transactor
 import workflows4s.doobie.postgres.PostgresWorkflowStorage
 import workflows4s.doobie.{ByteCodec, DatabaseRuntime}
+import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.{MappedWorkflowInstance, WorkflowInstance}
 import workflows4s.testing.TestRuntimeAdapter
 import workflows4s.utils.StringUtils
 import workflows4s.wio.*
+import workflows4s.wio.given
 
 type WorkflowId = String
 
-class PostgresRuntimeAdapter[Ctx <: WorkflowContext](xa: Transactor[IO], eventCodec: ByteCodec[WCEvent[Ctx]]) extends TestRuntimeAdapter[Ctx] {
+class PostgresRuntimeAdapter[Ctx <: WorkflowContext](
+    xa: Transactor[IO],
+    eventCodec: ByteCodec[WCEvent[Ctx]],
+)(using ev: LiftWorkflowEffect[Ctx, IO])
+    extends TestRuntimeAdapter[Ctx] {
+
+  override val engine: WorkflowInstanceEngine[IO, Ctx] =
+    WorkflowInstanceEngine.default(knockerUpper, registry, clock)
 
   type Actor = WorkflowInstance[Id, WCState[Ctx]]
 
   override def runWorkflow(
-      workflow: WIO.Initial[IO, Ctx],
+      workflow: WIO.Initial[Ctx],
       state: WCState[Ctx],
   ): Actor = {
     val storage = PostgresWorkflowStorage()(using eventCodec)

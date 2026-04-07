@@ -14,9 +14,8 @@ object ChecksEngine extends ChecksEngine with StrictLogging {
   val retryBackoff     = 20.seconds
   val timeoutThreshold = 2.minutes
 
-  type Context = Context.Ctx
   object Context extends WorkflowContext {
-    type Effect         = cats.effect.IO
+    type Effect[T]      = cats.effect.IO[T]
     override type Event = ChecksEvent
     override type State = ChecksState
   }
@@ -24,7 +23,7 @@ object ChecksEngine extends ChecksEngine with StrictLogging {
     val review: SignalDef[ReviewDecision, Unit] = SignalDef()
   }
 
-  import Context.WIO
+  import Context.*
 
   def runChecks: WIO[ChecksInput, Nothing, ChecksState.Decided] =
     (refreshChecksUntilAllComplete >>> getDecision)

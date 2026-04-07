@@ -5,13 +5,20 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import workflows4s.runtime.*
 import workflows4s.runtime.cats.effect.{InMemoryConcurrentRuntime, InMemoryConcurrentWorkflowInstance}
+import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.testing.TestRuntimeAdapter
 import workflows4s.wio.*
+import workflows4s.wio.cats.effect.WeakSyncInstances.given
 
-case class InMemoryConcurrentTestRuntimeAdapter[Ctx <: WorkflowContext]() extends TestRuntimeAdapter[Ctx] {
+case class InMemoryConcurrentTestRuntimeAdapter[Ctx <: WorkflowContext](
+)(using ev: LiftWorkflowEffect[Ctx, IO])
+    extends TestRuntimeAdapter[Ctx] {
+
+  override val engine: WorkflowInstanceEngine[IO, Ctx] =
+    WorkflowInstanceEngine.default(knockerUpper, registry, clock)
 
   override def runWorkflow(
-      workflow: WIO.Initial[IO, Ctx],
+      workflow: WIO.Initial[Ctx],
       state: WCState[Ctx],
   ): Actor = {
     val runtime = InMemoryConcurrentRuntime.default[IO, Ctx](workflow, state, engine).unsafeRunSync()

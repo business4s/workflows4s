@@ -57,9 +57,9 @@ object CourseRegistrationWorkflow {
 
   // start_context
   object Context extends WorkflowContext {
-    override type Effect = IO
-    override type Event  = RegistrationEvent
-    override type State  = CourseRegistrationState
+    override type Effect[T] = IO[T]
+    override type Event     = RegistrationEvent
+    override type State     = CourseRegistrationState
   }
   import Context.*
   // end_context
@@ -123,7 +123,7 @@ object CourseRegistrationWorkflow {
     // end_render
 
     // start_execution
-    val engine     = WorkflowInstanceEngine.basic[IO]()
+    val engine     = WorkflowInstanceEngine.basic[IO, Context.Ctx]()
     val runtime    = InMemorySynchronizedRuntime.create[IO, Context.Ctx](workflow, RegistrationState.Empty, engine)
     val wfInstance = runtime.createInstance("student-123").unsafeRunSync()
 

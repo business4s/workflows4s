@@ -66,6 +66,12 @@ class InMemoryWorkflowRegistryTest extends AnyFreeSpec with Matchers {
     }
   }
 
-  type DummyCtx = WorkflowContext { type State = Null; type Event = Nothing }
-  def dummyAW(id: WorkflowInstanceId): ActiveWorkflow[IO, DummyCtx] = ActiveWorkflow(id, WIO.End[IO, DummyCtx](), null)
+  object DummyCtx extends WorkflowContext {
+    type Effect[T] = scala.util.Try[T]
+    type Event     = Nothing
+    type State     = Null
+  }
+  def dummyAW(id: WorkflowInstanceId): ActiveWorkflow[DummyCtx.Ctx] = {
+    ActiveWorkflow[DummyCtx.Ctx](id, WIO.End[DummyCtx.Ctx](), null)
+  }
 }

@@ -13,15 +13,13 @@ import workflows4s.wio.{ActiveWorkflow, WCEvent, WCState, WorkflowContext}
   * [[WorkflowStorage.lockWorkflow]].
   */
 class DatabaseRuntime[Ctx <: WorkflowContext](
-    val workflow: Initial[IO, Ctx],
+    val workflow: Initial[Ctx],
     initialState: WCState[Ctx],
-    engine: WorkflowInstanceEngine[IO],
+    engine: WorkflowInstanceEngine[IO, Ctx],
     xa: Transactor[IO],
     storage: WorkflowStorage[WCEvent[Ctx]],
     val templateId: String,
 ) extends WorkflowRuntime[IO, Ctx] {
-  override type WorkflowEffect[A] = IO[A]
-
   override def createInstance(id: String): IO[WorkflowInstance[IO, WCState[Ctx]]] = {
     val instanceId = WorkflowInstanceId(templateId, id)
     val base       = new DbWorkflowInstance(
@@ -43,10 +41,10 @@ class DatabaseRuntime[Ctx <: WorkflowContext](
 object DatabaseRuntime {
   // TODO seems redundant, to be removed if its still the case after few months
   def create[Ctx <: WorkflowContext](
-      workflow: Initial[IO, Ctx],
+      workflow: Initial[Ctx],
       initialState: WCState[Ctx],
       transactor: Transactor[IO],
-      engine: WorkflowInstanceEngine[IO],
+      engine: WorkflowInstanceEngine[IO, Ctx],
       storage: WorkflowStorage[WCEvent[Ctx]],
       templateId: String, // this has to be explicit, as it will be saved in the database and has to be consistent across runtimes
   ): DatabaseRuntime[Ctx] = {

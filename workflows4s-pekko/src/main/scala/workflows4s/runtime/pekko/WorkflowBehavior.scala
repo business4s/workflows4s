@@ -33,9 +33,9 @@ object WorkflowBehavior {
   def apply[Ctx <: WorkflowContext](
       instanceId: WorkflowInstanceId,
       id: PersistenceId,
-      workflow: WIO.Initial[IO, Ctx],
+      workflow: WIO.Initial[Ctx],
       initialState: WCState[Ctx],
-      engine: WorkflowInstanceEngine[IO],
+      engine: WorkflowInstanceEngine[IO, Ctx],
   ): Behavior[Command[Ctx]] =
     new WorkflowBehavior(instanceId, id, workflow, initialState, engine).behavior
 
@@ -60,7 +60,7 @@ object WorkflowBehavior {
     case class FollowupWakeup[Ctx <: WorkflowContext](replyTo: ActorRef[StatusReply[Unit]])    extends Command[Ctx]
   }
 
-  final case class State[Ctx <: WorkflowContext](workflow: ActiveWorkflow[IO, Ctx])
+  final case class State[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx])
 
   sealed trait SignalResponse[+Resp]
   object SignalResponse {
@@ -73,9 +73,9 @@ object WorkflowBehavior {
 private class WorkflowBehavior[Ctx <: WorkflowContext](
     instanceId: WorkflowInstanceId,
     id: PersistenceId,
-    workflow: WIO.Initial[IO, Ctx],
+    workflow: WIO.Initial[Ctx],
     initialState: WCState[Ctx],
-    engine: WorkflowInstanceEngine[IO],
+    engine: WorkflowInstanceEngine[IO, Ctx],
 ) extends StrictLogging {
   import WorkflowBehavior.*
 
@@ -91,7 +91,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
   val behavior: Behavior[Cmd] = Behaviors.setup { actorContext =>
     // doesn't have to be atomic but its what we have in stdlib
     val processingState: AtomicReference[ProcessingState] = new AtomicReference(ProcessingState.Free)
-    val initialWf: ActiveWorkflow[IO, Ctx]                = ActiveWorkflow(instanceId, workflow, initialState)
+    val initialWf: ActiveWorkflow[Ctx]                    = ActiveWorkflow(instanceId, workflow, initialState)
     EventSourcedBehavior[Cmd, Event, St](
       persistenceId = id,
       emptyState = State(initialWf),
@@ -155,7 +155,8 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
           .handleSignal(state.workflow, cmd.signalDef, cmd.req)
           .map({
             case SignalResult.UnexpectedSignal()    => None
-            case SignalResult.Processed(resultIO)   => Some(resultIO.map(Right(_)))
+            case SignalResult.Processed(resultIO)   =>
+              Some(resultIO.map(Right(_)))
             case SignalResult.Redelivered(response) => Some(IO(Left(response)))
           }),
       cmd.replyTo,
@@ -182,7 +183,10 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
     changeStateAsync[Ior[Instant, WCEvent[Ctx]], Unit](
       processingState,
       actorContext,
-      state => engine.triggerWakeup(state.workflow).map(WakeupResult.toRaw(_)),
+      state =>
+        engine
+          .triggerWakeup(state.workflow)
+          .map(WakeupResult.toRaw(_)),
       replyTo,
       _ => (),
       x => x.toOption,

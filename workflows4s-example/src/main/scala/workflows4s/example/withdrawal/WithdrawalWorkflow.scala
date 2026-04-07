@@ -9,7 +9,7 @@ import workflows4s.example.withdrawal.WithdrawalWorkflow.{Signals, checksEmbeddi
 import workflows4s.example.withdrawal.checks.*
 import workflows4s.wio
 import workflows4s.wio.internal.WorkflowEmbedding
-import workflows4s.wio.{SignalDef, WorkflowContext}
+import workflows4s.wio.{LiftWorkflowEffect, SignalDef, WCEffect, WorkflowContext}
 
 import java.time.Duration
 object WithdrawalWorkflow {
@@ -17,7 +17,7 @@ object WithdrawalWorkflow {
   val executionRetryDelay = Duration.ofMinutes(2)
 
   object Context extends WorkflowContext {
-    type Effect         = IO
+    type Effect[T]      = IO[T]
     override type Event = WithdrawalEvent
     override type State = WithdrawalData
   }
@@ -52,13 +52,16 @@ object WithdrawalWorkflow {
       case x: WithdrawalData.Checked   => Some(x.checkResults)
       case _                           => None
     }
+
+    override def liftInnerEffect: [A] => WCEffect[ChecksEngine.Context.Ctx][A] => WCEffect[WithdrawalWorkflow.Context.Ctx][A] =
+      summon[LiftWorkflowEffect.Between[ChecksEngine.Context.Ctx, WithdrawalWorkflow.Context.Ctx]].asPoly
   }
 
 }
 
 class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine) {
 
-  import WithdrawalWorkflow.Context.WIO
+  import WithdrawalWorkflow.Context.*
 
   val workflow: WIO[WithdrawalData.Empty, Nothing, WithdrawalData.Completed] =
     (for {

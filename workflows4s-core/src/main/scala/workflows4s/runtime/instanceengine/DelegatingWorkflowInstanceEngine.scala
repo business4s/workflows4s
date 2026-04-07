@@ -4,32 +4,34 @@ import workflows4s.wio.model.WIOExecutionProgress
 import workflows4s.wio.*
 import workflows4s.wio.internal.{SignalResult, WakeupResult}
 
-trait DelegatingWorkflowInstanceEngine[F[_]] extends WorkflowInstanceEngine[F] {
-  protected def delegate: WorkflowInstanceEngine[F]
+trait DelegatingWorkflowInstanceEngine[F[_], Ctx <: WorkflowContext] extends WorkflowInstanceEngine[F, Ctx] {
+  protected def delegate: WorkflowInstanceEngine[F, Ctx]
 
-  def queryState[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx]): F[WCState[Ctx]]                                                         = delegate.queryState(workflow)
-  def getProgress[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx]): F[WIOExecutionProgress[WCState[Ctx]]]                                  = delegate.getProgress(workflow)
-  def getExpectedSignals[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx], includeRedeliverable: Boolean = false): F[List[SignalDef[?, ?]]] =
+  def liftWCEffect: WCEffectLift[Ctx, F] = delegate.liftWCEffect
+
+  def queryState(workflow: ActiveWorkflow[Ctx]): F[WCState[Ctx]]                                                         = delegate.queryState(workflow)
+  def getProgress(workflow: ActiveWorkflow[Ctx]): F[WIOExecutionProgress[WCState[Ctx]]]                                  = delegate.getProgress(workflow)
+  def getExpectedSignals(workflow: ActiveWorkflow[Ctx], includeRedeliverable: Boolean = false): F[List[SignalDef[?, ?]]] =
     delegate.getExpectedSignals(workflow, includeRedeliverable)
 
-  override def triggerWakeup[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx]): F[WakeupResult[F, WCEvent[Ctx]]] =
+  override def triggerWakeup(workflow: ActiveWorkflow[Ctx]): F[WakeupResult[F, WCEvent[Ctx]]] =
     delegate.triggerWakeup(workflow)
 
-  override def handleSignal[Ctx <: WorkflowContext, Req, Resp](
-      workflow: ActiveWorkflow[F, Ctx],
+  override def handleSignal[Req, Resp](
+      workflow: ActiveWorkflow[Ctx],
       signalDef: SignalDef[Req, Resp],
       req: Req,
   ): F[SignalResult[F, WCEvent[Ctx], Resp]] = delegate.handleSignal(workflow, signalDef, req)
 
-  override def handleEvent[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx], event: WCEvent[Ctx]): Thunk[Option[ActiveWorkflow[F, Ctx]]] =
+  override def handleEvent(workflow: ActiveWorkflow[Ctx], event: WCEvent[Ctx]): Thunk[Option[ActiveWorkflow[Ctx]]] =
     delegate.handleEvent(workflow, event)
 
-  override def processEvent[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx], event: WCEvent[Ctx]): Thunk[ActiveWorkflow[F, Ctx]] =
+  override def processEvent(workflow: ActiveWorkflow[Ctx], event: WCEvent[Ctx]): Thunk[ActiveWorkflow[Ctx]] =
     delegate.processEvent(workflow, event)
 
-  override def onStateChange[Ctx <: WorkflowContext](
-      oldState: ActiveWorkflow[F, Ctx],
-      newState: ActiveWorkflow[F, Ctx],
+  override def onStateChange(
+      oldState: ActiveWorkflow[Ctx],
+      newState: ActiveWorkflow[Ctx],
   ): F[Set[WorkflowInstanceEngine.PostExecCommand]] =
     delegate.onStateChange(oldState, newState)
 

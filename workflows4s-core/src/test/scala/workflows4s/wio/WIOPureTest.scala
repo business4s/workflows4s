@@ -1,6 +1,5 @@
 package workflows4s.wio
 
-import cats.effect.IO
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 import workflows4s.testing.TestUtils
@@ -17,7 +16,7 @@ class WIOPureTest extends AnyFreeSpec with Matchers {
   "WIO.Pure" - {
 
     "state" in {
-      val wf: ActiveWorkflow[IO, Ctx] = WIO.pure("myValue").done.toWorkflow("initialState")
+      val wf: ActiveWorkflow[Ctx] = WIO.pure("myValue").done.toWorkflow("initialState")
 
       val state = wf.liveState
 
@@ -25,7 +24,7 @@ class WIOPureTest extends AnyFreeSpec with Matchers {
     }
 
     "proceed no-op" in {
-      val wf: ActiveWorkflow[IO, Ctx] = WIO.pure("myValue").done.toWorkflow("initialState")
+      val wf: ActiveWorkflow[Ctx] = WIO.pure("myValue").done.toWorkflow("initialState")
 
       val resultOpt = wf.proceed(Instant.now)
 
@@ -33,7 +32,7 @@ class WIOPureTest extends AnyFreeSpec with Matchers {
     }
 
     "event handling no-op" in {
-      val wf: ActiveWorkflow[IO, Ctx] = WIO.pure("myValue").done.toWorkflow("initialState")
+      val wf: ActiveWorkflow[Ctx] = WIO.pure("myValue").done.toWorkflow("initialState")
 
       val resultOpt = wf.handleEvent("my-event")
 
@@ -41,7 +40,7 @@ class WIOPureTest extends AnyFreeSpec with Matchers {
     }
 
     "handle signal no-op" in {
-      val wf: ActiveWorkflow[IO, Ctx] = WIO.pure("initialState").done.toWorkflow("initialState")
+      val wf: ActiveWorkflow[Ctx] = WIO.pure("initialState").done.toWorkflow("initialState")
 
       val result = wf.handleSignal(SignalDef[String, String]())("")
       assert(result == SignalResult.UnexpectedSignal())
@@ -61,7 +60,7 @@ class WIOPureTest extends AnyFreeSpec with Matchers {
       val base = WIO.pure("initialState")
 
       extension (x: WIO[?, ?, ?]) {
-        def extractMeta: Pure.Meta = x.asInstanceOf[workflows4s.wio.WIO.Pure[?, ?, ?, ?, ?]].meta
+        def extractMeta: Pure.Meta = x.asInstanceOf[workflows4s.wio.WIO.Pure[?, ?, ?, ?]].meta
       }
 
       "defaults" in {

@@ -17,7 +17,7 @@ class PekkoChecksEngineTest extends ScalaTestWithActorTestKit(ActorTestKit("MyCl
   }
 
   "pekko" - {
-    checkEngineTests(new PekkoRuntimeAdapter("checks-engine")(using testKit.system))
+    checkEngineTests(new PekkoRuntimeAdapter("checks-engine"))
   }
 
 }
