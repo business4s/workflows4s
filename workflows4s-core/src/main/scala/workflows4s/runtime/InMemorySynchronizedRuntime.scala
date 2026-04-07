@@ -12,8 +12,7 @@ class InMemorySynchronizedRuntime[F[+_]: {MonadThrow, WeakSync}, Ctx <: Workflow
     val templateId: String,
 ) extends WorkflowRuntime[F, Ctx] {
   override type WorkflowEffect[A] = F[A]
-  private given cats.MonadThrow[WCEffect[Ctx]] = engine.wcEffectMonadThrow
-  private val instances                        = new java.util.concurrent.ConcurrentHashMap[String, InMemorySynchronizedWorkflowInstance[F, Ctx]]()
+  private val instances = new java.util.concurrent.ConcurrentHashMap[String, InMemorySynchronizedWorkflowInstance[F, Ctx]]()
 
   override def createInstance(id: String): F[InMemorySynchronizedWorkflowInstance[F, Ctx]] = {
     WeakSync[F].delay {

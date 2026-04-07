@@ -43,7 +43,7 @@ object TestRuntimeAdapter {
     def getEvents: Seq[Event]
   }
 
-  case class InMemorySync[Ctx <: WorkflowContext]()(using wcEffectMonadThrow: MonadThrowContainer[Ctx], ev: LiftWorkflowEffect[Ctx, IO])
+  case class InMemorySync[Ctx <: WorkflowContext]()(using ev: LiftWorkflowEffect[Ctx, IO])
       extends TestRuntimeAdapter[Ctx] {
 
     override val engine: WorkflowInstanceEngine[IO, Ctx] =

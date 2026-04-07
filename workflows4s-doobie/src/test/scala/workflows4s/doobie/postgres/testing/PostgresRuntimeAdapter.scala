@@ -17,7 +17,7 @@ type WorkflowId = String
 class PostgresRuntimeAdapter[Ctx <: WorkflowContext](
     xa: Transactor[IO],
     eventCodec: ByteCodec[WCEvent[Ctx]],
-)(using wcEffectMonadThrow: MonadThrowContainer[Ctx], ev: LiftWorkflowEffect[Ctx, IO])
+)(using ev: LiftWorkflowEffect[Ctx, IO])
     extends TestRuntimeAdapter[Ctx] {
 
   override val engine: WorkflowInstanceEngine[IO, Ctx] =

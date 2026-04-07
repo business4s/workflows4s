@@ -8,66 +8,74 @@ import workflows4s.wio.*
 import workflows4s.wio.internal.{SignalResult, WakeupResult}
 import workflows4s.wio.model.WIOExecutionProgress
 
-import java.time.Clock
+import java.time.{Clock, Instant}
 import scala.annotation.unused
 
 /** Strategy for evaluating workflow steps. Controls how signals, events, and wakeups are processed.
+  *
+  * Engine[F, Ctx] is "how to run workflows from Ctx in F". It carries the ability to lift workflow effects (WCEffect[Ctx]) into the engine effect F.
   *
   * Use [[WorkflowInstanceEngine.default]] for production (includes wakeup scheduling, registry, greedy evaluation, and logging) or
   * [[WorkflowInstanceEngine.basic]] for simpler setups without external integrations. Custom engines can be composed via
   * [[WorkflowInstanceEngineBuilder]].
   */
-trait WorkflowInstanceEngine[F[_]] {
+trait WorkflowInstanceEngine[F[_], Ctx <: WorkflowContext] {
 
-  def queryState[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): F[WCState[Ctx]]
+  def liftWCEffect: WCEffectLift[Ctx, F]
 
-  def getProgress[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): F[WIOExecutionProgress[WCState[Ctx]]]
+  def queryState(workflow: ActiveWorkflow[Ctx]): F[WCState[Ctx]]
+
+  def getProgress(workflow: ActiveWorkflow[Ctx]): F[WIOExecutionProgress[WCState[Ctx]]]
 
   // TODO this would be better if extractable from progress
-  def getExpectedSignals[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx], includeRedeliverable: Boolean = false): F[List[SignalDef[?, ?]]]
+  def getExpectedSignals(workflow: ActiveWorkflow[Ctx], includeRedeliverable: Boolean = false): F[List[SignalDef[?, ?]]]
 
-  def triggerWakeup[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx]): F[WakeupResult[WCEffect[Ctx], WCEvent[Ctx]]]
+  def triggerWakeup(workflow: ActiveWorkflow[Ctx]): F[WakeupResult[F, WCEvent[Ctx]]]
 
-  def handleSignal[Ctx <: WorkflowContext, Req, Resp](
+  def handleSignal[Req, Resp](
       workflow: ActiveWorkflow[Ctx],
       signalDef: SignalDef[Req, Resp],
       req: Req,
-  ): F[SignalResult[WCEffect[Ctx], WCEvent[Ctx], Resp]]
+  ): F[SignalResult[F, WCEvent[Ctx], Resp]]
 
-  def handleEvent[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx], event: WCEvent[Ctx]): Thunk[Option[ActiveWorkflow[Ctx]]]
+  def handleEvent(workflow: ActiveWorkflow[Ctx], event: WCEvent[Ctx]): Thunk[Option[ActiveWorkflow[Ctx]]]
 
-  def onStateChange[Ctx <: WorkflowContext](
+  def onStateChange(
       @unused oldState: ActiveWorkflow[Ctx],
       @unused newState: ActiveWorkflow[Ctx],
   ): F[Set[PostExecCommand]]
 
-  def processEvent[Ctx <: WorkflowContext](workflow: ActiveWorkflow[Ctx], event: WCEvent[Ctx]): Thunk[ActiveWorkflow[Ctx]] = this
+  def scheduleRetry(workflow: ActiveWorkflow[Ctx], retryTime: Instant): F[Unit]
+
+  def processEvent(workflow: ActiveWorkflow[Ctx], event: WCEvent[Ctx]): Thunk[ActiveWorkflow[Ctx]] = this
     .handleEvent(workflow, event)
     .map(_.getOrElse(workflow))
 
 }
 
 object WorkflowInstanceEngine {
-  val builder                                                                                          = WorkflowInstanceEngineBuilder
-  def default[F[_]: {MonadThrow, WeakSync}](
+  val builder                                                                            = WorkflowInstanceEngineBuilder
+  def default[F[_]: {MonadThrow, WeakSync}, Ctx <: WorkflowContext](
       knockerUpper: KnockerUpper.Agent[F],
       registry: WorkflowRegistry.Agent[F],
       clock: Clock = Clock.systemUTC(),
-  )                                                                                                    =
+  )(using ev: LiftWorkflowEffect[Ctx, F]): WorkflowInstanceEngine[F, Ctx] =
     builder
       .withJavaTime[F](clock)
       .withWakeUps(knockerUpper)
       .withRegistering(registry)
       .withGreedyEvaluation
       .withLogging
-      .get
-  def basic[F[_]: {MonadThrow, WeakSync}](clock: Clock = Clock.systemUTC()): WorkflowInstanceEngine[F] = builder
+      .get(ev.asPoly)
+  def basic[F[_]: {MonadThrow, WeakSync}, Ctx <: WorkflowContext](
+      clock: Clock = Clock.systemUTC(),
+  )(using ev: LiftWorkflowEffect[Ctx, F]): WorkflowInstanceEngine[F, Ctx] = builder
     .withJavaTime[F](clock)
     .withoutWakeUps
     .withoutRegistering
     .withGreedyEvaluation
     .withLogging
-    .get
+    .get(ev.asPoly)
 
   enum PostExecCommand {
     case WakeUp

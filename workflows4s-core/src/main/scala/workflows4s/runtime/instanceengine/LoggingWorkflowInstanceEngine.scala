@@ -10,14 +10,14 @@ import workflows4s.wio.model.WIOExecutionProgress
 import workflows4s.wio.*
 import workflows4s.wio.internal.{SignalResult, WakeupResult}
 
-class LoggingWorkflowInstanceEngine[F[_]: {MonadThrow, WeakSync}](
-    override protected val delegate: WorkflowInstanceEngine[F],
-) extends DelegatingWorkflowInstanceEngine[F]
+class LoggingWorkflowInstanceEngine[F[_]: {MonadThrow, WeakSync}, Ctx <: WorkflowContext](
+    override protected val delegate: WorkflowInstanceEngine[F, Ctx],
+) extends DelegatingWorkflowInstanceEngine[F, Ctx]
     with StrictLogging {
 
   private def logF(body: => Unit): F[Unit] = WeakSync[F].delay(body)
 
-  override def queryState[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx]): F[WCState[Ctx]] = {
+  override def queryState(workflow: ActiveWorkflow[Ctx]): F[WCState[Ctx]] = {
     (logF(logger.trace(s"[${workflow.id}] queryState()")) *>
       delegate
         .queryState(workflow)
@@ -25,7 +25,7 @@ class LoggingWorkflowInstanceEngine[F[_]: {MonadThrow, WeakSync}](
         .onError(e => logF(logger.error(s"[${workflow.id}] queryState failed", e)))).withMDC(workflow)
   }
 
-  override def getProgress[Ctx <: WorkflowContext](workflow: ActiveWorkflow[F, Ctx]): F[WIOExecutionProgress[WCState[Ctx]]] = {
+  override def getProgress(workflow: ActiveWorkflow[Ctx]): F[WIOExecutionProgress[WCState[Ctx]]] = {
     (logF(logger.trace(s"[${workflow.id}] getProgress()")) *>
       delegate
         .getProgress(workflow)
@@ -34,8 +34,8 @@ class LoggingWorkflowInstanceEngine[F[_]: {MonadThrow, WeakSync}](
       .withMDC(workflow)
   }
 
-  override def getExpectedSignals[Ctx <: WorkflowContext](
-      workflow: ActiveWorkflow[F, Ctx],
+  override def getExpectedSignals(
+      workflow: ActiveWorkflow[Ctx],
       includeRedeliverable: Boolean = false,
   ): F[List[SignalDef[?, ?]]] = {
     (logF(logger.trace(s"[${workflow.id}] getExpectedSignals(includeRedeliverable=$includeRedeliverable)")) *>
@@ -46,8 +46,8 @@ class LoggingWorkflowInstanceEngine[F[_]: {MonadThrow, WeakSync}](
       .withMDC(workflow)
   }
 
-  override def triggerWakeup[Ctx <: WorkflowContext](
-      workflow: ActiveWorkflow[F, Ctx],
+  override def triggerWakeup(
+      workflow: ActiveWorkflow[Ctx],
   ): F[WakeupResult[F, WCEvent[Ctx]]] = {
     (logF(logger.debug(s"[${workflow.id}] triggerWakeup()")) *>
       delegate
@@ -74,8 +74,8 @@ class LoggingWorkflowInstanceEngine[F[_]: {MonadThrow, WeakSync}](
       .withMDC(workflow)
   }
 
-  override def handleSignal[Ctx <: WorkflowContext, Req, Resp](
-      workflow: ActiveWorkflow[F, Ctx],
+  override def handleSignal[Req, Resp](
+      workflow: ActiveWorkflow[Ctx],
       signalDef: SignalDef[Req, Resp],
       req: Req,
   ): F[SignalResult[F, WCEvent[Ctx], Resp]] = {
@@ -89,9 +89,8 @@ class LoggingWorkflowInstanceEngine[F[_]: {MonadThrow, WeakSync}](
                 SignalResult.Processed(
                   logF(logger.trace(s"[${workflow.id}] ⤷ handleSignalEffect start")) *>
                     resultIO
-                      .flatMap(result =>
-                        logF(logger.debug(s"[${workflow.id}] ⤷ handleSignalEffect result: event=${result.event}, resp=${result.response}"))
-                          .as(result),
+                      .flatTap(result =>
+                        logF(logger.debug(s"[${workflow.id}] ⤷ handleSignalEffect result: event=${result.event}, resp=${result.response}")),
                       )
                       .onError(e => logF(logger.error("handleSignalEffect failed", e))),
                 ),
@@ -107,10 +106,10 @@ class LoggingWorkflowInstanceEngine[F[_]: {MonadThrow, WeakSync}](
       .withMDC(workflow)
   }
 
-  override def handleEvent[Ctx <: WorkflowContext](
-      workflow: ActiveWorkflow[F, Ctx],
+  override def handleEvent(
+      workflow: ActiveWorkflow[Ctx],
       event: WCEvent[Ctx],
-  ): Thunk[Option[ActiveWorkflow[F, Ctx]]] = {
+  ): Thunk[Option[ActiveWorkflow[Ctx]]] = {
     (Thunk(logger.debug(s"[${workflow.id}] handleEvent(event = $event)")) *>
       delegate
         .handleEvent(workflow, event)
@@ -121,9 +120,9 @@ class LoggingWorkflowInstanceEngine[F[_]: {MonadThrow, WeakSync}](
         .onError(e => Thunk(logger.error(s"[${workflow.id}] handleEvent failed", e)))).withThunkMDC(workflow)
   }
 
-  override def onStateChange[Ctx <: WorkflowContext](
-      oldState: ActiveWorkflow[F, Ctx],
-      newState: ActiveWorkflow[F, Ctx],
+  override def onStateChange(
+      oldState: ActiveWorkflow[Ctx],
+      newState: ActiveWorkflow[Ctx],
   ): F[Set[PostExecCommand]] = {
     (logF(logger.debug(s"""[${oldState.id}] onStateChange:
                           |old state: ${oldState.liveState}
@@ -135,7 +134,7 @@ class LoggingWorkflowInstanceEngine[F[_]: {MonadThrow, WeakSync}](
   }
 
   extension [A](fa: F[A]) {
-    def withMDC(activeWorkflow: ActiveWorkflow[?, ? <: WorkflowContext]): F[A] = {
+    def withMDC(activeWorkflow: ActiveWorkflow[Ctx]): F[A] = {
       logF {
         MDC.put("workflow_instance_id", activeWorkflow.id.instanceId)
         MDC.put("workflow_template_id", activeWorkflow.id.templateId)
@@ -146,7 +145,7 @@ class LoggingWorkflowInstanceEngine[F[_]: {MonadThrow, WeakSync}](
   }
 
   extension [A](thunk: Thunk[A]) {
-    def withThunkMDC(activeWorkflow: ActiveWorkflow[?, ? <: WorkflowContext]): Thunk[A] = {
+    def withThunkMDC(activeWorkflow: ActiveWorkflow[Ctx]): Thunk[A] = {
       Thunk {
         MDC.put("workflow_instance_id", activeWorkflow.id.instanceId)
         MDC.put("workflow_template_id", activeWorkflow.id.templateId)

@@ -79,9 +79,6 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
 ) extends StrictLogging {
   import WorkflowBehavior.*
 
-  private given cats.MonadThrow[WCEffect[Ctx]]               = engine.wcEffectMonadThrow
-  private def liftWCEffect: [A] => WCEffect[Ctx][A] => IO[A] = engine.liftWCEffect
-
   private type Event = WCEvent[Ctx]
   private type Cmd   = Command[Ctx]
   private type St    = State[Ctx]
@@ -158,8 +155,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
           .handleSignal(state.workflow, cmd.signalDef, cmd.req)
           .map({
             case SignalResult.UnexpectedSignal()    => None
-            case SignalResult.Processed(resultWCE)  =>
-              val resultIO = liftWCEffect(resultWCE)
+            case SignalResult.Processed(resultIO)   =>
               Some(resultIO.map(Right(_)))
             case SignalResult.Redelivered(response) => Some(IO(Left(response)))
           }),
@@ -191,11 +187,10 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
         engine
           .triggerWakeup(state.workflow)
           .map(r => {
-            given cats.Functor[WCEffect[Ctx]] = engine.wcEffectMonadThrow
             WakeupResult
               .toRaw(r)
               .map(raw =>
-                liftWCEffect(raw).flatMap { ior =>
+                raw.flatMap { ior =>
                   ior match {
                     case Ior.Left(retryTime)    => engine.scheduleRetry(state.workflow, retryTime).as(ior)
                     case Ior.Both(retryTime, _) => engine.scheduleRetry(state.workflow, retryTime).as(ior)

@@ -15,7 +15,7 @@ object RunIOEvaluator {
       wio: WIO[StIn, Nothing, WCState[Ctx], Ctx],
       state: StIn,
       now: Instant,
-      liftEffect: [A] => WCEffect[Ctx][A] => F[A],
+      liftEffect: WCEffectLift[Ctx, F],
   ): WakeupResult[F, WCEvent[Ctx]] = {
     val visitor = new RunIOVisitor(wio, state, state, now, liftEffect)
     WakeupResult.fromRaw(visitor.run)
@@ -26,7 +26,7 @@ object RunIOEvaluator {
       input: In,
       lastSeenState: WCState[Ctx],
       now: Instant,
-      liftEffect: [A] => WCEffect[Ctx][A] => F[A],
+      liftEffect: WCEffectLift[Ctx, F],
   ) extends Visitor[Ctx, In, Err, Out](wio) {
     override type Result = Option[F[Ior[Instant, WCEvent[Ctx]]]]
 
@@ -81,7 +81,7 @@ object RunIOEvaluator {
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
     ): Result = {
       val newState: WCState[InnerCtx]                                    = wio.embedding.unconvertStateUnsafe(lastSeenState)
-      val innerLift: [A] => WCEffect[InnerCtx][A] => F[A] = [A] => (fa: WCEffect[InnerCtx][A]) => liftEffect(wio.embedding.liftInnerEffect(fa))
+      val innerLift: WCEffectLift[InnerCtx, F] = [A] => (fa: WCEffect[InnerCtx][A]) => liftEffect(wio.embedding.liftInnerEffect(fa))
       new RunIOVisitor(wio.inner, input, newState, now, innerLift).run
         .map(_.map(_.map(wio.embedding.convertEvent)))
     }
@@ -155,8 +155,8 @@ object RunIOEvaluator {
     override def onForEach[ElemId, InnerCtx <: WorkflowContext, ElemOut <: WCState[InnerCtx], InterimState <: WCState[Ctx]](
         wio: WIO.ForEach[Ctx, In, Err, Out, ElemId, InnerCtx, ElemOut, InterimState],
     ): Result = {
-      val innerLift: [A] => WCEffect[InnerCtx][A] => F[A] = [A] => (fa: WCEffect[InnerCtx][A]) => liftEffect(wio.liftInnerEffect(fa))
-      val state                                            = wio.state(input)
+      val innerLift: WCEffectLift[InnerCtx, F] = [A] => (fa: WCEffect[InnerCtx][A]) => liftEffect(wio.liftInnerEffect(fa))
+      val state                                = wio.state(input)
       state.toList
         .collectFirstSome((elemId, elemWio) => new RunIOVisitor(elemWio, input, wio.initialElemState(), now, innerLift).run.tupleLeft(elemId))
         .map { case (elemId, io) => io.map(_.map(wio.eventEmbedding.convertEvent(elemId, _))) }

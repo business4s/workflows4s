@@ -14,7 +14,7 @@ class RegisteringWorkflowInstanceEngine[F[_]: Monad, Ctx <: WorkflowContext](
     registry: WorkflowRegistry.Agent[F],
 ) extends DelegatingWorkflowInstanceEngine[F, Ctx] {
 
-  override def triggerWakeup(workflow: ActiveWorkflow[Ctx]): F[WakeupResult[WCEffect[Ctx], WCEvent[Ctx]]] = {
+  override def triggerWakeup(workflow: ActiveWorkflow[Ctx]): F[WakeupResult[F, WCEvent[Ctx]]] = {
     for {
       prevResult <- super.triggerWakeup(workflow)
       _          <- registeringRunningInstance(workflow, prevResult.hasEffect)
@@ -25,7 +25,7 @@ class RegisteringWorkflowInstanceEngine[F[_]: Monad, Ctx <: WorkflowContext](
       workflow: ActiveWorkflow[Ctx],
       signalDef: SignalDef[Req, Resp],
       req: Req,
-  ): F[SignalResult[WCEffect[Ctx], WCEvent[Ctx], Resp]] = {
+  ): F[SignalResult[F, WCEvent[Ctx], Resp]] = {
     for {
       prevResult <- super.handleSignal(workflow, signalDef, req)
       _          <- registeringRunningInstance(workflow, prevResult.hasEffect)

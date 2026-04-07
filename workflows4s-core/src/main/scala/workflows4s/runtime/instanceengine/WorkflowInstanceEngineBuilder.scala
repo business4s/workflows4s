@@ -3,7 +3,7 @@ package workflows4s.runtime.instanceengine
 import cats.MonadThrow
 import workflows4s.runtime.registry.WorkflowRegistry
 import workflows4s.runtime.wakeup.KnockerUpper
-import workflows4s.wio.{LiftWorkflowEffect, MonadThrowContainer, WCEffect, WeakSync, WorkflowContext}
+import workflows4s.wio.{LiftWorkflowEffect, WCEffectLift, WeakSync, WorkflowContext}
 
 import java.time.Clock
 
@@ -34,10 +34,9 @@ object WorkflowInstanceEngineBuilder {
           class Step5(logging: Boolean) {
 
             def get[Ctx <: WorkflowContext](
-                liftWCEffect: [A] => WCEffect[Ctx][A] => F[A],
-                wcEffectMonadThrow: MonadThrow[WCEffect[Ctx]],
+                liftWCEffect: WCEffectLift[Ctx, F],
             ): WorkflowInstanceEngine[F, Ctx] = {
-              var engine: WorkflowInstanceEngine[F, Ctx] = new BasicJavaTimeEngine[F, Ctx](clock, wcEffectMonadThrow, liftWCEffect)
+              var engine: WorkflowInstanceEngine[F, Ctx] = new BasicJavaTimeEngine[F, Ctx](clock, liftWCEffect)
               knockerUpper.foreach(ku => engine = new WakingWorkflowInstanceEngine(engine, ku))
               registry.foreach(r => engine = new RegisteringWorkflowInstanceEngine(engine, r))
               if greedy then engine = new GreedyWorkflowInstanceEngine(engine)
@@ -45,8 +44,8 @@ object WorkflowInstanceEngineBuilder {
               engine
             }
 
-            def get[Ctx <: WorkflowContext](using wcEffectMonadThrow: MonadThrowContainer[Ctx], ev: LiftWorkflowEffect[Ctx, F]): WorkflowInstanceEngine[F, Ctx] = {
-              get(ev.asPoly, wcEffectMonadThrow.instance)
+            def get[Ctx <: WorkflowContext](using ev: LiftWorkflowEffect[Ctx, F]): WorkflowInstanceEngine[F, Ctx] = {
+              get(ev.asPoly)
             }
 
           }

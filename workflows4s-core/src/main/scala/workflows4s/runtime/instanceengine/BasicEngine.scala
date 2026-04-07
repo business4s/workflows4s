@@ -1,6 +1,6 @@
 package workflows4s.runtime.instanceengine
 
-import cats.Applicative
+import cats.MonadThrow
 import cats.implicits.catsSyntaxApplicativeId
 import cats.syntax.functor.*
 import workflows4s.wio.*
@@ -9,20 +9,21 @@ import workflows4s.wio.model.WIOExecutionProgress
 
 import java.time.Instant
 
-trait BasicEngine[F[_]: Applicative, Ctx <: WorkflowContext] extends WorkflowInstanceEngine[F, Ctx] {
+trait BasicEngine[F[_]: MonadThrow, Ctx <: WorkflowContext] extends WorkflowInstanceEngine[F, Ctx] {
 
   protected def now: F[Instant]
 
-  override def triggerWakeup(workflow: ActiveWorkflow[Ctx]): F[WakeupResult[WCEffect[Ctx], WCEvent[Ctx]]] = {
-    now.map(workflow.proceed)
+  override def triggerWakeup(workflow: ActiveWorkflow[Ctx]): F[WakeupResult[F, WCEvent[Ctx]]] = {
+    now.map(workflow.proceed(_, liftWCEffect))
   }
 
   override def handleSignal[Req, Resp](
       workflow: ActiveWorkflow[Ctx],
       signalDef: SignalDef[Req, Resp],
       req: Req,
-  ): F[SignalResult[WCEffect[Ctx], WCEvent[Ctx], Resp]] =
-    workflow.handleSignal(signalDef)(req).pure[F]
+  ): F[SignalResult[F, WCEvent[Ctx], Resp]] = {
+    workflow.handleSignal(signalDef, req, liftWCEffect).pure[F]
+  }
 
   override def handleEvent(workflow: ActiveWorkflow[Ctx], event: WCEvent[Ctx]): Thunk[Option[ActiveWorkflow[Ctx]]] =
     Thunk.pure(workflow.handleEvent(event))
@@ -38,7 +39,7 @@ trait BasicEngine[F[_]: Applicative, Ctx <: WorkflowContext] extends WorkflowIns
   ): F[List[SignalDef[?, ?]]] =
     workflow.expectedSignals(includeRedeliverable).pure[F]
 
-  override def scheduleRetry(workflow: ActiveWorkflow[Ctx], retryTime: java.time.Instant): F[Unit] = Applicative[F].unit
+  override def scheduleRetry(workflow: ActiveWorkflow[Ctx], retryTime: java.time.Instant): F[Unit] = MonadThrow[F].unit
 
   override def onStateChange(
       oldState: ActiveWorkflow[Ctx],

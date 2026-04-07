@@ -101,7 +101,7 @@ class PostgresDatabaseWorkflowRegistryTest extends AnyFreeSpec with PostgresSuit
     type State     = Null
   }
   def dummyAW(id: WorkflowInstanceId): ActiveWorkflow[DummyCtx.Ctx] = {
-    ActiveWorkflow(id, WIO.End[DummyCtx.Ctx](), null)(using DummyCtx.wcEffectMonadThrow)
+    ActiveWorkflow(id, WIO.End[DummyCtx.Ctx](), null)
   }
 
 }

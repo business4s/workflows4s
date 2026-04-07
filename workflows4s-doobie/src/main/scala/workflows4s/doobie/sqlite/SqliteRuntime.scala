@@ -12,7 +12,7 @@ import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.{MappedWorkflowInstance, WorkflowInstance, WorkflowInstanceId, WorkflowRuntime}
 import workflows4s.wio.WIO.Initial
 import workflows4s.wio.WorkflowContext.State
-import workflows4s.wio.{ActiveWorkflow, WCEffect, WCEvent, WCState, WorkflowContext}
+import workflows4s.wio.{ActiveWorkflow, WCEvent, WCState, WorkflowContext}
 
 import java.nio.file.{Files, Path}
 import java.util.Properties
@@ -30,8 +30,6 @@ class SqliteRuntime[Ctx <: WorkflowContext](
 ) extends WorkflowRuntime[IO, Ctx]
     with StrictLogging {
   override type WorkflowEffect[A] = IO[A]
-  private given cats.MonadThrow[WCEffect[Ctx]] = engine.wcEffectMonadThrow
-
   private val storage = SqliteWorkflowStorage[WCEvent[Ctx]](eventCodec)
 
   override def createInstance(id: String): IO[WorkflowInstance[IO, State[Ctx]]] = {

@@ -7,7 +7,7 @@ import doobie.{ConnectionIO, WeakAsync}
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.{MappedWorkflowInstance, WorkflowInstance, WorkflowInstanceId, WorkflowRuntime}
 import workflows4s.wio.WIO.Initial
-import workflows4s.wio.{ActiveWorkflow, WCEffect, WCEvent, WCState, WorkflowContext}
+import workflows4s.wio.{ActiveWorkflow, WCEvent, WCState, WorkflowContext}
 
 /** Runtime backed by a shared database (e.g. PostgreSQL) via Doobie. Events are persisted per instance, and concurrent access is guarded by
   * [[WorkflowStorage.lockWorkflow]].
@@ -21,8 +21,6 @@ class DatabaseRuntime[Ctx <: WorkflowContext](
     val templateId: String,
 ) extends WorkflowRuntime[IO, Ctx] {
   override type WorkflowEffect[A] = IO[A]
-  private given cats.MonadThrow[WCEffect[Ctx]] = engine.wcEffectMonadThrow
-
   override def createInstance(id: String): IO[WorkflowInstance[IO, WCState[Ctx]]] = {
     val instanceId = WorkflowInstanceId(templateId, id)
     val base       = new DbWorkflowInstance(

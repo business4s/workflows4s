@@ -17,7 +17,7 @@ import scala.util.Random
 class SqliteRuntimeAdapter[Ctx <: WorkflowContext](
     workdir: Path,
     eventCodec: ByteCodec[WCEvent[Ctx]],
-)(using wcEffectMonadThrow: MonadThrowContainer[Ctx], ev: LiftWorkflowEffect[Ctx, IO])
+)(using ev: LiftWorkflowEffect[Ctx, IO])
     extends TestRuntimeAdapter[Ctx] {
 
   override val engine: WorkflowInstanceEngine[IO, Ctx] =
