@@ -21,7 +21,6 @@ class InMemoryConcurrentRuntime[F[+_]: Async, Ctx <: WorkflowContext](
     instances: Ref[F, Map[String, InMemoryConcurrentWorkflowInstance[F, Ctx]]],
     val templateId: String,
 ) extends WorkflowRuntime[F, Ctx] {
-  override type WorkflowEffect[A] = F[A]
   def createInstance(id: String): F[InMemoryConcurrentWorkflowInstance[F, Ctx]] = {
     instances.access.flatMap({ (map, update) =>
       map.get(id) match {

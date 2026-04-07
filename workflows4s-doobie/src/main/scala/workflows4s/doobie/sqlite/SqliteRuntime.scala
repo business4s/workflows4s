@@ -29,7 +29,6 @@ class SqliteRuntime[Ctx <: WorkflowContext](
     val templateId: String,
 ) extends WorkflowRuntime[IO, Ctx]
     with StrictLogging {
-  override type WorkflowEffect[A] = IO[A]
   private val storage = SqliteWorkflowStorage[WCEvent[Ctx]](eventCodec)
 
   override def createInstance(id: String): IO[WorkflowInstance[IO, State[Ctx]]] = {

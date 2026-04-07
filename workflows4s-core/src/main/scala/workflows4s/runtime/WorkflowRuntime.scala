@@ -14,9 +14,6 @@ import workflows4s.wio.{WCState, WIO, WorkflowContext}
   */
 trait WorkflowRuntime[F[_], Ctx <: WorkflowContext] {
 
-  /** The effect type used by the workflow/engine. May differ from F (e.g. IO workflow run via Future runtime). */
-  type WorkflowEffect[_]
-
   /** Stable identifier for this workflow definition. */
   def templateId: String
 
