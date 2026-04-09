@@ -6,34 +6,19 @@ import zio.{Task, ZIO}
 
 import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.Try
 import scala.util.control.NonFatal
 
 object EffectInstances {
 
-  // WeakSync instances
-
-  given WeakSync[Try] with {
-    override def delay[A](body: => A): Try[A] = Try(body)
-  }
-
-  given weakSyncEither: WeakSync[[A] =>> Either[Throwable, A]] with {
-    override def delay[A](body: => A): Either[Throwable, A] = Try(body).toEither
-  }
-
-  given WeakSync[Function0] with {
-    override def delay[A](body: => A): () => A = () => body
-  }
+  // WeakSync instances (Try, Either[Throwable, *], Function0 are in WeakSync companion)
 
   given WeakSync[Task] with {
     override def delay[A](body: => A): Task[A] = ZIO.attempt(body)
   }
 
-  given WeakSync[Future] with {
-    override def delay[A](body: => A): Future[A] = Future(body)(using ExecutionContext.global)
-  }
+  given scala.concurrent.ExecutionContext = ExecutionContext.global
 
-  given MonadThrow[Future] = cats.instances.future.catsStdInstancesForFuture(using ExecutionContext.global)
+  given MonadThrow[Future] = cats.instances.future.catsStdInstancesForFuture
 
   // MonadThrow for Function0 (not provided by cats)
 

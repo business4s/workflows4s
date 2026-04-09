@@ -1,8 +1,7 @@
 package workflows4s.example.pekko
 
-import cats.effect.unsafe.implicits.global
-import cats.effect.{ExitCode, IO, IOApp, Resource}
-import cats.implicits.toFlatMapOps
+import cats.effect.IO
+import cats.effect.unsafe.IORuntime
 import org.apache.pekko.actor.typed.ActorSystem
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.http.scaladsl.Http
@@ -12,49 +11,58 @@ import org.apache.pekko.persistence.query.PersistenceQuery
 import workflows4s.example.withdrawal.checks.ChecksEngine
 import workflows4s.example.withdrawal.{WithdrawalData, WithdrawalWorkflow}
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
-import workflows4s.runtime.pekko.PekkoRuntime
-import workflows4s.runtime.wakeup.cats.effect.SleepingKnockerUpper
-import workflows4s.wio.cats.effect.WeakSyncInstances.given
+import workflows4s.runtime.pekko.{PekkoKnockerUpper, PekkoRuntime}
+import workflows4s.wio.LiftWorkflowEffect
 
-object Main extends IOApp {
-  override def run(args: List[String]): IO[ExitCode] = {
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.duration.Duration
+
+object Main {
+
+  def main(args: Array[String]): Unit = {
     given system: ActorSystem[Any] = ActorSystem(Behaviors.empty, "MyCluster")
-    SleepingKnockerUpper
-      .create()
-      .flatTap(_ => Resource.make(IO.unit)(_ => IO(system.terminate())))
-      .use(knockerUpper =>
-        for {
-          journal                  <- setupJournal()
-          workflow                  = WithdrawalWorkflow(DummyWithdrawalService, ChecksEngine)
-          runtime                   =
-            PekkoRuntime.create[WithdrawalWorkflow.Context.Ctx](
-              "withdrawal",
-              workflow.workflowDeclarative,
-              WithdrawalData.Empty,
-              WorkflowInstanceEngine.builder
-                .withJavaTime[IO]()
-                .withWakeUps(knockerUpper)
-                .withoutRegistering
-                .withGreedyEvaluation
-                .withLogging
-                .get[WithdrawalWorkflow.Context.Ctx],
-            )
-          _                        <- IO(runtime.initializeShard())
-          _                        <- knockerUpper.initialize(wokeup => IO.println(s"Woke up! $wokeup"))
-          withdrawalWorkflowService = WithdrawalWorkflowService.Impl(journal, runtime)
-          routes                    = HttpRoutes(withdrawalWorkflowService)
-          _                        <- runHttpServer(routes)
-          _                        <- IO.fromFuture(IO(system.whenTerminated))
-        } yield ExitCode.Success,
+    given ExecutionContext          = system.executionContext
+    given IORuntime                 = IORuntime.global
+
+    given LiftWorkflowEffect[WithdrawalWorkflow.Context.Ctx, Future] =
+      LiftWorkflowEffect.through[WithdrawalWorkflow.Context.Ctx, IO](
+        [A] => (fa: IO[A]) => fa.unsafeToFuture()(using IORuntime.global),
       )
+
+    val knockerUpper = PekkoKnockerUpper.create
+    val journal      = setupJournal()
+    val workflow     = WithdrawalWorkflow(DummyWithdrawalService, ChecksEngine)
+    val engine       =
+      WorkflowInstanceEngine.builder
+        .withJavaTime[Future]()
+        .withWakeUps(knockerUpper)
+        .withoutRegistering
+        .withGreedyEvaluation
+        .withLogging
+        .get[WithdrawalWorkflow.Context.Ctx]
+    val runtime      =
+      PekkoRuntime.create(
+        "withdrawal",
+        workflow.workflowDeclarative,
+        WithdrawalData.Empty,
+        engine,
+      )
+
+    runtime.initializeShard()
+    knockerUpper.initialize(Seq(runtime))
+
+    val withdrawalWorkflowService = WithdrawalWorkflowService.Impl(journal, runtime)
+    val routes                    = HttpRoutes(withdrawalWorkflowService)
+
+    val binding = Await.result(Http().newServerAt("localhost", 8989).bind(routes.routes), Duration.Inf)
+    println(s"Server online at ${binding.localAddress}")
+
+    val _ = Await.result(system.whenTerminated, Duration.Inf)
   }
 
-  private def runHttpServer(routes: HttpRoutes)(using system: ActorSystem[Any]): IO[Http.ServerBinding] =
-    IO.fromFuture(IO(Http().newServerAt("localhost", 8989).bind(routes.routes)))
-      .flatTap(binding => IO(println(s"Server online at ${binding.localAddress}")))
-
-  private def setupJournal()(using system: ActorSystem[Any]): IO[JdbcReadJournal] = {
+  private def setupJournal()(using system: ActorSystem[Any]): JdbcReadJournal = {
     val journal = PersistenceQuery(system).readJournalFor[JdbcReadJournal](JdbcReadJournal.Identifier)
-    IO.fromFuture(IO(SchemaUtils.createIfNotExists())).as(journal)
+    val _ = Await.result(SchemaUtils.createIfNotExists()(using system), Duration.Inf)
+    journal
   }
 }

@@ -8,14 +8,11 @@ import org.scalatest.freespec.AnyFreeSpecLike
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import workflows4s.example.withdrawal.checks.ChecksEngine
 import workflows4s.runtime.pekko.PekkoRuntimeAdapter
-import workflows4s.wio.LiftWorkflowEffect
+import workflows4s.wio.given
 
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Await
 
 class PekkoChecksEngineTest extends ScalaTestWithActorTestKit(ActorTestKit("MyCluster")) with AnyFreeSpecLike with ChecksEngineTest.Suite {
-
-  private given LiftWorkflowEffect[ChecksEngine.Context.Ctx, Future] =
-    LiftWorkflowEffect.andThen(summon[LiftWorkflowEffect[ChecksEngine.Context.Ctx, IO]], [A] => (fa: IO[A]) => fa.unsafeToFuture())
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -24,7 +21,10 @@ class PekkoChecksEngineTest extends ScalaTestWithActorTestKit(ActorTestKit("MyCl
   }
 
   "pekko" - {
-    checkEngineTests(new PekkoRuntimeAdapter[ChecksEngine.Context.Ctx]("checks-engine"))
+    checkEngineTests(new PekkoRuntimeAdapter[IO, ChecksEngine.Context.Ctx](
+      "checks-engine",
+      [A] => (fa: IO[A]) => fa.unsafeToFuture(),
+    ))
   }
 
 }
