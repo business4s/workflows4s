@@ -35,7 +35,7 @@ trait BaseServer {
     */
   protected def apiRoutes: Resource[IO, HttpRoutes[IO]] = {
     for {
-      knockerUpper     <- SleepingKnockerUpper.create()
+      knockerUpper     <- SleepingKnockerUpper.create[IO]()
       registry          = InMemoryWorkflowRegistry[IO]()
       courseRegRuntime <- InMemoryConcurrentRuntime
                             .default[IO, CourseRegistrationWorkflow.Context.Ctx](
