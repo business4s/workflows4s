@@ -25,14 +25,15 @@ class PekkoKnockerUpper(scheduler: ClassicScheduler)(using ec: ExecutionContext)
       case Some(wakeupTime) =>
         cancelExisting(id)
         val now         = Instant.now()
-        val delay       = Duration.between(now, wakeupTime).toScala
+        val rawDelay    = Duration.between(now, wakeupTime)
+        val delay       = (if rawDelay.isNegative then Duration.ZERO else rawDelay).toScala
         logger.debug(s"Scheduling wakeup for $id in $delay")
         val cancellable = scheduler.scheduleOnce(
           delay,
           () => {
             logger.debug(s"Waking up $id")
             val _ = scheduled.remove(id)
-            val _ = wakeupLogic(id)
+            wakeupLogic(id).failed.foreach(e => logger.error(s"Failed to wake up $id", e))
           },
         )
         scheduled.put(id, cancellable)

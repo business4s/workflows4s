@@ -3,6 +3,7 @@ package workflows4s.doobie.sqlite
 import cats.arrow.FunctionK
 import cats.data.Kleisli
 import cats.effect.Async
+import cats.syntax.flatMap.*
 import cats.syntax.functor.*
 import com.typesafe.scalalogging.StrictLogging
 import doobie.implicits.*
@@ -82,15 +83,16 @@ class SqliteRuntime[F[_]: Async, Ctx <: WorkflowContext](
 
   private def initSchema(xa: Transactor[F], dbPath: Path): F[Unit] = {
     val F = Async[F]
-    F.flatMap(F.delay(Files.exists(dbPath))) { dbExists =>
-      if !dbExists then {
-        F.flatMap(F.delay(logger.info(s"Initializing DB at ${dbPath}"))) { _ =>
-          F.flatMap(F.blocking(scala.io.Source.fromResource("schema/sqlite-schema.sql").mkString)) { ddl =>
-            Fragment.const(ddl).update.run.transact(xa).void
-          }
-        }
+    for {
+      dbExists <- F.blocking(Files.exists(dbPath))
+      _ <- if !dbExists then {
+        for {
+          _   <- F.delay(logger.info(s"Initializing DB at ${dbPath}"))
+          ddl <- F.blocking(scala.util.Using.resource(scala.io.Source.fromResource("schema/sqlite-schema.sql"))(_.mkString))
+          _   <- Fragment.const(ddl).update.run.transact(xa).void
+        } yield ()
       } else F.unit
-    }
+    } yield ()
   }
 
 }
@@ -105,7 +107,7 @@ object SqliteRuntime {
       templateId: String = s"sqlite-runtime-${java.util.UUID.randomUUID().toString.take(8)}",
   ): F[SqliteRuntime[F, Ctx]] = {
     val F = Async[F]
-    F.map(F.delay(Files.createDirectories(workdir))) { _ =>
+    F.map(F.blocking(Files.createDirectories(workdir))) { _ =>
       new SqliteRuntime[F, Ctx](
         workflow = workflow,
         initialState = initialState,
