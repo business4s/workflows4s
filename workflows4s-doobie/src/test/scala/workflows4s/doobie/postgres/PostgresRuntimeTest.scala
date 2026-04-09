@@ -60,11 +60,13 @@ class PostgresRuntimeTest extends AnyFreeSpec with PostgresSuite with WorkflowRu
     }
     "ZIO Task" - {
       val rt = zio.Runtime.default
-      matrixTests(TestCtxZIO)(new PostgresRuntimeAdapter[zio.Task, TestCtxZIO.Ctx](
-        transactorFor[zio.Task],
-        JavaSerdeEventCodec.get,
-        [A] => (fa: zio.Task[A]) => zio.Unsafe.unsafe { implicit unsafe => rt.unsafe.run(fa).getOrThrow() },
-      ))
+      matrixTests(TestCtxZIO)(
+        new PostgresRuntimeAdapter[zio.Task, TestCtxZIO.Ctx](
+          transactorFor[zio.Task],
+          JavaSerdeEventCodec.get,
+          [A] => (fa: zio.Task[A]) => zio.Unsafe.unsafe { implicit unsafe => rt.unsafe.run(fa).getOrThrow() },
+        ),
+      )
     }
   }
 

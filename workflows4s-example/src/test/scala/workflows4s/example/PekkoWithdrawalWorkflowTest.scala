@@ -29,10 +29,12 @@ class PekkoWithdrawalWorkflowTest
   }
 
   "pekko" - {
-    withdrawalTests(new PekkoRuntimeAdapter[IO, WithdrawalWorkflow.Context.Ctx](
-      "withdrawal",
-      [A] => (fa: IO[A]) => fa.unsafeToFuture(),
-    ))
+    withdrawalTests(
+      new PekkoRuntimeAdapter[IO, WithdrawalWorkflow.Context.Ctx](
+        "withdrawal",
+        [A] => (fa: IO[A]) => fa.unsafeToFuture(),
+      ),
+    )
   }
 
 }

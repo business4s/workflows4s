@@ -52,7 +52,7 @@ object TestCtxZIO extends TestContextBase {
 }
 
 object TestCtxFuture extends TestContextBase {
-  private given ExecutionContext              = ExecutionContext.global
+  private given ExecutionContext = ExecutionContext.global
   type Effect[T] = Future[T]
   given effectApplicative: Applicative[Future] = cats.instances.future.catsStdInstancesForFuture
 }

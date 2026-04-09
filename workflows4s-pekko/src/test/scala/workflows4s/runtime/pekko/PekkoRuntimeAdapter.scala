@@ -27,7 +27,7 @@ class PekkoRuntimeAdapter[F[_]: {MonadThrow, WeakSync}, Ctx <: WorkflowContext](
     with StrictLogging {
 
   override protected val knockerUpper: RecordingKnockerUpper[F] = RecordingKnockerUpper[F]()
-  override val clock: TestClock                                  = TestClock()
+  override val clock: TestClock                                 = TestClock()
   override val registry: InMemoryWorkflowRegistry[F]            = InMemoryWorkflowRegistry[F](clock)
   override val engine: WorkflowInstanceEngine[F, Ctx]           =
     WorkflowInstanceEngine.default(knockerUpper, registry, clock)

@@ -17,21 +17,24 @@ class PekkoKnockerUpper(scheduler: ClassicScheduler)(using ec: ExecutionContext)
     with KnockerUpper.Process[Future, Unit]
     with StrictLogging {
 
-  private val scheduled = new ConcurrentHashMap[WorkflowInstanceId, Cancellable]()
+  private val scheduled                                                 = new ConcurrentHashMap[WorkflowInstanceId, Cancellable]()
   @volatile private var wakeupLogic: WorkflowInstanceId => Future[Unit] = scala.compiletime.uninitialized
 
   override def updateWakeup(id: WorkflowInstanceId, at: Option[Instant]): Future[Unit] = {
     at match {
       case Some(wakeupTime) =>
         cancelExisting(id)
-        val now      = Instant.now()
-        val delay    = Duration.between(now, wakeupTime).toScala
+        val now         = Instant.now()
+        val delay       = Duration.between(now, wakeupTime).toScala
         logger.debug(s"Scheduling wakeup for $id in $delay")
-        val cancellable = scheduler.scheduleOnce(delay, () => {
-          logger.debug(s"Waking up $id")
-          val _ = scheduled.remove(id)
-          val _ = wakeupLogic(id)
-        })
+        val cancellable = scheduler.scheduleOnce(
+          delay,
+          () => {
+            logger.debug(s"Waking up $id")
+            val _ = scheduled.remove(id)
+            val _ = wakeupLogic(id)
+          },
+        )
         scheduled.put(id, cancellable)
         Future.successful(())
       case None             =>

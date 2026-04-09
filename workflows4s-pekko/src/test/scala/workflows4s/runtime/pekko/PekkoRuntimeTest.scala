@@ -32,49 +32,63 @@ class PekkoRuntimeTest
   }
 
   "generic tests" - {
-    workflowTests(new PekkoRuntimeAdapter[IO, TestCtx2.Ctx](
-      "generic-test-workflow",
-      [A] => (fa: IO[A]) => fa.unsafeToFuture(),
-    ))
+    workflowTests(
+      new PekkoRuntimeAdapter[IO, TestCtx2.Ctx](
+        "generic-test-workflow",
+        [A] => (fa: IO[A]) => fa.unsafeToFuture(),
+      ),
+    )
   }
 
   "effect matrix" - {
     "IO" - {
-      matrixTests(TestCtxIO)(new PekkoRuntimeAdapter[IO, TestCtxIO.Ctx](
-        "matrix-io",
-        [A] => (fa: IO[A]) => fa.unsafeToFuture(),
-      ))
+      matrixTests(TestCtxIO)(
+        new PekkoRuntimeAdapter[IO, TestCtxIO.Ctx](
+          "matrix-io",
+          [A] => (fa: IO[A]) => fa.unsafeToFuture(),
+        ),
+      )
     }
     "Try" - {
-      matrixTests(TestCtxTry)(new PekkoRuntimeAdapter[Try, TestCtxTry.Ctx](
-        "matrix-try",
-        [A] => (fa: Try[A]) => Future.fromTry(fa),
-      ))
+      matrixTests(TestCtxTry)(
+        new PekkoRuntimeAdapter[Try, TestCtxTry.Ctx](
+          "matrix-try",
+          [A] => (fa: Try[A]) => Future.fromTry(fa),
+        ),
+      )
     }
     "Either" - {
-      matrixTests(TestCtxEither)(new PekkoRuntimeAdapter[[A] =>> Either[Throwable, A], TestCtxEither.Ctx](
-        "matrix-either",
-        [A] => (fa: Either[Throwable, A]) => Future.fromTry(fa.toTry),
-      ))
+      matrixTests(TestCtxEither)(
+        new PekkoRuntimeAdapter[[A] =>> Either[Throwable, A], TestCtxEither.Ctx](
+          "matrix-either",
+          [A] => (fa: Either[Throwable, A]) => Future.fromTry(fa.toTry),
+        ),
+      )
     }
     "Function0" - {
-      matrixTests(TestCtxThunk)(new PekkoRuntimeAdapter[Function0, TestCtxThunk.Ctx](
-        "matrix-thunk",
-        [A] => (fa: () => A) => Future(fa())(using scala.concurrent.ExecutionContext.global),
-      ))
+      matrixTests(TestCtxThunk)(
+        new PekkoRuntimeAdapter[Function0, TestCtxThunk.Ctx](
+          "matrix-thunk",
+          [A] => (fa: () => A) => Future(fa())(using scala.concurrent.ExecutionContext.global),
+        ),
+      )
     }
     "ZIO Task" - {
       val rt = zio.Runtime.default
-      matrixTests(TestCtxZIO)(new PekkoRuntimeAdapter[zio.Task, TestCtxZIO.Ctx](
-        "matrix-zio",
-        [A] => (fa: zio.Task[A]) => zio.Unsafe.unsafe { implicit unsafe => rt.unsafe.runToFuture(fa) },
-      ))
+      matrixTests(TestCtxZIO)(
+        new PekkoRuntimeAdapter[zio.Task, TestCtxZIO.Ctx](
+          "matrix-zio",
+          [A] => (fa: zio.Task[A]) => zio.Unsafe.unsafe { implicit unsafe => rt.unsafe.runToFuture(fa) },
+        ),
+      )
     }
     "Future" - {
-      matrixTests(TestCtxFuture)(new PekkoRuntimeAdapter[Future, TestCtxFuture.Ctx](
-        "matrix-future",
-        [A] => (fa: Future[A]) => fa,
-      ))
+      matrixTests(TestCtxFuture)(
+        new PekkoRuntimeAdapter[Future, TestCtxFuture.Ctx](
+          "matrix-future",
+          [A] => (fa: Future[A]) => fa,
+        ),
+      )
     }
   }
 

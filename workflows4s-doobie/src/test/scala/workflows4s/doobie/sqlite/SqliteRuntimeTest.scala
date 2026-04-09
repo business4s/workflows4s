@@ -39,11 +39,13 @@ class SqliteRuntimeTest extends AnyFreeSpec with SqliteWorkdirSuite with Workflo
     }
     "ZIO Task" - {
       val rt = zio.Runtime.default
-      matrixTests(TestCtxZIO)(new SqliteRuntimeAdapter[zio.Task, TestCtxZIO.Ctx](
-        workdir,
-        JavaSerdeEventCodec.get,
-        [A] => (fa: zio.Task[A]) => zio.Unsafe.unsafe { implicit unsafe => rt.unsafe.run(fa).getOrThrow() },
-      ))
+      matrixTests(TestCtxZIO)(
+        new SqliteRuntimeAdapter[zio.Task, TestCtxZIO.Ctx](
+          workdir,
+          JavaSerdeEventCodec.get,
+          [A] => (fa: zio.Task[A]) => zio.Unsafe.unsafe { implicit unsafe => rt.unsafe.run(fa).getOrThrow() },
+        ),
+      )
     }
   }
 

@@ -79,7 +79,9 @@ object LiftWorkflowEffect {
       override def apply[A](fa: WCEffect[Ctx][A]): G[A] = transform(base.apply(fa))
     }
 
-  def through[Ctx <: WorkflowContext, F[_]](using base: LiftWorkflowEffect[Ctx, F])[G[_]](transform: [A] => F[A] => G[A]): LiftWorkflowEffect[Ctx, G] =
+  def through[Ctx <: WorkflowContext, F[_]](using
+      base: LiftWorkflowEffect[Ctx, F],
+  )[G[_]](transform: [A] => F[A] => G[A]): LiftWorkflowEffect[Ctx, G] =
     new LiftWorkflowEffect[Ctx, G] {
       override def apply[A](fa: WCEffect[Ctx][A]): G[A] = transform(base.apply(fa))
     }

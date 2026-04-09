@@ -212,7 +212,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
           .thenRun(_ => processingState.set(ProcessingState.Locked(StateLockId.random())))
           .thenRun(state =>
             actorContext.pipeToSelf(logic(state))({
-              case Failure(exception)  => Command.Reply(replyTo, StatusReply.error(exception), unlock = true)
+              case Failure(exception) => Command.Reply(replyTo, StatusReply.error(exception), unlock = true)
               case Success(eventFOpt) =>
                 eventFOpt match {
                   case Some(eventF) =>
@@ -226,7 +226,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
                         }
                     })
                     Command.NoOp()
-                  case None          => Command.Reply(replyTo, StatusReply.success(formResponse(None)), unlock = true)
+                  case None         => Command.Reply(replyTo, StatusReply.success(formResponse(None)), unlock = true)
                 }
             }),
           )

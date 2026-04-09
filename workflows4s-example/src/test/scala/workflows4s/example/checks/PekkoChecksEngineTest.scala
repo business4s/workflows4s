@@ -21,10 +21,12 @@ class PekkoChecksEngineTest extends ScalaTestWithActorTestKit(ActorTestKit("MyCl
   }
 
   "pekko" - {
-    checkEngineTests(new PekkoRuntimeAdapter[IO, ChecksEngine.Context.Ctx](
-      "checks-engine",
-      [A] => (fa: IO[A]) => fa.unsafeToFuture(),
-    ))
+    checkEngineTests(
+      new PekkoRuntimeAdapter[IO, ChecksEngine.Context.Ctx](
+        "checks-engine",
+        [A] => (fa: IO[A]) => fa.unsafeToFuture(),
+      ),
+    )
   }
 
 }

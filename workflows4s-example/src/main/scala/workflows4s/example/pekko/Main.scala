@@ -21,13 +21,11 @@ object Main {
 
   def main(args: Array[String]): Unit = {
     given system: ActorSystem[Any] = ActorSystem(Behaviors.empty, "MyCluster")
-    given ExecutionContext          = system.executionContext
-    given IORuntime                 = IORuntime.global
+    given ExecutionContext         = system.executionContext
+    given IORuntime                = IORuntime.global
 
     given LiftWorkflowEffect[WithdrawalWorkflow.Context.Ctx, Future] =
-      LiftWorkflowEffect.through[WithdrawalWorkflow.Context.Ctx, IO](
-        [A] => (fa: IO[A]) => fa.unsafeToFuture()(using IORuntime.global),
-      )
+      LiftWorkflowEffect.through[WithdrawalWorkflow.Context.Ctx, IO]([A] => (fa: IO[A]) => fa.unsafeToFuture()(using IORuntime.global))
 
     val knockerUpper = PekkoKnockerUpper.create
     val journal      = setupJournal()
@@ -62,7 +60,7 @@ object Main {
 
   private def setupJournal()(using system: ActorSystem[Any]): JdbcReadJournal = {
     val journal = PersistenceQuery(system).readJournalFor[JdbcReadJournal](JdbcReadJournal.Identifier)
-    val _ = Await.result(SchemaUtils.createIfNotExists()(using system), Duration.Inf)
+    val _       = Await.result(SchemaUtils.createIfNotExists()(using system), Duration.Inf)
     journal
   }
 }

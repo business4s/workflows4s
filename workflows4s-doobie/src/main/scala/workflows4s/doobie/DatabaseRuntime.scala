@@ -32,8 +32,7 @@ class DatabaseRuntime[F[_]: Async, Ctx <: WorkflowContext](
     val mapped     = new MappedWorkflowInstance(
       base,
       [t] =>
-        (connIo: Kleisli[ConnectionIO, FunctionK[F, ConnectionIO], t]) =>
-          WeakAsync.liftK[F, ConnectionIO].use(fk => xa.trans.apply(connIo.apply(fk))),
+        (connIo: Kleisli[ConnectionIO, FunctionK[F, ConnectionIO], t]) => WeakAsync.liftK[F, ConnectionIO].use(fk => xa.trans.apply(connIo.apply(fk))),
     )
     Async[F].pure(mapped)
   }
