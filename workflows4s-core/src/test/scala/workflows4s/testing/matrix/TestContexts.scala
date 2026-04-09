@@ -7,11 +7,12 @@ import zio.Task
 import zio.interop.catz.*
 
 import java.time.Instant
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
 import EffectInstances.given
 
-sealed trait TestEvent
+sealed trait TestEvent extends Serializable
 object TestEvent {
   case class RunIODone(stepId: StepId)  extends TestEvent
   case class SigDone(req: Int)          extends TestEvent
@@ -48,4 +49,10 @@ object TestCtxThunk extends TestContextBase {
 object TestCtxZIO extends TestContextBase {
   type Effect[T] = Task[T]
   given effectApplicative: Applicative[Task] = summon
+}
+
+object TestCtxFuture extends TestContextBase {
+  private given ExecutionContext              = ExecutionContext.global
+  type Effect[T] = Future[T]
+  given effectApplicative: Applicative[Future] = cats.instances.future.catsStdInstancesForFuture
 }

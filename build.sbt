@@ -80,7 +80,6 @@ lazy val `workflows4s-pekko` = (project in file("workflows4s-pekko"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel"    %% "cats-effect"                   % "3.7.0",
       "org.apache.pekko" %% "pekko-persistence-typed"      % pekkoVersion,
       "org.apache.pekko" %% "pekko-cluster-typed"          % pekkoVersion,
       "org.apache.pekko" %% "pekko-cluster-sharding-typed" % pekkoVersion,

@@ -74,6 +74,11 @@ object LiftWorkflowEffect {
     override def apply[A](fa: WCEffect[Ctx][A]): Eff[A] = fa.asInstanceOf[Eff[A]]
   }
 
+  def andThen[Ctx <: WorkflowContext, F[_], G[_]](base: LiftWorkflowEffect[Ctx, F], transform: [A] => F[A] => G[A]): LiftWorkflowEffect[Ctx, G] =
+    new LiftWorkflowEffect[Ctx, G] {
+      override def apply[A](fa: WCEffect[Ctx][A]): G[A] = transform(base.apply(fa))
+    }
+
   given [Eff[_], Ctx1 <: WorkflowContext.AuxEff[Eff], Ctx2 <: WorkflowContext.AuxEff[Eff]]: LiftWorkflowEffect[Ctx1, WCEffect[Ctx2]] =
     new LiftWorkflowEffect[Ctx1, WCEffect[Ctx2]] {
       override def apply[A](fa: WCEffect[Ctx1][A]): WCEffect[Ctx2][A] = fa.asInstanceOf[WCEffect[Ctx2][A]]

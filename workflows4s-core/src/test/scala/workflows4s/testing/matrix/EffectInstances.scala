@@ -5,6 +5,7 @@ import workflows4s.wio.WeakSync
 import zio.{Task, ZIO}
 
 import scala.annotation.tailrec
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 import scala.util.control.NonFatal
 
@@ -27,6 +28,12 @@ object EffectInstances {
   given WeakSync[Task] with {
     override def delay[A](body: => A): Task[A] = ZIO.attempt(body)
   }
+
+  given WeakSync[Future] with {
+    override def delay[A](body: => A): Future[A] = Future(body)(using ExecutionContext.global)
+  }
+
+  given MonadThrow[Future] = cats.instances.future.catsStdInstancesForFuture(using ExecutionContext.global)
 
   // MonadThrow for Function0 (not provided by cats)
 

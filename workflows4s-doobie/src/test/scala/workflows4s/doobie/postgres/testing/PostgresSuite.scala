@@ -1,6 +1,6 @@
 package workflows4s.doobie.postgres.testing
 
-import cats.effect.IO
+import cats.effect.{Async, IO}
 import cats.implicits.toTraverseOps
 import com.dimafeng.testcontainers.PostgreSQLContainer
 import com.dimafeng.testcontainers.scalatest.TestContainerForAll
@@ -15,15 +15,25 @@ trait PostgresSuite extends TestContainerForAll { self: Suite =>
 
   var xa: Transactor[IO] = scala.compiletime.uninitialized
 
-  override def afterContainersStart(container: Containers): Unit = {
-    super.afterContainersStart(container)
-    xa = Transactor.fromDriverManager[IO](
+  private var jdbcUrl: String      = scala.compiletime.uninitialized
+  private var jdbcUser: String     = scala.compiletime.uninitialized
+  private var jdbcPassword: String = scala.compiletime.uninitialized
+
+  def transactorFor[F[_]: Async]: Transactor[F] =
+    Transactor.fromDriverManager[F](
       driver = "org.postgresql.Driver",
-      url = container.jdbcUrl,
-      user = container.username,
-      password = container.password,
+      url = jdbcUrl,
+      user = jdbcUser,
+      password = jdbcPassword,
       logHandler = None,
     )
+
+  override def afterContainersStart(container: Containers): Unit = {
+    super.afterContainersStart(container)
+    jdbcUrl = container.jdbcUrl
+    jdbcUser = container.username
+    jdbcPassword = container.password
+    xa = transactorFor[IO]
     import cats.effect.unsafe.implicits.global
     createSchema(xa).unsafeRunSync()
   }
