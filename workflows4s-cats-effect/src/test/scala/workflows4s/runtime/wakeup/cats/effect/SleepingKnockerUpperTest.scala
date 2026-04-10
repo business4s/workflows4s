@@ -20,7 +20,7 @@ class SleepingKnockerUpperTest extends AnyFreeSpec {
       val wakeUpLogic: WorkflowInstanceId => IO[Unit] = id => IO { wokenUp = wokenUp.appended(id) }
 
       SleepingKnockerUpper
-        .create()
+        .create[IO]()
         .use { ku =>
           for {
             _  <- ku.initialize(wakeUpLogic)
@@ -38,7 +38,7 @@ class SleepingKnockerUpperTest extends AnyFreeSpec {
       var wokenUp                                     = false
       val wakeUpLogic: WorkflowInstanceId => IO[Unit] = _ => IO { wokenUp = true }
       SleepingKnockerUpper
-        .create()
+        .create[IO]()
         .use { ku =>
           for {
             _  <- ku.initialize(wakeUpLogic)
@@ -57,7 +57,7 @@ class SleepingKnockerUpperTest extends AnyFreeSpec {
       val wakeUpLogic: WorkflowInstanceId => IO[Unit] = _ => IO.unit
 
       val test = SleepingKnockerUpper
-        .create()
+        .create[IO]()
         .use { ku =>
           for {
             _   <- ku.initialize(wakeUpLogic)

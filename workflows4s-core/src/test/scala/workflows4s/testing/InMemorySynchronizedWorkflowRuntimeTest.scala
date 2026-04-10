@@ -8,6 +8,8 @@ import workflows4s.wio.given
 import zio.*
 import zio.interop.catz.*
 
+import scala.concurrent.{Await, Future}
+import scala.concurrent.duration.Duration
 import scala.util.Try
 
 import EffectInstances.given
@@ -40,6 +42,11 @@ class InMemorySynchronizedWorkflowRuntimeTest extends WorkflowRuntimeTest.Suite 
           TestRuntimeAdapter.InMemorySync[Task, TestCtxZIO.Ctx]([A] =>
             (fa: Task[A]) => Unsafe.unsafe { implicit unsafe => zioRuntime.unsafe.run(fa).getOrThrow() },
           ),
+        )
+      }
+      "Future" - {
+        matrixTests(TestCtxFuture)(
+          TestRuntimeAdapter.InMemorySync[Future, TestCtxFuture.Ctx]([A] => (fa: Future[A]) => Await.result(fa, Duration.Inf)),
         )
       }
     }

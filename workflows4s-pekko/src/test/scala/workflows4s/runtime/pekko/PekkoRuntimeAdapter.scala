@@ -1,8 +1,7 @@
 package workflows4s.runtime.pekko
 
-import cats.Id
-import cats.effect.IO
-import cats.effect.unsafe.implicits.global
+import cats.{Id, MonadThrow}
+import cats.instances.future.catsStdInstancesForFuture
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.pekko.actor.typed.*
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
@@ -15,26 +14,31 @@ import workflows4s.runtime.registry.InMemoryWorkflowRegistry
 import workflows4s.runtime.{DelegateWorkflowInstance, MappedWorkflowInstance, WorkflowInstance, WorkflowInstanceId}
 import workflows4s.testing.{RecordingKnockerUpper, TestClock, TestRuntimeAdapter}
 import workflows4s.wio.*
-import workflows4s.wio.given
 
 import java.time.Clock
 import java.util.UUID
 import scala.concurrent.{Await, Future}
 
-class PekkoRuntimeAdapter[Ctx <: WorkflowContext](
+class PekkoRuntimeAdapter[F[_]: {MonadThrow, WeakSync}, Ctx <: WorkflowContext](
     entityKeyPrefix: String,
-)(using actorSystem: ActorSystem[?], ev: LiftWorkflowEffect[Ctx, IO])
-    extends TestRuntimeAdapter[IO, Ctx]
+    runToFuture: [A] => F[A] => Future[A],
+)(using actorSystem: ActorSystem[?], ev: LiftWorkflowEffect[Ctx, F])
+    extends TestRuntimeAdapter[F, Ctx]
     with StrictLogging {
 
-  override protected val knockerUpper: RecordingKnockerUpper[IO] = RecordingKnockerUpper[IO]()
-  override val clock: TestClock                                  = TestClock()
-  override val registry: InMemoryWorkflowRegistry[IO]            = InMemoryWorkflowRegistry[IO](clock)
-  override val engine: WorkflowInstanceEngine[IO, Ctx]           =
+  override protected val knockerUpper: RecordingKnockerUpper[F] = RecordingKnockerUpper[F]()
+  override val clock: TestClock                                 = TestClock()
+  override val registry: InMemoryWorkflowRegistry[F]            = InMemoryWorkflowRegistry[F](clock)
+  override val engine: WorkflowInstanceEngine[F, Ctx]           =
     WorkflowInstanceEngine.default(knockerUpper, registry, clock)
-  override def runSync[A](fa: IO[A]): A                          = fa.unsafeRunSync()
+  override def runSync[A](fa: F[A]): A                          = Await.result(runToFuture(fa), 3.seconds)
 
   val sharding = ClusterSharding(actorSystem)
+
+  private val futureEngine: WorkflowInstanceEngine[Future, Ctx] = {
+    given cats.Functor[Future] = catsStdInstancesForFuture(using actorSystem.executionContext)
+    engine.mapK([A] => (fa: F[A]) => runToFuture(fa))
+  }
 
   case class Stop(replyTo: ActorRef[Unit])
 
@@ -54,7 +58,7 @@ class PekkoRuntimeAdapter[Ctx <: WorkflowContext](
       Entity(typeKey)(createBehavior = entityContext => {
         val persistenceId = PersistenceId(entityContext.entityTypeKey.name, entityContext.entityId)
         val instanceId    = WorkflowInstanceId(persistenceId.entityTypeHint, persistenceId.entityId)
-        val base          = WorkflowBehavior(instanceId, persistenceId, workflow, state, engine)
+        val base          = WorkflowBehavior(instanceId, persistenceId, workflow, state, futureEngine)
         Behaviors.intercept[Cmd, RawCmd](() =>
           new BehaviorInterceptor[Cmd, RawCmd]() {
             override def aroundReceive(

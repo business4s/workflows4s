@@ -24,7 +24,7 @@ object SQLiteExample {
     val eventCodec: ByteCodec[MyEventBase]      = ???
     val workdir: Path                           = ??? // Directory where database files will be created
 
-    val runtime: SqliteRuntime[Ctx]                        = SqliteRuntime.create(workflow, initialState, eventCodec, engine, workdir).unsafeRunSync()
+    val runtime: SqliteRuntime[IO, Ctx]                    = SqliteRuntime.create(workflow, initialState, eventCodec, engine, workdir).unsafeRunSync()
     val wfInstance: IO[WorkflowInstance[IO, WCState[Ctx]]] = runtime.createInstance("my-instance-1")
     // sqlite_end
   }

@@ -30,7 +30,7 @@ object DatabaseExample {
     val engine: WorkflowInstanceEngine[IO, Ctx] = ???
     val templateId                              = "my-workflow"
 
-    val runtime: DatabaseRuntime[Ctx]                      = DatabaseRuntime.create(workflow, initialState, transactor, engine, storage, templateId)
+    val runtime: DatabaseRuntime[IO, Ctx]                  = DatabaseRuntime.create(workflow, initialState, transactor, engine, storage, templateId)
     val wfInstance: IO[WorkflowInstance[IO, WCState[Ctx]]] = runtime.createInstance("1")
     // doc_end
   }
