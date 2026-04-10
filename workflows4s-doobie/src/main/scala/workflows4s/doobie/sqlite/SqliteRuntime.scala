@@ -85,13 +85,13 @@ class SqliteRuntime[F[_]: Async, Ctx <: WorkflowContext](
     val F = Async[F]
     for {
       dbExists <- F.blocking(Files.exists(dbPath))
-      _ <- if !dbExists then {
-        for {
-          _   <- F.delay(logger.info(s"Initializing DB at ${dbPath}"))
-          ddl <- F.blocking(scala.util.Using.resource(scala.io.Source.fromResource("schema/sqlite-schema.sql"))(_.mkString))
-          _   <- Fragment.const(ddl).update.run.transact(xa).void
-        } yield ()
-      } else F.unit
+      _        <- if !dbExists then {
+                    for {
+                      _   <- F.delay(logger.info(s"Initializing DB at ${dbPath}"))
+                      ddl <- F.blocking(scala.util.Using.resource(scala.io.Source.fromResource("schema/sqlite-schema.sql"))(_.mkString))
+                      _   <- Fragment.const(ddl).update.run.transact(xa).void
+                    } yield ()
+                  } else F.unit
     } yield ()
   }
 
