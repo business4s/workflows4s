@@ -45,15 +45,15 @@ lazy val `workflows4s-core` = (project in file("workflows4s-core"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel"              %% "cats-core"       % "2.13.0",
-      "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.6",
-      "io.circe"                   %% "circe-core"      % circeVersion, // for model serialization
-      "io.circe"                   %% "circe-generic"   % circeVersion, // for model serialization
-      "com.lihaoyi"                %% "sourcecode"      % "0.4.4", // for auto naming
-      "org.typelevel"              %% "cats-effect"     % "3.7.0"  % Test,
-      "dev.zio"                    %% "zio"             % "2.1.25" % Test,
-      "dev.zio"                    %% "zio-interop-cats" % "23.1.0.3" % Test,
-      "ch.qos.logback"              % "logback-classic" % "1.5.18" % Test,
+      "org.typelevel"              %% "cats-core"        % "2.13.0",
+      "com.typesafe.scala-logging" %% "scala-logging"    % "3.9.6",
+      "io.circe"                   %% "circe-core"       % circeVersion, // for model serialization
+      "io.circe"                   %% "circe-generic"    % circeVersion, // for model serialization
+      "com.lihaoyi"                %% "sourcecode"       % "0.4.4", // for auto naming
+      "org.typelevel"              %% "cats-effect"      % "3.7.0"     % Test,
+      "dev.zio"                    %% "zio"              % "2.1.25"    % Test,
+      "dev.zio"                    %% "zio-interop-cats" % "23.1.0.13" % Test,
+      "ch.qos.logback"              % "logback-classic"  % "1.5.32"    % Test,
     ),
     Test / parallelExecution := false,
   )
@@ -118,8 +118,8 @@ lazy val `workflows4s-quartz` = (project in file("workflows4s-quartz"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel"        %% "cats-effect" % "3.7.0",
-      "org.quartz-scheduler"  % "quartz"      % "2.5.2",
+      "org.typelevel"       %% "cats-effect" % "3.7.0",
+      "org.quartz-scheduler" % "quartz"      % "2.5.2",
     ),
   )
   .dependsOn(`workflows4s-core` % "compile->compile;test->test")
