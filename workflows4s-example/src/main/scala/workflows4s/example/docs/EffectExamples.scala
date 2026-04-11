@@ -29,7 +29,7 @@ object EffectExamples {
   // effect_mapk_start
   import scala.concurrent.Future
   import cats.effect.unsafe.implicits.global
-  import scala.concurrent.ExecutionContext.Implicits.{global as ec}
+  import scala.concurrent.ExecutionContext.Implicits.global as ec
 
   // Build engine in your workflow's effect type, then transform for the runtime
   val ioEngine: WorkflowInstanceEngine[IO, MyCtx.Ctx]         = WorkflowInstanceEngine.basic[IO, MyCtx.Ctx]()
