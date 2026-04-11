@@ -39,8 +39,24 @@ Below is an overview of the available `KnockerUpper` implementations, with their
         </td>
     </tr>
     <tr>
+        <td><code>PekkoKnockerUpper</code></td>
+        <td>Pekko-native, `Future`-based. Uses Pekko's `Scheduler.scheduleOnce`. Non-persistent.</td>
+        <td>
+            <ul>
+                <li>Pekko-based ephemeral deployments.</li>
+                <li>Avoiding cats-effect dependency.</li>
+            </ul>
+        </td>
+        <td>
+            <ul>
+                <li>Persistent or distributed setups.</li>
+                <li>Non-Pekko deployments.</li>
+            </ul>
+        </td>
+    </tr>
+    <tr>
         <td><code>SleepingKnockerUpper</code></td>
-        <td>In-memory implementation based on `IO.sleep`, non-persistent.</td>
+        <td>In-memory implementation based on cats-effect `Async[F].sleep`, non-persistent.</td>
         <td>
             <ul>
                 <li>Ephemeral workflows.</li>
@@ -126,7 +142,14 @@ This is encoded in the examples below as a `createRuntime`.
 ```scala file=./main/scala/workflows4s/example/docs/wakeups/FsKnockerUpperExample.scala start=docs_start end=docs_end
 ```
 
-{/* TODO: Add PekkoKnockerUpper section — pekko-native, Future-based, no cats-effect dependency */}
+### PekkoKnockerUpper
+
+Uses Pekko's native scheduler.
+
+<SbtDependency moduleName={"workflows4s-pekko"}/>
+
+```scala file=./main/scala/workflows4s/example/docs/wakeups/PekkoKnockerUpperExample.scala start=docs_start end=docs_end
+```
 
 ### QuartzKnockerUpper
 
