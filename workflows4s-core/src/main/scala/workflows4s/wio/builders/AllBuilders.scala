@@ -5,6 +5,7 @@ import workflows4s.wio.WorkflowContext
 trait AllBuilders[Ctx <: WorkflowContext]
     extends WIOBuilderMethods[Ctx]
     with HandleSignalBuilder.Step0[Ctx]
+    with InterruptionBuilder.Step0[Ctx]
     with LoopBuilder.Step0[Ctx]
     with AwaitBuilder.Step0[Ctx]
     with ForkBuilder.Step0[Ctx]

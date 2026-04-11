@@ -1,6 +1,5 @@
 package workflows4s.runtime.registry
 
-import cats.effect.IO
 import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.wio.ActiveWorkflow
 
@@ -12,9 +11,9 @@ object WorkflowRegistry {
   }
 
   /** Called by the engine after each state change to update the registry. */
-  trait Agent {
+  trait Agent[F[_]] {
 
-    def upsertInstance(inst: ActiveWorkflow[?], executionStatus: ExecutionStatus): IO[Unit]
+    def upsertInstance(inst: ActiveWorkflow[?], executionStatus: ExecutionStatus): F[Unit]
 
   }
 

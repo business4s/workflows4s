@@ -84,10 +84,13 @@ object BusyLoopRule extends Rule {
     override def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): Boolean = false
 
     override def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Boolean          = recurse(wio.base)
-    override def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Boolean = recurse(wio.base)
+    override def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): Boolean = recurse(
+      wio.base,
+    )
     override def onRetry(wio: WIO.Retry[Ctx, In, Err, Out]): Boolean                                                             = recurse(wio.base)
     override def onTransform[In1, Out1 <: WCState[Ctx], Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Boolean   = recurse(wio.base)
-    override def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Boolean                           = recurse(wio.base) || recurse(wio.handleError)
+    override def onHandleErrorWith[ErrIn](wio: WIO.HandleErrorWith[Ctx, In, ErrIn, Out, Err]): Boolean                           =
+      recurse(wio.base) || recurse(wio.handleError)
     override def onLoop[BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx], ReturnIn](
         wio: WIO.Loop[Ctx, In, Err, Out, BodyIn, BodyOut, ReturnIn],
     ): Boolean                                                                                                                   = recurse(wio.body) || recurse(wio.onRestart)

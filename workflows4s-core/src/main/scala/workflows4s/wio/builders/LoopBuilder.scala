@@ -2,8 +2,6 @@ package workflows4s.wio.builders
 
 import workflows4s.wio.*
 
-import scala.util.chaining.scalaUtilChainingOps
-
 object LoopBuilder {
 
   trait Step0[Ctx <: WorkflowContext]() {
@@ -25,7 +23,7 @@ object LoopBuilder {
         def onRestart(action: WIO[ReturnIn, Err, BodyIn, Ctx]): Step3 = Step3(action)
 
         def onRestartContinue(using ev1: ReturnIn <:< BodyIn): Step3 = Step3(
-          WIO.build[Ctx].pure.makeFrom[ReturnIn].value(_.pipe(ev1.apply)).done,
+          WIO.Pure[Ctx, ReturnIn, Nothing, BodyIn]((x: ReturnIn) => Right(ev1.apply(x)), WIO.Pure.Meta(ErrorMeta.noError, None)),
         )
 
         case class Step3(
@@ -35,7 +33,11 @@ object LoopBuilder {
             private val conditionName: Option[String] = None,
         ) {
 
-          def named(conditionName: String = null, releaseBranchName: String = null, restartBranchName: String = null): WIO[BodyIn, Err, Out, Ctx] =
+          def named(
+              conditionName: String = null,
+              releaseBranchName: String = null,
+              restartBranchName: String = null,
+          ): WIO[BodyIn, Err, Out, Ctx] =
             this
               .copy(
                 releaseBranchName = Option(releaseBranchName).orElse(this.releaseBranchName),

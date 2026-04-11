@@ -4,6 +4,9 @@ import SbtDependency from '@site/src/components/SbtDependency';
 
 `PekkoRuntime` leverages [Pekko Persistence](https://pekko.apache.org/docs/pekko/current/typed/index-persistence.html) and [Cluster Sharding](https://pekko.apache.org/docs/pekko/current/typed/cluster-sharding.html) to provide a distributed runtime for workflows.
 
+`PekkoRuntime` operates natively with `scala.concurrent.Future` — your workflow context should declare `type Effect[T] = Future[T]`
+or lift the desired effect as described in [effect types](/docs/other/effect-types).
+
 <SbtDependency moduleName={"workflows4s-pekko"}/>
 
 ## Example

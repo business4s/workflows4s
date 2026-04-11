@@ -6,27 +6,15 @@ import cats.effect.{IO, Ref}
 import cats.syntax.all.*
 import org.scalatest.freespec.AnyFreeSpecLike
 import sourcecode.Text.generate
-import workflows4s.runtime.registry.InMemoryWorkflowRegistry
 import workflows4s.runtime.registry.WorkflowRegistry.ExecutionStatus
 import workflows4s.wio.{SignalDef, StepId, TestCtx2, TestState}
 
 import scala.annotation.nowarn
 
-class WorkflowRuntimeTest extends WorkflowRuntimeTest.Suite {
-
-  "in-memory" - {
-    workflowTests(TestRuntimeAdapter.InMemory[TestCtx2.Ctx]())
-  }
-  "in-memory-sync" - {
-    workflowTests(TestRuntimeAdapter.InMemorySync[TestCtx2.Ctx]())
-  }
-
-}
-
 object WorkflowRuntimeTest {
   trait Suite extends AnyFreeSpecLike {
 
-    def workflowTests(getRuntime: => TestRuntimeAdapter[TestCtx2.Ctx]) = {
+    def workflowTests[F[_]](getRuntime: => TestRuntimeAdapter[F, TestCtx2.Ctx]) = {
 
       "runtime should not allow interrupting a process while another step is running" in new Fixture {
         def singleRun(i: Int): IO[Unit] = {
@@ -143,11 +131,10 @@ object WorkflowRuntimeTest {
       }
 
       trait Fixture {
-        val runtime  = getRuntime
-        val registry = InMemoryWorkflowRegistry(runtime.clock).unsafeRunSync()
+        val runtime = getRuntime
 
         def expectRegistryEntry(status: ExecutionStatus)                     = {
-          val registeredWorkflows = runtime.registry.getWorkflows().unsafeRunSync()
+          val registeredWorkflows = runtime.runSync(runtime.registry.getWorkflows())
           assert(registeredWorkflows.size == 1)
           assert(registeredWorkflows.head.status == status)
         }

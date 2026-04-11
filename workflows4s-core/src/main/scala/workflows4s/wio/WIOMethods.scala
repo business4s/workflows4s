@@ -1,6 +1,6 @@
 package workflows4s.wio
 
-import cats.effect.IO
+import cats.Applicative
 import cats.syntax.all.*
 import workflows4s.wio.builders.RetryBuilder
 import workflows4s.wio.internal.{EventHandler, ExecutionProgressEvaluator}
@@ -48,15 +48,15 @@ trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self
   def checkpointed[Evt <: WCEvent[Ctx], In1 <: In, Out1 >: Out <: WCState[Ctx]](
       genEvent: (In1, Out1) => Evt,
       handleEvent: (In1, Evt) => Out1,
-  )(using evtCt: ClassTag[Evt]): WIO[In1, Err, Out1, Ctx] = {
+  )(using evtCt: ClassTag[Evt], F: Applicative[WCEffect[Ctx]]): WIO[In1, Err, Out1, Ctx] = {
     WIO.Checkpoint(
       this,
-      (a: In1, b: Out1) => genEvent(a, b).pure[IO],
+      (a: In1, b: Out1) => F.pure(genEvent(a, b)),
       EventHandler.partial[WCEvent[Ctx], In1, Out1, Evt](identity, handleEvent),
     )
   }
 
-  def toProgress: WIOExecutionProgress[WCState[Ctx]] = ExecutionProgressEvaluator.run(this, None, None)
+  def toProgress: WIOExecutionProgress[WCState[Ctx]] = ExecutionProgressEvaluator.run(self, None, None)
 
   def lint: List[LinterIssue] = Linter.lint(this)
 
@@ -66,6 +66,6 @@ trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self
   }
 
   type Now = Instant
-  def retry[In1 <: In, Err1 >: Err, Out1 >: Out <: WCState[Ctx]]: RetryBuilder.Step0[In1, Err1, Out1, Ctx] =
-    new RetryBuilder.Step0[In1, Err1, Out1, Ctx](this)
+  def retry[In1 <: In, Err1 >: Err, Out1 >: Out <: WCState[Ctx]](using Applicative[WCEffect[Ctx]]): RetryBuilder.Step0[Ctx, In1, Err1, Out1] =
+    new RetryBuilder.Step0[Ctx, In1, Err1, Out1](self)
 }

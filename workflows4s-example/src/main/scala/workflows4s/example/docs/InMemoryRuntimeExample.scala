@@ -1,14 +1,17 @@
 package workflows4s.example.docs
 
 import cats.effect.IO
-import workflows4s.runtime.{InMemoryRuntime, InMemorySyncRuntime, InMemorySyncWorkflowInstance, InMemoryWorkflowInstance}
+import workflows4s.runtime.{InMemorySynchronizedRuntime, InMemorySynchronizedWorkflowInstance}
+import workflows4s.runtime.cats.effect.{InMemoryConcurrentRuntime, InMemoryConcurrentWorkflowInstance}
 import workflows4s.wio.WorkflowContext
 import cats.effect.unsafe.implicits.global
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
+import workflows4s.wio.cats.effect.WeakSyncInstances.given
 
-object InMemoryRuntimeExample {
+object InMemorySynchronizedRuntimeExample {
 
   object MyWorkflowCtx extends WorkflowContext {
+    type Effect = IO
     sealed trait State
     case class InitialState() extends State
     sealed trait Event
@@ -18,22 +21,22 @@ object InMemoryRuntimeExample {
   object Async {
     // async_doc_start
     import MyWorkflowCtx.*
-    val workflow: WIO.Initial                         = ???
-    val engine: WorkflowInstanceEngine                = ???
-    val runtime: InMemoryRuntime[Ctx]                 = InMemoryRuntime
+    val workflow: WIO.Initial                                       = ???
+    val engine: WorkflowInstanceEngine[IO, Ctx]                     = ???
+    val runtime: InMemoryConcurrentRuntime[IO, Ctx]                 = InMemoryConcurrentRuntime
       .default(workflow, InitialState(), engine)
       .unsafeRunSync()
-    val wfInstance: IO[InMemoryWorkflowInstance[Ctx]] = runtime.createInstance("my-workflow-1")
+    val wfInstance: IO[InMemoryConcurrentWorkflowInstance[IO, Ctx]] = runtime.createInstance("my-workflow-1")
     // async_doc_end
   }
 
   object Sync {
     // ssync_doc_start
     import MyWorkflowCtx.*
-    val workflow: WIO.Initial                         = ???
-    val engine: WorkflowInstanceEngine                = ???
-    val runtime: InMemorySyncRuntime[Ctx]             = InMemorySyncRuntime.create(workflow, InitialState(), engine)
-    val wfInstance: InMemorySyncWorkflowInstance[Ctx] = runtime.createInstance("my-workflow-1")
+    val workflow: WIO.Initial                                         = ???
+    val engine: WorkflowInstanceEngine[IO, Ctx]                       = ???
+    val runtime: InMemorySynchronizedRuntime[IO, Ctx]                 = InMemorySynchronizedRuntime.create(workflow, InitialState(), engine)
+    val wfInstance: IO[InMemorySynchronizedWorkflowInstance[IO, Ctx]] = runtime.createInstance("my-workflow-1")
     // ssync_doc_end
   }
 

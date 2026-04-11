@@ -1,11 +1,15 @@
 package workflows4s.example
 
+import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import org.apache.pekko.actor.testkit.typed.scaladsl.{ActorTestKit, ScalaTestWithActorTestKit}
 import org.apache.pekko.persistence.jdbc.testkit.scaladsl.SchemaUtils
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.freespec.AnyFreeSpecLike
+import workflows4s.example.withdrawal.WithdrawalWorkflow
 import workflows4s.runtime.pekko.PekkoRuntimeAdapter
+import workflows4s.wio.given
 
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
@@ -25,7 +29,12 @@ class PekkoWithdrawalWorkflowTest
   }
 
   "pekko" - {
-    withdrawalTests(new PekkoRuntimeAdapter("withdrawal")(using testKit.system))
+    withdrawalTests(
+      new PekkoRuntimeAdapter[IO, WithdrawalWorkflow.Context.Ctx](
+        "withdrawal",
+        [A] => (fa: IO[A]) => fa.unsafeToFuture(),
+      ),
+    )
   }
 
 }

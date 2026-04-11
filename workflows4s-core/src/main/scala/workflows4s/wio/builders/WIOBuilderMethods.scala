@@ -23,7 +23,9 @@ trait WIOBuilderMethods[Ctx <: WorkflowContext] {
 
   def noop(): WIO[Any, Nothing, Nothing, Ctx] = WIO.End[Ctx]()
 
-  def recover[In, Evt <: WCEvent[Ctx], Out <: WCState[Ctx]](handleEvent: (In, Evt) => Out)(using evtCt: ClassTag[Evt]): WIO[In, Nothing, Out, Ctx] = {
+  def recover[In, Evt <: WCEvent[Ctx], Out <: WCState[Ctx]](
+      handleEvent: (In, Evt) => Out,
+  )(using evtCt: ClassTag[Evt]): WIO[In, Nothing, Out, Ctx] = {
     WIO.Recovery(
       EventHandler.partial[WCEvent[Ctx], In, Out, Evt](identity, handleEvent),
     )

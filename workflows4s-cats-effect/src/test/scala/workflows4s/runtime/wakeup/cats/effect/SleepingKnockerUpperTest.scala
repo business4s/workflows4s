@@ -1,7 +1,7 @@
-package workflows4s.runtime.wakeup
+package workflows4s.runtime.wakeup.cats.effect
 
-import cats.effect.IO
-import cats.effect.unsafe.implicits.global
+import _root_.cats.effect.IO
+import _root_.cats.effect.unsafe.implicits.global
 import org.scalatest.freespec.AnyFreeSpec
 import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.testing.TestUtils
@@ -20,7 +20,7 @@ class SleepingKnockerUpperTest extends AnyFreeSpec {
       val wakeUpLogic: WorkflowInstanceId => IO[Unit] = id => IO { wokenUp = wokenUp.appended(id) }
 
       SleepingKnockerUpper
-        .create()
+        .create[IO]()
         .use { ku =>
           for {
             _  <- ku.initialize(wakeUpLogic)
@@ -38,7 +38,7 @@ class SleepingKnockerUpperTest extends AnyFreeSpec {
       var wokenUp                                     = false
       val wakeUpLogic: WorkflowInstanceId => IO[Unit] = _ => IO { wokenUp = true }
       SleepingKnockerUpper
-        .create()
+        .create[IO]()
         .use { ku =>
           for {
             _  <- ku.initialize(wakeUpLogic)
@@ -57,7 +57,7 @@ class SleepingKnockerUpperTest extends AnyFreeSpec {
       val wakeUpLogic: WorkflowInstanceId => IO[Unit] = _ => IO.unit
 
       val test = SleepingKnockerUpper
-        .create()
+        .create[IO]()
         .use { ku =>
           for {
             _   <- ku.initialize(wakeUpLogic)

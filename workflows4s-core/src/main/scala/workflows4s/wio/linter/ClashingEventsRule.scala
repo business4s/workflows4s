@@ -131,10 +131,13 @@ object ClashingEventsRule extends Rule {
     override def onDiscarded[In1](wio: WIO.Discarded[Ctx, In1]): List[ClassTag[?]]                                                         = Nil
     override def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): List[ClassTag[?]]                                             =
       extractMatchedClass(wio.eventHandler)
-    override def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): List[ClassTag[?]]          = recurse(wio.base)
-    override def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): List[ClassTag[?]] = recurse(
+    override def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): List[ClassTag[?]]          = recurse(
       wio.base,
     )
+    override def onHandleError[ErrIn, TempOut <: WCState[Ctx]](wio: WIO.HandleError[Ctx, In, Err, Out, ErrIn, TempOut]): List[ClassTag[?]] =
+      recurse(
+        wio.base,
+      )
     override def onRetry(wio: WIO.Retry[Ctx, In, Err, Out]): List[ClassTag[?]]                                                             = recurse(wio.base)
     override def onTransform[In1, Out1 <: WCState[Ctx], Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): List[ClassTag[?]]   = recurse(
       wio.base,

@@ -66,7 +66,8 @@ object UnnecessaryErrorHandlerRule extends Rule {
     ): List[LinterIssue]                                                                                                         =
       new UnnecessaryErrorHandlerVisitor(wio.elemWorkflow, path :+ "forEach").run
 
-    private def recurse(nextWio: WIO[?, ?, ?, Ctx], name: String): List[LinterIssue] = new UnnecessaryErrorHandlerVisitor(nextWio, path :+ name).run
+    private def recurse(nextWio: WIO[?, ?, ?, Ctx], name: String): List[LinterIssue] =
+      new UnnecessaryErrorHandlerVisitor(nextWio, path :+ name).run
 
     private def canSubtreeFail(wio: WIO[?, ?, ?, Ctx]): Boolean = {
       val visitor = new CanFailVisitor(wio)

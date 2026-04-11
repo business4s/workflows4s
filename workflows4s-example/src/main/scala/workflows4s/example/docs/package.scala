@@ -20,6 +20,7 @@ package object docs {
   case class SuccessResponse(result: String)
 
   object Context extends WorkflowContext {
+    type Effect[T]      = cats.effect.IO[T]
     override type Event = MyEventBase
     override type State = MyState
   }

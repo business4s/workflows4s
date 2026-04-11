@@ -4,6 +4,7 @@ import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 import workflows4s.testing.TestUtils
 import workflows4s.wio.{TestCtx2, TestState}
+import cats.effect.IO
 import workflows4s.wio.WIO.Draft
 
 class MermaidRendererTest extends AnyFreeSpec with Matchers {

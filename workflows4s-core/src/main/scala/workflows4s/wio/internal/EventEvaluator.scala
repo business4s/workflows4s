@@ -42,7 +42,7 @@ object EventEvaluator {
         .detect(event)
         .map(started => {
           val releaseTime = wio.getReleaseTime(started, input)
-          WIO.AwaitingTime(releaseTime, wio.releasedEventHandler)
+          (WIO.AwaitingTime(releaseTime, wio.releasedEventHandler): WIO[In, Err, Out, Ctx])
         })
         .map(WFExecution.Partial(_))
     }

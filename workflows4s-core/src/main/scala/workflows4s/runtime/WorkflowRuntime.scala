@@ -6,6 +6,11 @@ import workflows4s.wio.{WCState, WIO, WorkflowContext}
   *
   * Each runtime is tied to a single workflow definition (the `workflow` value) and a `templateId`. Implementations differ in how they persist state:
   * in-memory, database-backed (doobie), or actor-based (Pekko).
+  *
+  * @tparam F
+  *   the runtime effect type
+  * @tparam Ctx
+  *   the workflow context
   */
 trait WorkflowRuntime[F[_], Ctx <: WorkflowContext] {
 

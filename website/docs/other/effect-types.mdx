@@ -1,0 +1,95 @@
+---
+sidebar_position: 0.9
+sidebar_label: Effect Types
+---
+
+import SbtDependency from "@site/src/components/SbtDependency";
+
+# Effect Types
+
+Workflows4s is **effect-polymorphic** — your workflows can run with any effect type (`IO`, `Future`, `Try`, etc.).
+The effect type appears in three places, each with its own constraints:
+
+## Where effects are declared
+
+### 1. WorkflowContext — workflow logic
+
+The `Effect` type in your `WorkflowContext` controls what effects your workflow steps can use (e.g., in `runIO`).
+
+<!-- @formatter:off -->
+```scala file=./main/scala/workflows4s/example/docs/EffectExamples.scala start=effect_context_start end=effect_context_end
+```
+<!-- @formatter:on -->
+
+**Requirements:** None by default. Some convenience builders (like `handleSignal(...).purely` or `retry`) need
+`Applicative[Effect]`, but this is optional and required only on builder level.
+
+### 2. WorkflowRuntime — execution environment
+
+Each runtime has its own effect type `F[_]`, dictated by its execution model:
+
+| Runtime | Effect type | Constraint on `F` |
+|---------|-------------|-------------------|
+| `InMemorySynchronizedRuntime` | Any `F` | `MonadThrow[F]` + `WeakSync[F]` |
+| `InMemoryConcurrentRuntime` | Any `F` | `Async[F]` (cats-effect) |
+| `PekkoRuntime` | `Future` (hardcoded) | — |
+| `DatabaseRuntime` | Any `F` | `Async[F]` (cats-effect) |
+| `SqliteRuntime` | Any `F` | `Async[F]` (cats-effect) |
+
+### 3. WorkflowInstanceEngine — the bridge
+
+`WorkflowInstanceEngine[F, Ctx]` sits between the workflow logic and the runtime. Its `F` must match the runtime's
+effect type, and it carries a `WCEffectLift[Ctx, F]` that transforms the context's `Effect` into the runtime's `F`.
+
+**When `Effect` and `F` are the same** (the common case), `WCEffectLift` is derived automatically — you don't
+need to provide anything:
+
+<!-- @formatter:off -->
+```scala file=./main/scala/workflows4s/example/docs/EffectExamples.scala start=effect_same_start end=effect_same_end
+```
+<!-- @formatter:on -->
+
+**When they differ** (e.g., workflow uses `IO` but Pekko needs `Future`), use `engine.mapK` to transform:
+
+<!-- @formatter:off -->
+```scala file=./main/scala/workflows4s/example/docs/EffectExamples.scala start=effect_mapk_start end=effect_mapk_end
+```
+<!-- @formatter:on -->
+
+The base engine (via `WorkflowInstanceEngine.basic` or `.default`) requires `MonadThrow[F]` + `WeakSync[F]`.
+Additional wrappers can add their own constraints.
+
+
+## Examples
+
+### scala.util.Try
+
+No extra dependencies — `WeakSync[Try]` is provided by `workflows4s-core`.
+
+<!-- @formatter:off -->
+```scala file=./main/scala/workflows4s/example/docs/EffectExamples.scala start=effect_try_start end=effect_try_end
+```
+<!-- @formatter:on -->
+
+### scala.concurrent.Future (with Pekko)
+
+<!-- @formatter:off -->
+```scala file=./main/scala/workflows4s/example/docs/EffectExamples.scala start=effect_future_start end=effect_future_end
+```
+<!-- @formatter:on -->
+
+### cats.effect.IO
+
+<!-- @formatter:off -->
+```scala file=./main/scala/workflows4s/example/docs/EffectExamples.scala start=effect_io_start end=effect_io_end
+```
+<!-- @formatter:on -->
+
+### zio.Task
+
+Requires `zio-interop-cats` for cats typeclasses and a user-provided `WeakSync[Task]`.
+
+<!-- @formatter:off -->
+```scala file=./main/scala/workflows4s/example/docs/EffectExamples.scala start=effect_zio_start end=effect_zio_end
+```
+<!-- @formatter:on -->

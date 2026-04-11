@@ -1,8 +1,25 @@
 package workflows4s.wio
 
+import cats.effect.IO
 import workflows4s.runtime.WorkflowInstanceId
+import workflows4s.wio.internal.{SignalResult, WakeupResult}
+
+import java.time.Instant
+
+given WeakSync[IO] with {
+  override def delay[A](body: => A): IO[A] = IO(body)
+}
+
+extension [Ctx <: WorkflowContext](wf: ActiveWorkflow[Ctx])(using lift: LiftWorkflowEffect[Ctx, IO]) {
+  def handleSignal[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req): SignalResult[IO, WCEvent[Ctx], Resp] =
+    wf.handleSignal(signalDef, req, lift.asPoly)
+
+  def proceed(now: Instant): WakeupResult[IO, WCEvent[Ctx]] =
+    wf.proceed(now, lift.asPoly)
+}
 
 object TestCtx extends WorkflowContext {
+  type Effect[T] = IO[T]
   trait Event
   case class SimpleEvent(value: String) extends Event
   type State = String
@@ -41,6 +58,7 @@ object TestState {
 }
 
 object TestCtx2 extends WorkflowContext {
+  type Effect[T] = IO[T]
   trait Event
   case class TimerStarted(inner: WIO.Timer.Started)   extends Event
   case class TimerReleased(inner: WIO.Timer.Released) extends Event

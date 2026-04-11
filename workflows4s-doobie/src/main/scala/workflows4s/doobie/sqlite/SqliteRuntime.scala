@@ -1,7 +1,10 @@
 package workflows4s.doobie.sqlite
 
+import cats.arrow.FunctionK
 import cats.data.Kleisli
-import cats.effect.{IO, LiftIO}
+import cats.effect.Async
+import cats.syntax.flatMap.*
+import cats.syntax.functor.*
 import com.typesafe.scalalogging.StrictLogging
 import doobie.implicits.*
 import doobie.util.fragment.Fragment
@@ -20,39 +23,39 @@ import java.util.Properties
 /** Runtime using one SQLite database file per workflow instance. Auto-initializes the schema on first access. Suitable for embedded/single-node
   * deployments without an external database.
   */
-class SqliteRuntime[Ctx <: WorkflowContext](
+class SqliteRuntime[F[_]: Async, Ctx <: WorkflowContext](
     val workflow: Initial[Ctx],
     initialState: WCState[Ctx],
-    engine: WorkflowInstanceEngine,
+    engine: WorkflowInstanceEngine[F, Ctx],
     eventCodec: ByteCodec[WCEvent[Ctx]],
     workdir: Path,
     val templateId: String,
-) extends WorkflowRuntime[IO, Ctx]
+) extends WorkflowRuntime[F, Ctx]
     with StrictLogging {
-
   private val storage = SqliteWorkflowStorage[WCEvent[Ctx]](eventCodec)
 
-  override def createInstance(id: String): IO[WorkflowInstance[IO, State[Ctx]]] = {
+  override def createInstance(id: String): F[WorkflowInstance[F, State[Ctx]]] = {
     val dbPath = getDatabasePath(id)
     val xa     = createTransactor(dbPath)
-    for {
-      _ <- initSchema(xa, dbPath)
-    } yield {
+    val F      = Async[F]
+    F.flatMap(initSchema(xa, dbPath)) { _ =>
       val instanceId = WorkflowInstanceId(templateId, id)
-      val base       = new DbWorkflowInstance(
+      val base       = new DbWorkflowInstance[F, Ctx](
         instanceId,
         ActiveWorkflow(instanceId, workflow, initialState),
         storage,
         engine,
       )
 
-      new MappedWorkflowInstance(
-        base,
-        [t] =>
-          (connIo: Kleisli[ConnectionIO, LiftIO[ConnectionIO], t]) =>
-            // we use rawTrans because locking manages transactions itself.
-            // And querying events without locking doesn't require any kind of transaction.
-            WeakAsync.liftIO[ConnectionIO].use(liftIO => xa.rawTrans.apply(connIo.apply(liftIO))),
+      F.pure(
+        new MappedWorkflowInstance(
+          base,
+          [t] =>
+            (connIo: Kleisli[ConnectionIO, FunctionK[F, ConnectionIO], t]) =>
+              // we use rawTrans because locking manages transactions itself.
+              // And querying events without locking doesn't require any kind of transaction.
+              WeakAsync.liftK[F, ConnectionIO].use(fk => xa.rawTrans.apply(connIo.apply(fk))),
+        ),
       )
     }
   }
@@ -67,10 +70,10 @@ class SqliteRuntime[Ctx <: WorkflowContext](
     workdir.resolve(s"${sanitizeWorkflowId(workflowId)}.db")
   }
 
-  private def createTransactor(dbPath: Path): Transactor[IO] = {
+  private def createTransactor(dbPath: Path): Transactor[F] = {
     val dbUrl = s"jdbc:sqlite:${dbPath.toAbsolutePath}"
 
-    Transactor.fromDriverManager[IO](
+    Transactor.fromDriverManager[F](
       driver = "org.sqlite.JDBC",
       url = dbUrl,
       info = new Properties(),
@@ -78,39 +81,41 @@ class SqliteRuntime[Ctx <: WorkflowContext](
     )
   }
 
-  private def initSchema(xa: Transactor[IO], dbPath: Path): IO[Unit] = for {
-    dbExists <- IO(Files.exists(dbPath))
-    _        <- if !dbExists then {
-                  for {
-                    _   <- IO(logger.info(s"Initializing DB at ${dbPath}"))
-                    ddl <- IO.blocking(scala.io.Source.fromResource("schema/sqlite-schema.sql").mkString)
-                    _   <- Fragment.const(ddl).update.run.transact(xa).void
-                  } yield ()
-                } else IO.unit
-  } yield ()
+  private def initSchema(xa: Transactor[F], dbPath: Path): F[Unit] = {
+    val F = Async[F]
+    for {
+      dbExists <- F.blocking(Files.exists(dbPath))
+      _        <- if !dbExists then {
+                    for {
+                      _   <- F.delay(logger.info(s"Initializing DB at ${dbPath}"))
+                      ddl <- F.blocking(scala.util.Using.resource(scala.io.Source.fromResource("schema/sqlite-schema.sql"))(_.mkString))
+                      _   <- Fragment.const(ddl).update.run.transact(xa).void
+                    } yield ()
+                  } else F.unit
+    } yield ()
+  }
 
 }
 
 object SqliteRuntime {
-  def create[Ctx <: WorkflowContext](
+  def create[F[_]: Async, Ctx <: WorkflowContext](
       workflow: Initial[Ctx],
       initialState: WCState[Ctx],
       eventCodec: ByteCodec[WCEvent[Ctx]],
-      engine: WorkflowInstanceEngine,
+      engine: WorkflowInstanceEngine[F, Ctx],
       workdir: Path,
       templateId: String = s"sqlite-runtime-${java.util.UUID.randomUUID().toString.take(8)}",
-  ): IO[SqliteRuntime[Ctx]] = {
-
-    for {
-      _ <- IO(Files.createDirectories(workdir))
-    } yield new SqliteRuntime[Ctx](
-      workflow = workflow,
-      initialState = initialState,
-      eventCodec = eventCodec,
-      engine = engine,
-      workdir = workdir,
-      templateId = templateId,
-    )
-
+  ): F[SqliteRuntime[F, Ctx]] = {
+    val F = Async[F]
+    F.map(F.blocking(Files.createDirectories(workdir))) { _ =>
+      new SqliteRuntime[F, Ctx](
+        workflow = workflow,
+        initialState = initialState,
+        eventCodec = eventCodec,
+        engine = engine,
+        workdir = workdir,
+        templateId = templateId,
+      )
+    }
   }
 }

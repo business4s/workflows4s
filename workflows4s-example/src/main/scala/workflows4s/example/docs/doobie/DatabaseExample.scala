@@ -14,6 +14,7 @@ import scala.annotation.nowarn
 object DatabaseExample {
 
   object MyWorkflowCtx extends WorkflowContext {
+    type Effect = cats.effect.IO
     sealed trait State
     case class InitialState() extends State
     sealed trait Event
@@ -22,14 +23,14 @@ object DatabaseExample {
   import MyWorkflowCtx.*
   {
     // doc_start
-    val workflow: WIO.Initial           = ???
-    val initialState: State             = ???
-    val transactor: Transactor[IO]      = ???
-    val storage: WorkflowStorage[Event] = ???
-    val engine: WorkflowInstanceEngine  = ???
-    val templateId                      = "my-workflow"
+    val workflow: WIO.Initial                   = ???
+    val initialState: State                     = ???
+    val transactor: Transactor[IO]              = ???
+    val storage: WorkflowStorage[Event]         = ???
+    val engine: WorkflowInstanceEngine[IO, Ctx] = ???
+    val templateId                              = "my-workflow"
 
-    val runtime: DatabaseRuntime[Ctx]                      = DatabaseRuntime.create(workflow, initialState, transactor, engine, storage, templateId)
+    val runtime: DatabaseRuntime[IO, Ctx]                  = DatabaseRuntime.create(workflow, initialState, transactor, engine, storage, templateId)
     val wfInstance: IO[WorkflowInstance[IO, WCState[Ctx]]] = runtime.createInstance("1")
     // doc_end
   }

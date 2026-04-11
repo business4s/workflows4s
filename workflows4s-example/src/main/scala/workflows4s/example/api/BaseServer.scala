@@ -17,13 +17,14 @@ import workflows4s.example.docs.pullrequest.PullRequestWorkflow.PRState
 import workflows4s.example.pekko.DummyWithdrawalService
 import workflows4s.example.withdrawal.checks.ChecksEngine
 import workflows4s.example.withdrawal.{WithdrawalData, WithdrawalWorkflow}
-import workflows4s.runtime.InMemoryRuntime
+import workflows4s.runtime.cats.effect.InMemoryConcurrentRuntime
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.registry.InMemoryWorkflowRegistry
-import workflows4s.runtime.wakeup.SleepingKnockerUpper
+import workflows4s.runtime.wakeup.cats.effect.SleepingKnockerUpper
 import workflows4s.ui.bundle.UiEndpoints
 import workflows4s.web.api.server.{SignalSupport, WorkflowEntry, WorkflowServerEndpoints}
 import workflows4s.web.api.model.UIConfig
+import workflows4s.wio.cats.effect.WeakSyncInstances.given
 
 trait BaseServer {
 
@@ -34,31 +35,30 @@ trait BaseServer {
     */
   protected def apiRoutes: Resource[IO, HttpRoutes[IO]] = {
     for {
-      knockerUpper     <- SleepingKnockerUpper.create()
-      registry         <- InMemoryWorkflowRegistry().toResource
-      engine            = WorkflowInstanceEngine.default(knockerUpper, registry)
-      courseRegRuntime <- InMemoryRuntime
-                            .default[CourseRegistrationWorkflow.Context.Ctx](
+      knockerUpper     <- SleepingKnockerUpper.create[IO]()
+      registry          = InMemoryWorkflowRegistry[IO]()
+      courseRegRuntime <- InMemoryConcurrentRuntime
+                            .default[IO, CourseRegistrationWorkflow.Context.Ctx](
                               workflow = CourseRegistrationWorkflow.workflow,
                               initialState = CourseRegistrationWorkflow.RegistrationState.Empty,
-                              engine = engine,
+                              engine = WorkflowInstanceEngine.default(knockerUpper, registry),
                             )
                             .toResource
 
-      pullReqRuntime <- InMemoryRuntime
-                          .default[PullRequestWorkflow.Context.Ctx](
+      pullReqRuntime <- InMemoryConcurrentRuntime
+                          .default[IO, PullRequestWorkflow.Context.Ctx](
                             workflow = PullRequestWorkflow.workflow,
                             initialState = PullRequestWorkflow.PRState.Empty,
-                            engine = engine,
+                            engine = WorkflowInstanceEngine.default(knockerUpper, registry),
                           )
                           .toResource
 
       withdrawalWf       = WithdrawalWorkflow(DummyWithdrawalService, ChecksEngine)
-      withdrawalRuntime <- InMemoryRuntime
-                             .default[WithdrawalWorkflow.Context.Ctx](
+      withdrawalRuntime <- InMemoryConcurrentRuntime
+                             .default[IO, WithdrawalWorkflow.Context.Ctx](
                                workflow = withdrawalWf.workflowDeclarative,
                                initialState = WithdrawalData.Empty,
-                               engine = engine,
+                               engine = WorkflowInstanceEngine.default(knockerUpper, registry),
                              )
                              .toResource
       workflowEntries    = List[WorkflowEntry[IO, ?]](

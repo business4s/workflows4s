@@ -1,6 +1,5 @@
 package workflows4s.wio
 
-import cats.effect.IO
 import workflows4s.wio.WIO.HandleInterruption.InterruptionType
 import workflows4s.wio.WIO.Timer.DurationSource
 import workflows4s.wio.builders.AllBuilders
@@ -23,7 +22,7 @@ import scala.language.implicitConversions
   * @tparam Out
   *   output state type
   * @tparam Ctx
-  *   the workflow context binding State and Event types
+  *   the workflow context binding State, Event and Effect types
   */
 sealed trait WIO[-In, +Err, +Out <: WCState[Ctx], Ctx <: WorkflowContext] extends WIOMethods[Ctx, In, Err, Out]
 
@@ -42,7 +41,7 @@ object WIO {
 
   case class HandleSignal[Ctx <: WorkflowContext, -In, +Out <: WCState[Ctx], +Err, Req, Resp, Evt](
       sigDef: SignalDef[Req, Resp],
-      sigHandler: SignalHandler[Req, Evt, In],
+      sigHandler: SignalHandler[WCEffect[Ctx], Req, Evt, In],
       evtHandler: EventHandler[In, Either[Err, Out], WCEvent[Ctx], Evt],
       responseProducer: (In, Evt, Req) => Resp,
       meta: HandleSignal.Meta, // TODO here and everywhere else, we could use WIOMeta directly
@@ -57,7 +56,7 @@ object WIO {
   }
 
   case class RunIO[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx], Evt](
-      buildIO: In => IO[Evt],
+      buildIO: In => WCEffect[Ctx][Evt],
       evtHandler: EventHandler[In, Either[Err, Out], WCEvent[Ctx], Evt],
       meta: RunIO.Meta,
   ) extends WIO[In, Err, Out, Ctx]
@@ -126,8 +125,9 @@ object WIO {
           extends State[Ctx, In, Err, BodyIn, BodyOut]
       case class Backward[Ctx <: WorkflowContext, In, Err, BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx]](wio: WIO[In, Err, BodyIn, Ctx])
           extends State[Ctx, In, Err, BodyIn, BodyOut]
-      case class Finished[Ctx <: WorkflowContext, In, Err, BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx]](wio: WIO.Executed[Ctx, Err, BodyOut, In])
-          extends State[Ctx, In, Err, BodyIn, BodyOut]
+      case class Finished[Ctx <: WorkflowContext, In, Err, BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx]](
+          wio: WIO.Executed[Ctx, Err, BodyOut, In],
+      ) extends State[Ctx, In, Err, BodyIn, BodyOut]
     }
     case class Meta(
         releaseBranchName: Option[String],
@@ -243,11 +243,11 @@ object WIO {
 
     sealed trait Mode[Ctx <: WorkflowContext, -In, +Err, +Out]
     object Mode {
-      case class Stateless[Ctx <: WorkflowContext, -In](errorHandler: (In, Throwable, WCState[Ctx], Instant) => IO[Retry.Stateless.Result])
+      case class Stateless[Ctx <: WorkflowContext, -In](errorHandler: (In, Throwable, WCState[Ctx], Instant) => WCEffect[Ctx][Retry.Stateless.Result])
           extends Mode[Ctx, In, Nothing, Nothing]
 
       case class Stateful[Ctx <: WorkflowContext, Evt <: WCEvent[Ctx], -In, Err, +Out <: WCState[Ctx], RetryState](
-          errorHandler: ((stepInput: In, error: Throwable, workflowState: WCState[Ctx], retryState: Option[RetryState])) => IO[
+          errorHandler: ((stepInput: In, error: Throwable, workflowState: WCState[Ctx], retryState: Option[RetryState])) => WCEffect[Ctx][
             Retry.Stateful.Result[Evt],
           ],
           eventHandler: EventHandler[(In, WCState[Ctx], Option[RetryState]), Either[RetryState, Either[Err, Out]], WCEvent[Ctx], Evt],
@@ -285,7 +285,7 @@ object WIO {
   // This could also allow for raising errors.
   case class Checkpoint[Ctx <: WorkflowContext, -In, +Err, Out <: WCState[Ctx], Evt](
       base: WIO[In, Err, Out, Ctx],
-      genEvent: (In, Out) => IO[Evt],
+      genEvent: (In, Out) => WCEffect[Ctx][Evt],
       eventHandler: EventHandler[In, Out, WCEvent[Ctx], Evt],
   ) extends WIO[In, Err, Out, Ctx]
 
@@ -315,6 +315,7 @@ object WIO {
       stateOpt: Option[Map[Elem, WIO[Any, Err, ElemOut, InnerCtx]]],
       signalRouter: SignalRouter.Receiver[Elem, InterimState],
       meta: WIOMeta.ForEach,
+      liftInnerEffect: [A] => WCEffect[InnerCtx][A] => WCEffect[Ctx][A],
   ) extends WIO[In, Err, Out, Ctx] {
     def state(input: In): Map[Elem, WIO[Any, Err, ElemOut, InnerCtx]] =
       stateOpt.getOrElse(getElements(input).map(elemId => elemId -> elemWorkflow.provideInput(elemId)).toMap)

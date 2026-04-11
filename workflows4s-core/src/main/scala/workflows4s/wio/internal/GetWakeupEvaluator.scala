@@ -7,7 +7,7 @@ import scala.math.Ordering.Implicits.infixOrderingOps
 
 object GetWakeupEvaluator {
 
-  def extractNearestWakeup[Ctx <: WorkflowContext, StIn <: WCState[Ctx]](
+  def extractNearestWakeup[Ctx <: WorkflowContext](
       wio: WIO[?, ?, WCState[Ctx], Ctx],
   ): Option[Instant] = {
     val visitor = new GetWakeupVisitor(wio)

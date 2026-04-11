@@ -1,5 +1,6 @@
 package workflows4s.wio
 
+import cats.{Functor, MonadThrow}
 import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.wio.internal.*
 import workflows4s.wio.model.WIOExecutionProgress
@@ -28,9 +29,13 @@ case class ActiveWorkflow[Ctx <: WorkflowContext](id: WorkflowInstanceId, wio: W
     SignalEvaluator.getExpectedSignals(wf.wio, includeRedeliverable)
   }
 
-  def handleSignal[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req): SignalResult[WCEvent[Ctx], Resp] = {
+  def handleSignal[F[_]: Functor, Req, Resp](
+      signalDef: SignalDef[Req, Resp],
+      req: Req,
+      liftEffect: WCEffectLift[Ctx, F],
+  ): SignalResult[F, WCEvent[Ctx], Resp] = {
     val wf = effectlessProceed
-    SignalEvaluator.handleSignal(signalDef, req, wf.wio, wf.staticState)
+    SignalEvaluator.handleSignal(signalDef, req, wf.wio, wf.staticState, liftEffect)
   }
 
   def handleEvent(event: WCEvent[Ctx]): Option[ActiveWorkflow[Ctx]] = {
@@ -42,9 +47,9 @@ case class ActiveWorkflow[Ctx <: WorkflowContext](id: WorkflowInstanceId, wio: W
       .map(x => x.effectlessProceed)
   }
 
-  def proceed(now: Instant): WakeupResult[WCEvent[Ctx]] = {
+  def proceed[F[_]: MonadThrow](now: Instant, liftEffect: WCEffectLift[Ctx, F]): WakeupResult[F, WCEvent[Ctx]] = {
     val wf = effectlessProceed
-    RunIOEvaluator.proceed(wf.wio, wf.staticState, now)
+    RunIOEvaluator.proceed(wf.wio, wf.staticState, now, liftEffect)
   }
 
   def progress: WIOExecutionProgress[WCState[Ctx]] = effectlessProceed.wio.toProgress
