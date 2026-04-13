@@ -31,3 +31,30 @@
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
 }
 
+/* GitHub source link button inside code block button group */
+.source-link-btn {
+  display: flex;
+  align-items: center;
+  background: var(--prism-background-color);
+  color: var(--prism-color);
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: var(--ifm-global-radius);
+  padding: 0.4rem;
+  line-height: 0;
+  font-size: 1.125rem;
+  transition: opacity var(--ifm-transition-fast) ease-in-out;
+  opacity: 0;
+  text-decoration: none;
+}
+
+.source-link-btn:focus-visible,
+.source-link-btn:hover {
+  opacity: 1 !important;
+  color: var(--prism-color);
+  text-decoration: none;
+}
+
+.theme-code-block:hover .source-link-btn {
+  opacity: 0.4;
+}
+

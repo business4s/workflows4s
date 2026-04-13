@@ -2,6 +2,8 @@ import {themes as prismThemes} from 'prism-react-renderer';
 import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
+const EXAMPLE_SRC_DIR = "../workflows4s-example/src/";
+
 const config: Config = {
     title: 'Workflows4s',
     tagline: 'Simple, Composable, Business-oriented Workflows for Scala',
@@ -42,8 +44,11 @@ const config: Config = {
                     beforeDefaultRemarkPlugins: [
                         [
                             require('remark-code-snippets'),
-                            {baseDir: "../workflows4s-example/src/"}
+                            {baseDir: EXAMPLE_SRC_DIR}
                         ]
+                    ],
+                    remarkPlugins: [
+                        [require('./src/remark/source-link'), {baseDir: EXAMPLE_SRC_DIR}],
                     ],
                 },
                 theme: {
