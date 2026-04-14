@@ -85,8 +85,8 @@ object LiftWorkflowEffect {
   private def injectEffect[Eff[_], Ctx <: WorkflowContext.AuxEff[Eff]]: [A] => Eff[A] => WCEffect[Ctx][A] =
     [A] => (fa: Eff[A]) => fa.asInstanceOf[WCEffect[Ctx][A]]
 
-  given [Eff[_], Ctx1 <: WorkflowContext.AuxEff[Eff], Ctx2 <: WorkflowContext.AuxEff[Eff]](
-      using base: LiftWorkflowEffect[Ctx1, Eff],
+  given [Eff[_], Ctx1 <: WorkflowContext.AuxEff[Eff], Ctx2 <: WorkflowContext.AuxEff[Eff]](using
+      base: LiftWorkflowEffect[Ctx1, Eff],
   ): LiftWorkflowEffect[Ctx1, WCEffect[Ctx2]] =
     through[Ctx1, Eff](using base)[WCEffect[Ctx2]](injectEffect[Eff, Ctx2])
 

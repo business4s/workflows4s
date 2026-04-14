@@ -18,7 +18,7 @@ class WIORunIOTest extends AnyFreeSpec, Matchers, EitherValues, OptionValues {
 
     "proceed" in {
       val wf = WIO
-        .runIO[String](input => IO.pure(s"ProcessedEvent($input)"): IO[Event])
+        .runIO[String](input => IO.pure(s"ProcessedEvent($input)": Event))
         .handleEvent(ignore)
         .done
         .toWorkflow("initialState")
@@ -68,7 +68,7 @@ class WIORunIOTest extends AnyFreeSpec, Matchers, EitherValues, OptionValues {
 
     "metadata attachment" - {
       val base = WIO
-        .runIO[String](input => IO.pure(s"EventGenerated($input)"): IO[Event])
+        .runIO[String](input => IO.pure(s"EventGenerated($input)": Event))
         .handleEvent(ignore)
 
       extension (x: WIO[?, ?, ?]) {
