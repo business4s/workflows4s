@@ -50,9 +50,9 @@ class SleepingKnockerUpper[F[_]: Async](
       _       <- wakeup(id)
     } yield ())
       .guaranteeCase({
-        case Outcome.Succeeded(_) => Async[F].delay(logger.debug(s"Sleep for $id cancelled")) >> removeSpecific(id, at)
+        case Outcome.Canceled() => Async[F].delay(logger.debug(s"Sleep for $id cancelled")) >> removeSpecific(id, at)
         case Outcome.Errored(e)   => Async[F].delay(logger.debug(s"Failed to wake up $id", e)) >> removeSpecific(id, at)
-        case Outcome.Canceled()   => removeSpecific(id, at)
+        case Outcome.Succeeded(_)   => removeSpecific(id, at)
       })
   }
 
