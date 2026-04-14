@@ -42,9 +42,9 @@ object EventEvaluator {
         .detect(event)
         .map(started => {
           val releaseTime = wio.getReleaseTime(started, input)
-          (WIO.AwaitingTime(releaseTime, wio.releasedEventHandler): WIO[In, Err, Out, Ctx])
+          val newWIO      = WIO.AwaitingTime(releaseTime, wio.releasedEventHandler)
+          WFExecution.Partial(newWIO)
         })
-        .map(WFExecution.Partial(_))
     }
 
     def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_ <: WCState[InnerCtx]] <: WCState[Ctx]](
