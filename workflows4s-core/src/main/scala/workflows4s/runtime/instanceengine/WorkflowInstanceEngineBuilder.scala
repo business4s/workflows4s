@@ -9,7 +9,7 @@ import java.time.Clock
 
 object WorkflowInstanceEngineBuilder {
 
-  def withJavaTime[F[_]: MonadThrow](clock: Clock = Clock.systemUTC()) = Step1[F](clock)
+  def apply[F[_]: MonadThrow](clock: Clock = Clock.systemUTC()) = Step1[F](clock)
 
   class Step1[F[_]: MonadThrow](clock: Clock) {
 
