@@ -16,7 +16,7 @@ object DraftBuilder {
     val draft: DraftBuilderStep1.type = DraftBuilderStep1
 
     object DraftBuilderStep1 {
-      def signal(name: String = null, error: String = null)(using autoName: sourcecode.Name): WIO[Any, Nothing, Nothing, Ctx]                 =
+      def signal(name: String = null, error: String = null)(using autoName: sourcecode.Name): WIO.Draft[Ctx] =
         WIO.HandleSignal(
           draftSignal,
           SignalHandler[WCEffect[Ctx], Unit, Unit, Any]((_, _) => ???),
@@ -28,7 +28,7 @@ object DraftBuilder {
             None,
           ),
         )
-      def timer(name: String = null, duration: FiniteDuration = null)(using autoName: sourcecode.Name): WIO.Timer[Ctx, Any, Nothing, Nothing] =
+      def timer(name: String = null, duration: FiniteDuration = null)(using autoName: sourcecode.Name): WIO.Draft[Ctx] =
         WIO.Timer(
           Option(duration) match {
             case Some(value) => WIO.Timer.DurationSource.Static(value.toJava)
@@ -41,7 +41,7 @@ object DraftBuilder {
 
       def step(name: String = null, error: String = null, description: String = null)(using
           autoName: sourcecode.Name,
-      ): WIO[Any, Nothing, Nothing, Ctx] = WIO.RunIO(
+      ): WIO.Draft[Ctx] = WIO.RunIO(
         _ => ???,
         dummyEventHandler,
         WIO.RunIO.Meta(
@@ -53,16 +53,16 @@ object DraftBuilder {
 
       def choice(
           name: String = null,
-      )(branches: (String, WIO[Any, Nothing, Nothing, Ctx])*)(using autoName: sourcecode.Name): WIO[Any, Nothing, Nothing, Ctx] = {
+      )(branches: (String, WIO.Draft[Ctx])*)(using autoName: sourcecode.Name): WIO.Draft[Ctx] = {
         val branchWios = branches.map { case (branchName, wio) =>
           WIO.Branch(_ => None, wio, Some(branchName))
         }
         WIO.Fork(branchWios.toVector, getEffectiveName(name, autoName).some, None)
       }
 
-      def forEach(forEach: WIO[Any, Nothing, Nothing, Ctx], name: String = null)(using
+      def forEach(forEach: WIO.Draft[Ctx], name: String = null)(using
           autoName: sourcecode.Name,
-      ): WIO[Any, Nothing, Nothing, Ctx] = {
+      ): WIO.Draft[Ctx] = {
         val effName = getEffectiveName(name, autoName).some
         WIO.ForEach(
           _ => ???,
@@ -162,8 +162,8 @@ object DraftBuilder {
 
       object syntax {
         extension (base: WIO.Draft[Ctx]) {
-          def draftCheckpointed: WIO.Draft[Ctx]           = checkpoint(base)
-          def draftRetry: WIO[Any, Nothing, Nothing, Ctx] = retry(base)
+          def draftCheckpointed: WIO.Draft[Ctx] = checkpoint(base)
+          def draftRetry: WIO.Draft[Ctx]        = retry(base)
         }
       }
 
