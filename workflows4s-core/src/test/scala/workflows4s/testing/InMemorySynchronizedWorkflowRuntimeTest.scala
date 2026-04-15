@@ -8,7 +8,7 @@ import zio.*
 import zio.interop.catz.*
 
 import scala.concurrent.{Await, Future}
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.DurationInt
 import scala.util.Try
 
 import EffectInstances.given
@@ -45,7 +45,7 @@ class InMemorySynchronizedWorkflowRuntimeTest extends WorkflowRuntimeTest.Suite 
       }
       "Future" - {
         matrixTests(TestCtxFuture)(
-          InMemorySynchronizedTestRuntimeAdapter[Future, TestCtxFuture.Ctx]([A] => (fa: Future[A]) => Await.result(fa, Duration.Inf)),
+          InMemorySynchronizedTestRuntimeAdapter[Future, TestCtxFuture.Ctx]([A] => (fa: Future[A]) => Await.result(fa, 3.seconds)),
         )
       }
     }

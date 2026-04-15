@@ -37,8 +37,7 @@ class SqliteRuntime[F[_]: Async, Ctx <: WorkflowContext](
   override def createInstance(id: String): F[WorkflowInstance[F, State[Ctx]]] = {
     val dbPath = getDatabasePath(id)
     val xa     = createTransactor(dbPath)
-    val F      = Async[F]
-    F.flatMap(initSchema(xa, dbPath)) { _ =>
+    initSchema(xa, dbPath).map { _ =>
       val instanceId = WorkflowInstanceId(templateId, id)
       val base       = new DbWorkflowInstance[F, Ctx](
         instanceId,
@@ -46,16 +45,13 @@ class SqliteRuntime[F[_]: Async, Ctx <: WorkflowContext](
         storage,
         engine,
       )
-
-      F.pure(
-        new MappedWorkflowInstance(
-          base,
-          [t] =>
-            (connIo: Kleisli[ConnectionIO, FunctionK[F, ConnectionIO], t]) =>
-              // we use rawTrans because locking manages transactions itself.
-              // And querying events without locking doesn't require any kind of transaction.
-              WeakAsync.liftK[F, ConnectionIO].use(fk => xa.rawTrans.apply(connIo.apply(fk))),
-        ),
+      new MappedWorkflowInstance(
+        base,
+        [t] =>
+          (connIo: Kleisli[ConnectionIO, FunctionK[F, ConnectionIO], t]) =>
+            // we use rawTrans because locking manages transactions itself.
+            // And querying events without locking doesn't require any kind of transaction.
+            WeakAsync.liftK[F, ConnectionIO].use(fk => xa.rawTrans.apply(connIo.apply(fk))),
       )
     }
   }
@@ -106,8 +102,7 @@ object SqliteRuntime {
       workdir: Path,
       templateId: String = s"sqlite-runtime-${java.util.UUID.randomUUID().toString.take(8)}",
   ): F[SqliteRuntime[F, Ctx]] = {
-    val F = Async[F]
-    F.map(F.blocking(Files.createDirectories(workdir))) { _ =>
+    Async[F].blocking(Files.createDirectories(workdir)).map { _ =>
       new SqliteRuntime[F, Ctx](
         workflow = workflow,
         initialState = initialState,
