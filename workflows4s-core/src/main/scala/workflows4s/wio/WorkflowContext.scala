@@ -34,13 +34,6 @@ trait WorkflowContext { ctx: WorkflowContext =>
     type Initial                           = workflows4s.wio.WIO.Initial[Ctx]
 
   }
-
-  // Bridge: WCEffect[Ctx] is always Effect at runtime, but the Scala 3 match type system fails to reduce our AUX.
-  // These bridges provide:
-  // 1. Typeclass instances for WCEffect[Ctx] derived from Effect instances
-  // 2. Implicit conversions between Effect and WCEffect[Ctx]
-  implicit def wcEffectApplicative(implicit a: Applicative[Effect]): Applicative[WCEffect[Ctx]] = a.asInstanceOf[Applicative[WCEffect[Ctx]]]
-  implicit def effectToWCEffect[A](fa: Effect[A]): WCEffect[Ctx][A]                             = fa.asInstanceOf[WCEffect[Ctx][A]]
 }
 
 object WorkflowContext {
@@ -58,4 +51,12 @@ object WorkflowContext {
   }
 
   type AUX[St, Evt, Eff[_]] = WorkflowContext { type State = St; type Event = Evt; type Effect[T] = Eff[T] }
+
+  // Bridges between Eff[A] and WCEffect[Ctx][A]. Both live in the companion so they participate in the
+  // implicit scope of WCEffect[Ctx] without requiring `import ctx.given` at call sites.
+  given effectToWCEffect[Eff[_], Ctx <: AuxEff[Eff], A]: Conversion[Eff[A], WCEffect[Ctx][A]] =
+    _.asInstanceOf[WCEffect[Ctx][A]]
+
+  given wcEffectApplicative[Eff[_], Ctx <: AuxEff[Eff]](using a: Applicative[Eff]): Applicative[WCEffect[Ctx]] =
+    a.asInstanceOf[Applicative[WCEffect[Ctx]]]
 }

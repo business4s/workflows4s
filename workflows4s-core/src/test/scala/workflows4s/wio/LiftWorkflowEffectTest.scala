@@ -30,15 +30,15 @@ class LiftWorkflowEffectTest extends AnyFreeSpec with Matchers {
   "LiftWorkflowEffect" - {
 
     "should extract effect values from a context" in {
-      val lift     = summon[LiftWorkflowEffect[CtxIO1.Ctx, IO]]
-      val wcEffect = CtxIO1.effectToWCEffect(IO(42))
+      val lift                                = summon[LiftWorkflowEffect[CtxIO1.Ctx, IO]]
+      val wcEffect: WCEffect[CtxIO1.Ctx][Int] = IO(42)
       lift.apply(wcEffect).unsafeRunSync() shouldBe 42
     }
 
     "should convert between contexts with the same effect type" in {
-      val between  = summon[LiftWorkflowEffect.Between[CtxIO1.Ctx, CtxIO2.Ctx]]
-      val wcEffect = CtxIO1.effectToWCEffect(IO(42))
-      val lifted   = between.apply(wcEffect)
+      val between                             = summon[LiftWorkflowEffect.Between[CtxIO1.Ctx, CtxIO2.Ctx]]
+      val wcEffect: WCEffect[CtxIO1.Ctx][Int] = IO(42)
+      val lifted                              = between.apply(wcEffect)
 
       val extract = summon[LiftWorkflowEffect[CtxIO2.Ctx, IO]]
       extract.apply(lifted).unsafeRunSync() shouldBe 42
@@ -48,8 +48,8 @@ class LiftWorkflowEffectTest extends AnyFreeSpec with Matchers {
       val liftTryToIO: LiftWorkflowEffect[CtxTry.Ctx, IO] =
         LiftWorkflowEffect.through[CtxTry.Ctx, Try]([A] => (fa: Try[A]) => IO.fromTry(fa))
 
-      val wcEffect = CtxTry.effectToWCEffect(Try(42))
-      val result   = liftTryToIO.apply(wcEffect)
+      val wcEffect: WCEffect[CtxTry.Ctx][Int] = Try(42)
+      val result                              = liftTryToIO.apply(wcEffect)
       result.unsafeRunSync() shouldBe 42
     }
 

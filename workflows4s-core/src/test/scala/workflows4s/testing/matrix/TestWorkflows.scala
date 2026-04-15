@@ -1,6 +1,5 @@
 package workflows4s.testing.matrix
 
-import cats.Applicative
 import workflows4s.wio.*
 
 import java.util.UUID
@@ -28,7 +27,6 @@ object TestWorkflows {
   }
 
   def signal(ctx: TestContextBase): (SignalDef[Int, Int], StepId, ctx.WIO[TestState, Nothing, TestState]) = {
-    given Applicative[WCEffect[ctx.Ctx]] = ctx.wcEffectApplicative(using ctx.effectApplicative)
     val signalDef                        = SignalDef[Int, Int](id = UUID.randomUUID().toString)
     val stepId                           = StepId.random("signal")
     val wio                              = ctx.WIO
