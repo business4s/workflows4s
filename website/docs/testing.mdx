@@ -18,4 +18,4 @@ All utilities are in the `wio.testing` package and included in the `workflows4s-
 ## Testing Approach
 
 When testing workflows in Workflows4s, it's recommended to isolate workflow logic from external effects by placing business operations behind interfaces and mocking them.
-This allows you to test the shape and event flow of the workflow deterministically using the `InMemoryRuntime` or `InMemorySyncRuntime`. These tests are fast, focused, and suitable for verifying state transitions and signal handling. For full confidence, users are also encouraged to write end-to-end tests that use real implementations and a real runtime to validate integration and correctness in realistic scenarios.
+This allows you to test the shape and event flow of the workflow deterministically using the `InMemoryConcurrentRuntime` or `InMemorySynchronizedRuntime`. These tests are fast, focused, and suitable for verifying state transitions and signal handling. For full confidence, users are also encouraged to write end-to-end tests that use real implementations and a real runtime to validate integration and correctness in realistic scenarios.

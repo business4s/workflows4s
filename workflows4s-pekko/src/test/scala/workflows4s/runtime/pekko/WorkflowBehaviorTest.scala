@@ -89,8 +89,9 @@ class WorkflowBehaviorTest extends AnyFreeSpec with Matchers with BeforeAndAfter
 
 object WorkflowBehaviorTest {
   object DummyCtx extends WorkflowContext {
-    type Event = DummyEvent
-    type State = DummyState
+    type Effect = cats.effect.IO
+    type Event  = DummyEvent
+    type State  = DummyState
   }
   case class DummyEvent()
   case class DummyState()

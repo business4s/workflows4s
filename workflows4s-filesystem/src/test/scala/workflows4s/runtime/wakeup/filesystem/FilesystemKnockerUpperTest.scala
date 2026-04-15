@@ -17,9 +17,9 @@ class FilesystemKnockerUpperTest extends AnyFreeSpec {
     val clock = new TestClock
 
     withTemporaryDirectory(tempDir => {
-      val scheduler                           = new PollingFsScheduler(tempDir, clock, 100.millis)
+      val scheduler                           = new PollingFsScheduler[IO](tempDir, clock, 100.millis)
       var wakeups: Vector[WorkflowInstanceId] = Vector()
-      val knockerUpper                        = new FilesystemKnockerUpper(scheduler)
+      val knockerUpper                        = new FilesystemKnockerUpper[IO](scheduler)
 
       val (id1, id2) = (TestUtils.randomWfId(), TestUtils.randomWfId())
       val now        = clock.instant
@@ -49,9 +49,9 @@ class FilesystemKnockerUpperTest extends AnyFreeSpec {
     val clock = new TestClock
 
     withTemporaryDirectory(tempDir => {
-      val scheduler                           = new PollingFsScheduler(tempDir, clock, 100.millis)
+      val scheduler                           = new PollingFsScheduler[IO](tempDir, clock, 100.millis)
       var wakeups: Vector[WorkflowInstanceId] = Vector()
-      val knockerUpper                        = new FilesystemKnockerUpper(scheduler)
+      val knockerUpper                        = new FilesystemKnockerUpper[IO](scheduler)
 
       val id1 = TestUtils.randomWfId()
       val now = clock.instant

@@ -1,8 +1,17 @@
 package workflows4s.testing
 
+import cats.Id
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
-import workflows4s.runtime.{InMemorySyncRuntime, InMemorySyncWorkflowInstance, WorkflowInstanceId}
+import workflows4s.runtime.{
+  DelegateWorkflowInstance,
+  InMemorySynchronizedRuntime,
+  InMemorySynchronizedWorkflowInstance,
+  MappedWorkflowInstance,
+  WorkflowInstance,
+  WorkflowInstanceId,
+}
 import workflows4s.wio.*
 
 import java.time.Instant
@@ -10,30 +19,35 @@ import java.util.UUID
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.util.Random
 
+class SyncWorkflowInstance[Ctx <: WorkflowContext](
+    val base: InMemorySynchronizedWorkflowInstance[IO, Ctx],
+) extends DelegateWorkflowInstance[Id, WCState[Ctx]] {
+  val delegate: WorkflowInstance[Id, WCState[Ctx]] = MappedWorkflowInstance(base, [t] => (x: IO[t]) => x.unsafeRunSync())
+  def getEvents: Seq[WCEvent[Ctx]]                 = base.getEvents
+  def recover(events: Seq[WCEvent[Ctx]]): Unit     = base.recover(events).unsafeRunSync()
+}
+
 class TestRuntime {
   val clock        = TestClock()
-  val knockerUpper = RecordingKnockerUpper()
+  val knockerUpper = RecordingKnockerUpper[IO]()
 
-  val engine: WorkflowInstanceEngine =
-    WorkflowInstanceEngine.builder
-      .withJavaTime(clock)
+  val engine: WorkflowInstanceEngine[IO, TestCtx2.Ctx] =
+    WorkflowInstanceEngine
+      .builder[IO](clock)
       .withWakeUps(knockerUpper)
       .withoutRegistering
       .withGreedyEvaluation
       .withLogging
       .get
 
-  def createInstance(wio: WIO[TestState, Nothing, TestState, TestCtx2.Ctx]): InMemorySyncWorkflowInstance[TestCtx2.Ctx] = {
-    import cats.effect.unsafe.implicits.global
-    val instance: InMemorySyncWorkflowInstance[TestCtx2.Ctx] =
-      new InMemorySyncRuntime[TestCtx2.Ctx](
-        wio.provideInput(TestState.empty),
-        TestState.empty,
-        engine,
-        "test",
-      )
-        .createInstance(UUID.randomUUID().toString)
-    instance
+  def createInstance(wio: WIO[TestState, Nothing, TestState, TestCtx2.Ctx]): SyncWorkflowInstance[TestCtx2.Ctx] = {
+    val runtime = InMemorySynchronizedRuntime.create[IO, TestCtx2.Ctx](
+      wio.provideInput(TestState.empty),
+      TestState.empty,
+      engine,
+      "test",
+    )
+    new SyncWorkflowInstance(runtime.createInstance(UUID.randomUUID().toString).unsafeRunSync())
   }
 }
 
@@ -43,18 +57,16 @@ object TestUtils {
 
   type Error = String
 
-  def createInstance2(wio: WIO[TestState, Nothing, TestState, TestCtx2.Ctx]): (TestClock, InMemorySyncWorkflowInstance[TestCtx2.Ctx]) = {
-    val clock                                                = new TestClock()
-    import cats.effect.unsafe.implicits.global
-    val instance: InMemorySyncWorkflowInstance[TestCtx2.Ctx] =
-      new InMemorySyncRuntime[TestCtx2.Ctx](
-        wio.provideInput(TestState.empty),
-        TestState.empty,
-        WorkflowInstanceEngine.basic(clock),
-        "test",
-      )
-        .createInstance(UUID.randomUUID().toString)
-    (clock, instance)
+  def createInstance2(wio: WIO[TestState, Nothing, TestState, TestCtx2.Ctx]): (TestClock, SyncWorkflowInstance[TestCtx2.Ctx]) = {
+    val clock   = new TestClock()
+    val engine  = WorkflowInstanceEngine.basic[IO, TestCtx2.Ctx](clock)
+    val runtime = InMemorySynchronizedRuntime.create[IO, TestCtx2.Ctx](
+      wio.provideInput(TestState.empty),
+      TestState.empty,
+      engine,
+      "test",
+    )
+    (clock, new SyncWorkflowInstance(runtime.createInstance(UUID.randomUUID().toString).unsafeRunSync()))
   }
 
   def pure: (StepId, WIO[TestState, Nothing, TestState, TestCtx2.Ctx]) = {

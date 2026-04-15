@@ -1,9 +1,12 @@
 package workflows4s.example.checks
 
+import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import org.apache.pekko.actor.testkit.typed.scaladsl.{ActorTestKit, ScalaTestWithActorTestKit}
 import org.apache.pekko.persistence.jdbc.testkit.scaladsl.SchemaUtils
 import org.scalatest.freespec.AnyFreeSpecLike
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
+import workflows4s.example.withdrawal.checks.ChecksEngine
 import workflows4s.runtime.pekko.PekkoRuntimeAdapter
 
 import scala.concurrent.Await
@@ -17,7 +20,12 @@ class PekkoChecksEngineTest extends ScalaTestWithActorTestKit(ActorTestKit("MyCl
   }
 
   "pekko" - {
-    checkEngineTests(new PekkoRuntimeAdapter("checks-engine")(using testKit.system))
+    checkEngineTests(
+      new PekkoRuntimeAdapter[IO, ChecksEngine.Context.Ctx](
+        "checks-engine",
+        [A] => (fa: IO[A]) => fa.unsafeToFuture(),
+      ),
+    )
   }
 
 }

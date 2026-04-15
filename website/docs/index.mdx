@@ -97,7 +97,7 @@ and different parts of the workflow can use different errors. In this example, w
 visible in type signatures.
 
 Now that we have covered these concepts,
-we can plug state and events into our context
+we can plug state, events, and effect type into our context
 (that will replace the `DraftWorkflowContext` we used initially) and start defining the steps.
 <!-- @formatter:off -->
 ```scala file=./main/scala/workflows4s/example/docs/pullrequest/PullRequestWorkflow.scala start=start_context end=end_context
@@ -152,8 +152,8 @@ same process we defined initially.
 
 ## Running the workflow
 
-Let's now see how to run the workflow. To do that, we need a [runtime](runtimes). For simplicity’s sake, we will go with
-synchronous in-memory runtime.
+Let’s now see how to run the workflow. To do that, we need a [runtime](runtimes). For simplicity’s sake, we will use
+the in-memory synchronized runtime.
 
 <!-- @formatter:off -->
 ```scala file=./main/scala/workflows4s/example/docs/pullrequest/PullRequestWorkflow.scala start=start_execution end=end_execution

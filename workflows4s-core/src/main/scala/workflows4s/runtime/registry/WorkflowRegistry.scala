@@ -1,6 +1,6 @@
 package workflows4s.runtime.registry
 
-import cats.effect.IO
+import cats.Applicative
 import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.wio.ActiveWorkflow
 
@@ -12,10 +12,14 @@ object WorkflowRegistry {
   }
 
   /** Called by the engine after each state change to update the registry. */
-  trait Agent {
+  trait Agent[F[_]] {
 
-    def upsertInstance(inst: ActiveWorkflow[?], executionStatus: ExecutionStatus): IO[Unit]
+    def upsertInstance(inst: ActiveWorkflow[?], executionStatus: ExecutionStatus): F[Unit]
 
+  }
+
+  object Agent {
+    def noop[F[_]: {Applicative as a}]: Agent[F] = (_: ActiveWorkflow[?], _: ExecutionStatus) => a.pure(())
   }
 
   /** Extracts user-defined tags from workflow state for filtering/searching. */

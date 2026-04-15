@@ -1,7 +1,6 @@
 package workflows4s.runtime.pekko
 
 import cats.data.Ior
-import cats.effect.IO
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.pekko.actor.typed.scaladsl.{ActorContext, Behaviors}
 import org.apache.pekko.actor.typed.{ActorRef, Behavior}
@@ -13,13 +12,14 @@ import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine.PostExecCommand
 import workflows4s.wio.*
-import workflows4s.wio.internal.SignalResult
+import workflows4s.wio.internal.{SignalResult, WakeupResult}
 import workflows4s.wio.internal.SignalResult.ProcessingResult
 import workflows4s.wio.model.WIOExecutionProgress
 
 import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicReference
+import scala.concurrent.Future
 import scala.util.chaining.scalaUtilChainingOps
 import scala.util.{Failure, Success}
 
@@ -35,7 +35,7 @@ object WorkflowBehavior {
       id: PersistenceId,
       workflow: WIO.Initial[Ctx],
       initialState: WCState[Ctx],
-      engine: WorkflowInstanceEngine,
+      engine: WorkflowInstanceEngine[Future, Ctx],
   ): Behavior[Command[Ctx]] =
     new WorkflowBehavior(instanceId, id, workflow, initialState, engine).behavior
 
@@ -75,7 +75,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
     id: PersistenceId,
     workflow: WIO.Initial[Ctx],
     initialState: WCState[Ctx],
-    engine: WorkflowInstanceEngine,
+    engine: WorkflowInstanceEngine[Future, Ctx],
 ) extends StrictLogging {
   import WorkflowBehavior.*
 
@@ -110,11 +110,10 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
               .thenReply(x.replyTo)(_ => x.msg)
               .thenUnstashAll()
           case x: Command.Persist[Ctx]             =>
-            import cats.effect.unsafe.implicits.global
             Effect
               .persist[Event, St](x.event)
               .thenRun(newState => {
-                actorContext.pipeToSelf(engine.onStateChange(state.workflow, newState.workflow).unsafeToFuture())({
+                actorContext.pipeToSelf(engine.onStateChange(state.workflow, newState.workflow))({
                   case Failure(exception) =>
                     logger.error("Error when running onStateChange hook", exception)
                     x.reply
@@ -138,7 +137,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
   private def handleEvent(state: St, event: Event): State[Ctx] = {
     engine
       .processEvent(state.workflow, event)
-      .unsafeRunSync()
+      .unsafeRun()
       .pipe(State.apply)
   }
 
@@ -147,6 +146,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
       processingState: AtomicReference[ProcessingState],
       actorContext: ActorContext[Command[Ctx]],
   ): Effect[Event, St] = {
+    implicit val ec: scala.concurrent.ExecutionContext = actorContext.executionContext
     changeStateAsync[Either[Resp, ProcessingResult[WCEvent[Ctx], Resp]], Either[UnexpectedSignal, Resp]](
       processingState,
       actorContext,
@@ -154,9 +154,10 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
         engine
           .handleSignal(state.workflow, cmd.signalDef, cmd.req)
           .map({
-            case SignalResult.UnexpectedSignal      => None
-            case SignalResult.Processed(resultIO)   => Some(resultIO.map(Right(_)))
-            case SignalResult.Redelivered(response) => Some(IO(Left(response)))
+            case SignalResult.UnexpectedSignal()    => None
+            case SignalResult.Processed(resultF)    =>
+              Some(resultF.map(Right(_)))
+            case SignalResult.Redelivered(response) => Some(Future.successful(Left(response)))
           }),
       cmd.replyTo,
       {
@@ -179,10 +180,14 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
       actorContext: ActorContext[Command[Ctx]],
       honorLock: Boolean,
   ): Effect[Event, St] = {
+    implicit val ec: scala.concurrent.ExecutionContext = actorContext.executionContext
     changeStateAsync[Ior[Instant, WCEvent[Ctx]], Unit](
       processingState,
       actorContext,
-      state => engine.triggerWakeup(state.workflow).map(_.toRaw),
+      state =>
+        engine
+          .triggerWakeup(state.workflow)
+          .map(WakeupResult.toRaw(_)),
       replyTo,
       _ => (),
       x => x.toOption,
@@ -193,7 +198,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
   private def changeStateAsync[T, Resp](
       processingState: AtomicReference[ProcessingState],
       actorContext: ActorContext[Command[Ctx]],
-      logic: St => IO[Option[IO[T]]],
+      logic: St => Future[Option[Future[T]]],
       replyTo: ActorRef[StatusReply[Resp]],
       formResponse: Option[T] => Resp,
       getEvent: T => Option[Event],
@@ -202,17 +207,16 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
     processingState.get() match {
       case ProcessingState.Locked(_) if honorLock           => Effect.stash()
       case ProcessingState.Free | ProcessingState.Locked(_) =>
-        import cats.effect.unsafe.implicits.global
         Effect
           .none[Event, St]
           .thenRun(_ => processingState.set(ProcessingState.Locked(StateLockId.random())))
           .thenRun(state =>
-            actorContext.pipeToSelf(logic(state).unsafeToFuture())({
-              case Failure(exception)  => Command.Reply(replyTo, StatusReply.error(exception), unlock = true)
-              case Success(eventIoOpt) =>
-                eventIoOpt match {
-                  case Some(eventIO) =>
-                    actorContext.pipeToSelf(eventIO.unsafeToFuture())({
+            actorContext.pipeToSelf(logic(state))({
+              case Failure(exception) => Command.Reply(replyTo, StatusReply.error(exception), unlock = true)
+              case Success(eventFOpt) =>
+                eventFOpt match {
+                  case Some(eventF) =>
+                    actorContext.pipeToSelf(eventF)({
                       case Failure(exception) => Command.Reply(replyTo, StatusReply.error(exception), unlock = true)
                       case Success(output)    =>
                         val replyCmd = Command.Reply[Ctx, StatusReply[Resp]](replyTo, StatusReply.success(formResponse(Some(output))), unlock = true)
@@ -222,7 +226,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
                         }
                     })
                     Command.NoOp()
-                  case None          => Command.Reply(replyTo, StatusReply.success(formResponse(None)), unlock = true)
+                  case None         => Command.Reply(replyTo, StatusReply.success(formResponse(None)), unlock = true)
                 }
             }),
           )

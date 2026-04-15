@@ -101,10 +101,10 @@ class QuartzKnockerUpperTest extends AnyFreeSpec with Matchers with BeforeAndAft
     } finally scheduler.shutdown()
   }
 
-  def withQuartzKnockerUpper(testCode: QuartzKnockerUpper => Any) = {
+  def withQuartzKnockerUpper(testCode: QuartzKnockerUpper[IO] => Any) = {
     withDispatcher(dispatcher => {
       withQuartzScheduler(scheduler => {
-        testCode(new QuartzKnockerUpper(scheduler, dispatcher))
+        testCode(new QuartzKnockerUpper[IO](scheduler, dispatcher))
       })
     })
   }

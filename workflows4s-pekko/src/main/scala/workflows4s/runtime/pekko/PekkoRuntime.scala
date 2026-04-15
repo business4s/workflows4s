@@ -25,7 +25,7 @@ class PekkoRuntimeImpl[Ctx <: WorkflowContext](
     val workflow: Initial[Ctx],
     initialState: WCState[Ctx],
     entityName: String,
-    engine: WorkflowInstanceEngine,
+    engine: WorkflowInstanceEngine[Future, Ctx],
     val templateId: String,
 )(using system: ActorSystem[?])
     extends PekkoRuntime[Ctx] {
@@ -62,12 +62,12 @@ object PekkoRuntime {
       entityName: String,
       workflow: Initial[Ctx],
       initialState: WCState[Ctx],
-      engine: WorkflowInstanceEngine,
+      engine: WorkflowInstanceEngine[Future, Ctx],
   )(using
       system: ActorSystem[?],
   ): PekkoRuntime[Ctx] = {
     // this might need customization if you have two clusters with the same entities but workflows from both in the same knocker-upper/registry.
-    val templateId = s"pekko-runtime-$entityName}"
+    val templateId = s"pekko-runtime-$entityName"
     new PekkoRuntimeImpl(workflow, initialState, entityName, engine, templateId)
   }
 

@@ -2,7 +2,7 @@ package workflows4s.wio.builders
 
 import scala.reflect.ClassTag
 
-import cats.effect.IO
+import cats.Applicative
 import workflows4s.wio.*
 import workflows4s.wio.WIO.HandleSignal
 import workflows4s.wio.internal.{EventHandler, SignalHandler}
@@ -20,12 +20,12 @@ object HandleSignalBuilder {
 
       class Step1[Input] {
 
-        def withSideEffects[Evt <: WCEvent[Ctx]](f: (Input, Req) => IO[Evt])(using evtCt: ClassTag[Evt]): Step2[Evt] = Step2(f, evtCt)
+        def withSideEffects[Evt <: WCEvent[Ctx]](f: (Input, Req) => WCEffect[Ctx][Evt])(using evtCt: ClassTag[Evt]): Step2[Evt] = Step2(f, evtCt)
 
-        def purely[Evt <: WCEvent[Ctx]](f: (Input, Req) => Evt)(using evtCt: ClassTag[Evt]): Step2[Evt] =
-          Step2((x, y) => IO.pure(f(x, y)), evtCt)
+        def purely[Evt <: WCEvent[Ctx]](f: (Input, Req) => Evt)(using evtCt: ClassTag[Evt], A: Applicative[WCEffect[Ctx]]): Step2[Evt] =
+          Step2((x, y) => A.pure(f(x, y)), evtCt)
 
-        class Step2[Evt <: WCEvent[Ctx]](signalHandler: (Input, Req) => IO[Evt], evtCt: ClassTag[Evt]) {
+        class Step2[Evt <: WCEvent[Ctx]](signalHandler: (Input, Req) => WCEffect[Ctx][Evt], evtCt: ClassTag[Evt]) {
 
           def handleEvent[Out <: WCState[Ctx]](f: (Input, Evt) => Out): Step3[Nothing, Out] =
             Step3({ (x, y) => Right(f(x, y)) }, ErrorMeta.noError)
@@ -58,7 +58,7 @@ object HandleSignalBuilder {
               def done: WIO.IHandleSignal[Input, Err, Out, Ctx] = {
                 val eh: EventHandler[Input, Either[Err, Out], WCEvent[Ctx], Evt] =
                   EventHandler.partial[WCEvent[Ctx], Input, Either[Err, Out], Evt](identity, eventHandler)(using evtCt)
-                val sh: SignalHandler[Req, Evt, Input]                           = SignalHandler(signalHandler)
+                val sh: SignalHandler[WCEffect[Ctx], Req, Evt, Input]            = SignalHandler(signalHandler)
                 val meta                                                         = HandleSignal.Meta(errorMeta, signalName.getOrElse(signalDef.name), operationName)
                 WIO.HandleSignal(signalDef, sh, eh, responseBuilder, meta)
               }

@@ -27,6 +27,7 @@ lazy val `workflows4s` = (project in file("."))
   )
   .aggregate(
     `workflows4s-core`,
+    `workflows4s-cats-effect`,
     `workflows4s-bpmn`,
     `workflows4s-pekko`,
     `workflows4s-example`,
@@ -44,16 +45,27 @@ lazy val `workflows4s-core` = (project in file("workflows4s-core"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel"              %% "cats-effect"     % "3.7.0",
-      "co.fs2"                     %% "fs2-core"        % "3.13.0",
-      "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.6",
-      "io.circe"                   %% "circe-core"      % circeVersion, // for model serialization
-      "io.circe"                   %% "circe-generic"   % circeVersion, // for model serialization
-      "com.lihaoyi"                %% "sourcecode"      % "0.4.4", // for auto naming
-      "ch.qos.logback"              % "logback-classic" % "1.5.18" % Test,
+      "org.typelevel"              %% "cats-core"        % "2.13.0",
+      "com.typesafe.scala-logging" %% "scala-logging"    % "3.9.6",
+      "io.circe"                   %% "circe-core"       % circeVersion, // for model serialization
+      "io.circe"                   %% "circe-generic"    % circeVersion, // for model serialization
+      "com.lihaoyi"                %% "sourcecode"       % "0.4.4", // for auto naming
+      "org.typelevel"              %% "cats-effect"      % "3.7.0"     % Test,
+      "dev.zio"                    %% "zio"              % "2.1.25"    % Test,
+      "dev.zio"                    %% "zio-interop-cats" % "23.1.0.13" % Test,
+      "ch.qos.logback"              % "logback-classic"  % "1.5.32"    % Test,
     ),
     Test / parallelExecution := false,
   )
+
+lazy val `workflows4s-cats-effect` = (project in file("workflows4s-cats-effect"))
+  .settings(commonSettings)
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.typelevel" %% "cats-effect" % "3.7.0",
+    ),
+  )
+  .dependsOn(`workflows4s-core` % "compile->compile;test->test")
 
 lazy val `workflows4s-bpmn` = (project in file("workflows4s-bpmn"))
   .settings(commonSettings)
@@ -106,7 +118,8 @@ lazy val `workflows4s-quartz` = (project in file("workflows4s-quartz"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.quartz-scheduler" % "quartz" % "2.5.2",
+      "org.typelevel"       %% "cats-effect" % "3.7.0",
+      "org.quartz-scheduler" % "quartz"      % "2.5.2",
     ),
   )
   .dependsOn(`workflows4s-core` % "compile->compile;test->test")
@@ -202,6 +215,8 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "io.r2dbc"                % "r2dbc-h2"                        % "1.1.0.RELEASE",
       "com.github.pjfanning"   %% "pekko-http-circe"                % "3.9.1",
       "ch.qos.logback"          % "logback-classic"                 % "1.5.32",
+      "dev.zio"                %% "zio"                             % "2.1.25",
+      "dev.zio"                %% "zio-interop-cats"                % "23.1.0.3",
       "org.scalamock"          %% "scalamock"                       % "7.5.5"                    % Test,
       "org.apache.pekko"       %% "pekko-actor-testkit-typed"       % pekkoVersion               % Test,
       "com.dimafeng"           %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
@@ -215,10 +230,11 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
     publish / skip           := true,
   )
   .dependsOn(
-    `workflows4s-core`   % "compile->compile;test->test",
+    `workflows4s-core`        % "compile->compile;test->test",
+    `workflows4s-cats-effect` % "compile->compile;test->test",
     `workflows4s-bpmn`,
-    `workflows4s-pekko`  % "compile->compile;test->test",
-    `workflows4s-doobie` % "compile->compile;test->test",
+    `workflows4s-pekko`       % "compile->compile;test->test",
+    `workflows4s-doobie`      % "compile->compile;test->test",
     `workflows4s-filesystem`,
     `workflows4s-quartz`,
     `workflows4s-web-api-server`,

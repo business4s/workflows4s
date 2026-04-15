@@ -2,11 +2,10 @@ package workflows4s.wio.builders
 
 import scala.reflect.ClassTag
 
-import cats.effect.IO
 import cats.implicits.catsSyntaxEitherId
 import workflows4s.wio.internal.EventHandler
 import workflows4s.wio.model.ModelUtils
-import workflows4s.wio.{ErrorMeta, WCEvent, WCState, WIO, WorkflowContext}
+import workflows4s.wio.{ErrorMeta, WCEffect, WCEvent, WCState, WIO, WorkflowContext}
 
 object RunIOBuilder {
 
@@ -15,11 +14,11 @@ object RunIOBuilder {
     def runIO[Input] = new RunIOBuilderStep1[Input]
 
     class RunIOBuilderStep1[Input] {
-      def apply[Evt <: WCEvent[Ctx]: ClassTag](f: Input => IO[Evt]): Step2[Input, Evt] = {
+      def apply[Evt <: WCEvent[Ctx]: ClassTag](f: Input => WCEffect[Ctx][Evt]): Step2[Input, Evt] = {
         new Step2[Input, Evt](f)
       }
 
-      class Step2[In, Evt <: WCEvent[Ctx]: ClassTag](getIO: In => IO[Evt]) {
+      class Step2[In, Evt <: WCEvent[Ctx]: ClassTag](getIO: In => WCEffect[Ctx][Evt]) {
         def handleEvent[Out <: WCState[Ctx]](f: (In, Evt) => Out): Step3[Out, Nothing] =
           Step3((s, e: Evt) => f(s, e).asRight, ErrorMeta.noError)
 

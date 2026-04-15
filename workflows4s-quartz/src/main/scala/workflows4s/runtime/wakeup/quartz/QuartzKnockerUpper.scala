@@ -1,6 +1,6 @@
 package workflows4s.runtime.wakeup.quartz
 
-import cats.effect.IO
+import cats.effect.Async
 import cats.effect.std.Dispatcher
 import org.quartz.*
 import workflows4s.runtime.WorkflowInstanceId
@@ -10,10 +10,12 @@ import java.time.Instant
 import java.util.Date
 
 /** [[workflows4s.runtime.wakeup.KnockerUpper]] implementation backed by a Quartz `Scheduler`. The `dispatcher` is used to bridge Quartz's synchronous
-  * `Job.execute` callback into `IO`.
+  * `Job.execute` callback into `F`.
   */
-class QuartzKnockerUpper(scheduler: Scheduler, dispatcher: Dispatcher[IO]) extends KnockerUpper.Agent with KnockerUpper.Process[IO, IO[Unit]] {
-  override def updateWakeup(id: WorkflowInstanceId, at: Option[Instant]): IO[Unit] = IO {
+class QuartzKnockerUpper[F[_]: Async](scheduler: Scheduler, dispatcher: Dispatcher[F])
+    extends KnockerUpper.Agent[F]
+    with KnockerUpper.Process[F, F[Unit]] {
+  override def updateWakeup(id: WorkflowInstanceId, at: Option[Instant]): F[Unit] = Async[F].delay {
     val jobKey = new JobKey(id.instanceId)
     at match {
       case Some(instant) =>
@@ -41,7 +43,7 @@ class QuartzKnockerUpper(scheduler: Scheduler, dispatcher: Dispatcher[IO]) exten
     }
   }
 
-  override def initialize(wakeUp: WorkflowInstanceId => IO[Unit]): IO[Unit] =
-    IO.fromTry(scheduler.setWakeupContext(WakeupJob.Context(wakeUp, dispatcher)))
+  override def initialize(wakeUp: WorkflowInstanceId => F[Unit]): F[Unit] =
+    Async[F].fromTry(scheduler.setWakeupContext(WakeupJob.Context(id => dispatcher.unsafeRunSync(wakeUp(id)))))
 
 }

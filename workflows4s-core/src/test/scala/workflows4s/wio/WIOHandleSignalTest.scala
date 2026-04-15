@@ -23,7 +23,7 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers with EitherValues {
       val wf: ActiveWorkflow[Ctx] = WIO
         .handleSignal(mySignalDef)
         .using[String]
-        .withSideEffects((input, request) => IO(s"input: $input, request: $request"))
+        .withSideEffects((input, request) => IO(s"input: $input, request: $request": Event))
         .handleEvent((input, request) => s"eventProcessed($input, $request)")
         .produceResponse((input, evt, _) => s"response($input, $evt)")
         .done
@@ -62,7 +62,7 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers with EitherValues {
 
       val unexpectedSignalResult = wf.handleSignal(unexpectedSignalDef)("unexpected")
 
-      assert(unexpectedSignalResult == SignalResult.UnexpectedSignal)
+      assert(unexpectedSignalResult == SignalResult.UnexpectedSignal())
     }
 
     "handle event" in {
@@ -112,14 +112,14 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers with EitherValues {
         .toWorkflow("initialState")
 
       val resultOpt = wf.proceed(Instant.now)
-      assert(resultOpt.toRaw.isEmpty)
+      assert(!resultOpt.hasEffect)
     }
 
     "attach meta" - {
       lazy val base = WIO
         .handleSignal(mySignalDef)
         .using[String]
-        .withSideEffects((input, request) => IO(s"metaSideEffect: $input/$request"))
+        .withSideEffects((input, request) => IO(s"metaSideEffect: $input/$request": Event))
         .handleEvent(ignore)
         .produceResponse(ignore3)
       extension (x: WIO[?, ?, ?]) {

@@ -10,7 +10,7 @@ object FsKnockerUpperExample {
   import workflows4s.runtime.wakeup.filesystem.FilesystemKnockerUpper
 
   val workDir: java.nio.file.Path                 = ???
-  val knockerUpper                                = FilesystemKnockerUpper.create(workDir)
+  val knockerUpper                                = FilesystemKnockerUpper.create[IO](workDir)
   val runtime: WorkflowRuntime[IO, MyWorkflowCtx] = createRuntime(knockerUpper)
 
   val process: ResourceIO[Unit] = knockerUpper.initialize(Seq(runtime))

@@ -1,7 +1,8 @@
 package workflows4s.doobie
 
+import cats.arrow.FunctionK
 import cats.data.Kleisli
-import cats.effect.{IO, LiftIO}
+import cats.effect.Async
 import doobie.util.transactor.Transactor
 import doobie.{ConnectionIO, WeakAsync}
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
@@ -12,43 +13,41 @@ import workflows4s.wio.{ActiveWorkflow, WCEvent, WCState, WorkflowContext}
 /** Runtime backed by a shared database (e.g. PostgreSQL) via Doobie. Events are persisted per instance, and concurrent access is guarded by
   * [[WorkflowStorage.lockWorkflow]].
   */
-class DatabaseRuntime[Ctx <: WorkflowContext](
+class DatabaseRuntime[F[_]: Async, Ctx <: WorkflowContext](
     val workflow: Initial[Ctx],
     initialState: WCState[Ctx],
-    engine: WorkflowInstanceEngine,
-    xa: Transactor[IO],
+    engine: WorkflowInstanceEngine[F, Ctx],
+    xa: Transactor[F],
     storage: WorkflowStorage[WCEvent[Ctx]],
     val templateId: String,
-) extends WorkflowRuntime[IO, Ctx] {
-
-  override def createInstance(id: String): IO[WorkflowInstance[IO, WCState[Ctx]]] = {
+) extends WorkflowRuntime[F, Ctx] {
+  override def createInstance(id: String): F[WorkflowInstance[F, WCState[Ctx]]] = {
     val instanceId = WorkflowInstanceId(templateId, id)
-    val base       = new DbWorkflowInstance(
+    val base       = new DbWorkflowInstance[F, Ctx](
       instanceId,
       ActiveWorkflow(instanceId, workflow, initialState),
       storage,
       engine,
     )
-    // alternative is to take `LiftIO` as runtime parameter but this complicates call site
     val mapped     = new MappedWorkflowInstance(
       base,
       [t] =>
-        (connIo: Kleisli[ConnectionIO, LiftIO[ConnectionIO], t]) => WeakAsync.liftIO[ConnectionIO].use(liftIO => xa.trans.apply(connIo.apply(liftIO))),
+        (connIo: Kleisli[ConnectionIO, FunctionK[F, ConnectionIO], t]) => WeakAsync.liftK[F, ConnectionIO].use(fk => xa.trans.apply(connIo.apply(fk))),
     )
-    IO.pure(mapped)
+    Async[F].pure(mapped)
   }
 }
 
 object DatabaseRuntime {
   // TODO seems redundant, to be removed if its still the case after few months
-  def create[Ctx <: WorkflowContext](
+  def create[F[_]: Async, Ctx <: WorkflowContext](
       workflow: Initial[Ctx],
       initialState: WCState[Ctx],
-      transactor: Transactor[IO],
-      engine: WorkflowInstanceEngine,
+      transactor: Transactor[F],
+      engine: WorkflowInstanceEngine[F, Ctx],
       storage: WorkflowStorage[WCEvent[Ctx]],
       templateId: String, // this has to be explicit, as it will be saved in the database and has to be consistent across runtimes
-  ): DatabaseRuntime[Ctx] = {
-    new DatabaseRuntime[Ctx](workflow, initialState, engine, transactor, storage, templateId)
+  ): DatabaseRuntime[F, Ctx] = {
+    new DatabaseRuntime[F, Ctx](workflow, initialState, engine, transactor, storage, templateId)
   }
 }
