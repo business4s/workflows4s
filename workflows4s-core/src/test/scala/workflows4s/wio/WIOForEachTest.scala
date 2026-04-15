@@ -157,6 +157,55 @@ class WIOForEachTest extends AnyFreeSpec with Matchers with OptionValues with Ei
 
     }
 
+    "should support inner workflow with a different Effect than the outer" in {
+      // Outer context is TestCtx2 (Effect = IO). Inner context uses `Id` as its Effect.
+      // The ForEach builder needs a `LiftWorkflowEffect[InnerCtx, WCEffect[TestCtx2.Ctx]]` to bridge effects.
+      object InnerCtx extends WorkflowContext {
+        type Effect[T]      = cats.Id[T]
+        override type Event = TestCtx2.Event
+        override type State = TestState
+      }
+
+      val innerStepId = StepId.random("inner-id")
+      case class InnerIdDone(stepId: StepId) extends TestCtx2.Event
+
+      val innerFlow: InnerCtx.WIO[TestState, Nothing, TestState] = InnerCtx.WIO
+        .runIO[TestState]( (_: TestState) => (InnerIdDone(innerStepId): cats.Id[InnerIdDone]))
+        .handleEvent((st, evt) => st.addExecuted(evt.stepId))
+        .done
+
+      given LiftWorkflowEffect[InnerCtx.Ctx, WCEffect[TestCtx2.Ctx]] =
+        LiftWorkflowEffect.through[InnerCtx.Ctx, cats.Id]([A] => (a: cats.Id[A]) => (cats.effect.IO.pure(a): WCEffect[TestCtx2.Ctx][A]))
+
+      val elemFlowAdjusted = innerFlow.transformInput[Elem](elem => TestState.empty.addExecuted(elem))
+      val finishedStepId   = StepId.random("forEach")
+      val wf               = TestCtx2.WIO
+        .forEach[Set[StepId]](identity)
+        .execute[InnerCtx.Ctx](elemFlowAdjusted, TestState.empty)
+        .withEventsEmbeddedThrough(evtEmbedding)
+        .withInterimState((_, states) => states.map((elem, elemState) => elemState.prefixWith(elem)).reduce(_ ++ _).prefixWith("Interim"))
+        .withOutputBuiltWith((_, results) =>
+          results.map((elem, state) => state.prefixWith(elem)).reduceOption(_ ++ _).getOrElse(TestState.empty).addExecuted(finishedStepId),
+        )
+        .withSignalsWrappedWith(SigRouter)
+        .autoNamed()
+
+      val elements @ List(el1, el2) = genElements(2)
+      val (_, instance)             = TestUtils.createInstance2(wf.provideInput(elements.toSet))
+      instance.wakeup() // kick off the inner runIO steps; greedy engine cascades
+      val resultState               = instance.queryState()
+
+      assert(
+        resultState.executed == List(
+          el1.prefixedWith(el1),
+          innerStepId.prefixedWith(el1),
+          el2.prefixedWith(el2),
+          innerStepId.prefixedWith(el2),
+          finishedStepId,
+        ),
+      )
+    }
+
     "signal handler receives updated state after partial execution within element" in {
       // Inner workflow: signalA >>> signalB, where signalB captures state length
       // After delivering signalA for element X, signalB for element X should see the updated state
