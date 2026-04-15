@@ -1,34 +1,40 @@
 package workflows4s.wio
 
+import cats.Monad
+
 /** A lazy, synchronous computation that may have side effects.
   *
   * Used where only sync side-effects are allowed (logging, clock reads) — never async/IO. This is the engine's hook point for event handling: engines
   * can compose sync logic (like logging) around pure event processing without requiring an async effect type.
   */
-final class Thunk[+A] private (private val run: () => A) {
+opaque type Thunk[+A] = () => A
 
-  def unsafeRun(): A = run()
+object Thunk {
+  def apply[A](body: => A): Thunk[A] = () => body
+  def pure[A](a: A): Thunk[A]        = () => a
 
-  def map[B](f: A => B): Thunk[B] = Thunk(f(unsafeRun()))
+  extension [A](self: Thunk[A]) {
+    def unsafeRun(): A = self()
 
-  def flatMap[B](f: A => Thunk[B]): Thunk[B] = Thunk(f(unsafeRun()).unsafeRun())
-
-  def *>[B](next: Thunk[B]): Thunk[B] = flatMap(_ => next)
-
-  def flatTap[B](f: A => Thunk[B]): Thunk[A] = flatMap(a => f(a).map(_ => a))
-
-  def onError(f: Throwable => Thunk[Unit]): Thunk[A] = Thunk {
-    try unsafeRun()
-    catch {
-      case e: Throwable =>
-        f(e).unsafeRun()
-        throw e
+    def onError(f: Throwable => Thunk[Unit]): Thunk[A] = () => {
+      try self()
+      catch {
+        case e: Throwable =>
+          f(e)()
+          throw e
+      }
     }
   }
 
-}
-
-object Thunk {
-  def apply[A](body: => A): Thunk[A] = new Thunk(() => body)
-  def pure[A](a: A): Thunk[A]        = new Thunk(() => a)
+  given Monad[Thunk] = new Monad[Thunk] {
+    def pure[A](a: A): Thunk[A]                                 = Thunk.pure(a)
+    def flatMap[A, B](fa: Thunk[A])(f: A => Thunk[B]): Thunk[B] = () => f(fa())()
+    def tailRecM[A, B](a: A)(f: A => Thunk[Either[A, B]]): Thunk[B] = () => {
+      @annotation.tailrec def loop(x: A): B = f(x)() match {
+        case Left(next) => loop(next)
+        case Right(b)   => b
+      }
+      loop(a)
+    }
+  }
 }

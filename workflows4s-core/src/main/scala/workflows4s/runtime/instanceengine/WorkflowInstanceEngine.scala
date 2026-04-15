@@ -1,6 +1,7 @@
 package workflows4s.runtime.instanceengine
 
 import cats.MonadThrow
+import cats.syntax.functor.*
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine.PostExecCommand
 import workflows4s.runtime.registry.WorkflowRegistry
 import workflows4s.runtime.wakeup.KnockerUpper
