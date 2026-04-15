@@ -1,20 +1,12 @@
 package workflows4s.testing.matrix
 
 import cats.MonadThrow
-import workflows4s.wio.WeakSync
-import zio.{Task, ZIO}
 
 import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 
 object EffectInstances {
-
-  // WeakSync instances (Try, Either[Throwable, *], Function0 are in WeakSync companion)
-
-  given WeakSync[Task] with {
-    override def delay[A](body: => A): Task[A] = ZIO.attempt(body)
-  }
 
   given scala.concurrent.ExecutionContext = ExecutionContext.global
 

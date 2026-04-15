@@ -8,7 +8,6 @@ import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.runtime.registry.WorkflowRegistry.ExecutionStatus
 import workflows4s.testing.{TestClock, TestUtils}
 import workflows4s.wio.{ActiveWorkflow, WIO, WorkflowContext}
-import workflows4s.wio.given
 
 import scala.concurrent.duration.DurationInt
 

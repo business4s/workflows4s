@@ -56,7 +56,7 @@ trait WorkflowInstanceEngine[F[_], Ctx <: WorkflowContext] {
 
 object WorkflowInstanceEngine {
   val builder                                                             = WorkflowInstanceEngineBuilder
-  def default[F[_]: {MonadThrow, WeakSync}, Ctx <: WorkflowContext](
+  def default[F[_]: MonadThrow, Ctx <: WorkflowContext](
       knockerUpper: KnockerUpper.Agent[F],
       registry: WorkflowRegistry.Agent[F],
       clock: Clock = Clock.systemUTC(),
@@ -68,7 +68,7 @@ object WorkflowInstanceEngine {
       .withGreedyEvaluation
       .withLogging
       .get(ev.asPoly)
-  def basic[F[_]: {MonadThrow, WeakSync}, Ctx <: WorkflowContext](
+  def basic[F[_]: MonadThrow, Ctx <: WorkflowContext](
       clock: Clock = Clock.systemUTC(),
   )(using ev: LiftWorkflowEffect[Ctx, F]): WorkflowInstanceEngine[F, Ctx] = builder
     .withJavaTime[F](clock)

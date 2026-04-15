@@ -5,11 +5,8 @@ import cats.effect.unsafe.implicits.global
 import workflows4s.testing.WorkflowRuntimeTest
 import workflows4s.testing.matrix.*
 import workflows4s.wio.*
-import workflows4s.wio.cats.effect.WeakSyncInstances.given
 import zio.*
 import zio.interop.catz.*
-
-import EffectInstances.given
 
 class InMemoryConcurrentWorkflowRuntimeTest extends WorkflowRuntimeTest.Suite with EffectMatrixTest {
 

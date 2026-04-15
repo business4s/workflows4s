@@ -3,15 +3,15 @@ package workflows4s.runtime.instanceengine
 import cats.MonadThrow
 import workflows4s.runtime.registry.WorkflowRegistry
 import workflows4s.runtime.wakeup.KnockerUpper
-import workflows4s.wio.{LiftWorkflowEffect, WCEffectLift, WeakSync, WorkflowContext}
+import workflows4s.wio.{LiftWorkflowEffect, WCEffectLift, WorkflowContext}
 
 import java.time.Clock
 
 object WorkflowInstanceEngineBuilder {
 
-  def withJavaTime[F[_]: {MonadThrow, WeakSync}](clock: Clock = Clock.systemUTC()) = Step1[F](clock)
+  def withJavaTime[F[_]: MonadThrow](clock: Clock = Clock.systemUTC()) = Step1[F](clock)
 
-  class Step1[F[_]: {MonadThrow, WeakSync}](clock: Clock) {
+  class Step1[F[_]: MonadThrow](clock: Clock) {
 
     def withWakeUps(knockerUpper: KnockerUpper.Agent[F]) = Step2(Some(knockerUpper))
     def withoutWakeUps                                   = Step2(None)

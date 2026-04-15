@@ -9,7 +9,7 @@ import workflows4s.testing.{RecordingKnockerUpper, TestClock, TestRuntimeAdapter
 import workflows4s.runtime.registry.InMemoryWorkflowRegistry
 import workflows4s.wio.*
 
-case class InMemoryConcurrentTestRuntimeAdapter[F[+_]: {Async, WeakSync}, Ctx <: WorkflowContext](
+case class InMemoryConcurrentTestRuntimeAdapter[F[+_]: Async, Ctx <: WorkflowContext](
     runSyncFn: [A] => F[A] => A,
 )(using ev: LiftWorkflowEffect[Ctx, F])
     extends TestRuntimeAdapter[F, Ctx] {

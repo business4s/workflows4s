@@ -8,10 +8,8 @@ import workflows4s.doobie.sqlite.testing.{SqliteRuntimeAdapter, SqliteWorkdirSui
 import workflows4s.testing.WorkflowRuntimeTest
 import workflows4s.testing.matrix.*
 import workflows4s.wio.TestCtx2
-import workflows4s.wio.given
 import zio.interop.catz.*
 
-import EffectInstances.given
 import LiftToIO.given
 
 class SqliteRuntimeTest extends AnyFreeSpec with SqliteWorkdirSuite with WorkflowRuntimeTest.Suite with EffectMatrixTest {

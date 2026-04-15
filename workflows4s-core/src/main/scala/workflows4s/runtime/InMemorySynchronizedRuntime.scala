@@ -4,8 +4,9 @@ import cats.MonadThrow
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.wio.*
 import workflows4s.wio.WIO.Initial
+import workflows4s.wio.internal.WeakSync
 
-class InMemorySynchronizedRuntime[F[+_]: {MonadThrow, WeakSync}, Ctx <: WorkflowContext](
+class InMemorySynchronizedRuntime[F[+_]: MonadThrow, Ctx <: WorkflowContext](
     val workflow: Initial[Ctx],
     initialState: WCState[Ctx],
     engine: WorkflowInstanceEngine[F, Ctx],
@@ -14,7 +15,7 @@ class InMemorySynchronizedRuntime[F[+_]: {MonadThrow, WeakSync}, Ctx <: Workflow
   private val instances = new java.util.concurrent.ConcurrentHashMap[String, InMemorySynchronizedWorkflowInstance[F, Ctx]]()
 
   override def createInstance(id: String): F[InMemorySynchronizedWorkflowInstance[F, Ctx]] = {
-    WeakSync[F].delay {
+    WeakSync.delay[F] {
       instances.computeIfAbsent(
         id,
         { _ =>
@@ -28,7 +29,7 @@ class InMemorySynchronizedRuntime[F[+_]: {MonadThrow, WeakSync}, Ctx <: Workflow
 }
 
 object InMemorySynchronizedRuntime {
-  def create[F[+_]: {MonadThrow, WeakSync}, Ctx <: WorkflowContext](
+  def create[F[+_]: MonadThrow, Ctx <: WorkflowContext](
       workflow: Initial[Ctx],
       initialState: WCState[Ctx],
       engine: WorkflowInstanceEngine[F, Ctx],

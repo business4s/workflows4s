@@ -8,7 +8,6 @@ import org.scalatest.freespec.AnyFreeSpecLike
 import workflows4s.testing.WorkflowRuntimeTest
 import workflows4s.testing.matrix.*
 import workflows4s.wio.TestCtx2
-import workflows4s.wio.given
 import zio.interop.catz.*
 
 import scala.concurrent.{Await, Future}

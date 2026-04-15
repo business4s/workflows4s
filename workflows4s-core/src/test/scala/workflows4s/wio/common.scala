@@ -6,10 +6,6 @@ import workflows4s.wio.internal.{SignalResult, WakeupResult}
 
 import java.time.Instant
 
-given WeakSync[IO] with {
-  override def delay[A](body: => A): IO[A] = IO(body)
-}
-
 extension [Ctx <: WorkflowContext](wf: ActiveWorkflow[Ctx])(using lift: LiftWorkflowEffect[Ctx, IO]) {
   def handleSignal[Req, Resp](signalDef: SignalDef[Req, Resp])(req: Req): SignalResult[IO, WCEvent[Ctx], Resp] =
     wf.handleSignal(signalDef, req, lift.asPoly)

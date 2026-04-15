@@ -9,7 +9,6 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.freespec.AnyFreeSpecLike
 import workflows4s.example.withdrawal.WithdrawalWorkflow
 import workflows4s.runtime.pekko.PekkoRuntimeAdapter
-import workflows4s.wio.given
 
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt

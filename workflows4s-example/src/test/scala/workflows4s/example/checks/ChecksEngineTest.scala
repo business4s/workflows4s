@@ -9,7 +9,6 @@ import workflows4s.example.TestUtils
 import workflows4s.example.withdrawal.checks.*
 import workflows4s.runtime.WorkflowInstance
 import workflows4s.testing.{InMemorySynchronizedTestRuntimeAdapter, TestRuntimeAdapter}
-import workflows4s.wio.given
 import workflows4s.testing.cats.effect.InMemoryConcurrentTestRuntimeAdapter
 import workflows4s.wio.WCState
 

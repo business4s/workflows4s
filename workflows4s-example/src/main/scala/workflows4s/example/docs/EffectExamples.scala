@@ -20,7 +20,6 @@ object EffectExamples {
   // effect_same_start
   import cats.effect.IO
   import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
-  import workflows4s.wio.cats.effect.WeakSyncInstances.given
 
   // Context uses IO, engine uses IO — WCEffectLift is derived automatically
   val engine = WorkflowInstanceEngine.basic[IO, MyCtx.Ctx]()
@@ -41,7 +40,6 @@ object EffectExamples {
   object IOExample {
     import cats.effect.IO
     import workflows4s.wio.WorkflowContext
-    import workflows4s.wio.cats.effect.WeakSyncInstances.given
     import workflows4s.runtime.cats.effect.InMemoryConcurrentRuntime
     import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 
@@ -97,13 +95,9 @@ object EffectExamples {
   object ZIOExample {
     import zio.{Task, ZIO}
     import zio.interop.catz.*
-    import workflows4s.wio.{WeakSync, WorkflowContext}
+    import workflows4s.wio.WorkflowContext
     import workflows4s.runtime.InMemorySynchronizedRuntime
     import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
-
-    given WeakSync[Task] with {
-      override def delay[A](body: => A): Task[A] = ZIO.attempt(body)
-    }
 
     object Ctx extends WorkflowContext {
       type Effect[T] = Task[T]

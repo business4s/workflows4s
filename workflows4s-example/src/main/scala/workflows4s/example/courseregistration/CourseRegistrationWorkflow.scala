@@ -10,7 +10,6 @@ import workflows4s.bpmn.BpmnRenderer
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.{InMemorySynchronizedRuntime, InMemorySynchronizedWorkflowInstance}
 import workflows4s.wio.{SignalDef, WorkflowContext}
-import workflows4s.wio.cats.effect.WeakSyncInstances.given
 
 import scala.annotation.nowarn
 

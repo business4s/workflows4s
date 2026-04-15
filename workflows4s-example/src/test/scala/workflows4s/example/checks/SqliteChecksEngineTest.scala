@@ -8,7 +8,6 @@ import workflows4s.doobie.sqlite.testing.{SqliteRuntimeAdapter, SqliteWorkdirSui
 import workflows4s.example.testuitls.CirceEventCodec
 import workflows4s.example.withdrawal.*
 import workflows4s.example.withdrawal.checks.ChecksEngine
-import workflows4s.wio.given
 
 class SqliteChecksEngineTest extends AnyFreeSpec with SqliteWorkdirSuite with ChecksEngineTest.Suite {
 

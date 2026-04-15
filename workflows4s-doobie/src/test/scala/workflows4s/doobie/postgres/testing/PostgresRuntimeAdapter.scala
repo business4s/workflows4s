@@ -14,7 +14,7 @@ import workflows4s.wio.*
 
 type WorkflowId = String
 
-class PostgresRuntimeAdapter[F[_]: {Async, WeakSync}, Ctx <: WorkflowContext](
+class PostgresRuntimeAdapter[F[_]: Async, Ctx <: WorkflowContext](
     xa: Transactor[F],
     eventCodec: ByteCodec[WCEvent[Ctx]],
     runSyncFn: [A] => F[A] => A,

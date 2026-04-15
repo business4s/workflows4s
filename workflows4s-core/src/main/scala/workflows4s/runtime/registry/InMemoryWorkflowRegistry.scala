@@ -1,15 +1,17 @@
 package workflows4s.runtime.registry
 
+import cats.Monad
 import com.typesafe.scalalogging.StrictLogging
 import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.runtime.registry.WorkflowRegistry.ExecutionStatus
-import workflows4s.wio.{ActiveWorkflow, WeakSync}
+import workflows4s.wio.ActiveWorkflow
+import workflows4s.wio.internal.WeakSync
 
 import java.time.{Clock, Instant}
 import java.util.concurrent.ConcurrentHashMap
 import scala.jdk.CollectionConverters.*
 
-class InMemoryWorkflowRegistry[F[_]: WeakSync](
+class InMemoryWorkflowRegistry[F[_]: Monad](
     clock: Clock = Clock.systemUTC(),
     taggers: Map[String, WorkflowRegistry.Tagger[?]] = Map.empty,
 ) extends WorkflowRegistry.Agent[F]
@@ -20,7 +22,7 @@ class InMemoryWorkflowRegistry[F[_]: WeakSync](
 
   private val state = new ConcurrentHashMap[WorkflowInstanceId, Data]()
 
-  override def upsertInstance(inst: ActiveWorkflow[?], executionStatus: ExecutionStatus): F[Unit] = WeakSync[F].delay {
+  override def upsertInstance(inst: ActiveWorkflow[?], executionStatus: ExecutionStatus): F[Unit] = WeakSync.delay[F] {
     val id  = inst.id
     val now = Instant.now(clock)
     logger.info(s"Updating workflow registry for ${id} to status $executionStatus at $now")
@@ -41,11 +43,11 @@ class InMemoryWorkflowRegistry[F[_]: WeakSync](
       .map(_.getTags(instance.id, instance.liveState.asInstanceOf))
       .getOrElse(Map())
 
-  def getWorkflows(): F[List[Data]] = WeakSync[F].delay {
+  def getWorkflows(): F[List[Data]] = WeakSync.delay[F] {
     state.values().asScala.toList
   }
 
-  override def search(templateId: String, query: WorkflowSearch.Query): F[List[WorkflowSearch.Result]] = WeakSync[F].delay {
+  override def search(templateId: String, query: WorkflowSearch.Query): F[List[WorkflowSearch.Result]] = WeakSync.delay[F] {
     val filters  = buildFilters(templateId, query)
     val filtered = state.values().asScala.toList.filter(x => filters.forall(_.apply(x)))
     val sorted   = query.sort match {
@@ -64,7 +66,7 @@ class InMemoryWorkflowRegistry[F[_]: WeakSync](
     paged.map(d => WorkflowSearch.Result(d.id, d.status, d.createdAt, d.updatedAt, d.tags, d.wakeupAt))
   }
 
-  override def count(templateId: String, query: WorkflowSearch.Query): F[Int] = WeakSync[F].delay {
+  override def count(templateId: String, query: WorkflowSearch.Query): F[Int] = WeakSync.delay[F] {
     val filters = buildFilters(templateId, query)
     state.values().asScala.count(x => filters.forall(_.apply(x)))
   }

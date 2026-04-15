@@ -8,7 +8,6 @@ import org.scalatest.freespec.AnyFreeSpecLike
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import workflows4s.example.withdrawal.checks.ChecksEngine
 import workflows4s.runtime.pekko.PekkoRuntimeAdapter
-import workflows4s.wio.given
 
 import scala.concurrent.Await
 

@@ -5,7 +5,7 @@ Both in-memory runtimes store workflow state in memory without persistence. They
 | | Synchronized | Concurrent |
 |---|---|---|
 | **Module** | `workflows4s-core` | `workflows4s-cats-effect` |
-| **Effect requirements** | `MonadThrow + WeakSync` | `Async` (cats-effect) |
+| **Effect requirements** | `MonadThrow` | `Async` (cats-effect) |
 | **Under contention** | Blocks thread | Suspends fiber |
 | **On cancellation** | Lock may leak | Releases lock cleanly |
 | **Best for** | Tests, simple/synchronous usage | Concurrent/async usage with fibers |

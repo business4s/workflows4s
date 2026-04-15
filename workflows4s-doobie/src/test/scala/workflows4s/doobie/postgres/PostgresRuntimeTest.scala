@@ -8,9 +8,8 @@ import workflows4s.doobie.postgres.testing.{JavaSerdeEventCodec, PostgresRuntime
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.testing.WorkflowRuntimeTest
 import workflows4s.testing.matrix.*
-import workflows4s.testing.matrix.EffectInstances.given
 import workflows4s.testing.matrix.LiftToIO.given
-import workflows4s.wio.{TestCtx2, WorkflowContext, given}
+import workflows4s.wio.{TestCtx2, WorkflowContext}
 import zio.interop.catz.*
 
 import scala.concurrent.duration.DurationInt

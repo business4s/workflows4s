@@ -19,7 +19,7 @@ import java.time.Clock
 import java.util.UUID
 import scala.concurrent.{Await, Future}
 
-class PekkoRuntimeAdapter[F[_]: {MonadThrow, WeakSync}, Ctx <: WorkflowContext](
+class PekkoRuntimeAdapter[F[_]: MonadThrow, Ctx <: WorkflowContext](
     entityKeyPrefix: String,
     runToFuture: [A] => F[A] => Future[A],
 )(using actorSystem: ActorSystem[?], ev: LiftWorkflowEffect[Ctx, F])

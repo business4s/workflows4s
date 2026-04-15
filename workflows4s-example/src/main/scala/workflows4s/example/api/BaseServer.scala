@@ -24,7 +24,6 @@ import workflows4s.runtime.wakeup.cats.effect.SleepingKnockerUpper
 import workflows4s.ui.bundle.UiEndpoints
 import workflows4s.web.api.server.{SignalSupport, WorkflowEntry, WorkflowServerEndpoints}
 import workflows4s.web.api.model.UIConfig
-import workflows4s.wio.cats.effect.WeakSyncInstances.given
 
 trait BaseServer {
 

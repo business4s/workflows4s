@@ -7,7 +7,6 @@ import workflows4s.doobie.ByteCodec
 import workflows4s.doobie.postgres.testing.PostgresRuntimeAdapter
 import workflows4s.example.testuitls.{CirceEventCodec, PostgresSuite}
 import workflows4s.example.withdrawal.*
-import workflows4s.wio.given
 
 class PostgresWithdrawalWorkflowTest extends AnyFreeSpec with PostgresSuite with WithdrawalWorkflowTest.Suite {
 

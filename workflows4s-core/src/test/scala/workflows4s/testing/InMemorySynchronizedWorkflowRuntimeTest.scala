@@ -4,7 +4,6 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import workflows4s.testing.matrix.*
 import workflows4s.wio.*
-import workflows4s.wio.given
 import zio.*
 import zio.interop.catz.*
 

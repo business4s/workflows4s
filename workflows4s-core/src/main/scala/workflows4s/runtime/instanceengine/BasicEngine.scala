@@ -1,8 +1,7 @@
 package workflows4s.runtime.instanceengine
 
 import cats.MonadThrow
-import cats.implicits.catsSyntaxApplicativeId
-import cats.syntax.functor.*
+import cats.implicits.{catsSyntaxApplicativeId, toFunctorOps}
 import workflows4s.wio.*
 import workflows4s.wio.internal.{SignalResult, WakeupResult}
 import workflows4s.wio.model.WIOExecutionProgress
@@ -13,9 +12,8 @@ trait BasicEngine[F[_]: MonadThrow, Ctx <: WorkflowContext] extends WorkflowInst
 
   protected def now: F[Instant]
 
-  override def triggerWakeup(workflow: ActiveWorkflow[Ctx]): F[WakeupResult[F, WCEvent[Ctx]]] = {
-    now.map(workflow.proceed(_, liftWCEffect))
-  }
+  override def triggerWakeup(workflow: ActiveWorkflow[Ctx]): F[WakeupResult[F, WCEvent[Ctx]]] =
+    now.map(instant => workflow.proceed(instant, liftWCEffect))
 
   override def handleSignal[Req, Resp](
       workflow: ActiveWorkflow[Ctx],

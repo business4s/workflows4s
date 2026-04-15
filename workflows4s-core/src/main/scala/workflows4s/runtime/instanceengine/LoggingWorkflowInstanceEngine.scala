@@ -8,14 +8,14 @@ import workflows4s.runtime.instanceengine.WorkflowInstanceEngine.PostExecCommand
 import workflows4s.wio.internal.WakeupResult.ProcessingResult
 import workflows4s.wio.model.WIOExecutionProgress
 import workflows4s.wio.*
-import workflows4s.wio.internal.{SignalResult, WakeupResult}
+import workflows4s.wio.internal.{SignalResult, WakeupResult, WeakSync}
 
-class LoggingWorkflowInstanceEngine[F[_]: {MonadThrow, WeakSync}, Ctx <: WorkflowContext](
+class LoggingWorkflowInstanceEngine[F[_]: MonadThrow, Ctx <: WorkflowContext](
     override protected val delegate: WorkflowInstanceEngine[F, Ctx],
 ) extends DelegatingWorkflowInstanceEngine[F, Ctx]
     with StrictLogging {
 
-  private def logF(body: => Unit): F[Unit] = WeakSync[F].delay(body)
+  private def logF(body: => Unit): F[Unit] = WeakSync.delay[F](body)
 
   override def queryState(workflow: ActiveWorkflow[Ctx]): F[WCState[Ctx]] = {
     (logF(logger.trace(s"[${workflow.id}] queryState()")) *>

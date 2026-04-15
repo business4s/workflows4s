@@ -13,7 +13,7 @@ import workflows4s.wio.*
 import java.nio.file.Path
 import scala.util.Random
 
-class SqliteRuntimeAdapter[F[_]: {Async, WeakSync}, Ctx <: WorkflowContext](
+class SqliteRuntimeAdapter[F[_]: Async, Ctx <: WorkflowContext](
     workdir: Path,
     eventCodec: ByteCodec[WCEvent[Ctx]],
     runSyncFn: [A] => F[A] => A,

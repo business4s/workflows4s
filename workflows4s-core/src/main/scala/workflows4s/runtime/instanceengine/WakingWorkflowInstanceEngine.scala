@@ -4,13 +4,13 @@ import cats.MonadThrow
 import cats.syntax.all.*
 import com.typesafe.scalalogging.StrictLogging
 import workflows4s.runtime.wakeup.KnockerUpper
-import workflows4s.wio.{ActiveWorkflow, WCEvent, WeakSync, WorkflowContext}
-import workflows4s.wio.internal.WakeupResult
+import workflows4s.wio.{ActiveWorkflow, WCEvent, WorkflowContext}
+import workflows4s.wio.internal.{WakeupResult, WeakSync}
 import workflows4s.wio.internal.WakeupResult.ProcessingResult
 
 import java.time.Instant
 
-class WakingWorkflowInstanceEngine[F[_]: {MonadThrow, WeakSync}, Ctx <: WorkflowContext](
+class WakingWorkflowInstanceEngine[F[_]: MonadThrow, Ctx <: WorkflowContext](
     protected val delegate: WorkflowInstanceEngine[F, Ctx],
     knockerUpper: KnockerUpper.Agent[F],
 ) extends DelegatingWorkflowInstanceEngine[F, Ctx]
@@ -42,7 +42,7 @@ class WakingWorkflowInstanceEngine[F[_]: {MonadThrow, WeakSync}, Ctx <: Workflow
   }
 
   private def updateWakeup(workflow: ActiveWorkflow[?], time: Option[Instant]) = {
-    WeakSync[F].delay(logger.debug(s"Registering wakeup for ${workflow.id} at $time")) *>
+    WeakSync.delay[F](logger.debug(s"Registering wakeup for ${workflow.id} at $time")) *>
       knockerUpper
         .updateWakeup(workflow.id, time)
         .handleError(err => {

@@ -30,7 +30,7 @@ Each runtime has its own effect type `F[_]`, dictated by its execution model:
 
 | Runtime | Effect type | Constraint on `F` |
 |---------|-------------|-------------------|
-| `InMemorySynchronizedRuntime` | Any `F` | `MonadThrow[F]` + `WeakSync[F]` |
+| `InMemorySynchronizedRuntime` | Any `F` | `MonadThrow[F]` |
 | `InMemoryConcurrentRuntime` | Any `F` | `Async[F]` (cats-effect) |
 | `PekkoRuntime` | `Future` (hardcoded) | — |
 | `DatabaseRuntime` | Any `F` | `Async[F]` (cats-effect) |
@@ -56,7 +56,7 @@ need to provide anything:
 ```
 <!-- @formatter:on -->
 
-The base engine (via `WorkflowInstanceEngine.basic` or `.default`) requires `MonadThrow[F]` + `WeakSync[F]`.
+The base engine (via `WorkflowInstanceEngine.basic` or `.default`) requires `MonadThrow[F]`.
 Additional wrappers can add their own constraints.
 
 
@@ -64,7 +64,7 @@ Additional wrappers can add their own constraints.
 
 ### scala.util.Try
 
-No extra dependencies — `WeakSync[Try]` is provided by `workflows4s-core`.
+No extra dependencies — `MonadThrow[Try]` is provided by cats.
 
 <!-- @formatter:off -->
 ```scala file=./main/scala/workflows4s/example/docs/EffectExamples.scala start=effect_try_start end=effect_try_end
@@ -87,7 +87,7 @@ No extra dependencies — `WeakSync[Try]` is provided by `workflows4s-core`.
 
 ### zio.Task
 
-Requires `zio-interop-cats` for cats typeclasses and a user-provided `WeakSync[Task]`.
+Requires `zio-interop-cats` for cats typeclasses.
 
 <!-- @formatter:off -->
 ```scala file=./main/scala/workflows4s/example/docs/EffectExamples.scala start=effect_zio_start end=effect_zio_end
