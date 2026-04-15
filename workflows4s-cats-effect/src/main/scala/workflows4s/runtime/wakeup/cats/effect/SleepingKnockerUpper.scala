@@ -26,11 +26,17 @@ class SleepingKnockerUpper[F[_]: Async](
     at match {
       case Some(wakeupTime) =>
         for {
-          wakeupOpt  <- wakeupLogicRef.get
-          wakeup     <- Async[F].fromOption(wakeupOpt, new Exception("No wakeup logic registered. Please call start before calling updateWakeup."))
-          sleepFiber <- Async[F].start(sleepAndWakeup(id, wakeupTime, wakeup))
-          prevState  <- state.getAndUpdate(_.updated(id, (wakeupTime, sleepFiber)))
-          _          <- prevState.get(id).traverse(_._2.cancel)
+          wakeupOpt <- wakeupLogicRef.get
+          wakeup    <- Async[F].fromOption(wakeupOpt, new Exception("No wakeup logic registered. Please call start before calling updateWakeup."))
+          // Start the fiber and register it atomically. If we started it outside `evalModify`, a fiber
+          // whose wakeup time is in the past could complete and its `removeSpecific` finalizer could
+          // run before we insert the fiber into `state`, leaving a stale entry behind.
+          toCancel  <- state.evalModify { st =>
+                         Async[F].start(sleepAndWakeup(id, wakeupTime, wakeup)).map { newFiber =>
+                           (st.updated(id, (wakeupTime, newFiber)), st.get(id).map(_._2))
+                         }
+                       }
+          _         <- toCancel.traverse(_.cancel)
         } yield ()
       case None             =>
         for {

@@ -8,7 +8,7 @@ import org.scalatest.freespec.{AnyFreeSpec, AnyFreeSpecLike}
 import workflows4s.example.TestUtils
 import workflows4s.example.withdrawal.checks.*
 import workflows4s.runtime.WorkflowInstance
-import workflows4s.testing.TestRuntimeAdapter
+import workflows4s.testing.{InMemorySynchronizedTestRuntimeAdapter, TestRuntimeAdapter}
 import workflows4s.wio.given
 import workflows4s.testing.cats.effect.InMemoryConcurrentTestRuntimeAdapter
 import workflows4s.wio.WCState
@@ -20,7 +20,7 @@ class ChecksEngineTest extends AnyFreeSpec with ChecksEngineTest.Suite {
 
   "in-memory-sync" - {
     checkEngineTests(
-      TestRuntimeAdapter.InMemorySync[IO, ChecksEngine.Context.Ctx]([A] =>
+      InMemorySynchronizedTestRuntimeAdapter[IO, ChecksEngine.Context.Ctx]([A] =>
         (fa: IO[A]) => { import cats.effect.unsafe.implicits.global; fa.unsafeRunSync() },
       ),
     )

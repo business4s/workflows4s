@@ -20,33 +20,33 @@ class InMemorySynchronizedWorkflowRuntimeTest extends WorkflowRuntimeTest.Suite 
   private val zioRuntime = zio.Runtime.default
 
   "in-memory-synchronized" - {
-    workflowTests(TestRuntimeAdapter.InMemorySync[IO, TestCtx2.Ctx]([A] => (fa: IO[A]) => fa.unsafeRunSync()))
+    workflowTests(InMemorySynchronizedTestRuntimeAdapter[IO, TestCtx2.Ctx]([A] => (fa: IO[A]) => fa.unsafeRunSync()))
 
     "effect matrix" - {
       "IO" - {
-        matrixTests(TestCtxIO)(TestRuntimeAdapter.InMemorySync[IO, TestCtxIO.Ctx]([A] => (fa: IO[A]) => fa.unsafeRunSync()))
+        matrixTests(TestCtxIO)(InMemorySynchronizedTestRuntimeAdapter[IO, TestCtxIO.Ctx]([A] => (fa: IO[A]) => fa.unsafeRunSync()))
       }
       "Try" - {
-        matrixTests(TestCtxTry)(TestRuntimeAdapter.InMemorySync[Try, TestCtxTry.Ctx]([A] => (fa: Try[A]) => fa.get))
+        matrixTests(TestCtxTry)(InMemorySynchronizedTestRuntimeAdapter[Try, TestCtxTry.Ctx]([A] => (fa: Try[A]) => fa.get))
       }
       "Either" - {
         matrixTests(TestCtxEither)(
-          TestRuntimeAdapter.InMemorySync[EitherThrowable, TestCtxEither.Ctx]([A] => (fa: EitherThrowable[A]) => fa.fold(throw _, identity)),
+          InMemorySynchronizedTestRuntimeAdapter[EitherThrowable, TestCtxEither.Ctx]([A] => (fa: EitherThrowable[A]) => fa.fold(throw _, identity)),
         )
       }
       "Function0" - {
-        matrixTests(TestCtxThunk)(TestRuntimeAdapter.InMemorySync[Function0, TestCtxThunk.Ctx]([A] => (fa: () => A) => fa()))
+        matrixTests(TestCtxThunk)(InMemorySynchronizedTestRuntimeAdapter[Function0, TestCtxThunk.Ctx]([A] => (fa: () => A) => fa()))
       }
       "ZIO Task" - {
         matrixTests(TestCtxZIO)(
-          TestRuntimeAdapter.InMemorySync[Task, TestCtxZIO.Ctx]([A] =>
+          InMemorySynchronizedTestRuntimeAdapter[Task, TestCtxZIO.Ctx]([A] =>
             (fa: Task[A]) => Unsafe.unsafe { implicit unsafe => zioRuntime.unsafe.run(fa).getOrThrow() },
           ),
         )
       }
       "Future" - {
         matrixTests(TestCtxFuture)(
-          TestRuntimeAdapter.InMemorySync[Future, TestCtxFuture.Ctx]([A] => (fa: Future[A]) => Await.result(fa, Duration.Inf)),
+          InMemorySynchronizedTestRuntimeAdapter[Future, TestCtxFuture.Ctx]([A] => (fa: Future[A]) => Await.result(fa, Duration.Inf)),
         )
       }
     }

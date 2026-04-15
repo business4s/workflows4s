@@ -12,11 +12,11 @@ Both in-memory runtimes store workflow state in memory without persistence. They
 
 ## Concurrent Runtime
 
-The concurrent runtime is built on top of [`cats-effect`](https://typelevel.org/cats-effect/) and uses functional concurrency primitives (Ref, AtomicCell, Semaphore). It is fiber-safe and cancellation-safe.
+The concurrent runtime is built on top of [`cats-effect`](https://typelevel.org/cats-effect/) and uses functional concurrency primitives (Ref, Semaphore). It is fiber-safe and cancellation-safe.
 
 ### Example
 
-```scala file=./main/scala/workflows4s/example/docs/InMemoryRuntimeExample.scala start=async_doc_start end=async_doc_end
+```scala file=./main/scala/workflows4s/example/docs/InMemoryConcurrentRuntimeExample.scala start=concurrent_doc_start end=concurrent_doc_end
 ```
 
 ## Synchronized Runtime
@@ -25,4 +25,5 @@ The synchronized runtime uses JVM-level synchronization primitives. It is thread
 
 ### Example
 
-```scala file=./main/scala/workflows4s/example/docs/InMemoryRuntimeExample.scala start=ssync_doc_start end=ssync_doc_end
+```scala file=./main/scala/workflows4s/example/docs/InMemorySynchronizedRuntimeExample.scala start=synchronized_doc_start end=synchronized_doc_end
+```

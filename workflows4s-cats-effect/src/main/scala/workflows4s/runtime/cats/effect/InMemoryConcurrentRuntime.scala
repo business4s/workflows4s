@@ -1,6 +1,6 @@
 package workflows4s.runtime.cats.effect
 
-import _root_.cats.effect.std.{AtomicCell, Semaphore}
+import _root_.cats.effect.std.Semaphore
 import _root_.cats.effect.{Async, Ref}
 import _root_.cats.syntax.all.*
 import workflows4s.runtime.*
@@ -10,7 +10,7 @@ import workflows4s.wio.WIO.Initial
 
 import java.util.UUID
 
-/** In-memory runtime using functional concurrency primitives (Ref, AtomicCell, Semaphore). Fiber-safe and cancellation-safe.
+/** In-memory runtime using functional concurrency primitives (Ref, Semaphore). Fiber-safe and cancellation-safe.
   *
   * IT'S NOT A GENERAL-PURPOSE RUNTIME
   */
@@ -29,7 +29,7 @@ class InMemoryConcurrentRuntime[F[+_]: Async, Ctx <: WorkflowContext](
           for {
             instanceId = WorkflowInstanceId(templateId, id)
             initialWf  = ActiveWorkflow(instanceId, workflow, initialState)
-            stateRef  <- AtomicCell[F].of(initialWf)
+            stateRef  <- Ref[F].of(initialWf)
             eventsRef <- Ref[F].of(Vector[WCEvent[Ctx]]())
             lock      <- Semaphore[F](1)
             runningWf  = InMemoryConcurrentWorkflowInstance[F, Ctx](instanceId, stateRef, eventsRef, engine, lock)

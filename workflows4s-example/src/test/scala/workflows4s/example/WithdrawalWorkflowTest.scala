@@ -14,7 +14,7 @@ import workflows4s.example.withdrawal.*
 import workflows4s.example.withdrawal.WithdrawalService.{ExecutionResponse, Fee, Iban}
 import workflows4s.example.withdrawal.WithdrawalSignal.CreateWithdrawal
 import workflows4s.example.withdrawal.checks.*
-import workflows4s.testing.TestRuntimeAdapter
+import workflows4s.testing.{InMemorySynchronizedTestRuntimeAdapter, TestRuntimeAdapter}
 import workflows4s.wio.given
 import workflows4s.testing.cats.effect.InMemoryConcurrentTestRuntimeAdapter
 
@@ -27,7 +27,7 @@ class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory with Withdrawa
 
   "in-memory-sync" - {
     withdrawalTests(
-      TestRuntimeAdapter.InMemorySync[IO, WithdrawalWorkflow.Context.Ctx]([A] =>
+      InMemorySynchronizedTestRuntimeAdapter[IO, WithdrawalWorkflow.Context.Ctx]([A] =>
         (fa: IO[A]) => { import cats.effect.unsafe.implicits.global; fa.unsafeRunSync() },
       ),
     )

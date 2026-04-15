@@ -6,14 +6,15 @@ import workflows4s.runtime.wakeup.KnockerUpper
 import workflows4s.wio.WeakSync
 
 import java.time.Instant
+import java.util.concurrent.ConcurrentHashMap
 
 class RecordingKnockerUpper[F[_]: WeakSync] extends KnockerUpper.Agent[F], StrictLogging {
 
-  private var wakeups: Map[WorkflowInstanceId, Option[Instant]]     = Map()
-  def lastRegisteredWakeup(id: WorkflowInstanceId): Option[Instant] = wakeups.get(id).flatten
+  private val wakeups: ConcurrentHashMap[WorkflowInstanceId, Option[Instant]] = new ConcurrentHashMap()
+  def lastRegisteredWakeup(id: WorkflowInstanceId): Option[Instant]           = Option(wakeups.get(id)).flatten
 
   override def updateWakeup(id: WorkflowInstanceId, at: Option[Instant]): F[Unit] = WeakSync[F].delay {
     logger.debug(s"Registering wakeup for $id at $at")
-    this.wakeups = wakeups.updatedWith(id)(_ => Some(at))
+    wakeups.put(id, at): Unit
   }
 }

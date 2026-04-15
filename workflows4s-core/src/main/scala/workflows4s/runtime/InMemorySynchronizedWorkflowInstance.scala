@@ -21,10 +21,12 @@ class InMemorySynchronizedWorkflowInstance[F[_]: {MonadThrow, WeakSync}, Ctx <: 
   def getEvents: Seq[WCEvent[Ctx]]                 = events.toList
 
   def recover(events: Seq[WCEvent[Ctx]]): F[Unit] =
-    super.recover(wf, events).flatMap { newState =>
-      WeakSync[F].delay {
-        this.events ++= events
-        wf = newState
+    lockState { currentWf =>
+      super.recover(currentWf, events).flatMap { newState =>
+        WeakSync[F].delay {
+          this.events ++= events
+          wf = newState
+        }
       }
     }
 
@@ -37,6 +39,10 @@ class InMemorySynchronizedWorkflowInstance[F[_]: {MonadThrow, WeakSync}, Ctx <: 
 
   override protected def updateState(newState: ActiveWorkflow[Ctx]): F[Unit] = WeakSync[F].delay { wf = newState }
 
+  // Intentionally not cancellation-safe: we only require `WeakSync` (no `MonadCancel`), which
+  // rules out `Resource.make`. If `F` is cancellable and the fiber is cancelled mid-update, the
+  // lock will not be released. This is a documented tradeoff of the synchronized runtime; use
+  // `InMemoryConcurrentRuntime` when cancellation safety is required.
   override protected def lockState[T](update: ActiveWorkflow[Ctx] => F[T]): F[T] =
     for {
       currentWf <- WeakSync[F].delay { lock.acquire(); wf }
