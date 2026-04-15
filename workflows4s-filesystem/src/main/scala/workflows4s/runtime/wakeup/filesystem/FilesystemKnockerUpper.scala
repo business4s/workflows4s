@@ -2,8 +2,9 @@ package workflows4s.runtime.wakeup.filesystem
 
 import java.nio.file.Path
 import java.time.{Clock, Instant}
-import cats.effect.{IO, ResourceIO}
-import cats.implicits.toFunctorOps
+import cats.effect.{Async, Resource}
+import cats.effect.syntax.all.*
+import cats.syntax.all.*
 import com.typesafe.scalalogging.StrictLogging
 import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.runtime.wakeup.KnockerUpper
@@ -13,12 +14,12 @@ import workflows4s.runtime.wakeup.filesystem.FsScheduler.TaskId
 import java.util.Base64
 import scala.util.Try
 
-class FilesystemKnockerUpper(scheduler: FsScheduler)
-    extends KnockerUpper.Process[IO, ResourceIO[Unit]]
-    with KnockerUpper.Agent[IO]
+class FilesystemKnockerUpper[F[_]: Async](scheduler: FsScheduler[F])
+    extends KnockerUpper.Process[F, Resource[F, Unit]]
+    with KnockerUpper.Agent[F]
     with StrictLogging {
 
-  override def updateWakeup(id: WorkflowInstanceId, at: Option[Instant]): IO[Unit] = {
+  override def updateWakeup(id: WorkflowInstanceId, at: Option[Instant]): F[Unit] = {
     val taskId = TaskId(WorkflowInstanceIdConverter.toString(id))
     at match {
       case Some(value) => scheduler.schedule(taskId, value)
@@ -26,12 +27,12 @@ class FilesystemKnockerUpper(scheduler: FsScheduler)
     }
   }
 
-  override def initialize(wakeUp: WorkflowInstanceId => IO[Unit]): ResourceIO[Unit] = scheduler.events
+  override def initialize(wakeUp: WorkflowInstanceId => F[Unit]): Resource[F, Unit] = scheduler.events
     .evalMap(event => {
       (for {
-        workflowId <- IO.fromEither(WorkflowInstanceIdConverter.fromString(event.entity))
+        workflowId <- Async[F].fromEither(WorkflowInstanceIdConverter.fromString(event.entity))
         _          <- wakeUp(workflowId)
-        _          <- IO(logger.info(s"Woken up for task ${event.entity} scheduled for ${event.scheduleTime}"))
+        _          <- Async[F].delay(logger.info(s"Woken up for task ${event.entity} scheduled for ${event.scheduleTime}"))
         _          <- scheduler.clear(event.entity, event.scheduleTime)
       } yield ()).handleError(ex => logger.error(s"Failed to wakeup ${event.entity}", ex))
     })
@@ -44,9 +45,9 @@ class FilesystemKnockerUpper(scheduler: FsScheduler)
 
 object FilesystemKnockerUpper extends StrictLogging {
 
-  def create(workDir: Path): FilesystemKnockerUpper = {
-    val scheduler = new PollingFsScheduler(fs2.io.file.Path.fromNioPath(workDir), Clock.systemUTC())
-    new FilesystemKnockerUpper(scheduler)
+  def create[F[_]: Async](workDir: Path): FilesystemKnockerUpper[F] = {
+    val scheduler = new PollingFsScheduler[F](fs2.io.file.Path.fromNioPath(workDir), Clock.systemUTC())
+    new FilesystemKnockerUpper[F](scheduler)
   }
 
   object WorkflowInstanceIdConverter {

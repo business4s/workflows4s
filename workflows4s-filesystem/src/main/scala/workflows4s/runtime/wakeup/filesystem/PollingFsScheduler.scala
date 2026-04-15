@@ -5,39 +5,42 @@ import java.time.{Clock, Instant}
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
-import cats.effect.{Async, IO}
+import cats.effect.Async
+import cats.syntax.all.*
 import com.typesafe.scalalogging.StrictLogging
 import fs2.io.file.{Files, Path}
 import workflows4s.runtime.wakeup.filesystem.FsScheduler.TaskId
 
-class PollingFsScheduler(workdir: Path, clock: Clock, pollInterval: FiniteDuration = 1.second) extends FsScheduler with StrictLogging {
+class PollingFsScheduler[F[_]: Async](workdir: Path, clock: Clock, pollInterval: FiniteDuration = 1.second)
+    extends FsScheduler[F]
+    with StrictLogging {
 
   private val timeFormat = DateTimeFormatter.ISO_INSTANT
   private val separator  = '#'
 
-  val files = Files[IO]
+  private val files = Files.forAsync[F]
 
-  def schedule(id: TaskId, time: Instant, content: String = ""): IO[Unit] = {
+  def schedule(id: TaskId, time: Instant, content: String = ""): F[Unit] = {
     val filename = creatFilePath(time, id)
     for {
       _ <- fs2.Stream.emit(content).through(files.writeUtf8(workdir.resolve(filename))).compile.drain
-      _ <- IO(logger.debug(s"Scheduled wakeup ${filename}"))
+      _ <- Async[F].delay(logger.debug(s"Scheduled wakeup ${filename}"))
     } yield ()
   }
 
-  def events: fs2.Stream[IO, FsScheduler.Event] = {
-    given cats.effect.Clock[IO] = Async[IO] // compiler enters infinite loop without this
+  def events: fs2.Stream[F, FsScheduler.Event] = {
+    given cats.effect.Clock[F] = Async[F] // compiler enters infinite loop without this
     for {
-      _             <- fs2.Stream.eval(IO(logger.debug(s"Initializing scheduler polling at interval $pollInterval at ${workdir}")))
-      _             <- fs2.Stream.every(pollInterval)
+      _             <- fs2.Stream.eval(Async[F].delay(logger.debug(s"Initializing scheduler polling at interval $pollInterval at ${workdir}")))
+      _             <- fs2.Stream.every[F](pollInterval)
       file          <- files.list(workdir)
       (time, taskId) = parseFileName(file)
       if clock.instant().isAfter(time)
-      content       <- fs2.Stream.eval(IO(java.nio.file.Files.readString(file.toNioPath)))
+      content       <- fs2.Stream.eval(Async[F].blocking(java.nio.file.Files.readString(file.toNioPath)))
     } yield FsScheduler.Event(taskId, time, content)
   }
 
-  def clearAll(id: TaskId): IO[Unit] = files
+  def clearAll(id: TaskId): F[Unit] = files
     .list(workdir)
     .filter(file => {
       val (_, trigerTaskId) = parseFileName(file)
@@ -47,12 +50,12 @@ class PollingFsScheduler(workdir: Path, clock: Clock, pollInterval: FiniteDurati
     .compile
     .drain
 
-  def clear(id: TaskId, time: Instant): IO[Unit] = {
+  def clear(id: TaskId, time: Instant): F[Unit] = {
     val file = creatFilePath(time, id)
     for {
       deleted <- files.deleteIfExists(file)
-      _       <- if deleted then { IO(logger.debug(s"Consumed wakeup ${file.fileName}")) }
-                 else { IO(logger.warn(s"No wakeup found for ${file.fileName}")) }
+      _       <- if deleted then Async[F].delay(logger.debug(s"Consumed wakeup ${file.fileName}"))
+                 else Async[F].delay(logger.warn(s"No wakeup found for ${file.fileName}"))
     } yield ()
   }
 
