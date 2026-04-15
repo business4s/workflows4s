@@ -1,5 +1,6 @@
 package workflows4s.runtime.registry
 
+import cats.Applicative
 import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.wio.ActiveWorkflow
 
@@ -15,6 +16,10 @@ object WorkflowRegistry {
 
     def upsertInstance(inst: ActiveWorkflow[?], executionStatus: ExecutionStatus): F[Unit]
 
+  }
+
+  object Agent {
+    def noop[F[_]: {Applicative as a}]: Agent[F] = (_: ActiveWorkflow[?], _: ExecutionStatus) => a.pure(())
   }
 
   /** Extracts user-defined tags from workflow state for filtering/searching. */

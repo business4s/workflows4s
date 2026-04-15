@@ -12,6 +12,7 @@ import workflows4s.example.withdrawal.checks.ChecksEngine
 import workflows4s.example.withdrawal.{WithdrawalData, WithdrawalWorkflow}
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.pekko.{PekkoKnockerUpper, PekkoRuntime}
+import workflows4s.runtime.registry.WorkflowRegistry
 import workflows4s.wio.LiftWorkflowEffect
 
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -30,14 +31,7 @@ object Main {
     val knockerUpper = PekkoKnockerUpper.create
     val journal      = setupJournal()
     val workflow     = WithdrawalWorkflow(DummyWithdrawalService, ChecksEngine)
-    val engine       =
-      WorkflowInstanceEngine.builder
-        .withJavaTime[Future]()
-        .withWakeUps(knockerUpper)
-        .withoutRegistering
-        .withGreedyEvaluation
-        .withLogging
-        .get[WithdrawalWorkflow.Context.Ctx]
+    val engine       = WorkflowInstanceEngine.default(knockerUpper, WorkflowRegistry.Agent.noop[Future])
     val runtime      =
       PekkoRuntime.create(
         "withdrawal",
