@@ -27,9 +27,9 @@ object TestWorkflows {
   }
 
   def signal(ctx: TestContextBase): (SignalDef[Int, Int], StepId, ctx.WIO[TestState, Nothing, TestState]) = {
-    val signalDef                        = SignalDef[Int, Int](id = UUID.randomUUID().toString)
-    val stepId                           = StepId.random("signal")
-    val wio                              = ctx.WIO
+    val signalDef = SignalDef[Int, Int](id = UUID.randomUUID().toString)
+    val stepId    = StepId.random("signal")
+    val wio       = ctx.WIO
       .handleSignal(signalDef)
       .using[TestState]
       .purely((_, req) => TestEvent.SigDone(req))

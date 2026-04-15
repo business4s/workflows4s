@@ -16,7 +16,7 @@ object DraftBuilder {
     val draft: DraftBuilderStep1.type = DraftBuilderStep1
 
     object DraftBuilderStep1 {
-      def signal(name: String = null, error: String = null)(using autoName: sourcecode.Name): WIO.Draft[Ctx] =
+      def signal(name: String = null, error: String = null)(using autoName: sourcecode.Name): WIO.Draft[Ctx]           =
         WIO.HandleSignal(
           draftSignal,
           SignalHandler[WCEffect[Ctx], Unit, Unit, Any]((_, _) => ???),

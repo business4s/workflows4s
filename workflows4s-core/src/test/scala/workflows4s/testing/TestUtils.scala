@@ -22,9 +22,9 @@ import scala.util.Random
 class SyncWorkflowInstance[Ctx <: WorkflowContext](
     val base: InMemorySynchronizedWorkflowInstance[IO, Ctx],
 ) extends DelegateWorkflowInstance[Id, WCState[Ctx]] {
-  val delegate: WorkflowInstance[Id, WCState[Ctx]]                                          = MappedWorkflowInstance(base, [t] => (x: IO[t]) => x.unsafeRunSync())
-  def getEvents: Seq[WCEvent[Ctx]]                                                          = base.getEvents
-  def recover(events: Seq[WCEvent[Ctx]]): Unit                                              = base.recover(events).unsafeRunSync()
+  val delegate: WorkflowInstance[Id, WCState[Ctx]] = MappedWorkflowInstance(base, [t] => (x: IO[t]) => x.unsafeRunSync())
+  def getEvents: Seq[WCEvent[Ctx]]                 = base.getEvents
+  def recover(events: Seq[WCEvent[Ctx]]): Unit     = base.recover(events).unsafeRunSync()
 }
 
 class TestRuntime {
@@ -32,7 +32,8 @@ class TestRuntime {
   val knockerUpper = RecordingKnockerUpper[IO]()
 
   val engine: WorkflowInstanceEngine[IO, TestCtx2.Ctx] =
-    WorkflowInstanceEngine.builder[IO](clock)
+    WorkflowInstanceEngine
+      .builder[IO](clock)
       .withWakeUps(knockerUpper)
       .withoutRegistering
       .withGreedyEvaluation

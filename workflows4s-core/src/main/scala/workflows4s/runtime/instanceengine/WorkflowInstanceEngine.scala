@@ -70,12 +70,9 @@ object WorkflowInstanceEngine {
       .get(ev.asPoly)
   def basic[F[_]: MonadThrow, Ctx <: WorkflowContext](
       clock: Clock = Clock.systemUTC(),
-  )(using ev: LiftWorkflowEffect[Ctx, F]): WorkflowInstanceEngine[F, Ctx] = builder[F](clock)
-    .withoutWakeUps
-    .withoutRegistering
-    .withGreedyEvaluation
-    .withLogging
-    .get(ev.asPoly)
+  )(using ev: LiftWorkflowEffect[Ctx, F]): WorkflowInstanceEngine[F, Ctx] =
+    builder[F](clock).withoutWakeUps.withoutRegistering.withGreedyEvaluation.withLogging
+      .get(ev.asPoly)
 
   enum PostExecCommand {
     case WakeUp

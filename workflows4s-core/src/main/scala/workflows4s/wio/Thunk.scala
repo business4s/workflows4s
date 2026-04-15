@@ -27,10 +27,11 @@ object Thunk {
   }
 
   given Monad[Thunk] = new Monad[Thunk] {
-    def pure[A](a: A): Thunk[A]                                 = Thunk.pure(a)
-    def flatMap[A, B](fa: Thunk[A])(f: A => Thunk[B]): Thunk[B] = () => f(fa())()
+    def pure[A](a: A): Thunk[A]                                     = Thunk.pure(a)
+    def flatMap[A, B](fa: Thunk[A])(f: A => Thunk[B]): Thunk[B]     = () => f(fa())()
     def tailRecM[A, B](a: A)(f: A => Thunk[Either[A, B]]): Thunk[B] = () => {
-      @annotation.tailrec def loop(x: A): B = f(x)() match {
+      @annotation.tailrec
+      def loop(x: A): B = f(x)() match {
         case Left(next) => loop(next)
         case Right(b)   => b
       }

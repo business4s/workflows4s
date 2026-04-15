@@ -170,7 +170,7 @@ class WIOForEachTest extends AnyFreeSpec with Matchers with OptionValues with Ei
       case class InnerIdDone(stepId: StepId) extends TestCtx2.Event
 
       val innerFlow: InnerCtx.WIO[TestState, Nothing, TestState] = InnerCtx.WIO
-        .runIO[TestState]( (_: TestState) => (InnerIdDone(innerStepId): cats.Id[InnerIdDone]))
+        .runIO[TestState]((_: TestState) => (InnerIdDone(innerStepId): cats.Id[InnerIdDone]))
         .handleEvent((st, evt) => st.addExecuted(evt.stepId))
         .done
 
@@ -193,7 +193,7 @@ class WIOForEachTest extends AnyFreeSpec with Matchers with OptionValues with Ei
       val elements @ List(el1, el2) = genElements(2)
       val (_, instance)             = TestUtils.createInstance2(wf.provideInput(elements.toSet))
       instance.wakeup() // kick off the inner runIO steps; greedy engine cascades
-      val resultState               = instance.queryState()
+      val resultState = instance.queryState()
 
       assert(
         resultState.executed == List(

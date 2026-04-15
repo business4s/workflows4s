@@ -18,7 +18,8 @@ object EngineExample {
   val knockerUpper: KnockerUpper.Agent[IO] = ???
   val registry: WorkflowRegistry.Agent[IO] = ???
 
-  val engine: WorkflowInstanceEngine[IO, MyWorkflowCtx.Ctx] = WorkflowInstanceEngine.builder[IO]()
+  val engine: WorkflowInstanceEngine[IO, MyWorkflowCtx.Ctx] = WorkflowInstanceEngine
+    .builder[IO]()
     .withWakeUps(knockerUpper)
     .withRegistering(registry)
     .withGreedyEvaluation
