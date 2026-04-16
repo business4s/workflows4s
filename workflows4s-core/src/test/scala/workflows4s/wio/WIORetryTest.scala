@@ -5,6 +5,7 @@ import cats.implicits.catsSyntaxOptionId
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{EitherValues, OptionValues}
+import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.testing.{TestRuntime, TestUtils}
 
 import java.time.{Duration, Instant}
@@ -115,6 +116,47 @@ class WIORetryTest extends AnyFreeSpec with Matchers with OptionValues with Eith
         // wakeup didnt throw but woke up
         instance.wakeup()
         assert(instance.queryState() == TestState(List(stepId)))
+      }
+    }
+
+    "WIOContext propagation" - {
+
+      "stateless error handler receives instance id" in new Fixture {
+        var capturedId: Option[WorkflowInstanceId] = None
+
+        val retryingWIO = failingWIO.retry.statelessly.wakeupAt { (_, _, _) =>
+          capturedId = Some(WIOContext.instanceId)
+          IO(Some(Instant.now().plus(Duration.ofSeconds(1))))
+        }
+        val instance    = runtime.createInstance(retryingWIO)
+
+        instance.wakeup()
+
+        assert(capturedId.isDefined)
+        assert(capturedId.get.templateId == "test")
+      }
+
+      "stateful error handler receives instance id" in new Fixture {
+        var capturedId: Option[WorkflowInstanceId] = None
+        case class RetryEvent(inc: Int) extends TestCtx2.Event
+
+        val retryingWIO = failingWIO.retry
+          .usingState[Int]
+          .onError[RetryEvent] { _ =>
+            capturedId = Some(WIOContext.instanceId)
+            IO(WIO.Retry.Stateful.Result.ScheduleWakeup(Instant.now().plus(Duration.ofSeconds(1)), RetryEvent(1).some))
+          }
+          .handleEventsWith((_, _, _, retryState) => {
+            val newState = retryState.getOrElse(0) + 1
+            if newState < 2 then Left(newState)
+            else Right(Right(TestState.empty.addError("recovered")))
+          })
+
+        val instance = runtime.createInstance(retryingWIO)
+        instance.wakeup()
+
+        assert(capturedId.isDefined)
+        assert(capturedId.get.templateId == "test")
       }
     }
   }

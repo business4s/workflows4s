@@ -6,6 +6,7 @@ import cats.implicits.catsSyntaxOptionId
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.EitherValues
+import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.testing.TestUtils
 import workflows4s.wio.WIO.HandleSignal
 
@@ -265,6 +266,32 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers with EitherValues {
         // Redelivery with different request - response producer sees both values
         val response3 = instance.deliverSignal(signalDef, 99).value
         assert(response3 == "original=42, current=99")
+      }
+    }
+
+    "WIOContext propagation" - {
+
+      "receives instance id" in {
+        val signalDef                              = SignalDef[Int, String]()
+        var capturedId: Option[WorkflowInstanceId] = None
+        val wf                                     = WIO
+          .handleSignal(signalDef)
+          .using[String]
+          .withSideEffects { (input, req) =>
+            capturedId = Some(WIOContext.instanceId)
+            IO.pure(s"sig($input,$req)")
+          }
+          .handleEvent((_, evt) => evt.value)
+          .produceResponse((_, _, _) => "resp")
+          .done
+          .toWorkflow("initial")
+
+        wf.handleSignal(signalDef)(42) match {
+          case SignalResult.Processed(io) => io.unsafeRunSync()
+          case other                      => fail(s"Expected Processed, got $other")
+        }
+
+        assert(capturedId.contains(WorkflowInstanceId("test", "test")))
       }
     }
 

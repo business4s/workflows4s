@@ -97,6 +97,39 @@ class WIOPureTest extends AnyFreeSpec with Matchers {
         assert(meta.error == ErrorMeta.Present("custom"))
       }
     }
+
+    "WIOContext propagation" - {
+
+      "receives instance id" in {
+        import TestCtx2.*
+        val wio           = WIO.pure
+          .makeFrom[TestState]
+          .value { _ =>
+            val id = WIOContext.instanceId
+            TestState.empty.addExecuted(StepId.random(id.templateId))
+          }
+          .done
+        val (_, instance) = TestUtils.createInstance2(wio)
+
+        val state = instance.queryState()
+        assert(state.executed.size == 1)
+        assert(state.executed.head.startsWith("test"))
+      }
+
+      "receives current state" in {
+        import TestCtx2.*
+        val wio           = WIO.pure
+          .makeFrom[TestState]
+          .value { _ =>
+            val st = WIOContext.currentState[TestState]
+            st.addExecuted(StepId.random("pure-ctx"))
+          }
+          .done
+        val (_, instance) = TestUtils.createInstance2(wio)
+
+        assert(instance.queryState().executed.size == 1)
+      }
+    }
   }
 
 }

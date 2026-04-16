@@ -1,7 +1,9 @@
 package workflows4s.wio
 
+import cats.effect.IO
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
+import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.testing.TestUtils
 
 class WIOCheckpointTest extends AnyFreeSpec with Matchers {
@@ -107,6 +109,30 @@ class WIOCheckpointTest extends AnyFreeSpec with Matchers {
       wf1.wakeup()
       assert(wf1.queryState().executed == List())
       assert(wf1.queryState().errors == List(error))
+    }
+    "WIOContext propagation through checkpoint" in {
+      var capturedId: Option[WorkflowInstanceId] = None
+      case class RunIODone(stepId: StepId)      extends TestCtx2.Event
+      case class MyCheckpoint(state: TestState) extends TestCtx2.Event
+
+      val stepId = StepId.random("ckp-ctx")
+      val inner  = WIO
+        .runIO[TestState] { _ =>
+          capturedId = Some(WIOContext.instanceId)
+          IO.pure(RunIODone(stepId))
+        }
+        .handleEvent((st, evt) => st.addExecuted(evt.stepId))
+        .done
+
+      val wio     = inner.checkpointed(
+        (_, state) => MyCheckpoint(state),
+        (_, ckp) => ckp.state,
+      )
+      val (_, wf) = TestUtils.createInstance2(wio)
+      wf.wakeup()
+
+      assert(capturedId.isDefined)
+      assert(capturedId.get.templateId == "test")
     }
   }
 

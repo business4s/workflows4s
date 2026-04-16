@@ -46,12 +46,12 @@ trait WIOMethods[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx]] { self
     WIO.HandleInterruption(this, interruption.handler, WIO.HandleInterruption.InterruptionStatus.Pending, interruption.tpe)
 
   def checkpointed[Evt <: WCEvent[Ctx], In1 <: In, Out1 >: Out <: WCState[Ctx]](
-      genEvent: (In1, Out1) => Evt,
+      genEvent: WIOContext[WCState[Ctx]] ?=> (In1, Out1) => Evt,
       handleEvent: (In1, Evt) => Out1,
   )(using evtCt: ClassTag[Evt]): WIO[In1, Err, Out1, Ctx] = {
     WIO.Checkpoint(
       this,
-      (a: In1, b: Out1) => genEvent(a, b).pure[IO],
+      (ctx: WIOContext[WCState[Ctx]]) => (a: In1, b: Out1) => genEvent(using ctx)(a, b).pure[IO],
       EventHandler.partial[WCEvent[Ctx], In1, Out1, Evt](identity, handleEvent),
     )
   }

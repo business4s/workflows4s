@@ -20,12 +20,13 @@ object HandleSignalBuilder {
 
       class Step1[Input] {
 
-        def withSideEffects[Evt <: WCEvent[Ctx]](f: (Input, Req) => IO[Evt])(using evtCt: ClassTag[Evt]): Step2[Evt] = Step2(f, evtCt)
+        def withSideEffects[Evt <: WCEvent[Ctx]](f: WIOContext[WCState[Ctx]] ?=> (Input, Req) => IO[Evt])(using evtCt: ClassTag[Evt]): Step2[Evt] =
+          Step2(ctx => f(using ctx), evtCt)
 
-        def purely[Evt <: WCEvent[Ctx]](f: (Input, Req) => Evt)(using evtCt: ClassTag[Evt]): Step2[Evt] =
-          Step2((x, y) => IO.pure(f(x, y)), evtCt)
+        def purely[Evt <: WCEvent[Ctx]](f: WIOContext[WCState[Ctx]] ?=> (Input, Req) => Evt)(using evtCt: ClassTag[Evt]): Step2[Evt] =
+          Step2(ctx => (x, y) => IO.pure(f(using ctx)(x, y)), evtCt)
 
-        class Step2[Evt <: WCEvent[Ctx]](signalHandler: (Input, Req) => IO[Evt], evtCt: ClassTag[Evt]) {
+        class Step2[Evt <: WCEvent[Ctx]](signalHandler: WIOContext[WCState[Ctx]] => (Input, Req) => IO[Evt], evtCt: ClassTag[Evt]) {
 
           def handleEvent[Out <: WCState[Ctx]](f: (Input, Evt) => Out): Step3[Nothing, Out] =
             Step3({ (x, y) => Right(f(x, y)) }, ErrorMeta.noError)
@@ -58,7 +59,7 @@ object HandleSignalBuilder {
               def done: WIO.IHandleSignal[Input, Err, Out, Ctx] = {
                 val eh: EventHandler[Input, Either[Err, Out], WCEvent[Ctx], Evt] =
                   EventHandler.partial[WCEvent[Ctx], Input, Either[Err, Out], Evt](identity, eventHandler)(using evtCt)
-                val sh: SignalHandler[Req, Evt, Input]                           = SignalHandler(signalHandler)
+                val sh: SignalHandler[Req, Evt, Input, WCState[Ctx]]             = SignalHandler(signalHandler)
                 val meta                                                         = HandleSignal.Meta(errorMeta, signalName.getOrElse(signalDef.name), operationName)
                 WIO.HandleSignal(signalDef, sh, eh, responseBuilder, meta)
               }
