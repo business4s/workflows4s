@@ -5,6 +5,7 @@ import cats.effect.unsafe.implicits.global
 import org.scalatest.{EitherValues, OptionValues}
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
+import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.wio.WIO.RunIO
 import workflows4s.wio.internal.SignalResult
 
@@ -113,6 +114,41 @@ class WIORunIOTest extends AnyFreeSpec, Matchers, EitherValues, OptionValues {
 
         val meta = wio.extractMeta
         assert(meta.error == ErrorMeta.Present("XXX"))
+      }
+    }
+
+    "WIOContext propagation" - {
+
+      "receives instance id" in {
+        var capturedId: Option[WorkflowInstanceId] = None
+        val wf                                     = WIO
+          .runIO[String] { input =>
+            capturedId = Some(WIOContext.instanceId)
+            IO.pure(s"done($input)")
+          }
+          .handleEvent((_, evt) => evt.value)
+          .done
+          .toWorkflow("initial")
+
+        wf.proceed(Instant.now).toRaw.value.unsafeRunSync()
+
+        capturedId.value shouldBe WorkflowInstanceId("test", "test")
+      }
+
+      "receives current state" in {
+        var capturedState: Option[String] = None
+        val wf                            = WIO
+          .runIO[String] { input =>
+            capturedState = Some(WIOContext.currentState[String])
+            IO.pure(s"done($input)")
+          }
+          .handleEvent((_, evt) => evt.value)
+          .done
+          .toWorkflow("myState")
+
+        wf.proceed(Instant.now).toRaw.value.unsafeRunSync()
+
+        capturedState.value shouldBe "myState"
       }
     }
   }

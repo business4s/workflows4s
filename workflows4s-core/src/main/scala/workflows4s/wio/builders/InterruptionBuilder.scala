@@ -24,12 +24,13 @@ object InterruptionBuilder {
 
     class SignalInterruptionStep1[Req, Resp](signalDef: SignalDef[Req, Resp]) {
 
-      def handleAsync[Evt <: WCEvent[Ctx]](f: (Input, Req) => IO[Evt])(using evtCt: ClassTag[Evt]): Step2[Evt] = Step2(f, evtCt)
+      def handleAsync[Evt <: WCEvent[Ctx]](f: WIOContext[WCState[Ctx]] ?=> (Input, Req) => IO[Evt])(using evtCt: ClassTag[Evt]): Step2[Evt] =
+        Step2(ctx => f(using ctx), evtCt)
 
-      def handleSync[Evt <: WCEvent[Ctx]](f: (Input, Req) => Evt)(using evtCt: ClassTag[Evt]): Step2[Evt] =
-        Step2((x, y) => IO.pure(f(x, y)), evtCt)
+      def handleSync[Evt <: WCEvent[Ctx]](f: WIOContext[WCState[Ctx]] ?=> (Input, Req) => Evt)(using evtCt: ClassTag[Evt]): Step2[Evt] =
+        Step2(ctx => (x, y) => IO.pure(f(using ctx)(x, y)), evtCt)
 
-      class Step2[Evt <: WCEvent[Ctx]](signalHandler: (Input, Req) => IO[Evt], evtCt: ClassTag[Evt]) {
+      class Step2[Evt <: WCEvent[Ctx]](signalHandler: WIOContext[WCState[Ctx]] => (Input, Req) => IO[Evt], evtCt: ClassTag[Evt]) {
 
         def handleEvent[Out <: WCState[Ctx]](f: (Input, Evt) => Out): Step3[Nothing, Out] =
           Step3({ (x, y) => Right(f(x, y)) }, ErrorMeta.noError)
@@ -58,7 +59,7 @@ object InterruptionBuilder {
             private def source(operationName: Option[String], signalName: Option[String]): WIO[Input, Err, Out, Ctx] = {
               val eh: EventHandler[Input, Either[Err, Out], WCEvent[Ctx], Evt]         =
                 EventHandler.partial[WCEvent[Ctx], Input, Either[Err, Out], Evt](identity, eventHandler)(using evtCt)
-              val sh: SignalHandler[Req, Evt, Input]                                   = SignalHandler(signalHandler)
+              val sh: SignalHandler[Req, Evt, Input, WCState[Ctx]]                     = SignalHandler(signalHandler)
               val meta                                                                 = WIO.HandleSignal.Meta(errorMeta, signalName.getOrElse(ModelUtils.getPrettyNameForClass(signalDef.reqCt)), operationName)
               val handleSignal: WIO.HandleSignal[Ctx, Input, Out, Err, Req, Resp, Evt] = WIO.HandleSignal(signalDef, sh, eh, responseBuilder, meta)
               handleSignal
