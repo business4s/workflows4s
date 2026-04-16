@@ -12,7 +12,8 @@ object WIOMeta {
   case class Pure(name: Option[String], error: Option[WIOMeta.Error], description: Option[String] = None) derives Codec
   case class Timer(duration: Option[Duration], releaseAt: Option[Instant], name: Option[String]) derives Codec
   case class RunIO(name: Option[String], error: Option[WIOMeta.Error], description: Option[String]) derives Codec
-  case class HandleSignal(signalName: String, operationName: Option[String], error: Option[WIOMeta.Error], description: Option[String] = None) derives Codec
+  case class HandleSignal(signalName: String, operationName: Option[String], error: Option[WIOMeta.Error], description: Option[String] = None)
+      derives Codec
   case class Loop(
       conditionName: Option[String],
       exitBranchName: Option[String],

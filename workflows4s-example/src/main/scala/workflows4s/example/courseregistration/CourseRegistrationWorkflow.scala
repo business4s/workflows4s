@@ -102,7 +102,10 @@ object CourseRegistrationWorkflow {
   val completeRegistration: WIO[RegistrationState.RegistrationComplete, Nothing, RegistrationState.RegistrationComplete] =
     WIO.pure.makeFrom[RegistrationState.RegistrationComplete].value(identity).autoNamed()
   val handleFailure: WIO[(CourseRegistrationState, RegistrationError), Nothing, RegistrationState.RegistrationFailed]    =
-    WIO.pure.makeFrom[(CourseRegistrationState, RegistrationError)].value((state, err) => RegistrationState.RegistrationFailed(state, err)).autoNamed()
+    WIO.pure
+      .makeFrom[(CourseRegistrationState, RegistrationError)]
+      .value((state, err) => RegistrationState.RegistrationFailed(state, err))
+      .autoNamed()
 
   val workflow: WIO.Initial = (
     startBrowsing >>>
