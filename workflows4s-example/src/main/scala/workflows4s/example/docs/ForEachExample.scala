@@ -27,7 +27,7 @@ object ForEachExample {
     // real_start
     type Element
     type Input
-    def elementWorkflow: SubWorkflowContext.WIO[Element, Nothing, SubWorkflowState]         = SubWorkflowContext.WIO.pure(SubWorkflowState()).autoNamed
+    def elementWorkflow: SubWorkflowContext.WIO[Element, Nothing, SubWorkflowState]         = SubWorkflowContext.WIO.pure(SubWorkflowState()).autoNamed()
     def getElements(input: Input): Set[Element]                                             = ???
     def initialElementState: SubWorkflowState                                               = ???
     def buildInterimState(input: Input, subStates: Map[Element, SubWorkflowState]): MyState = ???

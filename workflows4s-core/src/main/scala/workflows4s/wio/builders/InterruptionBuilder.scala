@@ -49,18 +49,18 @@ object InterruptionBuilder {
 
           class Step4(responseBuilder: (Input, Evt, Req) => Resp) {
 
-            def named(operationName: String = null, signalName: String = null): WIO.Interruption[Ctx, Err, Out] =
-              WIO.Interruption(source(Option(operationName), Option(signalName)), tpe)
-            def autoNamed(using name: sourcecode.Name): WIO.Interruption[Ctx, Err, Out]                         =
-              named(operationName = ModelUtils.prettifyName(name.value))
+            def named(operationName: String = null, signalName: String = null, description: String = null): WIO.Interruption[Ctx, Err, Out] =
+              WIO.Interruption(source(Option(operationName), Option(signalName), Option(description)), tpe)
+            def autoNamed(description: String = null)(using name: sourcecode.Name): WIO.Interruption[Ctx, Err, Out] =
+              named(operationName = ModelUtils.prettifyName(name.value), description = description)
             def done: WIO.Interruption[Ctx, Err, Out]                                                           =
-              WIO.Interruption(source(None, None), tpe)
+              WIO.Interruption(source(None, None, None), tpe)
 
-            private def source(operationName: Option[String], signalName: Option[String]): WIO[Input, Err, Out, Ctx] = {
+            private def source(operationName: Option[String], signalName: Option[String], description: Option[String]): WIO[Input, Err, Out, Ctx] = {
               val eh: EventHandler[Input, Either[Err, Out], WCEvent[Ctx], Evt]         =
                 EventHandler.partial[WCEvent[Ctx], Input, Either[Err, Out], Evt](identity, eventHandler)(using evtCt)
               val sh: SignalHandler[Req, Evt, Input, WCState[Ctx]]                     = SignalHandler(signalHandler)
-              val meta                                                                 = WIO.HandleSignal.Meta(errorMeta, signalName.getOrElse(ModelUtils.getPrettyNameForClass(signalDef.reqCt)), operationName)
+              val meta                                                                 = WIO.HandleSignal.Meta(errorMeta, signalName.getOrElse(ModelUtils.getPrettyNameForClass(signalDef.reqCt)), operationName, description)
               val handleSignal: WIO.HandleSignal[Ctx, Input, Out, Err, Req, Resp, Evt] = WIO.HandleSignal(signalDef, sh, eh, responseBuilder, meta)
               handleSignal
             }
@@ -105,7 +105,7 @@ object InterruptionBuilder {
         ) {
 
           def named(timerName: String): WIO.Interruption[Ctx, Nothing, WCState[Ctx]]               = WIO.Interruption(source(timerName.some), tpe)
-          def autoNamed(using name: sourcecode.Name): WIO.Interruption[Ctx, Nothing, WCState[Ctx]] = named(ModelUtils.prettifyName(name.value))
+          def autoNamed()(using name: sourcecode.Name): WIO.Interruption[Ctx, Nothing, WCState[Ctx]] = named(ModelUtils.prettifyName(name.value))
           def done: WIO.Interruption[Ctx, Nothing, WCState[Ctx]]                                   = WIO.Interruption(source(None), tpe)
 
           private def source(name: Option[String]): WIO[Input, Nothing, WCState[Ctx], Ctx] =

@@ -16,7 +16,7 @@ object DraftBuilder {
     val draft: DraftBuilderStep1.type = DraftBuilderStep1
 
     object DraftBuilderStep1 {
-      def signal(name: String = null, error: String = null)(using autoName: sourcecode.Name): WIO.Draft[Ctx]                                  =
+      def signal(name: String = null, error: String = null, description: String = null)(using autoName: sourcecode.Name): WIO.Draft[Ctx]       =
         WIO.HandleSignal(
           draftSignal,
           SignalHandler[Unit, Unit, Any, WCState[Ctx]](_ => (_, _) => ???),
@@ -26,6 +26,7 @@ object DraftBuilder {
             Option(error).map(ErrorMeta.Present(_)).getOrElse(ErrorMeta.noError),
             getEffectiveName(name, autoName),
             None,
+            Option(description),
           ),
         )
       def timer(name: String = null, duration: FiniteDuration = null)(using autoName: sourcecode.Name): WIO.Timer[Ctx, Any, Nothing, Nothing] =
@@ -92,6 +93,7 @@ object DraftBuilder {
           signalName: String = null,
           operationName: String = null,
           error: String = null,
+          description: String = null,
       )(using autoName: sourcecode.Name): WIO.Interruption[Ctx, Nothing, Nothing] = {
         val draftSignalHandling = WIO
           .HandleSignal(
@@ -103,6 +105,7 @@ object DraftBuilder {
               Option(error).map(ErrorMeta.Present(_)).getOrElse(ErrorMeta.noError),
               Option(signalName).getOrElse(getEffectiveName(null, autoName)),
               Option(operationName),
+              Option(description),
             ),
           )
           .transformInput((_: WCState[Ctx]) => ???)

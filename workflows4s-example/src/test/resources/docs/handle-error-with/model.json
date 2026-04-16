@@ -4,14 +4,16 @@
       "name" : "Do Things",
       "error" : {
         "name" : "My Error"
-      }
+      },
+      "description" : null
     },
     "_type" : "Pure"
   },
   "handler" : {
     "meta" : {
       "name" : "Handle That Nasty Error",
-      "error" : null
+      "error" : null,
+      "description" : null
     },
     "_type" : "Pure"
   },

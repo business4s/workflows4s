@@ -89,6 +89,7 @@ object MermaidRenderer {
                           ),
                         )
             stepId   <- addStep(meta.operationName.getOrElse(s"Handle ${meta.signalName}"))
+            _        <- meta.description.traverse(addNote)
             _        <- meta.error.traverse(addPendingError(stepId, _))
           } yield signalId.some
         case WIOExecutionProgress.HandleError(base, handler, error, _)        =>
@@ -117,6 +118,7 @@ object MermaidRenderer {
           if meta.name.isDefined || meta.error.isDefined then {
             for {
               stepId <- addStep(meta.name.getOrElse("@computation"))
+              _      <- meta.description.traverse(addNote)
               _      <- meta.error.traverse(addPendingError(stepId, _))
             } yield stepId.some
           } else State.pure(None)

@@ -52,12 +52,14 @@ object BpmnRenderer {
           .name(taskName)
           .pipe(renderError(meta.error))
       case WIOModel.HandleSignal(meta)                                =>
+        val rawName  = meta.operationName.getOrElse(s"""Handle "${meta.signalName}"""")
+        val taskName = meta.description.map(desc => s"${rawName}\n$desc").getOrElse(rawName)
         builder
           .intermediateCatchEvent()
           .signal(meta.signalName)
           .name(meta.signalName)
           .serviceTask()
-          .name(meta.operationName.getOrElse(s"""Handle "${meta.signalName}""""))
+          .name(taskName)
           .pipe(renderError(meta.error))
       case WIOModel.HandleError(base, handler, meta)                  =>
         val subProcessStartEventId = Random.alphanumeric.filter(_.isLetter).take(10).mkString
@@ -79,9 +81,11 @@ object BpmnRenderer {
       case WIOModel.End                                               => builder
       case WIOModel.Pure(meta)                                        =>
         if meta.error.isDefined || meta.name.isDefined then {
+          val rawName  = meta.name.getOrElse("Task")
+          val taskName = meta.description.map(desc => s"${rawName}\n$desc").getOrElse(rawName)
           builder
             .serviceTask()
-            .name(meta.name.orNull)
+            .name(taskName)
             .pipe(renderError(meta.error))
         } else builder
       case loop: WIOModel.Loop                                        =>

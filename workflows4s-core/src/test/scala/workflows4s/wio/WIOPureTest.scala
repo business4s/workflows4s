@@ -78,7 +78,7 @@ class WIOPureTest extends AnyFreeSpec with Matchers {
       }
 
       "autonamed" in {
-        val autonamedRunIO = base.autoNamed
+        val autonamedRunIO = base.autoNamed()
 
         val meta = autonamedRunIO.extractMeta
         assert(meta.name.contains("Autonamed Run IO"))
