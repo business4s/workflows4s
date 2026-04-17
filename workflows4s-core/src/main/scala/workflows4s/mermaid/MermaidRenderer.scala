@@ -24,20 +24,23 @@ object MermaidRenderer {
     // If there are still active nodes after rendering (e.g., loop exit branches),
     // connect them to an End node to make the exit path visible.
     // However, skip this if any active node is already an End node (to avoid End -> End).
-    val hasEndNode = finalState.chart.elements.exists {
-      case Node(_, "End", Some("circle"), _) => true
-      case _                                 => false
+    val existingEndNode = finalState.chart.elements.collectFirst { case Node(id, "End", Some("circle"), _) =>
+      id
     }
 
-    val needsEndNode = (finalState.activeNodes.nonEmpty || finalState.pendingErrorLinks.nonEmpty) && !hasEndNode
-    val finalChart   = if needsEndNode then {
-      val endNodeId  = s"node${finalState.idIdx}"
-      val endNode    = Node(endNodeId, "End", shape = "circle".some, clazz = None)
-      val endLinks   = finalState.activeNodes.map(activeNode => Link(activeNode._1, endNodeId, activeNode._2))
-      val errorLinks = finalState.pendingErrorLinks.map((from, err) => errorLink(from, endNodeId, err))
-      finalState.chart.addElement(endNode).addElements(endLinks).addElements(errorLinks)
-    } else {
-      finalState.chart
+    val finalChart = existingEndNode match {
+      case None if finalState.activeNodes.nonEmpty || finalState.pendingErrorLinks.nonEmpty =>
+        val endNodeId  = s"node${finalState.idIdx}"
+        val endNode    = Node(endNodeId, "End", shape = "circle".some, clazz = None)
+        val endLinks   = finalState.activeNodes.map(activeNode => Link(activeNode._1, endNodeId, activeNode._2))
+        val errorLinks = finalState.pendingErrorLinks.map((from, err) => errorLink(from, endNodeId, err))
+        finalState.chart.addElement(endNode).addElements(endLinks).addElements(errorLinks)
+      case Some(endNodeId) if finalState.pendingErrorLinks.nonEmpty                         =>
+        // An End node already exists but pendingErrorLinks weren't drained (e.g., a bare-Pure handler rendered
+        // after an explicit End appeared elsewhere in the tree). Route the deferred errors to the existing End.
+        val errorLinks = finalState.pendingErrorLinks.map((from, err) => errorLink(from, endNodeId, err))
+        finalState.chart.addElements(errorLinks)
+      case _                                                                                => finalState.chart
     }
 
     finalChart
@@ -250,7 +253,7 @@ object MermaidRenderer {
   }
   private def addStepGeneral(createElem: NodeId => MermaidElement): State[RenderState, NodeId]                                    = {
     for {
-      prev        <- cleanActiveNodes
+      prev         <- cleanActiveNodes
       deferredErrs <- cleanPendingErrorLinks
       id           <- addNode(createElem, active = true)
       _            <- addLinks(prev, id)
