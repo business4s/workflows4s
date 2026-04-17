@@ -72,7 +72,7 @@ object CourseRegistrationWorkflow {
         else Right(RegistrationState.Browsing(evt.studentId, evt.semester, "CR1")),
       )
       .voidResponse
-      .autoNamed
+      .autoNamed()
   // end_steps_1
 
   // start_steps_2
@@ -86,7 +86,7 @@ object CourseRegistrationWorkflow {
         else Right(RegistrationState.PrioritiesSet(in.studentId, in.semester, Map(evt.courseRequirement -> evt.priorities))),
       )
       .voidResponse
-      .autoNamed
+      .autoNamed()
 
   val processAllotment: WIO[RegistrationState.PrioritiesSet, RegistrationError.AllCoursesFull.type, RegistrationState.RegistrationComplete] =
     WIO
@@ -100,9 +100,12 @@ object CourseRegistrationWorkflow {
 
   // start_steps_3
   val completeRegistration: WIO[RegistrationState.RegistrationComplete, Nothing, RegistrationState.RegistrationComplete] =
-    WIO.pure.makeFrom[RegistrationState.RegistrationComplete].value(identity).autoNamed
+    WIO.pure.makeFrom[RegistrationState.RegistrationComplete].value(identity).autoNamed()
   val handleFailure: WIO[(CourseRegistrationState, RegistrationError), Nothing, RegistrationState.RegistrationFailed]    =
-    WIO.pure.makeFrom[(CourseRegistrationState, RegistrationError)].value((state, err) => RegistrationState.RegistrationFailed(state, err)).autoNamed
+    WIO.pure
+      .makeFrom[(CourseRegistrationState, RegistrationError)]
+      .value((state, err) => RegistrationState.RegistrationFailed(state, err))
+      .autoNamed()
 
   val workflow: WIO.Initial = (
     startBrowsing >>>

@@ -154,7 +154,7 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers with EitherValues {
       }
 
       "autonamed step" in {
-        val myName = base.autoNamed // Automatically derives a name from the code
+        val myName = base.autoNamed() // Automatically derives a name from the code
         val meta   = myName.extractMeta
         assert(meta.operationName == "My Name".some)
       }
@@ -173,7 +173,7 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers with EitherValues {
           .withSideEffects(ignore)
           .handleEventWithError((_, _) => Left("errorOccurred"))
           .produceResponse(ignore3)
-          .autoNamed
+          .autoNamed()
 
         val meta = wio.extractMeta
         assert(meta.error == ErrorMeta.Present("String"))

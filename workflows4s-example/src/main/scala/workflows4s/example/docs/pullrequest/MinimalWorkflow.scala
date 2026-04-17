@@ -13,8 +13,8 @@ object MinimalWorkflow {
     }
     import Context.*
 
-    val hello    = WIO.pure("Hello").autoNamed
-    val world    = WIO.pure.makeFrom[String].value(_ + " World!").autoNamed
+    val hello    = WIO.pure("Hello").autoNamed()
+    val world    = WIO.pure.makeFrom[String].value(_ + " World!").autoNamed()
     val workflow = hello >>> world
 
     println(MermaidRenderer.renderWorkflow(workflow.toProgress).toViewUrl)

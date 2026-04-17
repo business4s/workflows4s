@@ -24,7 +24,7 @@ object ExecutionProgressEvaluator {
     override type Result = WIOExecutionProgress[WCState[Ctx]]
 
     def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result                     = {
-      val meta = WIOMeta.HandleSignal(wio.meta.signalName, wio.meta.operationName, wio.meta.error.toModel)
+      val meta = WIOMeta.HandleSignal(wio.meta.signalName, wio.meta.operationName, wio.meta.error.toModel, wio.meta.description)
       WIOExecutionProgress.HandleSignal(meta, result)
     }
     def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result                                                   = {
@@ -62,7 +62,8 @@ object ExecutionProgressEvaluator {
       }
     }
 
-    def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                                                                                       = WIOExecutionProgress.Pure(WIOMeta.Pure(wio.meta.name, wio.meta.error.toModel), result)
+    def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result                                                                                       =
+      WIOExecutionProgress.Pure(WIOMeta.Pure(wio.meta.name, wio.meta.error.toModel, wio.meta.description), result)
     def onLoop[BodyIn <: WCState[Ctx], BodyOut <: WCState[Ctx], ReturnIn](wio: WIO.Loop[Ctx, In, Err, Out, BodyIn, BodyOut, ReturnIn]): Result = {
       WIOExecutionProgress.Loop(
         recurse(wio.body, None, result = None).toModel,

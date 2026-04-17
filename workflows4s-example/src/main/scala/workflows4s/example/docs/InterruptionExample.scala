@@ -10,8 +10,8 @@ object InterruptionExample {
 
   // start_signal
   val MySignal = SignalDef[MyRequest, MyResponse]()
-  val doA      = WIO.pure(MyState(1)).autoNamed
-  val doB      = WIO.pure(MyState(1)).autoNamed
+  val doA      = WIO.pure(MyState(1)).autoNamed()
+  val doB      = WIO.pure(MyState(1)).autoNamed()
 
   val interruption =
     WIO.interruption
@@ -19,7 +19,7 @@ object InterruptionExample {
       .handleSync((state, request) => MyEvent())
       .handleEvent((state, event) => MyState(0))
       .produceResponse((state, event, request) => MyResponse())
-      .autoNamed
+      .autoNamed()
       .andThen(_ >>> doB)
 
   val interruptedThroughSignal = doA.interruptWith(interruption)

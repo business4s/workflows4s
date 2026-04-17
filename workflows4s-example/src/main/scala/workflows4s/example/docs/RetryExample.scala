@@ -14,7 +14,7 @@ import scala.annotation.nowarn
 object RetryExample {
 
   // start_doc_simple
-  val doSomething: WIO[Any, Nothing, MyState] = WIO.pure(MyState(1)).autoNamed
+  val doSomething: WIO[Any, Nothing, MyState] = WIO.pure(MyState(1)).autoNamed()
 
   val withRetry = doSomething.retry.statelessly.wakeupIn {
     case _: TimeoutException     => Duration.ofMinutes(2)
@@ -24,7 +24,7 @@ object RetryExample {
 
   {
     // start_doc_full
-    val doSomething: WIO[Any, Nothing, MyState] = WIO.pure(MyState(1)).autoNamed
+    val doSomething: WIO[Any, Nothing, MyState] = WIO.pure(MyState(1)).autoNamed()
 
     val withRetry = doSomething.retry.statelessly.wakeupAt { (input, error, state) =>
       error match {
@@ -37,7 +37,7 @@ object RetryExample {
 
   {
     // start_doc_stateful_full
-    val doSomething: WIO[Any, Nothing, MyState] = WIO.pure(MyState(1)).autoNamed
+    val doSomething: WIO[Any, Nothing, MyState] = WIO.pure(MyState(1)).autoNamed()
     type RetryCounter = Int
 
     val withRetry: WIO[Any, Nothing, MyState] =

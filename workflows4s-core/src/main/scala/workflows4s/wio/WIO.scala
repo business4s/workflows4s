@@ -53,7 +53,7 @@ object WIO {
   }
 
   object HandleSignal {
-    case class Meta(error: ErrorMeta[?], signalName: String, operationName: Option[String])
+    case class Meta(error: ErrorMeta[?], signalName: String, operationName: Option[String], description: Option[String] = None)
   }
 
   case class RunIO[Ctx <: WorkflowContext, -In, +Err, +Out <: WCState[Ctx], Evt](
@@ -72,7 +72,7 @@ object WIO {
   ) extends WIO[In, Err, Out, Ctx]
 
   object Pure {
-    case class Meta(error: ErrorMeta[?], name: Option[String])
+    case class Meta(error: ErrorMeta[?], name: Option[String], description: Option[String] = None)
   }
 
   case class Transform[Ctx <: WorkflowContext, In1, Err1, Out1 <: WCState[Ctx], -In2, +Out2 <: WCState[Ctx], +Err2](

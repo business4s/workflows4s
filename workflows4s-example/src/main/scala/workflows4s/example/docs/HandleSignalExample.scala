@@ -19,7 +19,7 @@ object HandleSignalExample {
       .withSideEffects((state, request) => IO(MyEvent()))
       .handleEvent((state, event) => state)
       .produceResponse((state, event, request) => MyResponse())
-      .autoNamed
+      .autoNamed()
   // end_withoutError
 
 }

@@ -2,14 +2,16 @@
   "base" : {
     "meta" : {
       "name" : "Step1",
-      "error" : null
+      "error" : null,
+      "description" : null
     },
     "_type" : "Pure"
   },
   "onRestart" : {
     "meta" : {
       "name" : "Step2",
-      "error" : null
+      "error" : null,
+      "description" : null
     },
     "_type" : "Pure"
   },

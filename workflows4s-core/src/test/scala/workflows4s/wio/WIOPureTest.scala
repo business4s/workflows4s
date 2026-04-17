@@ -78,10 +78,19 @@ class WIOPureTest extends AnyFreeSpec with Matchers {
       }
 
       "autonamed" in {
-        val autonamedRunIO = base.autoNamed
+        val autonamedRunIO = base.autoNamed()
 
         val meta = autonamedRunIO.extractMeta
         assert(meta.name.contains("Autonamed Run IO"))
+        assert(meta.description.isEmpty)
+      }
+
+      "autonamed with description" in {
+        val autonamedRunIO = base.autoNamed(description = "Pure details")
+
+        val meta = autonamedRunIO.extractMeta
+        assert(meta.name.contains("Autonamed Run IO"))
+        assert(meta.description.contains("Pure details"))
       }
 
       "error autonamed" in {

@@ -4,7 +4,8 @@
     "operationName" : null,
     "error" : {
       "name" : "Rejected"
-    }
+    },
+    "description" : null
   },
   "_type" : "HandleSignal"
 }

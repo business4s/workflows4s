@@ -37,15 +37,21 @@ object PureBuilder {
 
       }
 
-      case class Step2[In, Err, Out <: WCState[Ctx]](f: WIOContext[WCState[Ctx]] => In => Either[Err, Out], name: Option[String])(using
+      case class Step2[In, Err, Out <: WCState[Ctx]](
+          f: WIOContext[WCState[Ctx]] => In => Either[Err, Out],
+          name: Option[String],
+          description: Option[String] = None,
+      )(using
           em: ErrorMeta[Err],
       ) {
 
-        def named(name: String): WIO[In, Err, Out, Ctx] = this.copy(name = Some(name)).done
+        def named(name: String, description: String = null): WIO[In, Err, Out, Ctx] =
+          this.copy(name = Some(name), description = Option(description)).done
 
-        def autoNamed(using name: sourcecode.Name): WIO[In, Err, Out, Ctx] = this.copy(name = Some(ModelUtils.prettifyName(name.value))).done
+        def autoNamed(description: String = null)(using name: sourcecode.Name): WIO[In, Err, Out, Ctx] =
+          this.copy(name = Some(ModelUtils.prettifyName(name.value)), description = Option(description)).done
 
-        def done: WIO[In, Err, Out, Ctx] = WIO.Pure(f, WIO.Pure.Meta(em, name))
+        def done: WIO[In, Err, Out, Ctx] = WIO.Pure(f, WIO.Pure.Meta(em, name, description))
       }
     }
 

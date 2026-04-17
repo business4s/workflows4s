@@ -6,7 +6,7 @@ object CheckpointExample {
 
   object checkpoint {
     // start_checkpoint
-    val myWorkflow: WIO[Int, Nothing, MyState]            = WIO.pure(MyState(1)).autoNamed
+    val myWorkflow: WIO[Int, Nothing, MyState]            = WIO.pure(MyState(1)).autoNamed()
     def saveState(input: Int, state: MyState): MyEvent    = ???
     def recoverState(input: Int, event: MyEvent): MyState = ???
 

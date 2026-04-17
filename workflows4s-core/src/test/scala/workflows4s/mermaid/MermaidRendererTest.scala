@@ -118,6 +118,59 @@ class MermaidRendererTest extends AnyFreeSpec with Matchers {
                            |""".stripMargin)
     }
 
+    "should render description for runIO step" in {
+      val step: Draft[Ctx] = WIO.draft.step("My step", description = "Some details")
+
+      val flowchart = MermaidRenderer.renderWorkflow(step.toProgress)
+      val rendered  = flowchart.render
+
+      assert(rendered == """flowchart TD
+                           |node0@{ shape: circle, label: "Start"}
+                           |node1["My step"]
+                           |node0 --> node1
+                           |node2@{ shape: braces, label: "Some details"}
+                           |node1 -.- node2
+                           |node3@{ shape: circle, label: "End"}
+                           |node1 --> node3
+                           |""".stripMargin)
+    }
+
+    "should render description for pure step" in {
+      val step = WIO.pure(TestState.empty).named("My pure", description = "Pure details")
+
+      val flowchart = MermaidRenderer.renderWorkflow(step.toProgress)
+      val rendered  = flowchart.render
+
+      assert(rendered == """flowchart TD
+                           |node0@{ shape: circle, label: "Start"}
+                           |node1["My pure"]
+                           |node0 --> node1
+                           |node2@{ shape: braces, label: "Pure details"}
+                           |node1 -.- node2
+                           |node3@{ shape: circle, label: "End"}
+                           |node1 --> node3
+                           |""".stripMargin)
+    }
+
+    "should render description for signal step" in {
+      val step: Draft[Ctx] = WIO.draft.signal("My signal", description = "Signal details")
+
+      val flowchart = MermaidRenderer.renderWorkflow(step.toProgress)
+      val rendered  = flowchart.render
+
+      assert(rendered == """flowchart TD
+                           |node0@{ shape: circle, label: "Start"}
+                           |node1@{ shape: stadium, label: "fa:fa-envelope My signal"}
+                           |node0 --> node1
+                           |node2["Handle My signal"]
+                           |node1 --> node2
+                           |node3@{ shape: braces, label: "Signal details"}
+                           |node2 -.- node3
+                           |node4@{ shape: circle, label: "End"}
+                           |node2 --> node4
+                           |""".stripMargin)
+    }
+
     "should generate a valid URL for viewing the rendered Mermaid diagram" in {
       val (_, runIoStep1) = TestUtils.runIO
       val wio             = runIoStep1.checkpointed((_, _) => ???, (_, _) => ???)

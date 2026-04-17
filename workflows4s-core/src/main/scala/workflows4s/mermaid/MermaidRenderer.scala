@@ -89,6 +89,7 @@ object MermaidRenderer {
                           ),
                         )
             stepId   <- addStep(meta.operationName.getOrElse(s"Handle ${meta.signalName}"))
+            _        <- meta.description.traverse(addNote)
             _        <- meta.error.traverse(addPendingError(stepId, _))
           } yield signalId.some
         case WIOExecutionProgress.HandleError(base, handler, error, _)        =>
@@ -114,9 +115,10 @@ object MermaidRenderer {
         case WIOExecutionProgress.End(_)                                      =>
           addStep("End", shape = "circle".some).map(_.some)
         case WIOExecutionProgress.Pure(meta, _)                               =>
-          if meta.name.isDefined || meta.error.isDefined then {
+          if meta.name.isDefined || meta.error.isDefined || meta.description.isDefined then {
             for {
               stepId <- addStep(meta.name.getOrElse("@computation"))
+              _      <- meta.description.traverse(addNote)
               _      <- meta.error.traverse(addPendingError(stepId, _))
             } yield stepId.some
           } else State.pure(None)
