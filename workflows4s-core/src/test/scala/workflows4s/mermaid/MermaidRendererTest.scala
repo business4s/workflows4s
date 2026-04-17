@@ -118,6 +118,45 @@ class MermaidRendererTest extends AnyFreeSpec with Matchers {
                            |""".stripMargin)
     }
 
+    "should treat bare Pure error handler as a passthrough routing the error to End" in {
+      val step: Draft[Ctx] = WIO.draft.step("My step", error = "My error")
+      val handler          = WIO.pure(TestState.empty).done
+      val wio              = step.handleErrorWith(handler)
+
+      val flowchart = MermaidRenderer.renderWorkflow(wio.toProgress)
+      val rendered  = flowchart.render
+
+      assert(rendered == """flowchart TD
+                           |node0@{ shape: circle, label: "Start"}
+                           |node1["My step"]
+                           |node0 --> node1
+                           |node2@{ shape: circle, label: "End"}
+                           |node1 --> node2
+                           |node1 -.->|"fa:fa-bolt My error"| node2
+                           |""".stripMargin)
+    }
+
+    "should route bare Pure error handler's error edge to the next step" in {
+      val step: Draft[Ctx] = WIO.draft.step("My step", error = "My error")
+      val next: Draft[Ctx] = WIO.draft.step("Next step")
+      val handler          = WIO.pure(TestState.empty).done
+      val wio              = step.handleErrorWith(handler) >>> next
+
+      val flowchart = MermaidRenderer.renderWorkflow(wio.toProgress)
+      val rendered  = flowchart.render
+
+      assert(rendered == """flowchart TD
+                           |node0@{ shape: circle, label: "Start"}
+                           |node1["My step"]
+                           |node0 --> node1
+                           |node2["Next step"]
+                           |node1 --> node2
+                           |node1 -.->|"fa:fa-bolt My error"| node2
+                           |node3@{ shape: circle, label: "End"}
+                           |node2 --> node3
+                           |""".stripMargin)
+    }
+
     "should render description for runIO step" in {
       val step: Draft[Ctx] = WIO.draft.step("My step", description = "Some details")
 

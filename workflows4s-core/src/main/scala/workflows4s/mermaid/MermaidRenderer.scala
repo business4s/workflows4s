@@ -24,18 +24,23 @@ object MermaidRenderer {
     // If there are still active nodes after rendering (e.g., loop exit branches),
     // connect them to an End node to make the exit path visible.
     // However, skip this if any active node is already an End node (to avoid End -> End).
-    val hasEndNode = finalState.chart.elements.exists {
-      case Node(_, "End", Some("circle"), _) => true
-      case _                                 => false
+    val existingEndNode = finalState.chart.elements.collectFirst { case Node(id, "End", Some("circle"), _) =>
+      id
     }
 
-    val finalChart = if finalState.activeNodes.nonEmpty && !hasEndNode then {
-      val endNodeId = s"node${finalState.idIdx}"
-      val endNode   = Node(endNodeId, "End", shape = "circle".some, clazz = None)
-      val endLinks  = finalState.activeNodes.map(activeNode => Link(activeNode._1, endNodeId, activeNode._2))
-      finalState.chart.addElement(endNode).addElements(endLinks)
-    } else {
-      finalState.chart
+    val finalChart = existingEndNode match {
+      case None if finalState.activeNodes.nonEmpty || finalState.pendingErrorLinks.nonEmpty =>
+        val endNodeId  = s"node${finalState.idIdx}"
+        val endNode    = Node(endNodeId, "End", shape = "circle".some, clazz = None)
+        val endLinks   = finalState.activeNodes.map(activeNode => Link(activeNode._1, endNodeId, activeNode._2))
+        val errorLinks = finalState.pendingErrorLinks.map((from, err) => errorLink(from, endNodeId, err))
+        finalState.chart.addElement(endNode).addElements(endLinks).addElements(errorLinks)
+      case Some(endNodeId) if finalState.pendingErrorLinks.nonEmpty                         =>
+        // An End node already exists but pendingErrorLinks weren't drained (e.g., a bare-Pure handler rendered
+        // after an explicit End appeared elsewhere in the tree). Route the deferred errors to the existing End.
+        val errorLinks = finalState.pendingErrorLinks.map((from, err) => errorLink(from, endNodeId, err))
+        finalState.chart.addElements(errorLinks)
+      case _                                                                                => finalState.chart
     }
 
     finalChart
@@ -99,17 +104,18 @@ object MermaidRenderer {
             baseEnds        <- cleanActiveNodes
             errors          <- cleanPendingErrors
             handlerStartOpt <- go(handler)
-            handlerStart     = handlerStartOpt.getOrElse(
-                                 throw new Exception(s"""Rendering error handler didn't produce a node. This is unexpected, please report as a bug.
-                                                    |Handler: ${handler}""".stripMargin),
-                               )
             // When no pending errors exist (base has no declared error), connect with a generic "error" edge.
             // This mostly happens in drafting mode where the user's intent is to have an error path rendered
             // even though the error type isn't specified yet. In real (non-draft) workflows, a base with no error
             // would yield `Nothing` as the error type, making the handler unreachable — there is a linter rule
             // (UnnecessaryErrorHandlerRule) that detects this specifically.
-            _               <- if errors.nonEmpty then handleErrors(errors, handlerStart)
-                               else handleErrors(baseEnds.map((nodeId, _) => (nodeId, WIOMeta.Error("error"))), handlerStart)
+            effectiveErrors  = if errors.nonEmpty then errors else baseEnds.map((nodeId, _) => (nodeId, WIOMeta.Error("error")))
+            // When the handler renders to no node (e.g., a bare `WIO.pure(x).done`), treat it as a passthrough:
+            // defer the error edges so the next step (or the final End) becomes their target.
+            _               <- handlerStartOpt match {
+                                 case None               => addPendingErrorLinks(effectiveErrors)
+                                 case Some(handlerStart) => handleErrors(effectiveErrors, handlerStart)
+                               }
             _               <- State.modify[RenderState] { s => s.copy(activeNodes = baseEnds ++ s.activeNodes) }
           } yield baseStart
         case WIOExecutionProgress.End(_)                                      =>
@@ -247,9 +253,11 @@ object MermaidRenderer {
   }
   private def addStepGeneral(createElem: NodeId => MermaidElement): State[RenderState, NodeId]                                    = {
     for {
-      prev <- cleanActiveNodes
-      id   <- addNode(createElem, active = true)
-      _    <- addLinks(prev, id)
+      prev         <- cleanActiveNodes
+      deferredErrs <- cleanPendingErrorLinks
+      id           <- addNode(createElem, active = true)
+      _            <- addLinks(prev, id)
+      _            <- if deferredErrs.isEmpty then State.pure(()) else handleErrors(deferredErrs, id)
     } yield id
   }
 
@@ -265,9 +273,17 @@ object MermaidRenderer {
   private def addPendingError(from: NodeId, err: WIOMeta.Error): State[RenderState, Unit] =
     State.modify(_.addPendingError(from, err))
 
-  private def handleErrors(errors: Seq[(NodeId, WIOMeta.Error)], to: NodeId): State[RenderState, Unit]                               = State.modify { state =>
-    val links = errors.map(pendingErr => Link(pendingErr._1, to, s"fa:fa-bolt ${pendingErr._2.name}".some, midfix = "."))
-    state.addElements(links)
+  private def addPendingErrorLinks(errors: Seq[PendingError]): State[RenderState, Unit] =
+    State.modify(s => s.copy(pendingErrorLinks = s.pendingErrorLinks ++ errors))
+
+  private def cleanPendingErrorLinks: State[RenderState, Seq[PendingError]] =
+    State { s => s.copy(pendingErrorLinks = Seq()) -> s.pendingErrorLinks }
+
+  private def errorLink(from: NodeId, to: NodeId, err: WIOMeta.Error): Link =
+    Link(from, to, s"fa:fa-bolt ${err.name}".some, midfix = ".")
+
+  private def handleErrors(errors: Seq[PendingError], to: NodeId): State[RenderState, Unit]                                          = State.modify { state =>
+    state.addElements(errors.map((from, err) => errorLink(from, to, err)))
   }
   private def addLink(from: NodeId, to: NodeId, label: Option[String] = None): State[RenderState, Unit]                              =
     addLinks(Seq((from, label)), to)
@@ -287,6 +303,7 @@ object MermaidRenderer {
         idIdx = state.idIdx + subState.idIdx + 1,
         activeNodes = Seq((id, None)),
         pendingErrors = state.pendingErrors ++ subState.pendingErrors,
+        pendingErrorLinks = state.pendingErrorLinks ++ subState.pendingErrorLinks,
       ),
       (subState.activeNodes, subProc, id),
     )
@@ -302,13 +319,14 @@ object MermaidRenderer {
       idIdx: Int,
       activeNodes: Seq[ActiveNode] = Seq(),
       pendingErrors: Seq[PendingError],
+      pendingErrorLinks: Seq[PendingError],
       underRetrying: Boolean,
   ) {
     def addPendingError(from: NodeId, error: WIOMeta.Error): RenderState = copy(pendingErrors = pendingErrors.appended((from, error)))
     def addElements(els: Seq[MermaidElement]): RenderState               = copy(chart = chart.addElements(els))
   }
   private object RenderState {
-    def initial(idIdx: Int): RenderState = RenderState(MermaidFlowchart(), idIdx, Seq(), Seq(), false)
+    def initial(idIdx: Int): RenderState = RenderState(MermaidFlowchart(), idIdx, Seq(), Seq(), Seq(), false)
   }
 
 }
