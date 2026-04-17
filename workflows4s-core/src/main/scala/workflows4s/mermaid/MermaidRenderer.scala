@@ -34,9 +34,7 @@ object MermaidRenderer {
       val endNodeId  = s"node${finalState.idIdx}"
       val endNode    = Node(endNodeId, "End", shape = "circle".some, clazz = None)
       val endLinks   = finalState.activeNodes.map(activeNode => Link(activeNode._1, endNodeId, activeNode._2))
-      val errorLinks = finalState.pendingErrorLinks.map { case (from, err) =>
-        Link(from, endNodeId, s"fa:fa-bolt ${err.name}".some, midfix = ".")
-      }
+      val errorLinks = finalState.pendingErrorLinks.map((from, err) => errorLink(from, endNodeId, err))
       finalState.chart.addElement(endNode).addElements(endLinks).addElements(errorLinks)
     } else {
       finalState.chart
@@ -109,11 +107,9 @@ object MermaidRenderer {
             // would yield `Nothing` as the error type, making the handler unreachable — there is a linter rule
             // (UnnecessaryErrorHandlerRule) that detects this specifically.
             effectiveErrors  = if errors.nonEmpty then errors else baseEnds.map((nodeId, _) => (nodeId, WIOMeta.Error("error")))
+            // When the handler renders to no node (e.g., a bare `WIO.pure(x).done`), treat it as a passthrough:
+            // defer the error edges so the next step (or the final End) becomes their target.
             _               <- handlerStartOpt match {
-                                 // A handler can render to no node (e.g., a bare `WIO.pure(x).done` with no metadata).
-                                 // Treat it as a passthrough: defer the error edges so the next step (or the final End
-                                 // node) becomes their target, matching the intuition that the invisible handler just
-                                 // forwards the flow.
                                  case None               => addPendingErrorLinks(effectiveErrors)
                                  case Some(handlerStart) => handleErrors(effectiveErrors, handlerStart)
                                }
@@ -254,11 +250,11 @@ object MermaidRenderer {
   }
   private def addStepGeneral(createElem: NodeId => MermaidElement): State[RenderState, NodeId]                                    = {
     for {
-      prev          <- cleanActiveNodes
-      pendingErrors <- cleanPendingErrorLinks
-      id            <- addNode(createElem, active = true)
-      _             <- addLinks(prev, id)
-      _             <- handleErrors(pendingErrors, id)
+      prev        <- cleanActiveNodes
+      deferredErrs <- cleanPendingErrorLinks
+      id           <- addNode(createElem, active = true)
+      _            <- addLinks(prev, id)
+      _            <- if deferredErrs.isEmpty then State.pure(()) else handleErrors(deferredErrs, id)
     } yield id
   }
 
@@ -274,15 +270,17 @@ object MermaidRenderer {
   private def addPendingError(from: NodeId, err: WIOMeta.Error): State[RenderState, Unit] =
     State.modify(_.addPendingError(from, err))
 
-  private def addPendingErrorLinks(errors: Seq[(NodeId, WIOMeta.Error)]): State[RenderState, Unit] =
+  private def addPendingErrorLinks(errors: Seq[PendingError]): State[RenderState, Unit] =
     State.modify(s => s.copy(pendingErrorLinks = s.pendingErrorLinks ++ errors))
 
-  private def cleanPendingErrorLinks: State[RenderState, Seq[(NodeId, WIOMeta.Error)]] =
+  private def cleanPendingErrorLinks: State[RenderState, Seq[PendingError]] =
     State { s => s.copy(pendingErrorLinks = Seq()) -> s.pendingErrorLinks }
 
-  private def handleErrors(errors: Seq[(NodeId, WIOMeta.Error)], to: NodeId): State[RenderState, Unit]                               = State.modify { state =>
-    val links = errors.map(pendingErr => Link(pendingErr._1, to, s"fa:fa-bolt ${pendingErr._2.name}".some, midfix = "."))
-    state.addElements(links)
+  private def errorLink(from: NodeId, to: NodeId, err: WIOMeta.Error): Link =
+    Link(from, to, s"fa:fa-bolt ${err.name}".some, midfix = ".")
+
+  private def handleErrors(errors: Seq[PendingError], to: NodeId): State[RenderState, Unit]                                          = State.modify { state =>
+    state.addElements(errors.map((from, err) => errorLink(from, to, err)))
   }
   private def addLink(from: NodeId, to: NodeId, label: Option[String] = None): State[RenderState, Unit]                              =
     addLinks(Seq((from, label)), to)
