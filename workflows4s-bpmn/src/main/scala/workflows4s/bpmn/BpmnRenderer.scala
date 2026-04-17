@@ -80,7 +80,7 @@ object BpmnRenderer {
           .subProcessDone()
       case WIOModel.End                                               => builder
       case WIOModel.Pure(meta)                                        =>
-        if meta.error.isDefined || meta.name.isDefined then {
+        if meta.error.isDefined || meta.name.isDefined || meta.description.isDefined then {
           val rawName  = meta.name.getOrElse("Task")
           val taskName = meta.description.map(desc => s"${rawName}\n$desc").getOrElse(rawName)
           builder

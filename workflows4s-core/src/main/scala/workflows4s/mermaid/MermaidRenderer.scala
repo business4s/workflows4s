@@ -115,7 +115,7 @@ object MermaidRenderer {
         case WIOExecutionProgress.End(_)                                      =>
           addStep("End", shape = "circle".some).map(_.some)
         case WIOExecutionProgress.Pure(meta, _)                               =>
-          if meta.name.isDefined || meta.error.isDefined then {
+          if meta.name.isDefined || meta.error.isDefined || meta.description.isDefined then {
             for {
               stepId <- addStep(meta.name.getOrElse("@computation"))
               _      <- meta.description.traverse(addNote)
