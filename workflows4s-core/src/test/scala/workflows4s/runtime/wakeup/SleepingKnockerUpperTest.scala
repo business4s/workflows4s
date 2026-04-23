@@ -64,19 +64,19 @@ class SleepingKnockerUpperTest extends AnyFreeSpec {
         .create()
         .use { ku =>
           for {
-            done           <- CountDownLatch[IO](1)
-            wakeUpLogic     = (wfId: WorkflowInstanceId) =>
-                                for {
-                                  _ <- IO(beforeReentrant.set(true))
-                                  _ <- ku.updateWakeup(wfId, Some(Instant.now().plusSeconds(3600)))
-                                  _ <- IO.cede
-                                  _ <- IO(afterReentrant.set(true))
-                                  _ <- done.release
-                                } yield ()
-            _              <- ku.initialize(wakeUpLogic)
-            now             = Instant.now()
-            _              <- ku.updateWakeup(id, Some(now.plusMillis(100)))
-            _              <- done.await.timeout(2.seconds).attempt
+            done       <- CountDownLatch[IO](1)
+            wakeUpLogic = (wfId: WorkflowInstanceId) =>
+                            for {
+                              _ <- IO(beforeReentrant.set(true))
+                              _ <- ku.updateWakeup(wfId, Some(Instant.now().plusSeconds(3600)))
+                              _ <- IO.cede
+                              _ <- IO(afterReentrant.set(true))
+                              _ <- done.release
+                            } yield ()
+            _          <- ku.initialize(wakeUpLogic)
+            now         = Instant.now()
+            _          <- ku.updateWakeup(id, Some(now.plusMillis(100)))
+            _          <- done.await.timeout(2.seconds).attempt
           } yield ()
         }
         .unsafeRunSync()
