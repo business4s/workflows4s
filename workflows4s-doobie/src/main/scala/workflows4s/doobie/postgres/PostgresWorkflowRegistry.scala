@@ -31,7 +31,8 @@ trait PostgresWorkflowRegistry
     with KnockerUpper.Process[IO, ResourceIO[Unit]]
     with WorkflowSearch[IO] {
 
-  /** Workflows last seen `Running` that have not been updated for at least `notUpdatedFor`. Use to recover instances whose execution was interrupted. */
+  /** Workflows last seen `Running` that have not been updated for at least `notUpdatedFor`. Use to recover instances whose execution was interrupted.
+    */
   def getExecutingWorkflows(notUpdatedFor: FiniteDuration): fs2.Stream[ConnectionIO, WorkflowInstanceId]
 }
 
@@ -57,8 +58,8 @@ object PostgresWorkflowRegistry {
   ) extends PostgresWorkflowRegistry
       with StrictLogging {
 
-    private val tableFr                            = Fragment.const(tableName)
-    private given Meta[ExecutionStatus]            = Meta[String].imap(ExecutionStatus.valueOf)(_.toString)
+    private val tableFr                 = Fragment.const(tableName)
+    private given Meta[ExecutionStatus] = Meta[String].imap(ExecutionStatus.valueOf)(_.toString)
 
     override def upsertInstance(inst: ActiveWorkflow[?], executionStatus: ExecutionStatus): IO[Unit] = {
       val id       = inst.id
@@ -68,21 +69,21 @@ object PostgresWorkflowRegistry {
       val query = executionStatus match {
         case ExecutionStatus.Running | ExecutionStatus.Awaiting =>
           sql"""INSERT INTO $tableFr (template_id, instance_id, status, created_at, updated_at, tags)
-                |VALUES (${id.templateId}, ${id.instanceId}, $executionStatus, $nowTs, $nowTs, $tagsJson::jsonb)
-                |ON CONFLICT (template_id, instance_id)
-                |DO UPDATE SET status = $executionStatus, updated_at = $nowTs, tags = $tagsJson::jsonb
-                |WHERE $tableFr.updated_at <= $nowTs""".stripMargin.update.run.void
+               |VALUES (${id.templateId}, ${id.instanceId}, $executionStatus, $nowTs, $nowTs, $tagsJson::jsonb)
+               |ON CONFLICT (template_id, instance_id)
+               |DO UPDATE SET status = $executionStatus, updated_at = $nowTs, tags = $tagsJson::jsonb
+               |WHERE $tableFr.updated_at <= $nowTs""".stripMargin.update.run.void
         case ExecutionStatus.Finished if keepFinished           =>
           sql"""INSERT INTO $tableFr (template_id, instance_id, status, created_at, updated_at, wakeup_at, tags)
-                |VALUES (${id.templateId}, ${id.instanceId}, ${ExecutionStatus.Finished}, $nowTs, $nowTs, NULL, $tagsJson::jsonb)
-                |ON CONFLICT (template_id, instance_id)
-                |DO UPDATE SET status = ${ExecutionStatus.Finished}, updated_at = $nowTs, wakeup_at = NULL, tags = $tagsJson::jsonb
-                |WHERE $tableFr.updated_at <= $nowTs""".stripMargin.update.run.void
+               |VALUES (${id.templateId}, ${id.instanceId}, ${ExecutionStatus.Finished}, $nowTs, $nowTs, NULL, $tagsJson::jsonb)
+               |ON CONFLICT (template_id, instance_id)
+               |DO UPDATE SET status = ${ExecutionStatus.Finished}, updated_at = $nowTs, wakeup_at = NULL, tags = $tagsJson::jsonb
+               |WHERE $tableFr.updated_at <= $nowTs""".stripMargin.update.run.void
         case ExecutionStatus.Finished                           =>
           sql"""DELETE FROM $tableFr
-                |WHERE template_id = ${id.templateId}
-                |  AND instance_id = ${id.instanceId}
-                |  AND $tableFr.updated_at <= $nowTs""".stripMargin.update.run.void
+               |WHERE template_id = ${id.templateId}
+               |  AND instance_id = ${id.instanceId}
+               |  AND $tableFr.updated_at <= $nowTs""".stripMargin.update.run.void
       }
       query.transact(xa)
     }
@@ -93,13 +94,13 @@ object PostgresWorkflowRegistry {
         case Some(t) =>
           // Upsert so a wakeup can be scheduled before the engine has registered the instance.
           sql"""INSERT INTO $tableFr (template_id, instance_id, status, created_at, updated_at, wakeup_at)
-                |VALUES (${id.templateId}, ${id.instanceId}, ${ExecutionStatus.Awaiting}, $nowTs, $nowTs, ${Timestamp.from(t)})
-                |ON CONFLICT (template_id, instance_id)
-                |DO UPDATE SET wakeup_at = ${Timestamp.from(t)}""".stripMargin.update.run.void
+               |VALUES (${id.templateId}, ${id.instanceId}, ${ExecutionStatus.Awaiting}, $nowTs, $nowTs, ${Timestamp.from(t)})
+               |ON CONFLICT (template_id, instance_id)
+               |DO UPDATE SET wakeup_at = ${Timestamp.from(t)}""".stripMargin.update.run.void
         case None    =>
           // Plain update — don't resurrect a row deleted because the workflow finished.
           sql"""UPDATE $tableFr SET wakeup_at = NULL
-                |WHERE template_id = ${id.templateId} AND instance_id = ${id.instanceId}""".stripMargin.update.run.void
+               |WHERE template_id = ${id.templateId} AND instance_id = ${id.instanceId}""".stripMargin.update.run.void
       }
       query.transact(xa)
     }
@@ -116,7 +117,7 @@ object PostgresWorkflowRegistry {
     private def dispatchDue(wakeUp: WorkflowInstanceId => IO[Unit]): IO[Unit] = {
       val nowTs = Timestamp.from(Instant.now(clock))
       sql"""UPDATE $tableFr SET wakeup_at = NULL
-            |WHERE wakeup_at IS NOT NULL AND wakeup_at <= $nowTs""".stripMargin.update
+           |WHERE wakeup_at IS NOT NULL AND wakeup_at <= $nowTs""".stripMargin.update
         .withGeneratedKeys[(String, String)]("template_id", "instance_id")
         .compile
         .toList
@@ -132,9 +133,9 @@ object PostgresWorkflowRegistry {
         now       <- fs2.Stream.eval(Sync[ConnectionIO].delay(Instant.now(clock)))
         cutoffTime = now.minusMillis(notUpdatedFor.toMillis)
         elem      <- sql"""SELECT template_id, instance_id
-                           |FROM $tableFr
-                           |WHERE status = ${ExecutionStatus.Running} AND updated_at <= ${Timestamp.from(cutoffTime)}
-                           |ORDER BY updated_at ASC, template_id ASC, instance_id ASC""".stripMargin
+                          |FROM $tableFr
+                          |WHERE status = ${ExecutionStatus.Running} AND updated_at <= ${Timestamp.from(cutoffTime)}
+                          |ORDER BY updated_at ASC, template_id ASC, instance_id ASC""".stripMargin
                        .query[(String, String)]
                        .stream
       } yield WorkflowInstanceId(elem._1, elem._2)
@@ -186,8 +187,9 @@ object PostgresWorkflowRegistry {
         case WorkflowSearch.TagFilter.Equals(k, v)    =>
           frags += fr"tags @> ${singleEntryJson(k, v)}::jsonb"
         case WorkflowSearch.TagFilter.In(k, vs)       =>
-          NonEmptyList.fromList(vs.toList.map(v => fr"tags @> ${singleEntryJson(k, v)}::jsonb")).foreach { nel =>
-            frags += fr"(" ++ nel.toList.intercalate(fr" OR ") ++ fr")"
+          NonEmptyList.fromList(vs.toList.map(v => fr"tags @> ${singleEntryJson(k, v)}::jsonb")) match {
+            case Some(nel) => frags += fr"(" ++ nel.toList.intercalate(fr" OR ") ++ fr")"
+            case None      => frags += fr"FALSE"
           }
         case WorkflowSearch.TagFilter.NotEquals(k, v) =>
           frags += fr"jsonb_exists(tags, $k) AND NOT (tags @> ${singleEntryJson(k, v)}::jsonb)"
@@ -200,7 +202,7 @@ object PostgresWorkflowRegistry {
       taggers.get(inst.id.templateId) match {
         case Some(tagger) =>
           val tags = tagger.getTags(inst.id, inst.liveState.asInstanceOf)
-          if (tags.isEmpty) "{}"
+          if tags.isEmpty then "{}"
           else Json.fromFields(tags.view.mapValues(Json.fromString).toMap).noSpaces
         case None         => "{}"
       }

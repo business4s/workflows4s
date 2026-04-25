@@ -78,7 +78,7 @@ object InMemoryWorkflowRegistry {
           case Some(WorkflowSearch.SortBy.CreatedDesc) => filtered.sortBy(_.createdAt)(using Ordering[Instant].reverse)
           case Some(WorkflowSearch.SortBy.UpdatedAsc)  => filtered.sortBy(_.updatedAt)
           case Some(WorkflowSearch.SortBy.UpdatedDesc) => filtered.sortBy(_.updatedAt)(using Ordering[Instant].reverse)
-          case Some(WorkflowSearch.SortBy.WakeupAsc)   => filtered.sortBy(_.wakeupAt)
+          case Some(WorkflowSearch.SortBy.WakeupAsc)   => filtered.sortBy(d => (d.wakeupAt.isEmpty, d.wakeupAt))
           case Some(WorkflowSearch.SortBy.WakeupDesc)  => filtered.sortBy(_.wakeupAt)(using Ordering.Option(using Ordering[Instant]).reverse)
           case None                                    => filtered
         }

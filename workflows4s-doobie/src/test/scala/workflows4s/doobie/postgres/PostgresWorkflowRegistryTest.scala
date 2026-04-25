@@ -100,7 +100,7 @@ class PostgresWorkflowRegistryTest extends AnyFreeSpec with PostgresSuite with M
         val clock    = TestClock()
         val registry = PostgresWorkflowRegistry(xa = xa, pollInterval = 100.millis, clock = clock).unsafeRunSync()
 
-        val id        = WorkflowInstanceId("tpl", "inst-1")
+        val id         = WorkflowInstanceId("tpl", "inst-1")
         val dispatched = new AtomicReference[List[WorkflowInstanceId]](Nil)
         val callback   = (w: WorkflowInstanceId) => IO(dispatched.updateAndGet(w :: _)).void
 
@@ -177,8 +177,8 @@ class PostgresWorkflowRegistryTest extends AnyFreeSpec with PostgresSuite with M
       }
 
       "filters by tags" in {
-        val clock   = TestClock()
-        val tagger  = new WorkflowRegistry.Tagger[Null] {
+        val clock    = TestClock()
+        val tagger   = new WorkflowRegistry.Tagger[Null] {
           override def getTags(id: WorkflowInstanceId, state: Null): Map[String, String] =
             Map("env" -> id.instanceId.take(3))
         }
@@ -222,7 +222,10 @@ class PostgresWorkflowRegistryTest extends AnyFreeSpec with PostgresSuite with M
         registry.upsertInstance(dummyAW(WorkflowInstanceId("t", "a")), ExecutionStatus.Running).unsafeRunSync()
         registry.upsertInstance(dummyAW(WorkflowInstanceId("t", "b")), ExecutionStatus.Awaiting).unsafeRunSync()
 
-        val n = registry.count("t", WorkflowSearch.Query(status = Set(ExecutionStatus.Running))).unsafeRunSync()
+        val q       = WorkflowSearch.Query(status = Set(ExecutionStatus.Running))
+        val n       = registry.count("t", q).unsafeRunSync()
+        val results = registry.search("t", q).unsafeRunSync()
+        assert(n === results.size)
         assert(n === 1)
       }
     }

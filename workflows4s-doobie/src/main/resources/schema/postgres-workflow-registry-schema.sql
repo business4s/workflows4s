@@ -1,13 +1,13 @@
 -- doc_start
 CREATE TABLE if not exists workflow_registry
 (
-    template_id TEXT      NOT NULL,
-    instance_id TEXT      NOT NULL,
-    status      TEXT      NOT NULL,
-    created_at  TIMESTAMP NOT NULL,
-    updated_at  TIMESTAMP NOT NULL,
-    wakeup_at   TIMESTAMP NULL,
-    tags        JSONB     NOT NULL DEFAULT '{}'::JSONB,
+    template_id TEXT        NOT NULL,
+    instance_id TEXT        NOT NULL,
+    status      TEXT        NOT NULL,
+    created_at  TIMESTAMPTZ NOT NULL,
+    updated_at  TIMESTAMPTZ NOT NULL,
+    wakeup_at   TIMESTAMPTZ NULL,
+    tags        JSONB       NOT NULL DEFAULT '{}'::JSONB,
     primary key (template_id, instance_id)
 );
 
