@@ -25,9 +25,12 @@ object InMemoryWorkflowRegistry {
       tags: Map[String, String],
   )
 
-  def apply(clock: Clock = Clock.systemUTC()): IO[InMemoryWorkflowRegistry] = {
+  def apply(
+      clock: Clock = Clock.systemUTC(),
+      taggers: Map[String, WorkflowRegistry.Tagger[?]] = Map.empty,
+  ): IO[InMemoryWorkflowRegistry] = {
     Ref[IO].of(Map.empty[WorkflowInstanceId, Data]).map { stateRef =>
-      new Impl(stateRef, clock, Map())
+      new Impl(stateRef, clock, taggers)
     }
   }
 
@@ -75,7 +78,7 @@ object InMemoryWorkflowRegistry {
           case Some(WorkflowSearch.SortBy.CreatedDesc) => filtered.sortBy(_.createdAt)(using Ordering[Instant].reverse)
           case Some(WorkflowSearch.SortBy.UpdatedAsc)  => filtered.sortBy(_.updatedAt)
           case Some(WorkflowSearch.SortBy.UpdatedDesc) => filtered.sortBy(_.updatedAt)(using Ordering[Instant].reverse)
-          case Some(WorkflowSearch.SortBy.WakeupAsc)   => filtered.sortBy(_.wakeupAt)
+          case Some(WorkflowSearch.SortBy.WakeupAsc)   => filtered.sortBy(d => (d.wakeupAt.isEmpty, d.wakeupAt))
           case Some(WorkflowSearch.SortBy.WakeupDesc)  => filtered.sortBy(_.wakeupAt)(using Ordering.Option(using Ordering[Instant]).reverse)
           case None                                    => filtered
         }
