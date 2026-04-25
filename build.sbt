@@ -89,7 +89,7 @@ lazy val `workflows4s-doobie` = (project in file("workflows4s-doobie"))
       "com.dimafeng"  %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
       "com.dimafeng"  %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
       "org.postgresql" % "postgresql"                      % "42.7.10"                  % Test,
-      "org.xerial"     % "sqlite-jdbc"                     % "3.51.3.0"                 % Test,
+      "org.xerial"     % "sqlite-jdbc"                     % "3.53.0.0"                 % Test,
     ),
   )
   .dependsOn(`workflows4s-core` % "compile->compile;test->test")
@@ -151,8 +151,8 @@ lazy val `workflows4s-web-ui` = (project in file("workflows4s-web-ui"))
       "io.circe"                      %%% "circe-core"         % circeVersion,
       "io.circe"                      %%% "circe-generic"      % circeVersion,
       "io.circe"                      %%% "circe-parser"       % circeVersion,
-      "com.softwaremill.sttp.tapir"   %%% "tapir-sttp-client4" % "1.13.15",
-      "com.softwaremill.sttp.client4" %%% "cats"               % "4.0.21",
+      "com.softwaremill.sttp.tapir"   %%% "tapir-sttp-client4" % "1.13.16",
+      "com.softwaremill.sttp.client4" %%% "cats"               % "4.0.22",
       "org.business4s"                %%% "forms4s-jsonschema" % "0.2.0",
       "org.business4s"                %%% "forms4s-tyrian"     % "0.2.0",
       "org.business4s"                %%% "forms4s-circe"      % "0.2.0",
@@ -208,7 +208,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "com.dimafeng"           %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
       "com.dimafeng"           %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
       "org.postgresql"          % "postgresql"                      % "42.7.10"                  % Test,
-      "org.xerial"              % "sqlite-jdbc"                     % "3.51.3.0"                 % Test,
+      "org.xerial"              % "sqlite-jdbc"                     % "3.53.0.0"                 % Test,
       "org.seleniumhq.selenium" % "selenium-java"                   % "4.43.0"                   % Test,
       "org.seleniumhq.selenium" % "selenium-chrome-driver"          % "4.43.0"                   % Test,
     ),
@@ -265,7 +265,7 @@ lazy val commonSettings = Seq(
 lazy val pekkoVersion               = "1.5.0"
 lazy val pekkoHttpVersion           = "1.3.0"
 lazy val testcontainersScalaVersion = "0.44.1"
-lazy val tapirVersion               = "1.13.15"
+lazy val tapirVersion               = "1.13.16"
 lazy val circeVersion               = "0.14.15"
 
 addCommandAlias("prePR", List("compile", "Test / compile", "test", "scalafmtCheckAll").mkString(";", ";", ""))
