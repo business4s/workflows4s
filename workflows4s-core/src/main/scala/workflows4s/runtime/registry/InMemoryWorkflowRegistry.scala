@@ -25,9 +25,12 @@ object InMemoryWorkflowRegistry {
       tags: Map[String, String],
   )
 
-  def apply(clock: Clock = Clock.systemUTC()): IO[InMemoryWorkflowRegistry] = {
+  def apply(
+      clock: Clock = Clock.systemUTC(),
+      taggers: Map[String, WorkflowRegistry.Tagger[?]] = Map.empty,
+  ): IO[InMemoryWorkflowRegistry] = {
     Ref[IO].of(Map.empty[WorkflowInstanceId, Data]).map { stateRef =>
-      new Impl(stateRef, clock, Map())
+      new Impl(stateRef, clock, taggers)
     }
   }
 
