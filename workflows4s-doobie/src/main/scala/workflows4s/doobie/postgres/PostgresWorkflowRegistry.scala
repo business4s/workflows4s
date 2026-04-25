@@ -59,6 +59,8 @@ object PostgresWorkflowRegistry {
       with StrictLogging {
 
     private val tableFr                 = Fragment.const(tableName)
+    // The schema's CHECK constraint on `status` and the partial index `idx_workflow_registry_running_updated`
+    // depend on the exact strings produced here — keep them in sync if ExecutionStatus values are renamed.
     private given Meta[ExecutionStatus] = Meta[String].imap(ExecutionStatus.valueOf)(_.toString)
 
     override def upsertInstance(inst: ActiveWorkflow[?], executionStatus: ExecutionStatus): IO[Unit] = {
@@ -114,6 +116,8 @@ object PostgresWorkflowRegistry {
         .evalMap(_ => dispatchDue(wakeUp).handleErrorWith(e => IO(logger.error("Poller tick failed", e))))
 
     // Single UPDATE...RETURNING atomically claims all due rows; concurrent pollers can't double-fire because the WHERE filters out NULL wakeups.
+    // Trade-off: a wakeup whose claim commits but whose callback is cancelled (shutdown, fiber interrupt) or fails is lost — the row's wakeup_at
+    // is already NULL. Such workflows are expected to be re-woken by other mechanisms (engine startup scan, incoming signals).
     private def dispatchDue(wakeUp: WorkflowInstanceId => IO[Unit]): IO[Unit] = {
       val nowTs = Timestamp.from(Instant.now(clock))
       sql"""UPDATE $tableFr SET wakeup_at = NULL

@@ -3,7 +3,7 @@ CREATE TABLE if not exists workflow_registry
 (
     template_id TEXT        NOT NULL,
     instance_id TEXT        NOT NULL,
-    status      TEXT        NOT NULL,
+    status      TEXT        NOT NULL CHECK (status IN ('Running', 'Awaiting', 'Finished')),
     created_at  TIMESTAMPTZ NOT NULL,
     updated_at  TIMESTAMPTZ NOT NULL,
     wakeup_at   TIMESTAMPTZ NULL,
