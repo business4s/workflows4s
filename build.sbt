@@ -151,8 +151,8 @@ lazy val `workflows4s-web-ui` = (project in file("workflows4s-web-ui"))
       "io.circe"                      %%% "circe-core"         % circeVersion,
       "io.circe"                      %%% "circe-generic"      % circeVersion,
       "io.circe"                      %%% "circe-parser"       % circeVersion,
-      "com.softwaremill.sttp.tapir"   %%% "tapir-sttp-client4" % "1.13.16",
-      "com.softwaremill.sttp.client4" %%% "cats"               % "4.0.22",
+      "com.softwaremill.sttp.tapir"   %%% "tapir-sttp-client4" % "1.13.17",
+      "com.softwaremill.sttp.client4" %%% "cats"               % "4.0.23",
       "org.business4s"                %%% "forms4s-jsonschema" % "0.2.0",
       "org.business4s"                %%% "forms4s-tyrian"     % "0.2.0",
       "org.business4s"                %%% "forms4s-circe"      % "0.2.0",
@@ -265,7 +265,7 @@ lazy val commonSettings = Seq(
 lazy val pekkoVersion               = "1.5.0"
 lazy val pekkoHttpVersion           = "1.3.0"
 lazy val testcontainersScalaVersion = "0.44.1"
-lazy val tapirVersion               = "1.13.16"
+lazy val tapirVersion               = "1.13.17"
 lazy val circeVersion               = "0.14.15"
 
 addCommandAlias("prePR", List("compile", "Test / compile", "test", "scalafmtCheckAll").mkString(";", ";", ""))
