@@ -16,16 +16,17 @@ object DraftBuilder {
     val draft: DraftBuilderStep1.type = DraftBuilderStep1
 
     object DraftBuilderStep1 {
-      def signal(name: String = null, error: String = null)(using autoName: sourcecode.Name): WIO.Draft[Ctx]           =
+      def signal(name: String = null, error: String = null, description: String = null)(using autoName: sourcecode.Name): WIO.Draft[Ctx]      =
         WIO.HandleSignal(
           draftSignal,
-          SignalHandler[WCEffect[Ctx], Unit, Unit, Any]((_, _) => ???),
+          SignalHandler[WCEffect[Ctx], Unit, Unit, Any, WCState[Ctx]](_ => (_, _) => ???),
           dummyEventHandler,
           (_, _, _) => (), // responseProducer
           WIO.HandleSignal.Meta(
             Option(error).map(ErrorMeta.Present(_)).getOrElse(ErrorMeta.noError),
             getEffectiveName(name, autoName),
             None,
+            Option(description),
           ),
         )
       def timer(name: String = null, duration: FiniteDuration = null)(using autoName: sourcecode.Name): WIO.Draft[Ctx] =
@@ -42,7 +43,7 @@ object DraftBuilder {
       def step(name: String = null, error: String = null, description: String = null)(using
           autoName: sourcecode.Name,
       ): WIO.Draft[Ctx] = WIO.RunIO(
-        _ => ???,
+        _ => _ => ???,
         dummyEventHandler,
         WIO.RunIO.Meta(
           Option(error).map(ErrorMeta.Present(_)).getOrElse(ErrorMeta.noError),
@@ -113,17 +114,19 @@ object DraftBuilder {
           signalName: String = null,
           operationName: String = null,
           error: String = null,
+          description: String = null,
       )(using autoName: sourcecode.Name): WIO.Interruption[Ctx, Nothing, Nothing] = {
         val draftSignalHandling: WIO[WCState[Ctx], Nothing, Nothing, Ctx] = WIO
           .HandleSignal(
             draftSignal,
-            SignalHandler[WCEffect[Ctx], Unit, Unit, WCState[Ctx]]((_, _) => ???),
+            SignalHandler[WCEffect[Ctx], Unit, Unit, WCState[Ctx], WCState[Ctx]](_ => (_, _) => ???),
             dummyEventHandler[WCEvent[Ctx], Unit],
             (_, _, _) => (), // responseProducer
             WIO.HandleSignal.Meta(
               Option(error).map(ErrorMeta.Present(_)).getOrElse(ErrorMeta.noError),
               Option(signalName).getOrElse(getEffectiveName(null, autoName)),
               Option(operationName),
+              Option(description),
             ),
           )
           .transformInput((_: WCState[Ctx]) => ???)
@@ -154,11 +157,11 @@ object DraftBuilder {
         WIO
           .Retry(
             base,
-            WIO.Retry.Mode.Stateless[Ctx, Any]((_: Any, _: Throwable, _: WCState[Ctx], _: java.time.Instant) => ???),
+            WIO.Retry.Mode.Stateless[Ctx, Any](_ => (_: Any, _: Throwable, _: WCState[Ctx], _: java.time.Instant) => ???),
           )
       }
       def checkpoint(base: WIO.Draft[Ctx]): WIO.Draft[Ctx] =
-        WIO.Checkpoint(base, (_, _) => ???, dummyEventHandler)
+        WIO.Checkpoint(base, _ => (_, _) => ???, dummyEventHandler)
 
       object syntax {
         extension (base: WIO.Draft[Ctx]) {

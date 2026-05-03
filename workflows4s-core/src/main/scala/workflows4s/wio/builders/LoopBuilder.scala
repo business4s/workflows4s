@@ -23,7 +23,7 @@ object LoopBuilder {
         def onRestart(action: WIO[ReturnIn, Err, BodyIn, Ctx]): Step3 = Step3(action)
 
         def onRestartContinue(using ev1: ReturnIn <:< BodyIn): Step3 = Step3(
-          WIO.Pure[Ctx, ReturnIn, Nothing, BodyIn]((x: ReturnIn) => Right(ev1.apply(x)), WIO.Pure.Meta(ErrorMeta.noError, None)),
+          WIO.Pure[Ctx, ReturnIn, Nothing, BodyIn](_ => (x: ReturnIn) => Right(ev1.apply(x)), WIO.Pure.Meta(ErrorMeta.noError, None)),
         )
 
         case class Step3(

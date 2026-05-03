@@ -1,5 +1,7 @@
 package workflows4s.wio.internal
 
+import workflows4s.wio.WIOContext
+
 import scala.reflect.ClassTag
 import scala.util.chaining.scalaUtilChainingOps
 
@@ -51,4 +53,4 @@ object EventHandler {
     typed(convert0, handle0, ct)
 }
 
-case class SignalHandler[F[_], -Sig, Evt, -In](handle: (In, Sig) => F[Evt])
+case class SignalHandler[F[_], -Sig, Evt, -In, State](handle: WIOContext[State] => (In, Sig) => F[Evt])

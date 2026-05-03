@@ -3,6 +3,7 @@ package workflows4s.wio.internal
 import cats.MonadThrow
 import cats.data.Ior
 import cats.syntax.all.*
+import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.wio.*
 import workflows4s.wio.WIO.HandleInterruption.InterruptionStatus
 import workflows4s.wio.WIO.Retry.Mode
@@ -15,9 +16,10 @@ object RunIOEvaluator {
       wio: WIO[StIn, Nothing, WCState[Ctx], Ctx],
       state: StIn,
       now: Instant,
+      instanceId: WorkflowInstanceId,
       liftEffect: WCEffectLift[Ctx, F],
   ): WakeupResult[F, WCEvent[Ctx]] = {
-    val visitor = new RunIOVisitor(wio, state, state, now, liftEffect)
+    val visitor = new RunIOVisitor(wio, state, state, now, instanceId, liftEffect)
     WakeupResult.fromRaw(visitor.run)
   }
 
@@ -26,9 +28,12 @@ object RunIOEvaluator {
       input: In,
       lastSeenState: WCState[Ctx],
       now: Instant,
+      instanceId: WorkflowInstanceId,
       liftEffect: WCEffectLift[Ctx, F],
   ) extends Visitor[Ctx, In, Err, Out](wio) {
     override type Result = Option[F[Ior[Instant, WCEvent[Ctx]]]]
+
+    private lazy val ctx: WIOContext[WCState[Ctx]] = WIOContext(instanceId, lastSeenState)
 
     def onExecuted[In1](wio: WIO.Executed[Ctx, Err, Out, In1]): Result                             = None
     def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result = None
@@ -38,7 +43,7 @@ object RunIOEvaluator {
     override def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): Result                = None
 
     def onRunIO[Evt](wio: WIO.RunIO[Ctx, In, Err, Out, Evt]): Result =
-      liftEffect(wio.buildIO(input)).map(wio.evtHandler.convert).map(_.rightIor).some
+      liftEffect(wio.buildIO(ctx)(input)).map(wio.evtHandler.convert).map(_.rightIor).some
 
     def onFlatMap[Out1 <: WCState[Ctx], Err1 <: Err](wio: WIO.FlatMap[Ctx, Err1, Err, Out1, Out, In]): Result          = recurse(wio.base, input)
     def onTransform[In1, Out1 <: State, Err1](wio: WIO.Transform[Ctx, In1, Err1, Out1, In, Out, Err]): Result          =
@@ -82,7 +87,7 @@ object RunIOEvaluator {
     ): Result = {
       val newState: WCState[InnerCtx]          = wio.embedding.unconvertStateUnsafe(lastSeenState)
       val innerLift: WCEffectLift[InnerCtx, F] = [A] => (fa: WCEffect[InnerCtx][A]) => liftEffect(wio.embedding.liftInnerEffect(fa))
-      new RunIOVisitor(wio.inner, input, newState, now, innerLift).run
+      new RunIOVisitor(wio.inner, input, newState, now, instanceId, innerLift).run
         .map(_.map(_.map(wio.embedding.convertEvent)))
     }
 
@@ -121,7 +126,7 @@ object RunIOEvaluator {
         case Some(executedBase) =>
           executedBase.output match {
             case Left(_)        => None
-            case Right(baseOut) => liftEffect(wio.genEvent(input, baseOut)).map(wio.eventHandler.convert).map(_.rightIor).some
+            case Right(baseOut) => liftEffect(wio.genEvent(ctx)(input, baseOut)).map(wio.eventHandler.convert).map(_.rightIor).some
           }
         case None               => recurse(wio.base, input)
       }
@@ -132,13 +137,13 @@ object RunIOEvaluator {
         _.handleErrorWith(err =>
           wio.mode match {
             case Mode.Stateless(errorHandler)               =>
-              liftEffect(errorHandler(input, err, lastSeenState, now))
+              liftEffect(errorHandler(ctx)(input, err, lastSeenState, now))
                 .flatMap({
                   case WIO.Retry.Stateless.Result.Ignore             => MonadThrow[F].raiseError(err)
                   case WIO.Retry.Stateless.Result.ScheduleWakeup(at) => at.leftIor.pure[F]
                 })
             case Mode.Stateful(errorHandler, _, retryState) =>
-              liftEffect(errorHandler(input, err, lastSeenState, retryState)).flatMap({
+              liftEffect(errorHandler(ctx)(input, err, lastSeenState, retryState)).flatMap({
                 case WIO.Retry.Stateful.Result.Ignore                    => MonadThrow[F].raiseError(err)
                 case WIO.Retry.Stateful.Result.ScheduleWakeup(at, event) =>
                   (event match {
@@ -158,12 +163,12 @@ object RunIOEvaluator {
       val innerLift: WCEffectLift[InnerCtx, F] = [A] => (fa: WCEffect[InnerCtx][A]) => liftEffect(wio.liftInnerEffect(fa))
       val state                                = wio.state(input)
       state.toList
-        .collectFirstSome((elemId, elemWio) => new RunIOVisitor(elemWio, input, wio.initialElemState(), now, innerLift).run.tupleLeft(elemId))
+        .collectFirstSome((elemId, elemWio) => new RunIOVisitor(elemWio, input, wio.initialElemState(), now, instanceId, innerLift).run.tupleLeft(elemId))
         .map { case (elemId, io) => io.map(_.map(wio.eventEmbedding.convertEvent(elemId, _))) }
     }
 
     private def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx], s: I1): Option[F[Ior[Instant, WCEvent[Ctx]]]] =
-      new RunIOVisitor(wio, s, lastSeenState, now, liftEffect).run
+      new RunIOVisitor(wio, s, lastSeenState, now, instanceId, liftEffect).run
 
   }
 

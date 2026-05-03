@@ -2,6 +2,7 @@ package workflows4s.wio.internal
 
 import cats.Functor
 import com.typesafe.scalalogging.StrictLogging
+import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.wio.*
 import workflows4s.wio.WIO.HandleInterruption.InterruptionStatus
 
@@ -63,10 +64,11 @@ object SignalEvaluator {
       req: Req,
       wio: WIO[In, Nothing, Out, Ctx],
       state: In,
+      instanceId: WorkflowInstanceId,
       liftEffect: WCEffectLift[Ctx, F],
   ): SignalResult[F, WCEvent[Ctx], Resp] = {
     val matches = new SignalVisitor[F, Ctx, In, Nothing, Out](wio, liftEffect).run
-      .flatMap(_.tryProduce(signalDef, req, state, state))
+      .flatMap(_.tryProduce(signalDef, req, state, state, instanceId))
 
     // Fresh signals come before redeliverable ones due to traversal order
     matches.headOption.getOrElse(SignalResult.UnexpectedSignal())
@@ -156,13 +158,14 @@ object SignalEvaluator {
         request: Req1,
         input: TopIn,
         topState: TopState,
+        instanceId: WorkflowInstanceId,
     )(using Functor[F]): Option[SignalResult[F, OutEvent, Resp1]] =
       for {
-        _           <- Option.when(outerSignalDef.id == signalDef.id)(())
-        innerReq    <- unwrapRequest(request, input, topState)
-        typedReq     = verifyRequestType(innerReq)
-        (localIn, _) = transform(input, topState)
-      } yield produceResult(typedReq, localIn, outerSignalDef)
+        _                    <- Option.when(outerSignalDef.id == signalDef.id)(())
+        innerReq             <- unwrapRequest(request, input, topState)
+        typedReq              = verifyRequestType(innerReq)
+        (localIn, localState) = transform(input, topState)
+      } yield produceResult(typedReq, localIn, outerSignalDef, instanceId, localState)
 
     private def unwrapRequest(request: Any, input: TopIn, state: TopState): Option[Any] =
       routing match {
@@ -175,12 +178,16 @@ object SignalEvaluator {
         throw new Exception(s"Request type mismatch for signal ${node.sigDef.name}. Expected: ${node.sigDef.reqCt}, got: $request")
       }
 
-    private def produceResult[Resp1](typedReq: Req, localInput: LocalIn, outerSignalDef: SignalDef[?, Resp1])(using
-        Functor[F],
-    ): SignalResult[F, OutEvent, Resp1] =
+    private def produceResult[Resp1](
+        typedReq: Req,
+        localInput: LocalIn,
+        outerSignalDef: SignalDef[?, Resp1],
+        instanceId: WorkflowInstanceId,
+        localState: WCState[LocalCtx],
+    )(using Functor[F]): SignalResult[F, OutEvent, Resp1] =
       storedEvent match {
         case Some(evt) => redeliverFromStoredEvent(typedReq, localInput, evt, outerSignalDef)
-        case None      => handleFreshSignal(typedReq, localInput, outerSignalDef)
+        case None      => handleFreshSignal(typedReq, localInput, outerSignalDef, instanceId, localState)
       }
 
     private def redeliverFromStoredEvent[Resp1](
@@ -200,8 +207,11 @@ object SignalEvaluator {
         typedReq: Req,
         localInput: LocalIn,
         outerSignalDef: SignalDef[?, Resp1],
+        instanceId: WorkflowInstanceId,
+        localState: WCState[LocalCtx],
     )(using Functor[F]): SignalResult[F, OutEvent, Resp1] = {
-      SignalResult.Processed(Functor[F].map(liftEffect(node.sigHandler.handle(localInput, typedReq))) { evt =>
+      val ctx = WIOContext[WCState[LocalCtx]](instanceId, localState)
+      SignalResult.Processed(Functor[F].map(liftEffect(node.sigHandler.handle(ctx)(localInput, typedReq))) { evt =>
         val convertedEvent = eventTransform(node.evtHandler.convert(evt))
         val response       = node.responseProducer(localInput, evt, typedReq)
         SignalResult.ProcessingResult(convertedEvent, extractTypedResponse(outerSignalDef, response))

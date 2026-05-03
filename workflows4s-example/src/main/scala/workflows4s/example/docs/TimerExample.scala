@@ -12,7 +12,7 @@ object TimerExample {
       .await[MyState](1.day)
       .persistStartThrough(start => MyTimerStarted(start.at))(evt => evt.time)
       .persistReleaseThrough(release => MyTimerReleased(release.at))(evt => evt.time)
-      .autoNamed
+      .autoNamed()
   // end_doc
 
 }

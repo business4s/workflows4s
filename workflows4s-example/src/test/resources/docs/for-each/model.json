@@ -2,7 +2,8 @@
   "forEach" : {
     "meta" : {
       "name" : "Element Workflow",
-      "error" : null
+      "error" : null,
+      "description" : null
     },
     "_type" : "Pure"
   },

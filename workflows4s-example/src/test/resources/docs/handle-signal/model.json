@@ -2,7 +2,8 @@
   "meta" : {
     "signalName" : "My Request",
     "operationName" : "Do Things",
-    "error" : null
+    "error" : null,
+    "description" : null
   },
   "_type" : "HandleSignal"
 }

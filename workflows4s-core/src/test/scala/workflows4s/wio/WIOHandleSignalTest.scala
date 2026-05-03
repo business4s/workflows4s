@@ -6,6 +6,7 @@ import cats.implicits.catsSyntaxOptionId
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.EitherValues
+import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.testing.TestUtils
 import workflows4s.wio.WIO.HandleSignal
 
@@ -153,7 +154,7 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers with EitherValues {
       }
 
       "autonamed step" in {
-        val myName = base.autoNamed // Automatically derives a name from the code
+        val myName = base.autoNamed() // Automatically derives a name from the code
         val meta   = myName.extractMeta
         assert(meta.operationName == "My Name".some)
       }
@@ -172,7 +173,7 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers with EitherValues {
           .withSideEffects(ignore)
           .handleEventWithError((_, _) => Left("errorOccurred"))
           .produceResponse(ignore3)
-          .autoNamed
+          .autoNamed()
 
         val meta = wio.extractMeta
         assert(meta.error == ErrorMeta.Present("String"))
@@ -265,6 +266,32 @@ class WIOHandleSignalTest extends AnyFreeSpec with Matchers with EitherValues {
         // Redelivery with different request - response producer sees both values
         val response3 = instance.deliverSignal(signalDef, 99).value
         assert(response3 == "original=42, current=99")
+      }
+    }
+
+    "WIOContext propagation" - {
+
+      "receives instance id" in {
+        val signalDef                              = SignalDef[Int, String]()
+        var capturedId: Option[WorkflowInstanceId] = None
+        val wf                                     = WIO
+          .handleSignal(signalDef)
+          .using[String]
+          .withSideEffects { (input, req) =>
+            capturedId = Some(WIOContext.instanceId)
+            IO.pure(SimpleEvent(s"sig($input,$req)"))
+          }
+          .handleEvent((_, evt) => evt.value)
+          .produceResponse((_, _, _) => "resp")
+          .done
+          .toWorkflow("initial")
+
+        wf.handleSignal(signalDef)(42) match {
+          case SignalResult.Processed(io) => io.unsafeRunSync()
+          case other                      => fail(s"Expected Processed, got $other")
+        }
+
+        assert(capturedId.contains(WorkflowInstanceId("test", "test")))
       }
     }
 

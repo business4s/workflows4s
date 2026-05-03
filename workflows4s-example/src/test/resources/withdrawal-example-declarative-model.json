@@ -12,7 +12,8 @@
                     "operationName" : "Validate",
                     "error" : {
                       "name" : "Invalid Input"
-                    }
+                    },
+                    "description" : null
                   },
                   "_type" : "HandleSignal"
                 },
@@ -37,7 +38,8 @@
                 {
                   "meta" : {
                     "name" : "Run Checks",
-                    "error" : null
+                    "error" : null,
+                    "description" : null
                   },
                   "_type" : "Pure"
                 },
@@ -46,7 +48,8 @@
                     "name" : "Act On Decision",
                     "error" : {
                       "name" : "Rejected In Checks"
-                    }
+                    },
+                    "description" : null
                   },
                   "_type" : "Pure"
                 },
@@ -69,7 +72,8 @@
                     "operationName" : null,
                     "error" : {
                       "name" : "Rejected By Execution Engine"
-                    }
+                    },
+                    "description" : null
                   },
                   "_type" : "HandleSignal"
                 }
@@ -82,7 +86,8 @@
                 "operationName" : null,
                 "error" : {
                   "name" : "Cancelled"
-                }
+                },
+                "description" : null
               },
               "_type" : "HandleSignal"
             },

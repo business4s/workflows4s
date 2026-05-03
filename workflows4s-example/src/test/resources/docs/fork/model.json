@@ -3,14 +3,16 @@
     {
       "meta" : {
         "name" : "Do A",
-        "error" : null
+        "error" : null,
+        "description" : null
       },
       "_type" : "Pure"
     },
     {
       "meta" : {
         "name" : "Do B",
-        "error" : null
+        "error" : null,
+        "description" : null
       },
       "_type" : "Pure"
     }

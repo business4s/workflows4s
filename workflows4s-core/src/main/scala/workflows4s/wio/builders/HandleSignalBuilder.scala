@@ -20,12 +20,18 @@ object HandleSignalBuilder {
 
       class Step1[Input] {
 
-        def withSideEffects[Evt <: WCEvent[Ctx]](f: (Input, Req) => WCEffect[Ctx][Evt])(using evtCt: ClassTag[Evt]): Step2[Evt] = Step2(f, evtCt)
+        def withSideEffects[Evt <: WCEvent[Ctx]](f: WIOContext[WCState[Ctx]] ?=> (Input, Req) => WCEffect[Ctx][Evt])(using
+            evtCt: ClassTag[Evt],
+        ): Step2[Evt] =
+          Step2(ctx => f(using ctx), evtCt)
 
-        def purely[Evt <: WCEvent[Ctx]](f: (Input, Req) => Evt)(using evtCt: ClassTag[Evt], A: Applicative[WCEffect[Ctx]]): Step2[Evt] =
-          Step2((x, y) => A.pure(f(x, y)), evtCt)
+        def purely[Evt <: WCEvent[Ctx]](f: WIOContext[WCState[Ctx]] ?=> (Input, Req) => Evt)(using
+            evtCt: ClassTag[Evt],
+            A: Applicative[WCEffect[Ctx]],
+        ): Step2[Evt] =
+          Step2(ctx => (x, y) => A.pure(f(using ctx)(x, y)), evtCt)
 
-        class Step2[Evt <: WCEvent[Ctx]](signalHandler: (Input, Req) => WCEffect[Ctx][Evt], evtCt: ClassTag[Evt]) {
+        class Step2[Evt <: WCEvent[Ctx]](signalHandler: WIOContext[WCState[Ctx]] => (Input, Req) => WCEffect[Ctx][Evt], evtCt: ClassTag[Evt]) {
 
           def handleEvent[Out <: WCState[Ctx]](f: (Input, Evt) => Out): Step3[Nothing, Out] =
             Step3({ (x, y) => Right(f(x, y)) }, ErrorMeta.noError)
@@ -44,22 +50,30 @@ object HandleSignalBuilder {
 
             def voidResponse(using ev: Unit =:= Resp): Step4 = Step4((_, _, _) => (), None, None)
 
-            class Step4(responseBuilder: (Input, Evt, Req) => Resp, operationName: Option[String], signalName: Option[String]) {
+            class Step4(
+                responseBuilder: (Input, Evt, Req) => Resp,
+                operationName: Option[String],
+                signalName: Option[String],
+                description: Option[String] = None,
+            ) {
 
-              def named(operationName: String = null, signalName: String = null): WIO[Input, Err, Out, Ctx] =
+              def named(operationName: String = null, signalName: String = null, description: String = null): WIO[Input, Err, Out, Ctx] =
                 Step4(
                   responseBuilder,
                   Option(operationName).orElse(this.operationName),
                   Option(signalName).orElse(this.signalName),
+                  Option(description).orElse(this.description),
                 ).done
 
-              def autoNamed(using n: sourcecode.Name): WIO[Input, Err, Out, Ctx] = named(operationName = ModelUtils.prettifyName(n.value))
+              def autoNamed(description: String = null)(using n: sourcecode.Name): WIO[Input, Err, Out, Ctx] =
+                named(operationName = ModelUtils.prettifyName(n.value), description = description)
 
               def done: WIO.IHandleSignal[Input, Err, Out, Ctx] = {
-                val eh: EventHandler[Input, Either[Err, Out], WCEvent[Ctx], Evt] =
+                val eh: EventHandler[Input, Either[Err, Out], WCEvent[Ctx], Evt]      =
                   EventHandler.partial[WCEvent[Ctx], Input, Either[Err, Out], Evt](identity, eventHandler)(using evtCt)
-                val sh: SignalHandler[WCEffect[Ctx], Req, Evt, Input]            = SignalHandler(signalHandler)
-                val meta                                                         = HandleSignal.Meta(errorMeta, signalName.getOrElse(signalDef.name), operationName)
+                val sh: SignalHandler[WCEffect[Ctx], Req, Evt, Input, WCState[Ctx]]   = SignalHandler(signalHandler)
+                val meta                                                              =
+                  HandleSignal.Meta(errorMeta, signalName.getOrElse(signalDef.name), operationName, description)
                 WIO.HandleSignal(signalDef, sh, eh, responseBuilder, meta)
               }
 

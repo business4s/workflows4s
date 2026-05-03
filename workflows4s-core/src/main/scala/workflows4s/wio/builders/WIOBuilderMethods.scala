@@ -11,7 +11,7 @@ trait WIOBuilderMethods[Ctx <: WorkflowContext] {
 
   def end: WIO[Any, Nothing, Nothing, Ctx] = WIO.End[Ctx]()
 
-  def getState[St <: WCState[Ctx]]: WIO[St, Nothing, St, Ctx] = WIO.Pure(s => s.asRight, WIO.Pure.Meta(NoError(), None))
+  def getState[St <: WCState[Ctx]]: WIO[St, Nothing, St, Ctx] = WIO.Pure(_ => s => s.asRight, WIO.Pure.Meta(NoError(), None))
 
   def embed[In, Err, Out <: WCState[InnerCtx], InnerCtx <: WorkflowContext, OS[_ <: WCState[InnerCtx]] <: WCState[Ctx]](
       wio: WIO[In, Err, Out, InnerCtx],

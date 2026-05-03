@@ -1,8 +1,10 @@
 package workflows4s.wio
 
+import cats.effect.IO
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{EitherValues, OptionValues}
+import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.testing.TestUtils
 
 import scala.concurrent.duration.DurationInt
@@ -187,6 +189,38 @@ class WIOHandleInterruptionTest extends AnyFreeSpec with Matchers with OptionVal
           capturedExecutedList === List(signalFirstStepId, signalBase1StepId),
           "Interruption handler should see state changes from base, not just from parent AndThen",
         )
+      }
+    }
+
+    "WIOContext propagation" - {
+
+      "interruption signal handler receives instance id" in {
+        import TestCtx2.*
+
+        var capturedId: Option[WorkflowInstanceId] = None
+        val interruptSignalDef                     = SignalDef[Int, Int](id = "ctx-interrupt")
+        case class InterruptEvt(req: Int) extends TestCtx2.Event
+        val interruptStepId = StepId.random("interrupt-ctx")
+
+        val interruptHandler = WIO
+          .handleSignal(interruptSignalDef)
+          .using[TestState]
+          .withSideEffects { (_, req) =>
+            capturedId = Some(WIOContext.instanceId)
+            IO.pure(InterruptEvt(req))
+          }
+          .handleEvent((st, _) => st.addExecuted(interruptStepId))
+          .produceResponse((_, evt, _) => evt.req)
+          .done
+
+        val (signalB, _, handleSignalB) = TestUtils.signal
+        val wf                          = handleSignalB.interruptWith(interruptHandler.toInterruption)
+        val (_, instance)               = TestUtils.createInstance2(wf)
+
+        instance.deliverSignal(interruptSignalDef, 42).value
+
+        assert(capturedId.isDefined)
+        assert(capturedId.get.templateId == "test")
       }
     }
 

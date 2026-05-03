@@ -50,7 +50,7 @@ object ChecksEngine extends ChecksEngine with StrictLogging {
       .await[ChecksState.Pending](retryBackoff)
       .persistStartThrough(started => ChecksEvent.AwaitingRefresh(started.at))(_.started)
       .persistReleaseThrough(released => ChecksEvent.RefreshReleased(released.at))(_.released)
-      .autoNamed
+      .autoNamed()
 
     def isDone(checksState: ChecksState.Pending): Option[ChecksState.Executed] = checksState.asExecuted
 
@@ -92,7 +92,7 @@ object ChecksEngine extends ChecksEngine with StrictLogging {
           else Decision.ApprovedBySystem()
         st.asDecided(decision)
       })
-      .autoNamed
+      .autoNamed()
 
   private def handleReview: WIO[ChecksState.Executed, Nothing, ChecksState.Decided] = WIO
     .handleSignal(Signals.review)
@@ -113,7 +113,7 @@ object ChecksEngine extends ChecksEngine with StrictLogging {
       .throughTimeout(timeoutThreshold)
       .persistStartThrough(started => ChecksEvent.AwaitingTimeout(started.at))(_.started)
       .persistReleaseThrough(released => ChecksEvent.ExecutionTimedOut(released.at))(_.releasedAt)
-      .autoNamed
+      .autoNamed()
       .andThen(_ >>> putInReview)
 
   private def putInReview: WIO[ChecksState, Nothing, ChecksState.Executed] =
@@ -127,6 +127,6 @@ object ChecksEngine extends ChecksEngine with StrictLogging {
           }))
         case _: ChecksState.Decided           => ??? // not supported
       })
-      .autoNamed
+      .autoNamed()
 
 }

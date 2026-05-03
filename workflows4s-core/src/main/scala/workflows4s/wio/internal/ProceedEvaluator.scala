@@ -1,6 +1,7 @@
 package workflows4s.wio.internal
 
 import cats.syntax.all.*
+import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.wio.*
 
 // For the given workflow tries to move it to next step if possible without executing any side-effecting comptations.
@@ -11,8 +12,9 @@ object ProceedEvaluator {
   def proceed[Ctx <: WorkflowContext](
       wio: WIO[Any, Nothing, WCState[Ctx], Ctx],
       state: WCState[Ctx],
+      instanceId: WorkflowInstanceId,
   ): Response[Ctx] = {
-    val visitor: ProceedVisitor[Ctx, Any, Nothing, WCState[Ctx]] = new ProceedVisitor(wio, state, state, 0)
+    val visitor: ProceedVisitor[Ctx, Any, Nothing, WCState[Ctx]] = new ProceedVisitor(wio, state, state, 0, instanceId)
     Response(visitor.run.map(_.wio))
   }
 
@@ -23,6 +25,7 @@ object ProceedEvaluator {
       input: In,
       lastSeenState: WCState[Ctx],
       index: Int,
+      instanceId: WorkflowInstanceId,
   ) extends ProceedingVisitor[Ctx, In, Err, Out](wio, input, lastSeenState, index) {
 
     def onSignal[Sig, Evt, Resp](wio: WIO.HandleSignal[Ctx, In, Out, Err, Sig, Resp, Evt]): Result = None
@@ -31,14 +34,16 @@ object ProceedEvaluator {
     def onAwaitingTime(wio: WIO.AwaitingTime[Ctx, In, Err, Out]): Result                           = None
     override def onRecovery[Evt](wio: WIO.Recovery[Ctx, In, Err, Out, Evt]): Result                = None
 
-    def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result =
-      WFExecution.complete(wio, wio.value(input), input, index).some
+    def onPure(wio: WIO.Pure[Ctx, In, Err, Out]): Result = {
+      val ctx = WIOContext(instanceId, lastSeenState)
+      WFExecution.complete(wio, wio.value(ctx)(input), input, index).some
+    }
 
     def onEmbedded[InnerCtx <: WorkflowContext, InnerOut <: WCState[InnerCtx], MappingOutput[_ <: WCState[InnerCtx]] <: WCState[Ctx]](
         wio: WIO.Embedded[Ctx, In, Err, InnerCtx, InnerOut, MappingOutput],
     ): Result = {
       val newState: WCState[InnerCtx] = wio.embedding.unconvertStateUnsafe(lastSeenState)
-      new ProceedVisitor(wio.inner, input, newState, index).run
+      new ProceedVisitor(wio.inner, input, newState, index, instanceId).run
         .map(convertEmbeddingResult2(wio, _, input))
     }
 
@@ -53,7 +58,7 @@ object ProceedEvaluator {
       def completeEmpty    = WFExecution.complete(wio, Right(wio.buildOutput(input, Map())), input, maxIndex + 1)
       def updateChild      = {
         val updatedElem = state.toList.collectFirstSome((elemId, elemWio) => {
-          new ProceedVisitor(elemWio, input, wio.initialElemState(), maxIndex).run.tupleLeft(elemId)
+          new ProceedVisitor(elemWio, input, wio.initialElemState(), maxIndex, instanceId).run.tupleLeft(elemId)
         })
         updatedElem.map(newWf => convertForEachResult(wio, newWf._2, input, newWf._1))
       }
@@ -69,7 +74,7 @@ object ProceedEvaluator {
         index: Int,
     ): Option[WFExecution[Ctx, I1, E1, O1]] = {
       val nextIndex = Math.max(index, this.index) // handle parallel case
-      new ProceedVisitor(wio, in, state, nextIndex).run
+      new ProceedVisitor(wio, in, state, nextIndex, instanceId).run
     }
 
   }

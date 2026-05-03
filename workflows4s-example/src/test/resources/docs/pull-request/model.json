@@ -7,7 +7,8 @@
           "operationName" : "Create PR",
           "error" : {
             "name" : "Commit Not Found"
-          }
+          },
+          "description" : null
         },
         "_type" : "HandleSignal"
       },
@@ -27,14 +28,16 @@
           "operationName" : "Process Review",
           "error" : {
             "name" : "Review Rejected"
-          }
+          },
+          "description" : null
         },
         "_type" : "HandleSignal"
       },
       {
         "meta" : {
           "name" : "Merge PR",
-          "error" : null
+          "error" : null,
+          "description" : null
         },
         "_type" : "Pure"
       }
@@ -44,7 +47,8 @@
   "handler" : {
     "meta" : {
       "name" : "Close PR",
-      "error" : null
+      "error" : null,
+      "description" : null
     },
     "_type" : "Pure"
   },

@@ -35,7 +35,7 @@ case class ActiveWorkflow[Ctx <: WorkflowContext](id: WorkflowInstanceId, wio: W
       liftEffect: WCEffectLift[Ctx, F],
   ): SignalResult[F, WCEvent[Ctx], Resp] = {
     val wf = effectlessProceed
-    SignalEvaluator.handleSignal(signalDef, req, wf.wio, wf.staticState, liftEffect)
+    SignalEvaluator.handleSignal(signalDef, req, wf.wio, wf.staticState, id, liftEffect)
   }
 
   def handleEvent(event: WCEvent[Ctx]): Option[ActiveWorkflow[Ctx]] = {
@@ -49,7 +49,7 @@ case class ActiveWorkflow[Ctx <: WorkflowContext](id: WorkflowInstanceId, wio: W
 
   def proceed[F[_]: MonadThrow](now: Instant, liftEffect: WCEffectLift[Ctx, F]): WakeupResult[F, WCEvent[Ctx]] = {
     val wf = effectlessProceed
-    RunIOEvaluator.proceed(wf.wio, wf.staticState, now, liftEffect)
+    RunIOEvaluator.proceed(wf.wio, wf.staticState, now, id, liftEffect)
   }
 
   def progress: WIOExecutionProgress[WCState[Ctx]] = effectlessProceed.wio.toProgress
@@ -57,7 +57,7 @@ case class ActiveWorkflow[Ctx <: WorkflowContext](id: WorkflowInstanceId, wio: W
   // moves forward as far as possible
   private def effectlessProceed: ActiveWorkflow[Ctx] =
     ProceedEvaluator
-      .proceed(wio, initialState)
+      .proceed(wio, initialState, id)
       .newFlow
       .map(newWio => this.copy(wio = newWio))
       .map(x => x.effectlessProceed)
