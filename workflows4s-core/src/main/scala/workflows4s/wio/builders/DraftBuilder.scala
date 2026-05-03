@@ -16,7 +16,7 @@ object DraftBuilder {
     val draft: DraftBuilderStep1.type = DraftBuilderStep1
 
     object DraftBuilderStep1 {
-      def signal(name: String = null, error: String = null, description: String = null)(using autoName: sourcecode.Name): WIO.Draft[Ctx]      =
+      def signal(name: String = null, error: String = null, description: String = null)(using autoName: sourcecode.Name): WIO.Draft[Ctx] =
         WIO.HandleSignal(
           draftSignal,
           SignalHandler[WCEffect[Ctx], Unit, Unit, Any, WCState[Ctx]](_ => (_, _) => ???),
@@ -29,7 +29,7 @@ object DraftBuilder {
             Option(description),
           ),
         )
-      def timer(name: String = null, duration: FiniteDuration = null)(using autoName: sourcecode.Name): WIO.Draft[Ctx] =
+      def timer(name: String = null, duration: FiniteDuration = null)(using autoName: sourcecode.Name): WIO.Draft[Ctx]                   =
         WIO.Timer(
           Option(duration) match {
             case Some(value) => WIO.Timer.DurationSource.Static(value.toJava)

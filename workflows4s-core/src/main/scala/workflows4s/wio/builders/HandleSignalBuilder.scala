@@ -69,10 +69,10 @@ object HandleSignalBuilder {
                 named(operationName = ModelUtils.prettifyName(n.value), description = description)
 
               def done: WIO.IHandleSignal[Input, Err, Out, Ctx] = {
-                val eh: EventHandler[Input, Either[Err, Out], WCEvent[Ctx], Evt]      =
+                val eh: EventHandler[Input, Either[Err, Out], WCEvent[Ctx], Evt]    =
                   EventHandler.partial[WCEvent[Ctx], Input, Either[Err, Out], Evt](identity, eventHandler)(using evtCt)
-                val sh: SignalHandler[WCEffect[Ctx], Req, Evt, Input, WCState[Ctx]]   = SignalHandler(signalHandler)
-                val meta                                                              =
+                val sh: SignalHandler[WCEffect[Ctx], Req, Evt, Input, WCState[Ctx]] = SignalHandler(signalHandler)
+                val meta                                                            =
                   HandleSignal.Meta(errorMeta, signalName.getOrElse(signalDef.name), operationName, description)
                 WIO.HandleSignal(signalDef, sh, eh, responseBuilder, meta)
               }
