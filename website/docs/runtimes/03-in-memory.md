@@ -1,28 +1,29 @@
 # In-Memory Runtimes
 
-## In-Memory Runtime
+Both in-memory runtimes store workflow state in memory without persistence. They differ in their concurrency model:
 
-The in-memory runtime is built on top of [`cats-effect`](https://typelevel.org/cats-effect/) and enables workflows to run without persistence. This runtime is ideal for:
+| | Synchronized | Concurrent |
+|---|---|---|
+| **Module** | `workflows4s-core` | `workflows4s-cats-effect` |
+| **Effect requirements** | `MonadThrow` | `Async` (cats-effect) |
+| **Under contention** | Blocks thread | Suspends fiber |
+| **On cancellation** | Lock may leak | Releases lock cleanly |
+| **Best for** | Tests, simple/synchronous usage | Concurrent/async usage with fibers |
 
-- Testing workflows.
-- Scenarios where workflows can be terminated or restarted from scratch without the need for state recovery.
+## Concurrent Runtime
+
+The concurrent runtime is built on top of [`cats-effect`](https://typelevel.org/cats-effect/) and uses functional concurrency primitives (Ref, Semaphore). It is fiber-safe and cancellation-safe.
 
 ### Example
 
-Here is an example of using the in-memory runtime:
-
-```scala file=./main/scala/workflows4s/example/docs/InMemoryRuntimeExample.scala start=async_doc_start end=async_doc_end
+```scala file=./main/scala/workflows4s/example/docs/InMemoryConcurrentRuntimeExample.scala start=concurrent_doc_start end=concurrent_doc_end
 ```
 
-## Unsafe In-Memory Runtime
+## Synchronized Runtime
 
-The unsafe in-memory runtime is an alternative implementation that:
-
-- Is not thread-safe.
-- Is built with vanilla Scala, making it lightweight and simple.
+The synchronized runtime uses JVM-level synchronization primitives. It is thread-safe but not fiber-safe — under contention it blocks the carrier thread rather than suspending the fiber.
 
 ### Example
 
-Here is an example of using the unsafe in-memory runtime:
-
-```scala file=./main/scala/workflows4s/example/docs/InMemoryRuntimeExample.scala start=ssync_doc_start end=ssync_doc_end
+```scala file=./main/scala/workflows4s/example/docs/InMemorySynchronizedRuntimeExample.scala start=synchronized_doc_start end=synchronized_doc_end
+```

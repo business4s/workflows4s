@@ -23,8 +23,8 @@ object ForkBuilder {
           onFalse: WIO[In1, Err1, Out1, Ctx],
       ): WIO[In1, Err1, Out1, Ctx] = WIO.Fork(
         Vector(
-          WIO.build[Ctx].branch[In1].when(condition)(onTrue).named("Yes").done,
-          WIO.build[Ctx].branch[In1].when(condition.andThen(!_))(onFalse).named("No").done,
+          WIO.Branch[In1, Err1, Out1, Ctx, In1](x => Option.when(condition(x))(x), onTrue, Some("Yes")),
+          WIO.Branch[In1, Err1, Out1, Ctx, In1](x => Option.when(!condition(x))(x), onFalse, Some("No")),
         ),
         Option(name),
         None,

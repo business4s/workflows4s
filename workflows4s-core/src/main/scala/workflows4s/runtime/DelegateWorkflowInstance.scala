@@ -18,4 +18,6 @@ trait DelegateWorkflowInstance[F[_], State] extends WorkflowInstance[F, State] {
   override def wakeup(): F[Unit] = delegate.wakeup()
 
   override def getProgress: F[WIOExecutionProgress[State]] = delegate.getProgress
+
+  override def getExpectedSignals(includeRedeliverable: Boolean): F[List[SignalDef[?, ?]]] = delegate.getExpectedSignals(includeRedeliverable)
 }

@@ -1,22 +1,23 @@
-package workflows4s.runtime
+package workflows4s.runtime.cats.effect
 
+import _root_.cats.effect.IO
+import _root_.cats.effect.unsafe.implicits.global
 import org.scalatest.freespec.AnyFreeSpec
-import cats.effect.unsafe.implicits.global
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 
-class InMemoryRuntimeTest extends AnyFreeSpec {
+class InMemoryConcurrentRuntimeTest extends AnyFreeSpec {
 
   import workflows4s.wio.TestCtx.*
 
-  "InMemoryRuntime" - {
+  "InMemoryConcurrentRuntime" - {
 
     "should return the same workflow instance for the same id" in {
       val workflow: WIO.Initial = WIO.pure("myValue").done
-      val runtime               = InMemoryRuntime
-        .default[Ctx](
+      val runtime               = InMemoryConcurrentRuntime
+        .default[IO, Ctx](
           workflow = workflow,
           initialState = "initialState",
-          engine = WorkflowInstanceEngine.basic(),
+          engine = WorkflowInstanceEngine.basic[IO, Ctx](),
         )
         .unsafeRunSync()
 

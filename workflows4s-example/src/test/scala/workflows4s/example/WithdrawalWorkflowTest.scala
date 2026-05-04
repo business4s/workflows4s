@@ -14,7 +14,8 @@ import workflows4s.example.withdrawal.*
 import workflows4s.example.withdrawal.WithdrawalService.{ExecutionResponse, Fee, Iban}
 import workflows4s.example.withdrawal.WithdrawalSignal.CreateWithdrawal
 import workflows4s.example.withdrawal.checks.*
-import workflows4s.testing.TestRuntimeAdapter
+import workflows4s.testing.{InMemorySynchronizedTestRuntimeAdapter, TestRuntimeAdapter}
+import workflows4s.testing.cats.effect.InMemoryConcurrentTestRuntimeAdapter
 
 import scala.annotation.unused
 import scala.concurrent.duration.*
@@ -24,10 +25,15 @@ import scala.jdk.DurationConverters.JavaDurationOps
 class WithdrawalWorkflowTest extends AnyFreeSpec with MockFactory with WithdrawalWorkflowTest.Suite {
 
   "in-memory-sync" - {
-    withdrawalTests(TestRuntimeAdapter.InMemorySync())
+    withdrawalTests(
+      InMemorySynchronizedTestRuntimeAdapter[IO, WithdrawalWorkflow.Context.Ctx]([A] =>
+        (fa: IO[A]) => { import cats.effect.unsafe.implicits.global; fa.unsafeRunSync() },
+      ),
+    )
   }
   "in-memory" - {
-    withdrawalTests(TestRuntimeAdapter.InMemory())
+    import cats.effect.unsafe.implicits.global
+    withdrawalTests(InMemoryConcurrentTestRuntimeAdapter[IO, WithdrawalWorkflow.Context.Ctx]([A] => (fa: IO[A]) => fa.unsafeRunSync()))
   }
 
   "render model" in {
@@ -50,7 +56,7 @@ object WithdrawalWorkflowTest {
 
   trait Suite extends AnyFreeSpecLike with MockFactory {
 
-    def withdrawalTests(getRuntime: => TestRuntimeAdapter[WithdrawalWorkflow.Context.Ctx]) = {
+    def withdrawalTests[F[_]](getRuntime: => TestRuntimeAdapter[F, WithdrawalWorkflow.Context.Ctx]) = {
 
       "happy path" in new Fixture {
         assert(actor.queryData() == WithdrawalData.Empty)

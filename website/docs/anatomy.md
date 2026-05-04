@@ -13,9 +13,10 @@ The diagram below illustrates the key components of Workflows4s and their relati
 flowchart LR
     UserLogic["Your Business Logic"] --> WIO["WIO (Workflow Definition)"]
     RuntimeDeps["Runtime-specific Dependencies"] --> Runtime["WorkflowRuntime"]
+    WorkflowContext --> WIO
     WIO --> Runtime
     
-    Engine[WorkflowInstanceEngine] --> Runtime
+    Engine["WorkflowInstanceEngine"] --> Runtime
 
     KnockerUpper["KnockerUpper"] --> Engine
     WorkflowRegistry["WorkflowRegistry"] --> Engine
@@ -51,12 +52,8 @@ flowchart LR
 ### Core Components
 
 - **Your Business Logic**: Your application code that defines the workflow steps and business rules.
-- **WIO (Workflow Definition)**: A pure value object that describes the workflow structure, e.g.:
-    - Steps (computations)
-    - Signal handling
-    - Timers
-    - Branching
-
+- **WorkflowContext**: An object that provides workflow-fixed type information, such as events type, state type or effect type.
+- **WIO (Workflow Definition)**: A pure value object that describes the workflow structure
 ### Runtime Components
 
 - **WorkflowRuntime**: Manages workflow instances and their execution.

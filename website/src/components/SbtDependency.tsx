@@ -4,7 +4,7 @@ import CodeBlock from '@theme/CodeBlock';
 
 
 export interface SbtDependencyProps {
-    moduleName: "workflows4s-core" | "workflows4s-doobie" | "workflows4s-pekko" | "workflows4s-filesystem" | "workflows4s-quartz" |
+    moduleName: "workflows4s-core" | "workflows4s-cats-effect" | "workflows4s-doobie" | "workflows4s-pekko" | "workflows4s-filesystem" | "workflows4s-quartz" |
         "workflows4s-bpmn" | "workflow4s-web-api-shared" | "workflow4s-web-api-server";
     comment?: string;
 }

@@ -26,8 +26,8 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration}
   * never overwrites a fresher one.
   */
 trait PostgresWorkflowRegistry
-    extends WorkflowRegistry.Agent
-    with KnockerUpper.Agent
+    extends WorkflowRegistry.Agent[IO]
+    with KnockerUpper.Agent[IO]
     with KnockerUpper.Process[IO, ResourceIO[Unit]]
     with WorkflowSearch[IO] {
 

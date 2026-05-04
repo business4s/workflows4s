@@ -1,6 +1,5 @@
 package workflows4s.wio.internal
 
-import cats.effect.IO
 import workflows4s.wio.WIOContext
 
 import scala.reflect.ClassTag
@@ -54,6 +53,4 @@ object EventHandler {
     typed(convert0, handle0, ct)
 }
 
-case class SignalHandler[-Sig, +Evt, -In, State](handle: WIOContext[State] => (In, Sig) => IO[Evt]) {
-  def map[E1](f: Evt => E1): SignalHandler[Sig, E1, In, State] = SignalHandler(ctx => (in, sig) => handle(ctx)(in, sig).map(f))
-}
+case class SignalHandler[F[_], -Sig, Evt, -In, State](handle: WIOContext[State] => (In, Sig) => F[Evt])

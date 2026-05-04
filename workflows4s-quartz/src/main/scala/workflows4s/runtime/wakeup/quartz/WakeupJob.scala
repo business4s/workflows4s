@@ -1,8 +1,6 @@
 package workflows4s.runtime.wakeup.quartz
 
 import scala.util.{Failure, Success, Try}
-import cats.effect.IO
-import cats.effect.std.Dispatcher
 import org.quartz.{Job, JobExecutionContext, Scheduler}
 import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.runtime.wakeup.quartz.WakeupJob.{instanceIdKey, templateIdKey, wakeupContextsKey}
@@ -12,13 +10,7 @@ class WakeupJob extends Job {
     val id         = context.getJobDetail.getJobDataMap.getString(instanceIdKey)
     val templateId = context.getJobDetail.getJobDataMap.getString(templateIdKey)
     val wakeupCtx  = context.getScheduler.getWakeupContext
-    wakeup(WorkflowInstanceId(templateId, id), wakeupCtx.get)
-  }
-
-  private def wakeup(id: WorkflowInstanceId, ctx: WakeupJob.Context): Unit = {
-    ctx.dispatcher.unsafeRunSync(for {
-      _ <- ctx.wakeup(id)
-    } yield ())
+    wakeupCtx.get.run(WorkflowInstanceId(templateId, id))
   }
 }
 
@@ -27,7 +19,10 @@ object WakeupJob {
   val instanceIdKey     = "instance-id"
   val templateIdKey     = "template-id"
 
-  case class Context(wakeup: WorkflowInstanceId => IO[Unit], dispatcher: Dispatcher[IO])
+  /** F-agnostic wakeup callback. The effect type is hidden behind a synchronous `run` that the job driver invokes; concrete implementations bridge
+    * their `F[Unit]` via e.g. a cats-effect `Dispatcher`.
+    */
+  case class Context(run: WorkflowInstanceId => Unit)
 
 }
 

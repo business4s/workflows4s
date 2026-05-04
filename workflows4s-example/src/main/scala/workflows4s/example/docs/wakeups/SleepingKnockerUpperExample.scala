@@ -10,10 +10,10 @@ import scala.annotation.nowarn
 object SleepingKnockerUpperExample {
 
   // docs_start
-  import workflows4s.runtime.wakeup.SleepingKnockerUpper
+  import workflows4s.runtime.wakeup.cats.effect.SleepingKnockerUpper
 
   // all sleeps will be canceled on release
-  val knockerUpperResource: ResourceIO[SleepingKnockerUpper] = SleepingKnockerUpper.create()
+  val knockerUpperResource: ResourceIO[SleepingKnockerUpper[IO]] = SleepingKnockerUpper.create[IO]()
 
   knockerUpperResource.use(knockerUpper => {
     val runtime: WorkflowRuntime[IO, MyWorkflowCtx] = createRuntime(knockerUpper)

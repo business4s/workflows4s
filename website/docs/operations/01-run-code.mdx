@@ -39,7 +39,8 @@ These operations need special handling because they shouldn't be re-executed dur
 
 :::info
 
-Workflows4s currently supports only cats-effect IO. If you're interested in other effect systems, please check [here](https://github.com/business4s/workflows4s/issues/59).
+The effect type used in `runIO` is determined by the `Effect` type in your `WorkflowContext`. While the method is
+named `runIO`, it works with any effect type — `cats.effect.IO`, `Future`, `zio.Task`, `Try`, etc.
 
 :::
 

@@ -6,7 +6,8 @@ import org.camunda.bpm.model.bpmn.Bpmn
 import sttp.tapir.Schema
 import workflows4s.bpmn.BpmnRenderer
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
-import workflows4s.runtime.{InMemorySyncRuntime, InMemorySyncWorkflowInstance}
+import cats.effect.unsafe.implicits.global
+import workflows4s.runtime.{InMemorySynchronizedRuntime, InMemorySynchronizedWorkflowInstance}
 import workflows4s.wio.{SignalDef, WorkflowContext}
 
 import java.nio.file.Files
@@ -56,6 +57,7 @@ object PullRequestWorkflow {
 
   // start_context
   object Context extends WorkflowContext {
+    type Effect[T]      = IO[T]
     override type Event = PREvent
     override type State = PRState
   }
@@ -114,7 +116,7 @@ object PullRequestWorkflow {
   // end_steps_3
 
   @nowarn("msg=unused value")
-  def run: InMemorySyncWorkflowInstance[Ctx] = {
+  def run: InMemorySynchronizedWorkflowInstance[IO, Ctx] = {
 
     val file      = Files.createTempFile("pr", ".bpmn").toFile
     // start_render
@@ -123,23 +125,23 @@ object PullRequestWorkflow {
     // end_render
 
     // start_execution
-    val engine     = WorkflowInstanceEngine.basic()
-    val runtime    = InMemorySyncRuntime.create[Context.Ctx](workflow, PRState.Empty, engine)
-    val wfInstance = runtime.createInstance("id")
+    val engine     = WorkflowInstanceEngine.basic[IO, Context.Ctx]()
+    val runtime    = InMemorySynchronizedRuntime.create[IO, Context.Ctx](workflow, PRState.Empty, engine)
+    val wfInstance = runtime.createInstance("id").unsafeRunSync()
 
-    wfInstance.deliverSignal(Signals.createPR, Signals.CreateRequest("some-sha"))
-    println(wfInstance.queryState())
+    wfInstance.deliverSignal(Signals.createPR, Signals.CreateRequest("some-sha")).unsafeRunSync()
+    println(wfInstance.queryState().unsafeRunSync())
     // Checked(some-sha,<Some tests results>)
 
-    wfInstance.deliverSignal(Signals.reviewPR, Signals.ReviewRequest(approve = false))
-    println(wfInstance.queryState())
+    wfInstance.deliverSignal(Signals.reviewPR, Signals.ReviewRequest(approve = false)).unsafeRunSync()
+    println(wfInstance.queryState().unsafeRunSync())
     // Closed(Checked(some-sha,<Some tests results>),ReviewRejected)
     // end_execution
 
     // start_recovery
-    val recoveredInstance = runtime.createInstance("id")
-    recoveredInstance.recover(wfInstance.getEvents)
-    assert(wfInstance.queryState() == recoveredInstance.queryState())
+    val recoveredInstance = runtime.createInstance("id").unsafeRunSync()
+    recoveredInstance.recover(wfInstance.getEvents).unsafeRunSync()
+    assert(wfInstance.queryState().unsafeRunSync() == recoveredInstance.queryState().unsafeRunSync())
     // end_recovery
 
     wfInstance

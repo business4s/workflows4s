@@ -7,7 +7,7 @@ import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.wio.WIO.RunIO
-import workflows4s.wio.internal.SignalResult
+import workflows4s.wio.internal.{SignalResult, WakeupResult}
 
 import java.time.Instant
 
@@ -19,15 +19,15 @@ class WIORunIOTest extends AnyFreeSpec, Matchers, EitherValues, OptionValues {
 
     "proceed" in {
       val wf = WIO
-        .runIO[String](input => IO.pure(s"ProcessedEvent($input)"))
+        .runIO[String](input => IO.pure(s"ProcessedEvent($input)": Event))
         .handleEvent(ignore)
         .done
         .toWorkflow("initialState")
 
       val resultOpt = wf.proceed(Instant.now)
 
-      assert(resultOpt.toRaw.isDefined)
-      val newEvent = resultOpt.toRaw.get.unsafeRunSync().toOption.value
+      assert(WakeupResult.toRaw(resultOpt).isDefined)
+      val newEvent = WakeupResult.toRaw(resultOpt).get.unsafeRunSync().toOption.value
       assert(newEvent == SimpleEvent("ProcessedEvent(initialState)"))
     }
 
@@ -38,7 +38,7 @@ class WIORunIOTest extends AnyFreeSpec, Matchers, EitherValues, OptionValues {
         .done
         .toWorkflow("initialState")
 
-      val Some(result) = wf.proceed(Instant.now).toRaw: @unchecked
+      val Some(result) = WakeupResult.toRaw(wf.proceed(Instant.now)): @unchecked
 
       val Left(ex) = result.attempt.unsafeRunSync(): @unchecked
       assert(ex.getMessage == "IO failed")
@@ -64,12 +64,12 @@ class WIORunIOTest extends AnyFreeSpec, Matchers, EitherValues, OptionValues {
 
       val result = wf.handleSignal(SignalDef[String, String]())("")
 
-      assert(result == SignalResult.UnexpectedSignal)
+      assert(result == SignalResult.UnexpectedSignal())
     }
 
     "metadata attachment" - {
       val base = WIO
-        .runIO[String](input => IO.pure(s"EventGenerated($input)"))
+        .runIO[String](input => IO.pure(s"EventGenerated($input)": Event))
         .handleEvent(ignore)
 
       extension (x: WIO[?, ?, ?]) {
@@ -124,13 +124,13 @@ class WIORunIOTest extends AnyFreeSpec, Matchers, EitherValues, OptionValues {
         val wf                                     = WIO
           .runIO[String] { input =>
             capturedId = Some(WIOContext.instanceId)
-            IO.pure(s"done($input)")
+            IO.pure(SimpleEvent(s"done($input)"))
           }
           .handleEvent((_, evt) => evt.value)
           .done
           .toWorkflow("initial")
 
-        wf.proceed(Instant.now).toRaw.value.unsafeRunSync()
+        WakeupResult.toRaw(wf.proceed(Instant.now)).value.unsafeRunSync()
 
         capturedId.value shouldBe WorkflowInstanceId("test", "test")
       }
@@ -140,13 +140,13 @@ class WIORunIOTest extends AnyFreeSpec, Matchers, EitherValues, OptionValues {
         val wf                            = WIO
           .runIO[String] { input =>
             capturedState = Some(WIOContext.currentState[String])
-            IO.pure(s"done($input)")
+            IO.pure(SimpleEvent(s"done($input)"))
           }
           .handleEvent((_, evt) => evt.value)
           .done
           .toWorkflow("myState")
 
-        wf.proceed(Instant.now).toRaw.value.unsafeRunSync()
+        WakeupResult.toRaw(wf.proceed(Instant.now)).value.unsafeRunSync()
 
         capturedState.value shouldBe "myState"
       }

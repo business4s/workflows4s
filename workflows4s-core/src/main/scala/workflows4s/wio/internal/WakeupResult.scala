@@ -1,29 +1,28 @@
 package workflows4s.wio.internal
 
 import cats.data.Ior
-import cats.effect.IO
 import cats.syntax.all.*
 
 import java.time.Instant
 
-sealed trait WakeupResult[+Event] {
-  def toRaw: WakeupResult.Raw[Event] = this match {
-    case WakeupResult.Noop              => None
-    case WakeupResult.Processed(result) => Some(result.map(_.toRaw))
+sealed trait WakeupResult[F[_], +Event] {
+  def hasEffect: Boolean = this match {
+    case WakeupResult.Noop()       => false
+    case WakeupResult.Processed(_) => true
   }
 
-  def hasEffect: Boolean = this match {
-    case WakeupResult.Noop         => false
-    case WakeupResult.Processed(_) => true
+  def mapK[G[_]](nat: [A] => F[A] => G[A]): WakeupResult[G, Event] = this match {
+    case WakeupResult.Noop()            => WakeupResult.Noop()
+    case WakeupResult.Processed(result) => WakeupResult.Processed(nat(result))
   }
 }
 
 object WakeupResult {
 
-  type Raw[Event] = Option[IO[Ior[Instant, Event]]]
+  type Raw[F[_], Event] = Option[F[Ior[Instant, Event]]]
 
-  case object Noop                                                  extends WakeupResult[Nothing]
-  case class Processed[+Event](result: IO[ProcessingResult[Event]]) extends WakeupResult[Event]
+  case class Noop[F[_]]()                                               extends WakeupResult[F, Nothing]
+  case class Processed[F[_], Event](result: F[ProcessingResult[Event]]) extends WakeupResult[F, Event]
 
   sealed trait ProcessingResult[+Event] {
     def toRaw: Ior[Instant, Event] = this match {
@@ -40,14 +39,19 @@ object WakeupResult {
     case class Failed[+Event](retry: Instant, event: Option[Event]) extends ProcessingResult[Event]
   }
 
-  def fromRaw[Event](raw: Raw[Event]): WakeupResult[Event] = raw match {
+  def fromRaw[F[_]: cats.Functor, Event](raw: Raw[F, Event]): WakeupResult[F, Event] = raw match {
     case Some(value) =>
       Processed(value.map({
         case Ior.Left(a)    => ProcessingResult.Failed(a, None)
         case Ior.Right(b)   => ProcessingResult.Proceeded(b)
         case Ior.Both(a, b) => ProcessingResult.Failed(a, Some(b))
       }))
-    case None        => Noop
+    case None        => Noop()
+  }
+
+  def toRaw[F[_]: cats.Functor, Event](result: WakeupResult[F, Event]): Raw[F, Event] = result match {
+    case Noop()            => None
+    case Processed(result) => Some(cats.Functor[F].map(result)(_.toRaw))
   }
 
 }

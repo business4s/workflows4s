@@ -22,12 +22,13 @@ object ForEachBuilder {
           def apply[Err, Out <: WCState[InnerCtx]](
               wio: WIO[Elem, Err, Out, InnerCtx],
               initialState: => WCState[InnerCtx],
-          ): Step3[InnerCtx, Err, Out] =
-            Step3(wio, () => initialState)
+          )(using ev: LiftWorkflowEffect[InnerCtx, WCEffect[Ctx]]): Step3[InnerCtx, Err, Out] =
+            Step3(wio, () => initialState, ev.asPoly)
 
           case class Step3[InnerCtx <: WorkflowContext, Err, ElemOut <: WCState[InnerCtx]](
               private val forEachElem: WIO[Elem, Err, ElemOut, InnerCtx],
               private val initialState: () => WCState[InnerCtx],
+              private val liftInnerEffect: [A] => WCEffect[InnerCtx][A] => WCEffect[Ctx][A],
           ) {
 
             def withEventsEmbeddedThrough(embedding: WorkflowEmbedding.Event[(Elem, WCEvent[InnerCtx]), WCEvent[Ctx]]): Step4 = Step4(embedding)
@@ -75,6 +76,7 @@ object ForEachBuilder {
                         stateOpt = None,
                         signalRouter = signalRouter,
                         meta = WIOMeta.ForEach(name),
+                        liftInnerEffect = liftInnerEffect,
                       )
                     }
                   }

@@ -21,16 +21,6 @@ object AwaitBuilder {
 
     case class AwaitBuilderStep1[InOut <: WCState[Ctx]](private val durationSource: DurationSource[InOut]) {
 
-      // raw variant
-//      def persistThrough(incorporate: WIO.Timer.Started => WCEvent[Ctx], detect: WCEvent[Ctx] => Option[WIO.Timer.Started]): Step2 = {
-//        val evtHanlder: EventHandler[InOut, Unit, WCEvent[Ctx], Timer.Started] = EventHandler(
-//          detect,
-//          incorporate,
-//          (_, _) => (),
-//        )
-//        Step2(evtHanlder)
-//      }
-
       def persistStartThrough[Evt <: WCEvent[Ctx]](
           incorporate: WIO.Timer.Started => Evt,
       )(extractStartTime: Evt => Instant)(using ct: ClassTag[Evt]): Step2 = {

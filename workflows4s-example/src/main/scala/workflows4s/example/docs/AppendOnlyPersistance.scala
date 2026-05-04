@@ -6,6 +6,7 @@ object AppendOnlyPersistance {
 
   // start_example
   object Context extends WorkflowContext {
+    type Effect[T]      = cats.effect.IO[T]
     override type State = MyState
     override type Event = MyState
   }

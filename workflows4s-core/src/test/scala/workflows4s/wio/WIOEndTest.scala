@@ -23,7 +23,7 @@ class WIOEndTest extends AnyFreeSpec with Matchers {
 
       val resultOpt = wf.proceed(Instant.now)
 
-      assert(resultOpt.toRaw.isEmpty)
+      assert(!resultOpt.hasEffect)
     }
 
     "event handling no-op" in {
@@ -38,7 +38,7 @@ class WIOEndTest extends AnyFreeSpec with Matchers {
       val wf: ActiveWorkflow[Ctx] = WIO.end.toWorkflow("initialState")
 
       val result = wf.handleSignal(SignalDef[String, String]())("")
-      assert(result == SignalResult.UnexpectedSignal)
+      assert(result == SignalResult.UnexpectedSignal())
     }
   }
 }

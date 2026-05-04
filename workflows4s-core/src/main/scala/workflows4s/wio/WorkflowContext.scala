@@ -1,48 +1,62 @@
 package workflows4s.wio
 
-import workflows4s.wio.builders.{AllBuilders, InterruptionBuilder}
+import cats.Applicative
+import workflows4s.wio.builders.AllBuilders
 
-/** Defines the type-level environment for a workflow: its State and Event types.
+/** Defines the type-level environment for a workflow: its State, Event, and effect types.
   *
   * Extend this trait to create a workflow context, then use the inner `WIO` object as the entry point for building workflow steps with the builder
   * DSL.
   *
   * {{{
   * object MyCtx extends WorkflowContext {
-  *   type Event = MyEvent
-  *   type State = MyState
+  *   type Effect[A] = IO[A]
+  *   type Event     = MyEvent
+  *   type State     = MyState
   * }
   *
   * val step: MyCtx.WIO[MyState, Nothing, MyState] = MyCtx.WIO.pure(...)
   * }}}
   */
 trait WorkflowContext { ctx: WorkflowContext =>
+  type Effect[_]
   type Event
   type State
-  type Ctx = WorkflowContext.AUX[State, Event]
+  type Ctx = WorkflowContext.AUX[State, Event, Effect]
 
   type WIO[-In, +Err, +Out <: State] = workflows4s.wio.WIO[In, Err, Out, Ctx]
   object WIO extends AllBuilders[Ctx] {
-    export workflows4s.wio.WIO.{Branch as _, Draft as _, Initial as _, Interruption as _, *}
+    export workflows4s.wio.WIO.{Branch as _, Draft as _, Initial as _, Interruption as _, build as _, *}
 
     type Branch[-In, +Err, +Out <: State]  = workflows4s.wio.WIO.Branch[In, Err, Out, Ctx, ?]
     type Interruption[+Err, +Out <: State] = workflows4s.wio.WIO.Interruption[Ctx, Err, Out]
     type Draft                             = WIO[Any, Nothing, Nothing]
     type Initial                           = workflows4s.wio.WIO.Initial[Ctx]
 
-    def interruption: InterruptionBuilder.Step0[Ctx] = InterruptionBuilder.Step0[Ctx]()
   }
 }
 
 object WorkflowContext {
-  private type AuxS[_S]            = WorkflowContext { type State = _S }
-  private type AuxE[_E]            = WorkflowContext { type Event = _E }
-  type State[T <: WorkflowContext] = T match {
+  private type AuxS[_S]             = WorkflowContext { type State = _S }
+  private type AuxE[_E]             = WorkflowContext { type Event = _E }
+  type AuxEff[_F[_]] >: WorkflowContext { type Effect[T] = _F[T] } <: WorkflowContext { type Effect[T] = _F[T] }
+  type State[T <: WorkflowContext]  = T match {
     case AuxS[s] => s
   }
-  type Event[T <: WorkflowContext] = T match {
+  type Event[T <: WorkflowContext]  = T match {
     case AuxE[s] => s
   }
+  type Effect[T <: WorkflowContext] = [A] =>> T match {
+    case AuxEff[f] => f[A]
+  }
 
-  type AUX[St, Evt] = WorkflowContext { type State = St; type Event = Evt }
+  type AUX[St, Evt, Eff[_]] = WorkflowContext { type State = St; type Event = Evt; type Effect[T] = Eff[T] }
+
+  // Bridges between Eff[A] and WCEffect[Ctx][A]. Both live in the companion so they participate in the
+  // implicit scope of WCEffect[Ctx] without requiring `import ctx.given` at call sites.
+  given effectToWCEffect[Eff[_], Ctx <: AuxEff[Eff], A]: Conversion[Eff[A], WCEffect[Ctx][A]] =
+    _.asInstanceOf[WCEffect[Ctx][A]]
+
+  given wcEffectApplicative[Eff[_], Ctx <: AuxEff[Eff]](using a: Applicative[Eff]): Applicative[WCEffect[Ctx]] =
+    a.asInstanceOf[Applicative[WCEffect[Ctx]]]
 }

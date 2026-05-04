@@ -1,24 +1,24 @@
 package workflows4s.wio.builders
 
-import cats.effect.IO
+import cats.Applicative
 import workflows4s.wio.internal.EventHandler
-import workflows4s.wio.{WCEvent, WCState, WIO, WIOContext, WorkflowContext}
+import workflows4s.wio.{WCEffect, WCEvent, WCState, WIO, WIOContext, WorkflowContext}
 
 import java.time.{Duration, Instant}
 import scala.reflect.ClassTag
 
 object RetryBuilder {
 
-  class Step0[In, Err, Out <: WCState[Ctx], Ctx <: WorkflowContext](base: WIO[In, Err, Out, Ctx]) {
+  class Step0[Ctx <: WorkflowContext, In, Err, Out <: WCState[Ctx]](base: WIO[In, Err, Out, Ctx])(using Applicative[WCEffect[Ctx]]) {
 
     object statelessly {
 
       type HandlerInput = (stepInput: In, error: Throwable, workflowState: WCState[Ctx])
 
-      def wakeupAt(onError: WIOContext[WCState[Ctx]] ?=> HandlerInput => IO[Option[Instant]]): WIO[In, Err, Out, Ctx] = {
+      def wakeupAt(onError: WIOContext[WCState[Ctx]] ?=> HandlerInput => WCEffect[Ctx][Option[Instant]]): WIO[In, Err, Out, Ctx] = {
         val mode = WIO.Retry.Mode.Stateless[Ctx, In](ctx =>
           (in, err, state, _) =>
-            (onError(using ctx))(in, err, state).map({
+            Applicative[WCEffect[Ctx]].map(onError(using ctx)(in, err, state))({
               case Some(value) => WIO.Retry.Stateless.Result.ScheduleWakeup(value)
               case None        => WIO.Retry.Stateless.Result.Ignore
             }),
@@ -29,7 +29,7 @@ object RetryBuilder {
       def wakeupIn(onError: PartialFunction[Throwable, Duration]): WIO[In, Err, Out, Ctx] = {
         val mode = WIO.Retry.Mode.Stateless[Ctx, In](_ =>
           (_, err, _, now) => {
-            IO.pure(onError.lift(err) match {
+            Applicative[WCEffect[Ctx]].pure(onError.lift(err) match {
               case Some(backoff) => WIO.Retry.Stateless.Result.ScheduleWakeup(now.plus(backoff))
               case None          => WIO.Retry.Stateless.Result.Ignore
             })
@@ -46,12 +46,12 @@ object RetryBuilder {
 
       type OnErrorInput = (stepInput: In, error: Throwable, workflowState: WCState[Ctx], retryState: Option[RetryState])
 
-      def onError[Event <: WCEvent[Ctx]](onError: WIOContext[WCState[Ctx]] ?=> OnErrorInput => IO[WIO.Retry.Stateful.Result[Event]])(using
+      def onError[Event <: WCEvent[Ctx]](onError: WIOContext[WCState[Ctx]] ?=> OnErrorInput => WCEffect[Ctx][WIO.Retry.Stateful.Result[Event]])(using
           ClassTag[Event],
       ): Step1[Event] =
         new Step1[Event](ctx => onError(using ctx))
 
-      class Step1[Event <: WCEvent[Ctx]](onError: WIOContext[WCState[Ctx]] => OnErrorInput => IO[WIO.Retry.Stateful.Result[Event]])(using
+      class Step1[Event <: WCEvent[Ctx]](onError: WIOContext[WCState[Ctx]] => OnErrorInput => WCEffect[Ctx][WIO.Retry.Stateful.Result[Event]])(using
           evtCt: ClassTag[Event],
       ) {
 

@@ -61,7 +61,7 @@ private[workflows4s] object GetIndexEvaluator {
       wio.stateOpt.flatMap(_.values.flatMap(x => GetIndexVisitor(x).run).maxOption)
     }
 
-    def recurse[I1, E1, O1 <: WCState[Ctx]](wio: WIO[I1, E1, O1, Ctx]): Option[Int] =
+    def recurse(wio: WIO[?, ?, ?, ?]): Option[Int] =
       new GetIndexVisitor(wio).run
 
   }

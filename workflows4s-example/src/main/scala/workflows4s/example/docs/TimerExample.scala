@@ -1,6 +1,6 @@
 package workflows4s.example.docs
 
-import workflows4s.example.docs.Context.WIO
+import workflows4s.example.docs.Context.*
 
 import scala.concurrent.duration.DurationInt
 
