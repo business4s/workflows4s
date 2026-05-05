@@ -100,7 +100,7 @@ lazy val `workflows4s-doobie` = (project in file("workflows4s-doobie"))
       "io.circe"      %% "circe-parser"                    % circeVersion,
       "com.dimafeng"  %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
       "com.dimafeng"  %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
-      "org.postgresql" % "postgresql"                      % "42.7.10"                  % Test,
+      "org.postgresql" % "postgresql"                      % "42.7.11"                  % Test,
       "org.xerial"     % "sqlite-jdbc"                     % "3.53.0.0"                 % Test,
     ),
   )
@@ -164,7 +164,7 @@ lazy val `workflows4s-web-ui` = (project in file("workflows4s-web-ui"))
       "io.circe"                      %%% "circe-core"         % circeVersion,
       "io.circe"                      %%% "circe-generic"      % circeVersion,
       "io.circe"                      %%% "circe-parser"       % circeVersion,
-      "com.softwaremill.sttp.tapir"   %%% "tapir-sttp-client4" % "1.13.17",
+      "com.softwaremill.sttp.tapir"   %%% "tapir-sttp-client4" % "1.13.18",
       "com.softwaremill.sttp.client4" %%% "cats"               % "4.0.23",
       "org.business4s"                %%% "forms4s-jsonschema" % "0.2.0",
       "org.business4s"                %%% "forms4s-tyrian"     % "0.2.0",
@@ -211,7 +211,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "org.apache.pekko"       %% "pekko-http"                      % pekkoHttpVersion, // for interacting with the app
       "org.apache.pekko"       %% "pekko-cluster-sharding-typed"    % pekkoVersion, // for realistic example and spawning actors
       "org.apache.pekko"       %% "pekko-persistence-jdbc"          % "1.2.0", // published locally until the release is there
-      "org.apache.pekko"       %% "pekko-serialization-jackson"     % "1.5.0",
+      "org.apache.pekko"       %% "pekko-serialization-jackson"     % "1.6.0",
       "com.h2database"          % "h2"                              % "2.4.240",
       "io.r2dbc"                % "r2dbc-h2"                        % "1.1.0.RELEASE",
       "com.github.pjfanning"   %% "pekko-http-circe"                % "3.9.1",
@@ -222,7 +222,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "org.apache.pekko"       %% "pekko-actor-testkit-typed"       % pekkoVersion               % Test,
       "com.dimafeng"           %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
       "com.dimafeng"           %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
-      "org.postgresql"          % "postgresql"                      % "42.7.10"                  % Test,
+      "org.postgresql"          % "postgresql"                      % "42.7.11"                  % Test,
       "org.xerial"              % "sqlite-jdbc"                     % "3.53.0.0"                 % Test,
       "org.seleniumhq.selenium" % "selenium-java"                   % "4.43.0"                   % Test,
       "org.seleniumhq.selenium" % "selenium-chrome-driver"          % "4.43.0"                   % Test,
@@ -278,10 +278,10 @@ lazy val commonSettings = Seq(
   Test / tpolecatExcludeOptions += ScalacOptions.warnNonUnitStatement,
 )
 
-lazy val pekkoVersion               = "1.5.0"
+lazy val pekkoVersion               = "1.6.0"
 lazy val pekkoHttpVersion           = "1.3.0"
 lazy val testcontainersScalaVersion = "0.44.1"
-lazy val tapirVersion               = "1.13.17"
+lazy val tapirVersion               = "1.13.18"
 lazy val circeVersion               = "0.14.15"
 
 addCommandAlias("prePR", List("compile", "Test / compile", "test", "scalafmtCheckAll").mkString(";", ";", ""))
