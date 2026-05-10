@@ -275,22 +275,22 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
     // (which only arises from the branch that was just handled — prior errors would have completed the
     // parallel on an earlier step) or all branches being Right (which requires the just-handled branch
     // to be the final one, hence Executed). If you ever hit the fallback, please file a bug report.
-    def lastIndex: Int =
+    def lastIndex: Int                                      =
       branchHandled
         .flatMap(_._2.asExecuted.map(_.index))
         .getOrElse(
           throw new IllegalStateException(
-            "Impossible: WIO.Parallel completing while handled branch is still Partial. Please report this as a bug at https://github.com/business4s/workflows4s/issues." ,
+            "Impossible: WIO.Parallel completing while handled branch is still Partial. Please report this as a bug at https://github.com/business4s/workflows4s/issues.",
           ),
         )
     maybeStates match {
-      case Left(err) =>
+      case Left(err)   =>
         Some(WFExecution.complete(newWio, Left(err), input, lastIndex))
       case Right(opts) =>
         opts.sequence match {
           case Some(states) =>
             Some(WFExecution.complete(newWio, Right(wio.formResult(states)), input, lastIndex))
-          case None => Some(WFExecution.Partial(newWio))
+          case None         => Some(WFExecution.Partial(newWio))
         }
     }
   }
