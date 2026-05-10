@@ -270,15 +270,26 @@ abstract class ProceedingVisitor[Ctx <: WorkflowContext, In, Err, Out <: WCState
 
     val maybeStates: Either[Err, Seq[Option[WCState[Ctx]]]] = updatedElements.traverse(elem => elem.wio.asExecuted.traverse(_.output))
     val newWio                                              = wio.copy(elements = updatedElements)
-    val maybeLastIndex                                      =
-      branchHandled.flatMap(_._2.asExecuted.map(_.index)) // in case of completion, index for WIO.Parallel will be the index of last executed element
+    // In case of completion, index for WIO.Parallel is the index of the last executed element.
+    // The handled branch must itself be Executed when we complete: completion requires either an error
+    // (which only arises from the branch that was just handled — prior errors would have completed the
+    // parallel on an earlier step) or all branches being Right (which requires the just-handled branch
+    // to be the final one, hence Executed). If you ever hit the fallback, please file a bug report.
+    def lastIndex: Int =
+      branchHandled
+        .flatMap(_._2.asExecuted.map(_.index))
+        .getOrElse(
+          throw new IllegalStateException(
+            "Impossible: WIO.Parallel completing while handled branch is still Partial. Please report this as a bug at https://github.com/business4s/workflows4s/issues." ,
+          ),
+        )
     maybeStates match {
       case Left(err) =>
-        Some(WFExecution.complete(newWio, Left(err), input, maybeLastIndex.get)) // is .get safe?
+        Some(WFExecution.complete(newWio, Left(err), input, lastIndex))
       case Right(opts) =>
         opts.sequence match {
           case Some(states) =>
-            Some(WFExecution.complete(newWio, Right(wio.formResult(states)), input, maybeLastIndex.get)) // is .get safe?
+            Some(WFExecution.complete(newWio, Right(wio.formResult(states)), input, lastIndex))
           case None => Some(WFExecution.Partial(newWio))
         }
     }
