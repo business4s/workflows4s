@@ -208,7 +208,7 @@ class WithdrawalWorkflow(service: WithdrawalService, checksEngine: ChecksEngine)
   private def handleCancellation = {
     WIO.interruption
       .throughSignal(Signals.cancel)
-      .handleAsync((state, signal) => {
+      .handleAsync((state: WithdrawalData, signal) => {
         def ok = WithdrawalEvent.WithdrawalCancelledByOperator(signal.operatorId, signal.comment).pure[IO]
         state match {
           case _: WithdrawalData.Empty     => ok
