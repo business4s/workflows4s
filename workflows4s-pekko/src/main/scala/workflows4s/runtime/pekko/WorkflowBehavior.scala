@@ -243,6 +243,7 @@ private class WorkflowBehavior[Ctx <: WorkflowContext](
         logger.error("Received error from post-exec wakeup: {}", error)
         reply.replyTo ! reply.msg
         Behaviors.stopped
+      case _                        => ??? // Impossible to happen
     }
 
 }
