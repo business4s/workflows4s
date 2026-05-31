@@ -144,7 +144,7 @@ class WIOHandleInterruptionTest extends AnyFreeSpec with Matchers with OptionVal
             .done
           (signalDef, handler)
         }
-        val (signalC, _, handleSignalC)            = TestUtils.signal
+        val (_, _, handleSignalC)                  = TestUtils.signal
 
         val wf            = (handleSignalB >>> handleSignalC).interruptWith(interruptHandler.toInterruption)
         val (_, instance) = TestUtils.createInstance2(wf)
@@ -213,9 +213,9 @@ class WIOHandleInterruptionTest extends AnyFreeSpec with Matchers with OptionVal
           .produceResponse((_, evt, _) => evt.req)
           .done
 
-        val (signalB, _, handleSignalB) = TestUtils.signal
-        val wf                          = handleSignalB.interruptWith(interruptHandler.toInterruption)
-        val (_, instance)               = TestUtils.createInstance2(wf)
+        val (_, _, handleSignalB) = TestUtils.signal
+        val wf                    = handleSignalB.interruptWith(interruptHandler.toInterruption)
+        val (_, instance)         = TestUtils.createInstance2(wf)
 
         instance.deliverSignal(interruptSignalDef, 42).value
 

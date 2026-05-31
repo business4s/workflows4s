@@ -41,7 +41,7 @@ class GetSignalDefsEvaluatorTest extends AnyFreeSpec with Matchers {
       }
 
       "should return the signal from the second step if the first is executed" in {
-        val (signalDef1, _, step1) = TestUtils.signal
+        val (_, _, step1)          = TestUtils.signal
         val (signalDef2, _, step2) = TestUtils.signal
         val executedStep1          = WIO.Executed(step1, Right(TestState(Nil, Nil)), TestState(Nil, Nil), 1)
         val wio                    = executedStep1 >>> step2
@@ -114,7 +114,7 @@ class GetSignalDefsEvaluatorTest extends AnyFreeSpec with Matchers {
       }
 
       "for AndThen, should only include pending signals when includeRedeliverable is false" in {
-        val (signalDef1, _, step1) = TestUtils.signal
+        val (_, _, step1)          = TestUtils.signal
         val (signalDef2, _, step2) = TestUtils.signal
         val executedStep1          = WIO.Executed(step1, Right(TestState(Nil, Nil)), TestState(Nil, Nil), 1, Some(TestEvent(1)))
         val wio                    = executedStep1 >>> step2

@@ -36,7 +36,7 @@ class HttpRoutes(service: WithdrawalWorkflowService)(using ioRuntime: IORuntime)
       checked.asJson
     case executed: WithdrawalData.Executed   =>
       executed.asJson
-    case completed: WithdrawalData.Completed =>
+    case _: WithdrawalData.Completed         =>
       Json.fromString("Completed")
   }
   val routes: Route             = {

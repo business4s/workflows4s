@@ -97,7 +97,7 @@ object MermaidRenderer {
             _        <- meta.description.traverse(addNote)
             _        <- meta.error.traverse(addPendingError(stepId, _))
           } yield signalId.some
-        case WIOExecutionProgress.HandleError(base, handler, error, _)        =>
+        case WIOExecutionProgress.HandleError(base, handler, _, _)            =>
           // generalized error label is unused as we connect specific errors directly to the handler
           for {
             baseStart       <- go(base)
@@ -195,7 +195,7 @@ object MermaidRenderer {
                         } yield ends.toList,
                       )
             _      <- setActiveNodes(ends)
-            endId  <- addStepGeneral(id => Node(id, "", shape = forkShape.some, clazz = if model.isExecuted then executedClass.some else None))
+            _      <- addStepGeneral(id => Node(id, "", shape = forkShape.some, clazz = if model.isExecuted then executedClass.some else None))
           } yield forkId.some
 
         case WIOExecutionProgress.Checkpoint(base, result) =>

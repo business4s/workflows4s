@@ -15,14 +15,14 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
 
   "WIO.Executed index" - {
     "Single step" in {
-      val (id, wio)     = TestUtils.pure
+      val (_, wio)      = TestUtils.pure
       val (_, instance) = TestUtils.createInstance2(wio)
       assert(instance.getProgress.result.get.index == 0)
     }
 
     "WIO.AndThen 2 steps" in {
-      val (id1, step1) = TestUtils.pure
-      val (id2, step2) = TestUtils.pure
+      val (_, step1) = TestUtils.pure
+      val (_, step2) = TestUtils.pure
 
       val (_, instance) = TestUtils.createInstance2(step1 >>> step2)
       instance.getProgress match {
@@ -35,9 +35,9 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
     }
 
     "WIO.AndThen 3 steps" in {
-      val (id1, step1) = TestUtils.pure
-      val (id2, step2) = TestUtils.pure
-      val (id3, step3) = TestUtils.pure
+      val (_, step1) = TestUtils.pure
+      val (_, step2) = TestUtils.pure
+      val (_, step3) = TestUtils.pure
 
       val (_, instance) = TestUtils.createInstance2(step1 >>> step2 >>> step3)
       instance.getProgress match {
@@ -51,11 +51,11 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
     }
 
     "WIO.HandleError" in {
-      val (id1, step1) = TestUtils.pure
+      val (_, step1) = TestUtils.pure
 
-      val (id2, step2) = TestUtils.error
+      val (_, step2) = TestUtils.error
 
-      val (id3, step3) = TestUtils.pure
+      val (_, step3) = TestUtils.pure
 
       val step4 = TestUtils.errorHandler >>> step3
 
@@ -74,7 +74,7 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
 
           }
 
-        case other => fail(s"Expected WIOExecutionProgress.HandleError")
+        case _ => fail(s"Expected WIOExecutionProgress.HandleError")
       }
     }
 
@@ -91,7 +91,7 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
           steps.head.result.map(_.index) shouldBe Some(0)
           steps.last.result.map(_.index) shouldBe Some(1)
           flatMappedWioProgress.result.map(_.index) shouldBe Some(1)
-        case other                                                        =>
+        case _                                                            =>
           fail(s"Expected WIOExecutionProgress.Sequence")
       }
     }
@@ -114,12 +114,12 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
 
     val (_, instance) = TestUtils.createInstance2(repeatedWio)
     instance.getProgress match {
-      case lp @ WIOExecutionProgress.Loop(_, _, meta, history) =>
+      case WIOExecutionProgress.Loop(_, _, _, history) =>
         history.size shouldBe 5
 
         history.flatMap(_.result.map(_.index)).toList shouldBe List(0, 1, 2, 3, 4) // indices are in sync with history indices
 
-      case other => fail(s"Expected WIOExecutionProgress.Loop")
+      case _ => fail(s"Expected WIOExecutionProgress.Loop")
     }
   }
 
@@ -140,7 +140,7 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
 
     val (_, instance) = TestUtils.createInstance2(repeatedWio)
     instance.getProgress match {
-      case lp @ WIOExecutionProgress.Loop(_, _, meta, history) =>
+      case WIOExecutionProgress.Loop(_, _, _, history) =>
         history.size shouldBe 3
 
         history.flatMap(_.result.map(_.index)).toList shouldBe List(1, 2, 4) // Seq(0,1), Restart(2), Seq(3, 4)
@@ -197,9 +197,9 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
 
     val (_, initialStep) = TestUtils.pure
 
-    val (_, id1, step1) = TestUtils.signal // the signal won't be delivered to keep step1 pending
-    val (id2, step2)    = TestUtils.pure   // expectedIndex : 1
-    val (id3, step3)    = TestUtils.error  // expectedIdnex: 2
+    val (_, _, step1) = TestUtils.signal // the signal won't be delivered to keep step1 pending
+    val (_, step2)    = TestUtils.pure   // expectedIndex : 1
+    val (_, step3)    = TestUtils.error  // expectedIdnex: 2
 
     val parallel = WIO.parallel
       .taking[TestState]
@@ -229,7 +229,7 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
             fail("expected WIOExecutionProgress.Sequence")
         }
 
-      case other @ _ =>
+      case _ =>
         fail("expected WIOExecutionProgress.HandleError")
     }
   }
@@ -320,9 +320,9 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
           case WIOExecutionProgress.Sequence(steps) =>
             steps.size shouldBe 3
             steps.map(_.result.map(_.index).get) shouldBe List(0, 1, 2)
-          case other                                => fail(s"Expected WIOExecutionProgress.Sequence inside Checkpoint")
+          case _                                    => fail(s"Expected WIOExecutionProgress.Sequence inside Checkpoint")
         }
-      case other                                         => fail(s"Expected WIOExecutionProgress.Checkpoint")
+      case _                                             => fail(s"Expected WIOExecutionProgress.Checkpoint")
     }
   }
 
@@ -357,7 +357,7 @@ class WIOOrderingIndexTest extends AnyFreeSpec with Matchers {
         // The base logic should not have been executed
         base.isExecuted shouldBe false
 
-      case other => fail(s"Expected WIOExecutionProgress.Interruptible")
+      case _ => fail(s"Expected WIOExecutionProgress.Interruptible")
     }
 
     instance.queryState().executed shouldBe List(interruptionStepId)

@@ -12,7 +12,7 @@ abstract class PekkoCirceSerializer[T <: AnyRef](using ct: ClassTag[T], c: Codec
   override def toBinary(obj: AnyRef): Array[Byte]                     = {
     obj match {
       case ct(e) => e.asJson.noSpaces.getBytes
-      case other => ???
+      case _     => ???
     }
   }
   def fromBinary(bytes: Array[Byte], clazz: Option[Class[?]]): AnyRef = {
