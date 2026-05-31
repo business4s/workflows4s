@@ -36,7 +36,7 @@ class WIOForEachTest extends AnyFreeSpec with Matchers with OptionValues with Ei
     }
 
     "should complete immediately with empty element list" in {
-      val (step1Id, step1)    = TestUtils.pure
+      val (_, step1)          = TestUtils.pure
       val (forEachStepId, wf) = createForEach(step1)
 
       val (_, instance) = TestUtils.createInstance2(wf.provideInput(Set()))
@@ -46,9 +46,9 @@ class WIOForEachTest extends AnyFreeSpec with Matchers with OptionValues with Ei
     }
 
     "should handle forEach execution with one element failing" in {
-      val (err, errorStep)          = TestUtils.error
-      val (forEachStepId, forEach)  = createForEach(errorStep)
-      val elements @ List(el1, el2) = genElements(2)
+      val (err, errorStep)      = TestUtils.error
+      val (_, forEach)          = createForEach(errorStep)
+      val elements @ List(_, _) = genElements(2)
 
       val errHandler = TestUtils.errorHandler
       val wf         = forEach.handleErrorWith(errHandler)
@@ -209,7 +209,7 @@ class WIOForEachTest extends AnyFreeSpec with Matchers with OptionValues with Ei
     "signal handler receives updated state after partial execution within element" in {
       // Inner workflow: signalA >>> signalB, where signalB captures state length
       // After delivering signalA for element X, signalB for element X should see the updated state
-      val (signalDef1, signal1StepId, signalStep1) = TestUtils.signal
+      val (signalDef1, _, signalStep1) = TestUtils.signal
 
       val signalDef2 = SignalDef[Int, Int](id = "state-capturing-signal")
       case class SigEvent2(stateLength: Int) extends TestCtx2.Event
@@ -222,8 +222,8 @@ class WIOForEachTest extends AnyFreeSpec with Matchers with OptionValues with Ei
         .produceResponse((state, _, _) => state.executed.length)
         .done
 
-      val (_, wf)                   = createForEach(signalStep1 >>> signalStep2)
-      val elements @ List(el1, el2) = genElements(2)
+      val (_, wf)                 = createForEach(signalStep1 >>> signalStep2)
+      val elements @ List(el1, _) = genElements(2)
 
       val (_, instance) = TestUtils.createInstance2(wf.provideInput(elements.toSet))
 

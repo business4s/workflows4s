@@ -20,8 +20,8 @@ object SequencingExample {
     val step3 = WIO.pure(MyState(3)).autoNamed()
 
     val sequence1 = for {
-      a <- step1
-      b <- step2
+      _ <- step1
+      _ <- step2
       c <- step3
     } yield c
     val sequence2 = step1.flatMap(_ => step2).flatMap(_ => step3)
