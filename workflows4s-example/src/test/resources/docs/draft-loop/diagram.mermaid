@@ -1,5 +1,5 @@
 flowchart TD
-node0:::executed@{ shape: circle, label: "Start"}
+node0@{ shape: circle, label: "Start"}
 node1["Process Item"]
 node0 --> node1
 node2@{ shape: stadium, label: "fa:fa-clock Wait before retry (1m)"}
@@ -11,4 +11,3 @@ node3 -->|"No"| node4
 node4 --> node1
 node5@{ shape: circle, label: "End"}
 node3 -->|"Yes"| node5
-classDef executed fill:#0e0
