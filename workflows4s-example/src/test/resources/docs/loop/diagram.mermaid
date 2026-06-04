@@ -1,5 +1,5 @@
 flowchart TD
-node0:::executed@{ shape: circle, label: "Start"}
+node0@{ shape: circle, label: "Start"}
 node1["Step1"]
 node0 --> node1
 node2@{ shape: hex, label: "Is everything done?"}
@@ -9,4 +9,3 @@ node2 -->|"No"| node3
 node3 --> node1
 node4@{ shape: circle, label: "End"}
 node2 -->|"Yes!"| node4
-classDef executed fill:#0e0

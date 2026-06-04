@@ -16,7 +16,7 @@ private[workflows4s] object RenderUtils {
     case WIOExecutionProgress.HandleError(base, handler, _, _)     => hasStarted(base) || hasStarted(handler)
     case WIOExecutionProgress.End(result)                          => result.isDefined
     case WIOExecutionProgress.Pure(_, result)                      => result.isDefined
-    case WIOExecutionProgress.Loop(_, _, _, history)               => history.nonEmpty
+    case WIOExecutionProgress.Loop(_, _, _, history)               => history.exists(hasStarted)
     case WIOExecutionProgress.Fork(_, _, selected)                 => selected.isDefined
     case WIOExecutionProgress.Interruptible(base, trigger, _, _)   => hasStarted(base) || hasStarted(trigger)
     case WIOExecutionProgress.Timer(_, result)                     => result.isDefined
