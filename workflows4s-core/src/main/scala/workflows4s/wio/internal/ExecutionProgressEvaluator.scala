@@ -194,7 +194,7 @@ object ExecutionProgressEvaluator {
             rest match {
               case Some(value) => WIOExecutionProgress.Sequence(steps.toList.updated(0, value)).some
               case None        =>
-                if steps.size > 3 then WIOExecutionProgress.Sequence(steps.tail).some
+                if steps.size > 2 then WIOExecutionProgress.Sequence(steps.tail).some
                 else steps(1).some
             },
           ),
