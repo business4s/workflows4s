@@ -53,7 +53,7 @@ lazy val `workflows4s-core` = (project in file("workflows4s-core"))
       "org.typelevel"              %% "cats-effect"      % "3.7.0"     % Test,
       "dev.zio"                    %% "zio"              % "2.1.26"    % Test,
       "dev.zio"                    %% "zio-interop-cats" % "23.1.0.13" % Test,
-      "ch.qos.logback"              % "logback-classic"  % "1.5.33"    % Test,
+      "ch.qos.logback"              % "logback-classic"  % "1.5.34"    % Test,
     ),
     Test / parallelExecution := false,
   )
@@ -101,7 +101,7 @@ lazy val `workflows4s-doobie` = (project in file("workflows4s-doobie"))
       "com.dimafeng"  %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
       "com.dimafeng"  %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
       "org.postgresql" % "postgresql"                      % "42.7.11"                  % Test,
-      "org.xerial"     % "sqlite-jdbc"                     % "3.53.1.0"                 % Test,
+      "org.xerial"     % "sqlite-jdbc"                     % "3.53.2.0"                 % Test,
     ),
   )
   .dependsOn(`workflows4s-core` % "compile->compile;test->test")
@@ -165,7 +165,7 @@ lazy val `workflows4s-web-ui` = (project in file("workflows4s-web-ui"))
       "io.circe"                      %%% "circe-generic"      % circeVersion,
       "io.circe"                      %%% "circe-parser"       % circeVersion,
       "com.softwaremill.sttp.tapir"   %%% "tapir-sttp-client4" % "1.13.19",
-      "com.softwaremill.sttp.client4" %%% "cats"               % "4.0.24",
+      "com.softwaremill.sttp.client4" %%% "cats"               % "4.0.25",
       "org.business4s"                %%% "forms4s-jsonschema" % "0.2.0",
       "org.business4s"                %%% "forms4s-tyrian"     % "0.2.0",
       "org.business4s"                %%% "forms4s-circe"      % "0.2.0",
@@ -214,8 +214,8 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "org.apache.pekko"       %% "pekko-serialization-jackson"     % "1.6.0",
       "com.h2database"          % "h2"                              % "2.4.240",
       "io.r2dbc"                % "r2dbc-h2"                        % "1.1.0.RELEASE",
-      "com.github.pjfanning"   %% "pekko-http-circe"                % "3.9.1",
-      "ch.qos.logback"          % "logback-classic"                 % "1.5.33",
+      "com.github.pjfanning"   %% "pekko-http-circe"                % "3.9.2",
+      "ch.qos.logback"          % "logback-classic"                 % "1.5.34",
       "dev.zio"                %% "zio"                             % "2.1.26",
       "dev.zio"                %% "zio-interop-cats"                % "23.1.0.3",
       "org.scalamock"          %% "scalamock"                       % "7.5.5"                    % Test,
@@ -223,7 +223,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "com.dimafeng"           %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
       "com.dimafeng"           %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
       "org.postgresql"          % "postgresql"                      % "42.7.11"                  % Test,
-      "org.xerial"              % "sqlite-jdbc"                     % "3.53.1.0"                 % Test,
+      "org.xerial"              % "sqlite-jdbc"                     % "3.53.2.0"                 % Test,
       "org.seleniumhq.selenium" % "selenium-java"                   % "4.44.0"                   % Test,
       "org.seleniumhq.selenium" % "selenium-chrome-driver"          % "4.44.0"                   % Test,
     ),
@@ -255,11 +255,11 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
   .settings(Revolver.enableDebugging(port = 5050))
 
 lazy val commonSettings = Seq(
-  scalaVersion      := "3.8.3",
+  scalaVersion      := "3.8.4",
   scalacOptions ++= Seq("-no-indent", "-Xmax-inlines", "64", "-explain-cyclic", "-Ydebug-cyclic"),
   libraryDependencies ++= Seq(
     "org.scalatest" %% "scalatest"       % "3.2.20" % Test,
-    "ch.qos.logback" % "logback-classic" % "1.5.33" % Test,
+    "ch.qos.logback" % "logback-classic" % "1.5.34" % Test,
   ),
   // scalafix settings
   semanticdbEnabled := true, // enable SemanticDB
