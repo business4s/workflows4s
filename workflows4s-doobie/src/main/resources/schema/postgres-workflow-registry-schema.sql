@@ -1,15 +1,20 @@
 -- doc_start
 CREATE TABLE if not exists workflow_registry
 (
-    template_id TEXT        NOT NULL,
-    instance_id TEXT        NOT NULL,
-    status      TEXT        NOT NULL CHECK (status IN ('Running', 'Awaiting', 'Finished')),
-    created_at  TIMESTAMPTZ NOT NULL,
-    updated_at  TIMESTAMPTZ NOT NULL,
-    wakeup_at   TIMESTAMPTZ NULL,
-    tags        JSONB       NOT NULL DEFAULT '{}'::JSONB,
+    template_id       TEXT        NOT NULL,
+    instance_id       TEXT        NOT NULL,
+    status            TEXT        NOT NULL CHECK (status IN ('Running', 'Awaiting', 'Finished')),
+    created_at        TIMESTAMPTZ NOT NULL,
+    updated_at        TIMESTAMPTZ NOT NULL,
+    wakeup_at         TIMESTAMPTZ NULL,
+    wakeup_claimed_at TIMESTAMPTZ NULL,
+    tags              JSONB       NOT NULL DEFAULT '{}'::JSONB,
     primary key (template_id, instance_id)
 );
+
+-- upgrade path for tables created before wakeup claims were introduced
+ALTER TABLE workflow_registry
+    ADD COLUMN IF NOT EXISTS wakeup_claimed_at TIMESTAMPTZ NULL;
 
 CREATE INDEX if not exists idx_workflow_registry_wakeup
     ON workflow_registry (wakeup_at)

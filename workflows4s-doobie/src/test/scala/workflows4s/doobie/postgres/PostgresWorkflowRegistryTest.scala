@@ -15,7 +15,8 @@ import workflows4s.runtime.registry.{WorkflowRegistry, WorkflowSearch}
 import workflows4s.utils.StringUtils
 import workflows4s.wio.{ActiveWorkflow, WIO, WorkflowContext}
 
-import java.util.concurrent.atomic.AtomicReference
+import java.sql.Timestamp
+import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
 import scala.concurrent.duration.DurationInt
 
 class PostgresWorkflowRegistryTest extends AnyFreeSpec with PostgresSuite with Matchers with BeforeAndAfterEach {
@@ -130,6 +131,116 @@ class PostgresWorkflowRegistryTest extends AnyFreeSpec with PostgresSuite with M
           .transact(xa)
           .unsafeRunSync()
         assert(remaining === 0)
+      }
+
+      "should retry a wakeup whose callback fails" in {
+        val clock    = TestClock()
+        val registry = PostgresWorkflowRegistry(xa = xa, pollInterval = 100.millis, clock = clock).unsafeRunSync()
+
+        val id       = WorkflowInstanceId("tpl", "inst-fail")
+        val attempts = new AtomicInteger(0)
+        val callback = (_: WorkflowInstanceId) => IO(attempts.incrementAndGet()) *> IO.raiseError(new RuntimeException("boom"))
+
+        registry.updateWakeup(id, Some(clock.instant.minusSeconds(1))).unsafeRunSync()
+        registry
+          .initialize(callback)
+          .use(_ => IO.sleep(500.millis))
+          .unsafeRunSync()
+
+        assert(attempts.get() >= 2)
+        val (wakeupSet, claimSet) =
+          sql"SELECT wakeup_at IS NOT NULL, wakeup_claimed_at IS NOT NULL FROM workflow_registry WHERE instance_id = ${id.instanceId}"
+            .query[(Boolean, Boolean)]
+            .unique
+            .transact(xa)
+            .unsafeRunSync()
+        assert(wakeupSet === true)
+        assert(claimSet === false)
+      }
+
+      "should not double-dispatch while a claim is live" in {
+        val clock    = TestClock()
+        val registry = PostgresWorkflowRegistry(xa = xa, pollInterval = 100.millis, clock = clock).unsafeRunSync()
+
+        val id         = WorkflowInstanceId("tpl", "inst-claimed")
+        val dispatched = new AtomicInteger(0)
+
+        registry.updateWakeup(id, Some(clock.instant.minusSeconds(1))).unsafeRunSync()
+        sql"UPDATE workflow_registry SET wakeup_claimed_at = ${Timestamp.from(clock.instant)} WHERE instance_id = ${id.instanceId}".update.run
+          .transact(xa)
+          .unsafeRunSync()
+
+        registry
+          .initialize(_ => IO(dispatched.incrementAndGet()).void)
+          .use(_ => IO.sleep(500.millis))
+          .unsafeRunSync()
+
+        assert(dispatched.get() === 0)
+      }
+
+      "should re-dispatch after a claim expires" in {
+        val clock    = TestClock()
+        val registry = PostgresWorkflowRegistry(xa = xa, pollInterval = 100.millis, clock = clock, claimTimeout = 1.minute).unsafeRunSync()
+
+        val id         = WorkflowInstanceId("tpl", "inst-expired")
+        val dispatched = new AtomicInteger(0)
+
+        registry.updateWakeup(id, Some(clock.instant.minusSeconds(10))).unsafeRunSync()
+        // simulate a dispatcher that claimed the row and died before completing
+        sql"UPDATE workflow_registry SET wakeup_claimed_at = ${Timestamp.from(clock.instant.minusSeconds(120))} WHERE instance_id = ${id.instanceId}".update.run
+          .transact(xa)
+          .unsafeRunSync()
+
+        registry
+          .initialize(_ => IO(dispatched.incrementAndGet()).void)
+          .use(_ => IO.sleep(500.millis))
+          .unsafeRunSync()
+
+        assert(dispatched.get() === 1)
+      }
+
+      "should preserve a wakeup registered during dispatch" in {
+        val clock    = TestClock()
+        val registry = PostgresWorkflowRegistry(xa = xa, pollInterval = 100.millis, clock = clock).unsafeRunSync()
+
+        val id       = WorkflowInstanceId("tpl", "inst-rearm")
+        // truncated to micros so the value survives the postgres timestamptz roundtrip unchanged
+        val nextTime = clock.instant.plusSeconds(3600).truncatedTo(java.time.temporal.ChronoUnit.MICROS)
+        val callback = (w: WorkflowInstanceId) => registry.updateWakeup(w, Some(nextTime))
+
+        registry.updateWakeup(id, Some(clock.instant.minusSeconds(1))).unsafeRunSync()
+        registry
+          .initialize(callback)
+          .use(_ => IO.sleep(500.millis))
+          .unsafeRunSync()
+
+        val remaining = sql"SELECT wakeup_at FROM workflow_registry WHERE instance_id = ${id.instanceId}"
+          .query[Option[Timestamp]]
+          .unique
+          .transact(xa)
+          .unsafeRunSync()
+        assert(remaining.map(_.toInstant) === Some(nextTime))
+      }
+
+      "should dispatch remaining wakeups when one callback fails" in {
+        val clock    = TestClock()
+        val registry = PostgresWorkflowRegistry(xa = xa, pollInterval = 100.millis, clock = clock).unsafeRunSync()
+
+        val failingId  = WorkflowInstanceId("tpl", "inst-bad")
+        val healthyId  = WorkflowInstanceId("tpl", "inst-good")
+        val dispatched = new AtomicReference[List[WorkflowInstanceId]](Nil)
+        val callback   = (w: WorkflowInstanceId) =>
+          if w == failingId then IO.raiseError(new RuntimeException("boom"))
+          else IO(dispatched.updateAndGet(w :: _)).void
+
+        registry.updateWakeup(failingId, Some(clock.instant.minusSeconds(1))).unsafeRunSync()
+        registry.updateWakeup(healthyId, Some(clock.instant.minusSeconds(1))).unsafeRunSync()
+        registry
+          .initialize(callback)
+          .use(_ => IO.sleep(500.millis))
+          .unsafeRunSync()
+
+        assert(dispatched.get().contains(healthyId))
       }
 
       "updateWakeup(None) should not resurrect a deleted row" in {
