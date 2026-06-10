@@ -45,8 +45,9 @@ object PostgresWorkflowRegistry {
       clock: Clock = Clock.systemUTC(),
       keepFinished: Boolean = false,
       taggers: Map[String, WorkflowRegistry.Tagger[?]] = Map.empty,
+      claimTimeout: FiniteDuration = 1.minute,
   ): IO[PostgresWorkflowRegistry] =
-    IO(new Impl(xa, tableName, pollInterval, clock, keepFinished, taggers))
+    IO(new Impl(xa, tableName, pollInterval, clock, keepFinished, taggers, claimTimeout))
 
   private class Impl(
       xa: Transactor[IO],
@@ -55,6 +56,7 @@ object PostgresWorkflowRegistry {
       clock: Clock,
       keepFinished: Boolean,
       taggers: Map[String, WorkflowRegistry.Tagger[?]],
+      claimTimeout: FiniteDuration,
   ) extends PostgresWorkflowRegistry
       with StrictLogging {
 
@@ -79,7 +81,7 @@ object PostgresWorkflowRegistry {
           sql"""INSERT INTO $tableFr (template_id, instance_id, status, created_at, updated_at, wakeup_at, tags)
                |VALUES (${id.templateId}, ${id.instanceId}, ${ExecutionStatus.Finished}, $nowTs, $nowTs, NULL, $tagsJson::jsonb)
                |ON CONFLICT (template_id, instance_id)
-               |DO UPDATE SET status = ${ExecutionStatus.Finished}, updated_at = $nowTs, wakeup_at = NULL, tags = $tagsJson::jsonb
+               |DO UPDATE SET status = ${ExecutionStatus.Finished}, updated_at = $nowTs, wakeup_at = NULL, wakeup_claimed_at = NULL, tags = $tagsJson::jsonb
                |WHERE $tableFr.updated_at <= $nowTs""".stripMargin.update.run.void
         case ExecutionStatus.Finished                           =>
           sql"""DELETE FROM $tableFr
@@ -95,13 +97,14 @@ object PostgresWorkflowRegistry {
       val query = at match {
         case Some(t) =>
           // Upsert so a wakeup can be scheduled before the engine has registered the instance.
+          // Resetting the claim marks the new wakeup as not-yet-dispatched, even if set mid-dispatch.
           sql"""INSERT INTO $tableFr (template_id, instance_id, status, created_at, updated_at, wakeup_at)
                |VALUES (${id.templateId}, ${id.instanceId}, ${ExecutionStatus.Awaiting}, $nowTs, $nowTs, ${Timestamp.from(t)})
                |ON CONFLICT (template_id, instance_id)
-               |DO UPDATE SET wakeup_at = ${Timestamp.from(t)}""".stripMargin.update.run.void
+               |DO UPDATE SET wakeup_at = ${Timestamp.from(t)}, wakeup_claimed_at = NULL""".stripMargin.update.run.void
         case None    =>
           // Plain update — don't resurrect a row deleted because the workflow finished.
-          sql"""UPDATE $tableFr SET wakeup_at = NULL
+          sql"""UPDATE $tableFr SET wakeup_at = NULL, wakeup_claimed_at = NULL
                |WHERE template_id = ${id.templateId} AND instance_id = ${id.instanceId}""".stripMargin.update.run.void
       }
       query.transact(xa)
@@ -115,22 +118,40 @@ object PostgresWorkflowRegistry {
         .awakeEvery[IO](pollInterval)
         .evalMap(_ => dispatchDue(wakeUp).handleErrorWith(e => IO(logger.error("Poller tick failed", e))))
 
-    // Single UPDATE...RETURNING atomically claims all due rows; concurrent pollers can't double-fire because the WHERE filters out NULL wakeups.
-    // Trade-off: a wakeup whose claim commits but whose callback is cancelled (shutdown, fiber interrupt) or fails is lost — the row's wakeup_at
-    // is already NULL. Such workflows are expected to be re-woken by other mechanisms (engine startup scan, incoming signals).
+    // Single UPDATE...RETURNING atomically leases all due rows by stamping `wakeup_claimed_at`; concurrent pollers can't double-fire because the
+    // WHERE skips rows with a live claim. `wakeup_at` is cleared only after the callback succeeds, so a dispatch that fails or dies mid-flight
+    // (shutdown, fiber interrupt, callback error) is retried: on failure the claim is released eagerly, on process death it expires after
+    // `claimTimeout` and the row becomes due again. Spurious re-deliveries are safe — waking a workflow with nothing due is a no-op.
     private def dispatchDue(wakeUp: WorkflowInstanceId => IO[Unit]): IO[Unit] = {
-      val nowTs = Timestamp.from(Instant.now(clock))
-      sql"""UPDATE $tableFr SET wakeup_at = NULL
-           |WHERE wakeup_at IS NOT NULL AND wakeup_at <= $nowTs""".stripMargin.update
-        .withGeneratedKeys[(String, String)]("template_id", "instance_id")
+      val now            = Instant.now(clock)
+      val nowTs          = Timestamp.from(now)
+      val claimExpiredTs = Timestamp.from(now.minusMillis(claimTimeout.toMillis))
+      sql"""UPDATE $tableFr SET wakeup_claimed_at = $nowTs
+           |WHERE wakeup_at IS NOT NULL AND wakeup_at <= $nowTs
+           |  AND (wakeup_claimed_at IS NULL OR wakeup_claimed_at <= $claimExpiredTs)""".stripMargin.update
+        .withGeneratedKeys[(String, String, Timestamp, Timestamp)]("template_id", "instance_id", "wakeup_at", "wakeup_claimed_at")
         .compile
         .toList
         .transact(xa)
-        .flatMap(_.parTraverse_ { case (tpl, inst) =>
+        .flatMap(_.parTraverse_ { case (tpl, inst, dueAt, claimedAt) =>
           val id = WorkflowInstanceId(tpl, inst)
-          IO(logger.debug(s"Dispatching wakeup for $id")) *> wakeUp(id)
+          (IO(logger.debug(s"Dispatching wakeup for $id")) *> wakeUp(id) *> completeDispatch(id, dueAt, claimedAt))
+            .handleErrorWith(err => IO(logger.error(s"Wakeup dispatch failed for $id, will retry", err)) *> releaseClaim(id, claimedAt))
         })
     }
+
+    // The guards on `wakeup_at` and `wakeup_claimed_at` make this a no-op if the callback (or anyone else) scheduled a new wakeup mid-dispatch.
+    private def completeDispatch(id: WorkflowInstanceId, dueAt: Timestamp, claimedAt: Timestamp): IO[Unit] =
+      sql"""UPDATE $tableFr SET wakeup_at = NULL, wakeup_claimed_at = NULL
+           |WHERE template_id = ${id.templateId} AND instance_id = ${id.instanceId}
+           |  AND wakeup_at = $dueAt AND wakeup_claimed_at = $claimedAt""".stripMargin.update.run.void.transact(xa)
+
+    private def releaseClaim(id: WorkflowInstanceId, claimedAt: Timestamp): IO[Unit] =
+      sql"""UPDATE $tableFr SET wakeup_claimed_at = NULL
+           |WHERE template_id = ${id.templateId} AND instance_id = ${id.instanceId}
+           |  AND wakeup_claimed_at = $claimedAt""".stripMargin.update.run.void
+        .transact(xa)
+        .handleErrorWith(err => IO(logger.warn(s"Failed to release wakeup claim for $id, it will expire after $claimTimeout", err)))
 
     override def getExecutingWorkflows(notUpdatedFor: FiniteDuration): fs2.Stream[ConnectionIO, WorkflowInstanceId] =
       for {
