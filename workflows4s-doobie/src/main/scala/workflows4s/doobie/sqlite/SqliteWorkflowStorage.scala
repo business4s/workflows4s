@@ -2,8 +2,8 @@ package workflows4s.doobie.sqlite
 
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
-import doobie.*
-import doobie.implicits.*
+import org.typelevel.doobie.*
+import org.typelevel.doobie.implicits.*
 import workflows4s.doobie.{ByteCodec, WorkflowStorage}
 import workflows4s.runtime.WorkflowInstanceId
 
