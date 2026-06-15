@@ -1,7 +1,7 @@
 package workflows4s.doobie
 
 import cats.effect.kernel.Resource
-import doobie.*
+import org.typelevel.doobie.*
 import workflows4s.runtime.WorkflowInstanceId
 
 /** Database-level event storage and locking. Implementations exist for PostgreSQL (advisory locks) and SQLite (database-level locks). */

@@ -4,8 +4,8 @@ import cats.arrow.FunctionK
 import cats.data.Kleisli
 import cats.{Monad, ~>}
 import com.typesafe.scalalogging.StrictLogging
-import doobie.ConnectionIO
-import doobie.implicits.*
+import org.typelevel.doobie.ConnectionIO
+import org.typelevel.doobie.implicits.*
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.{WorkflowInstanceBase, WorkflowInstanceId}
 import workflows4s.wio.*

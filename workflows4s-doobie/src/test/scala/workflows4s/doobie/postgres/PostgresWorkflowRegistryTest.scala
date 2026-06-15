@@ -2,12 +2,12 @@ package workflows4s.doobie.postgres
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import doobie.ConnectionIO
+import org.typelevel.doobie.ConnectionIO
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 import workflows4s.runtime.registry.WorkflowRegistry.ExecutionStatus
 import workflows4s.testing.TestClock
-import doobie.implicits.given
+import org.typelevel.doobie.implicits.given
 import org.scalatest.BeforeAndAfterEach
 import workflows4s.doobie.postgres.testing.PostgresSuite
 import workflows4s.runtime.WorkflowInstanceId

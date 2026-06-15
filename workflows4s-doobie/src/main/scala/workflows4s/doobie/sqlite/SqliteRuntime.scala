@@ -6,10 +6,10 @@ import cats.effect.Async
 import cats.syntax.flatMap.*
 import cats.syntax.functor.*
 import com.typesafe.scalalogging.StrictLogging
-import doobie.implicits.*
-import doobie.util.fragment.Fragment
-import doobie.util.transactor.Transactor
-import doobie.{ConnectionIO, WeakAsync}
+import org.typelevel.doobie.implicits.*
+import org.typelevel.doobie.util.fragment.Fragment
+import org.typelevel.doobie.util.transactor.Transactor
+import org.typelevel.doobie.{ConnectionIO, WeakAsync}
 import workflows4s.doobie.{ByteCodec, DbWorkflowInstance}
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.{MappedWorkflowInstance, WorkflowInstance, WorkflowInstanceId, WorkflowRuntime}

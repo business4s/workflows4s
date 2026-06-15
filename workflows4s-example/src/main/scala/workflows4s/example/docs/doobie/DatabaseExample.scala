@@ -1,7 +1,7 @@
 package workflows4s.example.docs.doobie
 
 import cats.effect.IO
-import doobie.util.transactor.Transactor
+import org.typelevel.doobie.util.transactor.Transactor
 import workflows4s.doobie.postgres.PostgresWorkflowStorage
 import workflows4s.doobie.{ByteCodec, DatabaseRuntime, WorkflowStorage}
 import workflows4s.runtime.WorkflowInstance

@@ -4,9 +4,9 @@ import cats.data.NonEmptyList
 import cats.effect.{IO, ResourceIO, Sync}
 import cats.implicits.*
 import com.typesafe.scalalogging.StrictLogging
-import doobie.*
-import doobie.implicits.*
-import doobie.util.transactor.Transactor
+import org.typelevel.doobie.*
+import org.typelevel.doobie.implicits.*
+import org.typelevel.doobie.util.transactor.Transactor
 import io.circe.Json
 import io.circe.parser.parse
 import workflows4s.runtime.WorkflowInstanceId

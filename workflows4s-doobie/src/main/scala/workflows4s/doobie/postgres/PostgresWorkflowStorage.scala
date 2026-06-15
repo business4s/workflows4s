@@ -2,8 +2,8 @@ package workflows4s.doobie.postgres
 
 import cats.effect.kernel.{Resource, Sync}
 import cats.implicits.toFunctorOps
-import doobie.*
-import doobie.implicits.*
+import org.typelevel.doobie.*
+import org.typelevel.doobie.implicits.*
 import workflows4s.doobie.{ByteCodec, WorkflowStorage}
 import workflows4s.runtime.WorkflowInstanceId
 import workflows4s.utils.StringUtils

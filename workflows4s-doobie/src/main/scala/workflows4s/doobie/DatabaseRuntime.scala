@@ -3,8 +3,8 @@ package workflows4s.doobie
 import cats.arrow.FunctionK
 import cats.data.Kleisli
 import cats.effect.Async
-import doobie.util.transactor.Transactor
-import doobie.{ConnectionIO, WeakAsync}
+import org.typelevel.doobie.util.transactor.Transactor
+import org.typelevel.doobie.{ConnectionIO, WeakAsync}
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine
 import workflows4s.runtime.{MappedWorkflowInstance, WorkflowInstance, WorkflowInstanceId, WorkflowRuntime}
 import workflows4s.wio.WIO.Initial
