@@ -2,7 +2,7 @@ package workflows4s.doobie.postgres.testing
 
 import cats.Id
 import cats.effect.Async
-import doobie.util.transactor.Transactor
+import org.typelevel.doobie.util.transactor.Transactor
 import workflows4s.doobie.postgres.PostgresWorkflowStorage
 import workflows4s.doobie.{ByteCodec, DatabaseRuntime}
 import workflows4s.runtime.instanceengine.WorkflowInstanceEngine

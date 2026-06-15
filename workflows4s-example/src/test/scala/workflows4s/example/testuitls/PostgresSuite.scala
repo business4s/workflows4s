@@ -4,9 +4,9 @@ import cats.effect.IO
 import cats.implicits.toTraverseOps
 import com.dimafeng.testcontainers.PostgreSQLContainer
 import com.dimafeng.testcontainers.scalatest.TestContainerForAll
-import doobie.*
-import doobie.implicits.*
-import doobie.util.transactor.Transactor
+import org.typelevel.doobie.*
+import org.typelevel.doobie.implicits.*
+import org.typelevel.doobie.util.transactor.Transactor
 import org.scalatest.Suite
 
 trait PostgresSuite extends TestContainerForAll { self: Suite =>
