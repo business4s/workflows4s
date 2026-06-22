@@ -164,7 +164,7 @@ lazy val `workflows4s-web-ui` = (project in file("workflows4s-web-ui"))
       "io.circe"                      %%% "circe-core"         % circeVersion,
       "io.circe"                      %%% "circe-generic"      % circeVersion,
       "io.circe"                      %%% "circe-parser"       % circeVersion,
-      "com.softwaremill.sttp.tapir"   %%% "tapir-sttp-client4" % "1.13.21",
+      "com.softwaremill.sttp.tapir"   %%% "tapir-sttp-client4" % "1.13.23",
       "com.softwaremill.sttp.client4" %%% "cats"               % "4.0.25",
       "org.business4s"                %%% "forms4s-jsonschema" % "0.2.0",
       "org.business4s"                %%% "forms4s-tyrian"     % "0.2.0",
@@ -210,7 +210,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "org.http4s"             %% "http4s-dsl"                      % "0.23.34",
       "org.apache.pekko"       %% "pekko-http"                      % pekkoHttpVersion, // for interacting with the app
       "org.apache.pekko"       %% "pekko-cluster-sharding-typed"    % pekkoVersion, // for realistic example and spawning actors
-      "org.apache.pekko"       %% "pekko-persistence-jdbc"          % "1.2.0", // published locally until the release is there
+      "org.apache.pekko"       %% "pekko-persistence-jdbc"          % "1.3.0", // published locally until the release is there
       "org.apache.pekko"       %% "pekko-serialization-jackson"     % "1.6.0",
       "com.h2database"          % "h2"                              % "2.4.240",
       "io.r2dbc"                % "r2dbc-h2"                        % "1.1.0.RELEASE",
@@ -224,8 +224,8 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "com.dimafeng"           %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
       "org.postgresql"          % "postgresql"                      % "42.7.11"                  % Test,
       "org.xerial"              % "sqlite-jdbc"                     % "3.53.2.0"                 % Test,
-      "org.seleniumhq.selenium" % "selenium-java"                   % "4.44.0"                   % Test,
-      "org.seleniumhq.selenium" % "selenium-chrome-driver"          % "4.44.0"                   % Test,
+      "org.seleniumhq.selenium" % "selenium-java"                   % "4.45.0"                   % Test,
+      "org.seleniumhq.selenium" % "selenium-chrome-driver"          % "4.45.0"                   % Test,
     ),
     Test / parallelExecution := false, // otherwise akka clusters clash
     publish / skip           := true,
@@ -281,7 +281,7 @@ lazy val commonSettings = Seq(
 lazy val pekkoVersion               = "1.6.0"
 lazy val pekkoHttpVersion           = "1.3.0"
 lazy val testcontainersScalaVersion = "0.44.1"
-lazy val tapirVersion               = "1.13.21"
+lazy val tapirVersion               = "1.13.23"
 lazy val circeVersion               = "0.14.15"
 
 addCommandAlias("prePR", List("compile", "Test / compile", "test", "scalafmtCheckAll").mkString(";", ";", ""))
