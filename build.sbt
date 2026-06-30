@@ -100,7 +100,7 @@ lazy val `workflows4s-doobie` = (project in file("workflows4s-doobie"))
       "io.circe"      %% "circe-parser"                    % circeVersion,
       "com.dimafeng"  %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
       "com.dimafeng"  %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
-      "org.postgresql" % "postgresql"                      % "42.7.11"                  % Test,
+      "org.postgresql" % "postgresql"                      % "42.7.12"                  % Test,
       "org.xerial"     % "sqlite-jdbc"                     % "3.53.2.0"                 % Test,
     ),
   )
@@ -222,7 +222,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "org.apache.pekko"       %% "pekko-actor-testkit-typed"       % pekkoVersion               % Test,
       "com.dimafeng"           %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
       "com.dimafeng"           %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
-      "org.postgresql"          % "postgresql"                      % "42.7.11"                  % Test,
+      "org.postgresql"          % "postgresql"                      % "42.7.12"                  % Test,
       "org.xerial"              % "sqlite-jdbc"                     % "3.53.2.0"                 % Test,
       "org.seleniumhq.selenium" % "selenium-java"                   % "4.45.0"                   % Test,
       "org.seleniumhq.selenium" % "selenium-chrome-driver"          % "4.45.0"                   % Test,
