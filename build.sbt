@@ -221,7 +221,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "org.apache.pekko"       %% "pekko-serialization-jackson"     % "1.6.0",
       "com.h2database"          % "h2"                              % "2.4.240",
       "io.r2dbc"                % "r2dbc-h2"                        % "1.1.0.RELEASE",
-      "com.github.pjfanning"   %% "pekko-http-circe"                % "3.9.2",
+      "com.github.pjfanning"   %% "pekko-http-circe"                % "3.10.1",
       "ch.qos.logback"          % "logback-classic"                 % "1.6.1",
       "dev.zio"                %% "zio"                             % "2.1.26",
       "dev.zio"                %% "zio-interop-cats"                % "23.1.0.3",
