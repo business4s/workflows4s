@@ -303,6 +303,18 @@ stableVersion := {
   else previousStableVersion.value.getOrElse("unreleased")
 }
 
+lazy val stableVersionFile = settingKey[File]("File that writeStableVersion writes to")
+stableVersionFile := (ThisBuild / baseDirectory).value / "target" / "stable-version.txt"
+
+// Writing to a file instead of printing, because sbt's stdout is not machine-readable
+// (ANSI escapes, progress lines, launcher output). Consumed by the website build.
+lazy val writeStableVersion = taskKey[Unit]("Writes stableVersion to stableVersionFile")
+writeStableVersion := {
+  val target = stableVersionFile.value
+  IO.write(target, stableVersion.value)
+  streams.value.log.info(s"Wrote stable version to $target")
+}
+
 ThisBuild / publishTo := {
   val centralSnapshots = "https://central.sonatype.com/repository/maven-snapshots/"
   if (isSnapshot.value) Some("central-snapshots" at centralSnapshots)
