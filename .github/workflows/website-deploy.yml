@@ -49,8 +49,11 @@ jobs:
       - name: Build
         run: |
           cd ../
-          sbt -batch -error 'print stableVersion' # something unexpected gets added to stdout on first run
-          export WORKFLOWS4S_VERSION=$(sbt -batch -error 'print stableVersion' | head -n 1)
+          # sbt stdout is not machine-readable (ANSI escapes, progress lines), so the
+          # version is written to a file by the build instead of being parsed from stdout.
+          sbt -batch writeStableVersion
+          export WORKFLOWS4S_VERSION=$(cat target/stable-version.txt)
+          echo "Building website for workflows4s $WORKFLOWS4S_VERSION"
           cd website
           yarn build
       - name: Setup Pages
