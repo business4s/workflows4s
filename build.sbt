@@ -231,7 +231,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "com.dimafeng"           %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
       "org.postgresql"          % "postgresql"                      % "42.7.13"                  % Test,
       "org.xerial"              % "sqlite-jdbc"                     % "3.53.2.1"                 % Test,
-      "org.seleniumhq.selenium" % "selenium-java"                   % "4.46.0"                   % Test,
+      "org.seleniumhq.selenium" % "selenium-java"                   % "4.47.0"                   % Test,
       "org.seleniumhq.selenium" % "selenium-chrome-driver"          % "4.47.0"                   % Test,
     ),
     Test / parallelExecution := false, // otherwise akka clusters clash
