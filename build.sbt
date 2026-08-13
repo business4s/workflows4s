@@ -292,7 +292,7 @@ lazy val commonSettings = Seq(
 lazy val pekkoVersion               = "1.6.0"
 lazy val pekkoHttpVersion           = "1.4.0"
 lazy val testcontainersScalaVersion = "0.44.1"
-lazy val tapirVersion               = "1.13.30"
+lazy val tapirVersion               = "1.13.31"
 lazy val circeVersion               = "0.14.16"
 
 addCommandAlias("prePR", List("compile", "Test / compile", "test", "scalafmtCheckAll").mkString(";", ";", ""))
