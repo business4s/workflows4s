@@ -50,7 +50,7 @@ lazy val `workflows4s-core` = (project in file("workflows4s-core"))
       "io.circe"                   %% "circe-core"       % circeVersion, // for model serialization
       "io.circe"                   %% "circe-generic"    % circeVersion, // for model serialization
       "com.lihaoyi"                %% "sourcecode"       % "0.4.4", // for auto naming
-      "org.typelevel"              %% "cats-effect"      % "3.7.0"     % Test,
+      "org.typelevel"              %% "cats-effect"      % "3.7.1"     % Test,
       "dev.zio"                    %% "zio"              % "2.1.26"    % Test,
       "dev.zio"                    %% "zio-interop-cats" % "23.1.0.13" % Test,
       "ch.qos.logback"              % "logback-classic"  % "1.6.3"     % Test,
@@ -62,7 +62,7 @@ lazy val `workflows4s-cats-effect` = (project in file("workflows4s-cats-effect")
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-effect" % "3.7.0",
+      "org.typelevel" %% "cats-effect" % "3.7.1",
     ),
   )
   .dependsOn(`workflows4s-core` % "compile->compile;test->test")
@@ -119,7 +119,7 @@ lazy val `workflows4s-quartz` = (project in file("workflows4s-quartz"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel"       %% "cats-effect" % "3.7.0",
+      "org.typelevel"       %% "cats-effect" % "3.7.1",
       "org.quartz-scheduler" % "quartz"      % "2.5.2",
     ),
   )
