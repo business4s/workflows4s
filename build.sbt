@@ -263,7 +263,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
   // fully qualified: the sbt-revolver fork auto-imports an ambiguous second `Revolver` object
   .settings(spray.revolver.RevolverPlugin.autoImport.Revolver.enableDebugging(port = 5050))
 
-lazy val scala3Version = "3.8.4"
+lazy val scala3Version = "3.9.0"
 
 lazy val commonSettings = Seq(
   scalaVersion      := scala3Version,
