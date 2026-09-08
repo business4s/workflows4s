@@ -85,7 +85,7 @@ lazy val `workflows4s-pekko` = (project in file("workflows4s-pekko"))
       "org.apache.pekko" %% "pekko-cluster-sharding-typed" % pekkoVersion,
       "org.apache.pekko" %% "pekko-persistence-testkit"    % pekkoVersion    % Test,
       "org.apache.pekko" %% "pekko-persistence-jdbc"       % "1.1.1"         % Test,
-      "com.h2database"    % "h2"                           % "2.4.240"       % Test,
+      "com.h2database"    % "h2"                           % "2.5.250"       % Test,
       "io.r2dbc"          % "r2dbc-h2"                     % "1.1.0.RELEASE" % Test,
       "io.altoo"         %% "pekko-kryo-serialization"     % "1.5.2",
     ),
@@ -110,7 +110,7 @@ lazy val `workflows4s-filesystem` = (project in file("workflows4s-filesystem"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "co.fs2" %% "fs2-io" % "3.13.0",
+      "co.fs2" %% "fs2-io" % "3.14.0",
     ),
   )
   .dependsOn(`workflows4s-core` % "compile->compile;test->test")
@@ -219,9 +219,9 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "org.apache.pekko"       %% "pekko-cluster-sharding-typed"    % pekkoVersion, // for realistic example and spawning actors
       "org.apache.pekko"       %% "pekko-persistence-jdbc"          % "1.3.0", // published locally until the release is there
       "org.apache.pekko"       %% "pekko-serialization-jackson"     % "1.7.0",
-      "com.h2database"          % "h2"                              % "2.4.240",
+      "com.h2database"          % "h2"                              % "2.5.250",
       "io.r2dbc"                % "r2dbc-h2"                        % "1.1.0.RELEASE",
-      "com.github.pjfanning"   %% "pekko-http-circe"                % "3.10.1",
+      "com.github.pjfanning"   %% "pekko-http-circe"                % "3.12.0",
       "ch.qos.logback"          % "logback-classic"                 % "1.6.3",
       "dev.zio"                %% "zio"                             % "2.1.26",
       "dev.zio"                %% "zio-interop-cats"                % "23.1.0.3",
@@ -263,7 +263,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
   // fully qualified: the sbt-revolver fork auto-imports an ambiguous second `Revolver` object
   .settings(spray.revolver.RevolverPlugin.autoImport.Revolver.enableDebugging(port = 5050))
 
-lazy val scala3Version = "3.8.4"
+lazy val scala3Version = "3.9.0"
 
 lazy val commonSettings = Seq(
   scalaVersion      := scala3Version,
