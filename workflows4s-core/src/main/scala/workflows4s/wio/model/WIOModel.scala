@@ -5,6 +5,30 @@ import io.circe.{Codec, Decoder, Encoder}
 
 sealed trait WIOModel {
   def toEmptyProgress: WIOExecutionProgress[Nothing] = WIOExecutionProgress.fromModel(this)
+
+  /** The errors that this step can raise and that are not handled inside it. */
+  def unhandledErrors: Seq[WIOMeta.Error] = {
+    val errors: Seq[WIOMeta.Error] = this match {
+      case WIOModel.Sequence(steps)                       => steps.flatMap(_.unhandledErrors)
+      case WIOModel.Dynamic(meta)                         => meta.error.toSeq
+      case WIOModel.RunIO(meta)                           => meta.error.toSeq
+      case WIOModel.HandleSignal(meta)                    => meta.error.toSeq
+      case WIOModel.HandleError(_, handler, _)            => handler.unhandledErrors
+      case WIOModel.End                                   => Seq.empty
+      case WIOModel.Pure(meta)                            => meta.error.toSeq
+      case WIOModel.Loop(base, onRestart, _)              => base.unhandledErrors ++ onRestart.toSeq.flatMap(_.unhandledErrors)
+      case WIOModel.Fork(branches, _)                     => branches.flatMap(_.unhandledErrors)
+      case WIOModel.Interruptible(base, trigger, handler) =>
+        base.unhandledErrors ++ trigger.unhandledErrors ++ handler.toSeq.flatMap(_.unhandledErrors)
+      case WIOModel.Timer(_)                              => Seq.empty
+      case WIOModel.Parallel(elements)                    => elements.flatMap(_.unhandledErrors)
+      case WIOModel.Checkpoint(base)                      => base.unhandledErrors
+      case WIOModel.Recovery()                            => Seq.empty
+      case WIOModel.Retried(base)                         => base.unhandledErrors
+      case WIOModel.ForEach(forEach, _)                   => forEach.unhandledErrors
+    }
+    errors.distinct
+  }
 }
 
 object WIOModel {

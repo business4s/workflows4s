@@ -10,7 +10,7 @@ node3 --> node4
 node5["Put Funds On Hold"]:::executed
 node4 --> node5
 subgraph node6 [" "]
-node7["Run Pending Checks"]:::executed
+node7:::executed@{ shape: procs, label: "fa:fa-repeat All checks completed? ×1"}
 node5 --> node7
 end
 node15@{ shape: stadium, label: "fa:fa-clock  (dynamic)"}

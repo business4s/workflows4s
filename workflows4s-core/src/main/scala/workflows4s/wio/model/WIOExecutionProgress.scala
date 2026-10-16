@@ -92,6 +92,10 @@ object WIOExecutionProgress {
     override def result: ExecutionResult[State]                              = history.lastOption.flatMap(_.result)
     override lazy val toModel: WIOModel                                      = WIOModel.Loop(base, onRestart, meta)
     override def map[NewState](f: State => Option[NewState]): Loop[NewState] = Loop(base, onRestart, meta, history.map(_.map(f)))
+
+    /** The number of times the loop body was started. The history alternates between the body and the `onRestart` step, and it starts with the body.
+      */
+    def iterations: Int = (history.size + 1) / 2
   }
 
   case class Fork[State](branches: Vector[WIOExecutionProgress[State]], meta: WIOMeta.Fork, selected: Option[Int])

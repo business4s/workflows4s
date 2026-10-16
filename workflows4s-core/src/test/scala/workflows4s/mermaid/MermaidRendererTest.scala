@@ -2,8 +2,10 @@ package workflows4s.mermaid
 
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
-import workflows4s.testing.TestUtils
+import workflows4s.testing.{SyncWorkflowInstance, TestUtils}
 import workflows4s.wio.{TestCtx2, TestState}
+
+import scala.concurrent.duration.FiniteDuration
 import workflows4s.wio.WIO.Draft
 
 class MermaidRendererTest extends AnyFreeSpec with Matchers {
@@ -208,6 +210,121 @@ class MermaidRendererTest extends AnyFreeSpec with Matchers {
                            |node4@{ shape: circle, label: "End"}
                            |node2 --> node4
                            |""".stripMargin)
+    }
+
+    "should render loops" - {
+      import cats.effect.IO
+
+      // Builds a polling loop: run "Poll" until it was executed `iterations` times, with a timer between the iterations.
+      def pollingLoop(iterations: Int) = {
+        val (pollId, poll)         = TestUtils.runIOCustom(IO.unit, name = Some("Poll"))
+        val (timerDuration, timer) = TestUtils.timer(secs = 1)
+        val loop                   = WIO
+          .repeat(poll)
+          .until(_.executed.count(_ == pollId) == iterations)
+          .onRestart(timer)
+          .named(conditionName = "Done?", releaseBranchName = "Yes", restartBranchName = "No")
+        (loop, timerDuration)
+      }
+
+      // Creates an instance of `wio` and runs `polls` iterations of its polling loop.
+      def runPolls(
+          wio: WIO[TestState, Nothing, TestState],
+          timerDuration: FiniteDuration,
+          polls: Int,
+      ): SyncWorkflowInstance[TestCtx2.Ctx] = {
+        val (clock, instance) = TestUtils.createInstance2(wio)
+        for i <- 1 to polls do {
+          instance.wakeup()                                // polls once, then starts the timer or leaves the loop
+          if i < polls then clock.advanceBy(timerDuration) // the next wakeup releases the timer
+        }
+        instance
+      }
+
+      "collapsed into a single node by default" in {
+        val (loop, timerDuration) = pollingLoop(iterations = 3)
+        val instance              = runPolls(loop, timerDuration, polls = 2)
+
+        val rendered = MermaidRenderer.renderWorkflow(instance.getProgress).render
+
+        assert(rendered == """flowchart TD
+                             |node0:::executed@{ shape: circle, label: "Start"}
+                             |node1@{ shape: procs, label: "fa:fa-repeat Done? ×2"}
+                             |node0 --> node1
+                             |node2@{ shape: circle, label: "End"}
+                             |node1 --> node2
+                             |classDef executed fill:#0e0
+                             |""".stripMargin)
+      }
+
+      "unrolled when requested" in {
+        val (loop, timerDuration) = pollingLoop(iterations = 3)
+        val instance              = runPolls(loop, timerDuration, polls = 2)
+
+        val rendered = MermaidRenderer.renderWorkflow(instance.getProgress, loopRendering = MermaidRenderer.LoopRendering.Unrolled).render
+
+        assert(rendered == """flowchart TD
+                             |node0:::executed@{ shape: circle, label: "Start"}
+                             |node1["Poll"]:::executed
+                             |node0 --> node1
+                             |node2:::executed@{ shape: stadium, label: "fa:fa-clock  (dynamic)"}
+                             |node1 --> node2
+                             |node3["Poll"]:::executed
+                             |node2 --> node3
+                             |node4@{ shape: stadium, label: "fa:fa-clock  (dynamic)"}
+                             |node3 --> node4
+                             |node5@{ shape: circle, label: "End"}
+                             |node4 --> node5
+                             |classDef executed fill:#0e0
+                             |""".stripMargin)
+      }
+
+      "collapsed after the loop has finished" in {
+        val (loop, timerDuration) = pollingLoop(iterations = 3)
+        val finish                = WIO.pure.makeFrom[TestState].value(identity).named("Finish")
+        val instance              = runPolls(loop >>> finish, timerDuration, polls = 3)
+
+        val rendered = MermaidRenderer.renderWorkflow(instance.getProgress).render
+
+        assert(rendered == """flowchart TD
+                             |node0:::executed@{ shape: circle, label: "Start"}
+                             |node1:::executed@{ shape: procs, label: "fa:fa-repeat Done? ×3"}
+                             |node0 --> node1
+                             |node2["Finish"]:::executed
+                             |node1 --> node2
+                             |node3@{ shape: circle, label: "End"}
+                             |node2 --> node3
+                             |classDef executed fill:#0e0
+                             |""".stripMargin)
+      }
+
+      "collapsed with the errors that can leave the loop" in {
+        val (_, failingPoll) = TestUtils.errorIO
+        val (_, timer)       = TestUtils.timer(secs = 1)
+        val loop             = WIO
+          .repeat[TestState, String, Nothing](failingPoll)
+          .until(_ => false)
+          .onRestart(timer)
+          .named(conditionName = "Done?")
+        val handler          = WIO.pure.makeFrom[(TestState, String)].value((st, err) => st.addError(err)).named("Handle")
+        val (_, instance)    = TestUtils.createInstance2(loop.handleErrorWith(handler))
+
+        instance.wakeup() // poll 1 fails, the loop ends with the error
+
+        val rendered = MermaidRenderer.renderWorkflow(instance.getProgress).render
+
+        assert(rendered == """flowchart TD
+                             |node0:::executed@{ shape: circle, label: "Start"}
+                             |node1@{ shape: procs, label: "fa:fa-repeat Done? ×1"}
+                             |node0 --> node1
+                             |node2["Handle"]:::executed
+                             |node1 -.->|"fa:fa-bolt String"| node2
+                             |node3@{ shape: circle, label: "End"}
+                             |node1 --> node3
+                             |node2 --> node3
+                             |classDef executed fill:#0e0
+                             |""".stripMargin)
+      }
     }
 
     "should generate a valid URL for viewing the rendered Mermaid diagram" in {
