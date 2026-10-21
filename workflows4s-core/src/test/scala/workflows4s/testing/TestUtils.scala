@@ -95,14 +95,14 @@ object TestUtils {
     (error, wio)
   }
 
-  def runIOCustom(logic: IO[Unit]): (StepId, WIO[TestState, Nothing, TestState, TestCtx2.Ctx]) = {
+  def runIOCustom(logic: IO[Unit], name: Option[String] = None): (StepId, WIO[TestState, Nothing, TestState, TestCtx2.Ctx]) = {
     import TestCtx2.*
     case class RunIODone(stepId: StepId) extends TestCtx2.Event
     val stepId = StepId.random
-    val wio    = WIO
+    val step   = WIO
       .runIO[TestState](_ => logic.as(RunIODone(stepId)))
       .handleEvent((st, evt) => st.addExecuted(evt.stepId))
-      .done
+    val wio    = name.fold(step.done)(step.named(_))
     (stepId, wio)
   }
 

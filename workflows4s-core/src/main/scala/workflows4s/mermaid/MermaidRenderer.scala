@@ -12,12 +12,20 @@ import scala.util.chaining.scalaUtilChainingOps
 @nowarn("msg=unused private member")
 object MermaidRenderer {
 
-  def renderWorkflow(model: WIOExecutionProgress[?], showTechnical: Boolean = false): MermaidFlowchart = {
+  enum LoopRendering {
+    case Collapsed, Unrolled
+  }
+
+  def renderWorkflow(
+      model: WIOExecutionProgress[?],
+      showTechnical: Boolean = false,
+      loopRendering: LoopRendering = LoopRendering.Collapsed,
+  ): MermaidFlowchart = {
     val (finalState, _) = (addNode(
       id => Node(id, "Start", shape = "circle".some, clazz = if RenderUtils.hasStarted(model) then executedClass.some else None),
       active = true,
     ) *>
-      render(model, showTechnical))
+      render(model, showTechnical, loopRendering))
       .run(RenderState.initial(0))
       .value
 
@@ -57,7 +65,7 @@ object MermaidRenderer {
   private val checkpointExecutedStyles = ClassDef(checkpointExecutedClass, "fill:transparent,stroke-dasharray:5 5,stroke:#0e0")
 
   // returns id of the first element rendered
-  private def render(model: WIOExecutionProgress[?], showTechnical: Boolean = false): State[RenderState, Option[NodeId]] = {
+  private def render(model: WIOExecutionProgress[?], showTechnical: Boolean, loopRendering: LoopRendering): State[RenderState, Option[NodeId]] = {
     def go(model: WIOExecutionProgress[?]): State[RenderState, Option[NodeId]] = {
       def addStep(label: String, shape: Option[String] = None): State[RenderState, NodeId] = {
         for {
@@ -128,15 +136,9 @@ object MermaidRenderer {
               _      <- meta.error.traverse(addPendingError(stepId, _))
             } yield stepId.some
           } else State.pure(None)
-        case WIOExecutionProgress.Loop(base, onRestart, meta, history)        =>
-          // history contains `current` and this is prefilled on creation,
-          // hence empty nodes have history of 1 with not started node
-          if history.size > 1 || history.lastOption.exists(RenderUtils.hasStarted) then {
-            // TODO we could render conditions as well
-            for {
-              subSteps <- history.traverse(h => go(h))
-            } yield subSteps.flatten.headOption
-          } else {
+        case loop @ WIOExecutionProgress.Loop(base, onRestart, meta, history) =>
+          if !RenderUtils.hasStarted(loop) then {
+            // Draw the loop shape with the body, the condition and the restart path.
             for {
               baseStart     <- go(base.toEmptyProgress)
               conditionNode <- addStep(meta.conditionName.getOrElse(" "), shape = conditionShape.some)
@@ -146,6 +148,23 @@ object MermaidRenderer {
               _             <- addLinks(ends, baseStart.get)
               _             <- setActiveNodes(Seq(conditionNode -> meta.exitBranchName))
             } yield baseStart
+          } else {
+            loopRendering match {
+              case LoopRendering.Unrolled  =>
+                for {
+                  subSteps <- history.traverse(h => go(h))
+                } yield subSteps.flatten.headOption
+              case LoopRendering.Collapsed =>
+                // Draw the whole loop as one node. The node shows the number of iterations when the loop ran more than once.
+                // The errors that can leave the loop become error edges of that node.
+                val count  = Option.when(loop.iterations > 1)(s"×${loop.iterations}")
+                val label  = (Seq("fa:fa-repeat") ++ meta.conditionName ++ count).mkString(" ")
+                val errors = loop.toModel.unhandledErrors
+                for {
+                  stepId <- addStep(label, shape = loopShape.some)
+                  _      <- errors.traverse(addPendingError(stepId, _))
+                } yield stepId.some
+            }
           }
         case WIOExecutionProgress.Fork(branches, meta, _)                     => {
           def renderBranch(
@@ -232,6 +251,7 @@ object MermaidRenderer {
   private val eventShape     = "stadium"
   private val conditionShape = "hex"
   private val forkShape      = "fork"
+  private val loopShape      = "procs"
 
   private def cleanActiveNodes: State[RenderState, Seq[ActiveNode]]            = State { s => s.copy(activeNodes = Seq()) -> s.activeNodes }
   private def cleanPendingErrors: State[RenderState, Seq[PendingError]]        = State { s => s.copy(pendingErrors = Seq()) -> s.pendingErrors }
