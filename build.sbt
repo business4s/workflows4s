@@ -213,8 +213,8 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.http4s"             %% "http4s-ember-server"             % "0.23.36",
-      "org.http4s"             %% "http4s-dsl"                      % "0.23.36",
+      "org.http4s"             %% "http4s-ember-server"             % "0.23.37",
+      "org.http4s"             %% "http4s-dsl"                      % "0.23.37",
       "org.apache.pekko"       %% "pekko-http"                      % pekkoHttpVersion, // for interacting with the app
       "org.apache.pekko"       %% "pekko-cluster-sharding-typed"    % pekkoVersion, // for realistic example and spawning actors
       "org.apache.pekko"       %% "pekko-persistence-jdbc"          % "1.3.0", // published locally until the release is there
@@ -225,14 +225,14 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "ch.qos.logback"          % "logback-classic"                 % "1.6.3",
       "dev.zio"                %% "zio"                             % "2.1.26",
       "dev.zio"                %% "zio-interop-cats"                % "23.1.0.3",
-      "org.scalamock"          %% "scalamock"                       % "7.5.5"                    % Test,
+      "org.scalamock"          %% "scalamock-scalatest"             % "7.6.0"                    % Test,
       "org.apache.pekko"       %% "pekko-actor-testkit-typed"       % pekkoVersion               % Test,
       "com.dimafeng"           %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
       "com.dimafeng"           %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
       "org.postgresql"          % "postgresql"                      % "42.7.13"                  % Test,
       "org.xerial"              % "sqlite-jdbc"                     % "3.53.4.0"                 % Test,
-      "org.seleniumhq.selenium" % "selenium-java"                   % "4.48.0"                   % Test,
-      "org.seleniumhq.selenium" % "selenium-chrome-driver"          % "4.48.0"                   % Test,
+      "org.seleniumhq.selenium" % "selenium-java"                   % "4.49.0"                   % Test,
+      "org.seleniumhq.selenium" % "selenium-chrome-driver"          % "4.49.0"                   % Test,
     ),
     Test / parallelExecution := false, // otherwise akka clusters clash
     publish / skip           := true,
