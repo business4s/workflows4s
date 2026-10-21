@@ -155,9 +155,10 @@ object MermaidRenderer {
                   subSteps <- history.traverse(h => go(h))
                 } yield subSteps.flatten.headOption
               case LoopRendering.Collapsed =>
-                // Draw the whole loop as one node that shows the number of iterations.
+                // Draw the whole loop as one node. The node shows the number of iterations when the loop ran more than once.
                 // The errors that can leave the loop become error edges of that node.
-                val label  = (Seq("fa:fa-repeat") ++ meta.conditionName :+ s"×${loop.iterations}").mkString(" ")
+                val count  = Option.when(loop.iterations > 1)(s"×${loop.iterations}")
+                val label  = (Seq("fa:fa-repeat") ++ meta.conditionName ++ count).mkString(" ")
                 val errors = loop.toModel.unhandledErrors
                 for {
                   stepId <- addStep(label, shape = loopShape.some)

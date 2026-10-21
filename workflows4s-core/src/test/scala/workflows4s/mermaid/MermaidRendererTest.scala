@@ -298,7 +298,7 @@ class MermaidRendererTest extends AnyFreeSpec with Matchers {
                              |""".stripMargin)
       }
 
-      "collapsed with the errors that can leave the loop" in {
+      "collapsed with the errors that can leave the loop, without a count after one iteration" in {
         val (_, failingPoll) = TestUtils.errorIO
         val (_, timer)       = TestUtils.timer(secs = 1)
         val loop             = WIO
@@ -315,7 +315,7 @@ class MermaidRendererTest extends AnyFreeSpec with Matchers {
 
         assert(rendered == """flowchart TD
                              |node0:::executed@{ shape: circle, label: "Start"}
-                             |node1@{ shape: procs, label: "fa:fa-repeat Done? ×1"}
+                             |node1@{ shape: procs, label: "fa:fa-repeat Done?"}
                              |node0 --> node1
                              |node2["Handle"]:::executed
                              |node1 -.->|"fa:fa-bolt String"| node2

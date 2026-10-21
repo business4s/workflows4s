@@ -5,6 +5,7 @@ import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{EitherValues, OptionValues}
 import workflows4s.testing.TestUtils
+import workflows4s.wio.model.WIOExecutionProgress
 
 import scala.util.chaining.scalaUtilChainingOps
 
@@ -224,6 +225,48 @@ class WIOLoopTest extends AnyFreeSpec with Matchers with OptionValues with Eithe
         assert(instance.queryState().executed == List(step1Id, step2Id, step1Id, step2Id, step1Id, loopFinishedId))
       }
     }
+
+    "should count the iterations in its progress" - {
+      "after the loop finished going forward" in {
+        val (step1Id, step1) = TestUtils.pure
+        val (_, wf)          = createLoop(step1, step1Id, None, maxIterations = 3)
+        val (_, instance)    = TestUtils.createInstance2(wf)
+
+        assert(loopProgress(instance.getProgress).iterations == 3)
+      }
+      "after the loop finished going backward" in {
+        val (step1Id, step1) = TestUtils.pure
+        val (_, step2)       = TestUtils.pure
+        val (_, wf)          = createLoop(step1, step1Id, Some(step2), maxIterations = 2)
+        val (_, instance)    = TestUtils.createInstance2(wf)
+
+        assert(loopProgress(instance.getProgress).iterations == 2)
+      }
+      "while the loop waits in the restart step" in {
+        val (step1Id, step1)       = TestUtils.runIO
+        val (timerDuration, timer) = TestUtils.timer()
+        val loop                   = TestCtx2.WIO
+          .repeat(step1)
+          .until(_.executed.count(_ == step1Id) == 3)
+          .onRestart(timer)
+          .done
+        val (clock, instance)      = TestUtils.createInstance2(loop)
+
+        instance.wakeup() // body ran once, the timer is pending
+        assert(loopProgress(instance.getProgress).iterations == 1)
+
+        clock.advanceBy(timerDuration)
+        instance.wakeup() // the timer was released, the body ran again
+        assert(loopProgress(instance.getProgress).iterations == 2)
+      }
+    }
+  }
+
+  // Finds the loop at the start of the progress tree.
+  def loopProgress(progress: WIOExecutionProgress[?]): WIOExecutionProgress.Loop[?] = progress match {
+    case loop: WIOExecutionProgress.Loop[?]   => loop
+    case WIOExecutionProgress.Sequence(steps) => loopProgress(steps.head)
+    case other                                => fail(s"Expected a loop at the start of the progress, got $other")
   }
 
   def createLoop[Err](
