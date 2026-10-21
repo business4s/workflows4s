@@ -225,7 +225,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "ch.qos.logback"          % "logback-classic"                 % "1.6.3",
       "dev.zio"                %% "zio"                             % "2.1.26",
       "dev.zio"                %% "zio-interop-cats"                % "23.1.0.3",
-      "org.scalamock"          %% "scalamock"                       % "7.6.0"                    % Test,
+      "org.scalamock"          %% "scalamock-scalatest"             % "7.6.0"                    % Test,
       "org.apache.pekko"       %% "pekko-actor-testkit-typed"       % pekkoVersion               % Test,
       "com.dimafeng"           %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
       "com.dimafeng"           %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
