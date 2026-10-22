@@ -134,7 +134,7 @@ lazy val `workflows4s-web-api-shared` = (projectMatrix in file("workflows4s-web-
       "io.circe"                      %% "circe-core"         % circeVersion,
       "io.circe"                      %% "circe-generic"      % circeVersion,
       "com.softwaremill.sttp.tapir"   %% "tapir-apispec-docs" % tapirVersion,
-      "com.softwaremill.sttp.apispec" %% "jsonschema-circe"   % "0.11.10",
+      "com.softwaremill.sttp.apispec" %% "jsonschema-circe"   % "0.12.0",
     ),
   )
   .jvmPlatform(scalaVersions = Seq(scala3Version))
