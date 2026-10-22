@@ -52,7 +52,7 @@ lazy val `workflows4s-core` = (project in file("workflows4s-core"))
       "com.lihaoyi"                %% "sourcecode"       % "0.4.4", // for auto naming
       "org.typelevel"              %% "cats-effect"      % "3.7.1"     % Test,
       "dev.zio"                    %% "zio"              % "2.1.27"    % Test,
-      "dev.zio"                    %% "zio-interop-cats" % "23.1.0.13" % Test,
+      "dev.zio"                    %% "zio-interop-cats" % "23.1.0.14" % Test,
       "ch.qos.logback"              % "logback-classic"  % "1.6.5"     % Test,
     ),
     Test / parallelExecution := false,
