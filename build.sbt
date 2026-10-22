@@ -232,7 +232,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "org.postgresql"          % "postgresql"                      % "42.7.14"                  % Test,
       "org.xerial"              % "sqlite-jdbc"                     % "3.53.4.0"                 % Test,
       "org.seleniumhq.selenium" % "selenium-java"                   % "4.49.0"                   % Test,
-      "org.seleniumhq.selenium" % "selenium-chrome-driver"          % "4.49.0"                   % Test,
+      "org.seleniumhq.selenium" % "selenium-chrome-driver"          % "4.51.0"                   % Test,
     ),
     Test / parallelExecution := false, // otherwise akka clusters clash
     publish / skip           := true,
