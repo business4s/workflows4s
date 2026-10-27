@@ -15,14 +15,14 @@ object HandleErrorExample {
   // end_declarative
 
   // start_dynamic
-  val retryHandler: WIO[MyState, Nothing, MyState]             = WIO.pure.makeFrom[MyState].value(s => s.copy(counter = s.counter + 1)).autoNamed()
-  val giveUpHandler: WIO[MyState, Nothing, MyState]            = WIO.pure.makeFrom[MyState].value(_.copy(result = Some("failed"))).autoNamed()
+  val incrementCounter: WIO[MyState, Nothing, MyState]         = WIO.pure.makeFrom[MyState].value(s => s.copy(counter = s.counter + 1)).autoNamed()
+  val resetCounter: WIO[MyState, Nothing, MyState]             = WIO.pure.makeFrom[MyState].value(_.copy(counter = 0)).autoNamed()
   val chooseHandler: WIO[(MyState, MyError), Nothing, MyState] =
     WIO.pure
       .makeFrom[(MyState, MyError)]
-      .value((state, _) => state)
+      .value((state, error) => state.copy(result = Some(error.toString)))
       .autoNamed()
-      .flatMap(state => if state.counter < 3 then retryHandler else giveUpHandler)
+      .flatMap(state => if state.counter < 3 then incrementCounter else resetCounter)
 
   val errorHandledDynamically: WIO[MyState, Nothing, MyState] =
     doThings.handleErrorWith(chooseHandler)

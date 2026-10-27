@@ -17,6 +17,7 @@ Errors defined and handled should be domain errors and not technical ones. Domai
 
 The handler passed to `handleErrorWith` receives the state and the error as input, but its steps are fixed when the workflow is defined.
 To choose the steps based on the state or the error, start the handler with `WIO.pure` and `flatMap` into the step you need.
+`flatMap` only receives the state returned by the `WIO.pure` step, so copy anything the choice needs from the error into that state.
 
 ```scala file=./main/scala/workflows4s/example/docs/HandleErrorExample.scala start=start_dynamic end=end_dynamic
 ```
