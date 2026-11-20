@@ -51,9 +51,9 @@ lazy val `workflows4s-core` = (project in file("workflows4s-core"))
       "io.circe"                   %% "circe-generic"    % circeVersion, // for model serialization
       "com.lihaoyi"                %% "sourcecode"       % "0.4.4", // for auto naming
       "org.typelevel"              %% "cats-effect"      % "3.7.1"     % Test,
-      "dev.zio"                    %% "zio"              % "2.1.26"    % Test,
-      "dev.zio"                    %% "zio-interop-cats" % "23.1.0.13" % Test,
-      "ch.qos.logback"              % "logback-classic"  % "1.6.3"     % Test,
+      "dev.zio"                    %% "zio"              % "2.1.27"    % Test,
+      "dev.zio"                    %% "zio-interop-cats" % "23.1.0.14" % Test,
+      "ch.qos.logback"              % "logback-classic"  % "1.6.5"     % Test,
     ),
     Test / parallelExecution := false,
   )
@@ -85,7 +85,7 @@ lazy val `workflows4s-pekko` = (project in file("workflows4s-pekko"))
       "org.apache.pekko" %% "pekko-cluster-sharding-typed" % pekkoVersion,
       "org.apache.pekko" %% "pekko-persistence-testkit"    % pekkoVersion    % Test,
       "org.apache.pekko" %% "pekko-persistence-jdbc"       % "1.1.1"         % Test,
-      "com.h2database"    % "h2"                           % "2.5.250"       % Test,
+      "com.h2database"    % "h2"                           % "2.5.252"       % Test,
       "io.r2dbc"          % "r2dbc-h2"                     % "1.1.0.RELEASE" % Test,
       "io.altoo"         %% "pekko-kryo-serialization"     % "1.5.2",
     ),
@@ -100,7 +100,7 @@ lazy val `workflows4s-doobie` = (project in file("workflows4s-doobie"))
       "io.circe"      %% "circe-parser"                    % circeVersion,
       "com.dimafeng"  %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
       "com.dimafeng"  %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
-      "org.postgresql" % "postgresql"                      % "42.7.13"                  % Test,
+      "org.postgresql" % "postgresql"                      % "42.7.14"                  % Test,
       "org.xerial"     % "sqlite-jdbc"                     % "3.53.4.0"                 % Test,
     ),
   )
@@ -134,7 +134,7 @@ lazy val `workflows4s-web-api-shared` = (projectMatrix in file("workflows4s-web-
       "io.circe"                      %% "circe-core"         % circeVersion,
       "io.circe"                      %% "circe-generic"      % circeVersion,
       "com.softwaremill.sttp.tapir"   %% "tapir-apispec-docs" % tapirVersion,
-      "com.softwaremill.sttp.apispec" %% "jsonschema-circe"   % "0.11.10",
+      "com.softwaremill.sttp.apispec" %% "jsonschema-circe"   % "0.12.0",
     ),
   )
   .jvmPlatform(scalaVersions = Seq(scala3Version))
@@ -164,8 +164,8 @@ lazy val `workflows4s-web-ui` = (project in file("workflows4s-web-ui"))
       "io.circe"                      %% "circe-core"         % circeVersion,
       "io.circe"                      %% "circe-generic"      % circeVersion,
       "io.circe"                      %% "circe-parser"       % circeVersion,
-      "com.softwaremill.sttp.tapir"   %% "tapir-sttp-client4" % "1.13.31",
-      "com.softwaremill.sttp.client4" %% "cats"               % "4.0.26",
+      "com.softwaremill.sttp.tapir"   %% "tapir-sttp-client4" % "1.13.33",
+      "com.softwaremill.sttp.client4" %% "cats"               % "4.0.27",
       "org.business4s"                %% "forms4s-jsonschema" % "0.2.0",
       "org.business4s"                %% "forms4s-tyrian"     % "0.2.0",
       "org.business4s"                %% "forms4s-circe"      % "0.2.0",
@@ -213,26 +213,26 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.http4s"             %% "http4s-ember-server"             % "0.23.37",
-      "org.http4s"             %% "http4s-dsl"                      % "0.23.37",
+      "org.http4s"             %% "http4s-ember-server"             % "0.23.38",
+      "org.http4s"             %% "http4s-dsl"                      % "0.23.38",
       "org.apache.pekko"       %% "pekko-http"                      % pekkoHttpVersion, // for interacting with the app
       "org.apache.pekko"       %% "pekko-cluster-sharding-typed"    % pekkoVersion, // for realistic example and spawning actors
       "org.apache.pekko"       %% "pekko-persistence-jdbc"          % "1.3.0", // published locally until the release is there
-      "org.apache.pekko"       %% "pekko-serialization-jackson"     % "1.7.0",
-      "com.h2database"          % "h2"                              % "2.5.250",
+      "org.apache.pekko"       %% "pekko-serialization-jackson"     % "1.7.1",
+      "com.h2database"          % "h2"                              % "2.5.252",
       "io.r2dbc"                % "r2dbc-h2"                        % "1.1.0.RELEASE",
       "com.github.pjfanning"   %% "pekko-http-circe"                % "3.12.0",
-      "ch.qos.logback"          % "logback-classic"                 % "1.6.3",
-      "dev.zio"                %% "zio"                             % "2.1.26",
+      "ch.qos.logback"          % "logback-classic"                 % "1.6.5",
+      "dev.zio"                %% "zio"                             % "2.1.27",
       "dev.zio"                %% "zio-interop-cats"                % "23.1.0.3",
-      "org.scalamock"          %% "scalamock-scalatest"             % "7.6.0"                    % Test,
+      "org.scalamock"          %% "scalamock-scalatest"             % "7.6.1"                    % Test,
       "org.apache.pekko"       %% "pekko-actor-testkit-typed"       % pekkoVersion               % Test,
       "com.dimafeng"           %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
       "com.dimafeng"           %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
-      "org.postgresql"          % "postgresql"                      % "42.7.13"                  % Test,
+      "org.postgresql"          % "postgresql"                      % "42.7.14"                  % Test,
       "org.xerial"              % "sqlite-jdbc"                     % "3.53.4.0"                 % Test,
-      "org.seleniumhq.selenium" % "selenium-java"                   % "4.49.0"                   % Test,
-      "org.seleniumhq.selenium" % "selenium-chrome-driver"          % "4.49.0"                   % Test,
+      "org.seleniumhq.selenium" % "selenium-java"                   % "4.51.0"                   % Test,
+      "org.seleniumhq.selenium" % "selenium-chrome-driver"          % "4.51.0"                   % Test,
     ),
     Test / parallelExecution := false, // otherwise akka clusters clash
     publish / skip           := true,
@@ -270,7 +270,7 @@ lazy val commonSettings = Seq(
   scalacOptions ++= Seq("-no-indent", "-Xmax-inlines", "64", "-explain-cyclic", "-Ydebug-cyclic"),
   libraryDependencies ++= Seq(
     "org.scalatest" %% "scalatest"       % "3.2.20" % Test,
-    "ch.qos.logback" % "logback-classic" % "1.6.3"  % Test,
+    "ch.qos.logback" % "logback-classic" % "1.6.5"  % Test,
   ),
   // scalafix settings
   semanticdbEnabled := true, // enable SemanticDB
@@ -289,11 +289,11 @@ lazy val commonSettings = Seq(
   Test / tpolecatExcludeOptions += ScalacOptions.warnNonUnitStatement,
 )
 
-lazy val pekkoVersion               = "1.7.0"
-lazy val pekkoHttpVersion           = "1.4.0"
+lazy val pekkoVersion               = "1.7.1"
+lazy val pekkoHttpVersion           = "1.4.2"
 lazy val testcontainersScalaVersion = "0.44.1"
-lazy val tapirVersion               = "1.13.31"
-lazy val circeVersion               = "0.14.16"
+lazy val tapirVersion               = "1.13.33"
+lazy val circeVersion               = "0.14.17"
 
 addCommandAlias("prePR", List("compile", "Test / compile", "test", "scalafmtCheckAll").mkString(";", ";", ""))
 
