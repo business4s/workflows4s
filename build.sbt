@@ -96,7 +96,7 @@ lazy val `workflows4s-doobie` = (project in file("workflows4s-doobie"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "doobie-core"                     % "1.0.0-RC13",
+      "org.typelevel" %% "doobie-core"                     % "1.0.0-RC14",
       "io.circe"      %% "circe-parser"                    % circeVersion,
       "com.dimafeng"  %% "testcontainers-scala-scalatest"  % testcontainersScalaVersion % Test,
       "com.dimafeng"  %% "testcontainers-scala-postgresql" % testcontainersScalaVersion % Test,
