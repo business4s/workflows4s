@@ -165,7 +165,7 @@ lazy val `workflows4s-web-ui` = (project in file("workflows4s-web-ui"))
       "io.circe"                      %% "circe-generic"      % circeVersion,
       "io.circe"                      %% "circe-parser"       % circeVersion,
       "com.softwaremill.sttp.tapir"   %% "tapir-sttp-client4" % "1.14.1",
-      "com.softwaremill.sttp.client4" %% "cats"               % "4.0.27",
+      "com.softwaremill.sttp.client4" %% "cats"               % "4.1.3",
       "org.business4s"                %% "forms4s-jsonschema" % "0.3.0",
       "org.business4s"                %% "forms4s-tyrian"     % "0.3.0",
       "org.business4s"                %% "forms4s-circe"      % "0.3.0",
