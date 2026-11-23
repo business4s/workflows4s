@@ -290,7 +290,7 @@ lazy val commonSettings = Seq(
 )
 
 lazy val pekkoVersion               = "2.0.0"
-lazy val pekkoHttpVersion           = "1.4.2"
+lazy val pekkoHttpVersion           = "2.0.0"
 lazy val testcontainersScalaVersion = "0.44.1"
 lazy val tapirVersion               = "1.14.1"
 lazy val circeVersion               = "0.14.17"
