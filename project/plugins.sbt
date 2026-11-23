@@ -11,5 +11,5 @@ addSbtPlugin("com.indoorvivants" % "sbt-revolver"        % "0.11.2")
 addSbtPlugin("com.github.sbt"    % "sbt-unidoc"          % "0.6.1")
 
 libraryDependencies ++= Seq(
-  "com.lihaoyi" %% "os-lib" % "0.11.8",
+  "com.lihaoyi" %% "os-lib" % "0.11.10",
 )
