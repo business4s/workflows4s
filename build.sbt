@@ -217,7 +217,7 @@ lazy val `workflows4s-example` = (project in file("workflows4s-example"))
       "org.http4s"             %% "http4s-dsl"                      % "0.23.38",
       "org.apache.pekko"       %% "pekko-http"                      % pekkoHttpVersion, // for interacting with the app
       "org.apache.pekko"       %% "pekko-cluster-sharding-typed"    % pekkoVersion, // for realistic example and spawning actors
-      "org.apache.pekko"       %% "pekko-persistence-jdbc"          % "1.3.0", // published locally until the release is there
+      "org.apache.pekko"       %% "pekko-persistence-jdbc"          % "1.4.0", // published locally until the release is there
       "org.apache.pekko"       %% "pekko-serialization-jackson"     % "2.0.0",
       "com.h2database"          % "h2"                              % "2.5.252",
       "io.r2dbc"                % "r2dbc-h2"                        % "1.1.0.RELEASE",
